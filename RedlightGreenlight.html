@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Red Light, Green Light - TV Mode with Button</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial Black', 'Arial', sans-serif;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.5s ease;
+            text-align: center;
+            background-color: #222; 
+            color: white;
+            overflow: hidden;
+            user-select: none; /* Prevents text highlighting when clicking fast */
+        }
+
+        h1 {
+            font-size: 5vh; 
+            text-transform: uppercase;
+            margin: 0 0 1vh 0;
+            letter-spacing: 5px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+
+        #status {
+            margin-top: 1vh;
+            font-size: 2.5vh;
+            color: #aaa;
+            font-family: 'Arial', sans-serif;
+        }
+
+        /* --- Start Screen --- */
+        #controls p { font-size: 3vh; margin-bottom: 4vh; }
+
+        #start-btn {
+            padding: 2vh 5vh;
+            font-size: 4vh;
+            background-color: #444;
+            color: white;
+            border: 4px solid white;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #start-btn:hover { background-color: white; color: #222; }
+
+        .hidden { display: none !important; }
+
+        /* --- Stoplight Container --- */
+        #game-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            width: 100%;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* --- SVG Stoplight Styles --- */
+        .traffic-light-svg {
+            height: 65vh; /* Slightly smaller to make room for the button */
+            width: auto;
+            filter: drop-shadow(0 0 20px rgba(0,0,0,0.8));
+            margin-bottom: 2vh;
+        }
+
+        /* Default "OFF" states */
+        .light-circle { transition: all 0.2s ease; }
+        #red-light-circle { fill: #380808; }
+        #yellow-light-circle { fill: #383808; }
+        #green-light-circle { fill: #083808; }
+
+        /* --- Active States --- */
+        #game-display.is-red #red-light-circle {
+            fill: #ff0000;
+            filter: drop-shadow(0 0 60px #ff0000);
+        }
+
+        #game-display.is-green #green-light-circle {
+            fill: #00ff00;
+            filter: drop-shadow(0 0 60px #00ff00);
+        }
+
+        /* --- THE NEW MANUAL BUTTON --- */
+        #manual-btn {
+            z-index: 100;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            color: white;
+            padding: 15px 40px;
+            font-size: 3vh;
+            border-radius: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: background 0.2s;
+            margin-top: 1vh;
+            font-family: 'Arial', sans-serif;
+            font-weight: bold;
+        }
+        
+        #manual-btn:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            border-color: white;
+        }
+
+        #manual-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* --- TIU WATERMARK --- */
+        .app-signature {
+            position: fixed; /* Keep it fixed relative to the viewport */
+            bottom: 5px;     /* Small margin from the bottom edge */
+            left: 10px;      /* Small margin from the left edge */
+            font-size: 14px; /* Small, legible font size */
+            color: #ccc;     /* Light gray color */
+            opacity: 0.2;    /* Very subtle against the dark background */
+            z-index: 1000;   /* Ensure it stays on top of everything */
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: 'Arial', sans-serif;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="controls">
+        <h1>Red Light Green Light</h1>
+        <p>Connect Microphone & Click Start</p>
+        <button id="start-btn" onclick="startListening()">START GAME</button>
+    </div>
+
+    <div id="game-display" class="hidden">
+        
+        <h1 id="light-text">WAITING...</h1>
+
+        <svg class="traffic-light-svg" viewBox="0 0 140 340" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="10" width="120" height="320" rx="30" ry="30" fill="#111" stroke="#444" stroke-width="4"/>
+            <path d="M 20 60 Q 70 40 120 60" stroke="black" stroke-width="2" fill="none" opacity="0.5"/>
+            <path d="M 20 160 Q 70 140 120 160" stroke="black" stroke-width="2" fill="none" opacity="0.5"/>
+            <path d="M 20 260 Q 70 240 120 260" stroke="black" stroke-width="2" fill="none" opacity="0.5"/>
+
+            <circle id="red-light-circle" class="light-circle" cx="70" cy="70" r="45" stroke="#222" stroke-width="2"/>
+            <circle id="yellow-light-circle" class="light-circle" cx="70" cy="170" r="45" stroke="#222" stroke-width="2"/>
+            <circle id="green-light-circle" class="light-circle" cx="70" cy="270" r="45" stroke="#222" stroke-width="2"/>
+        </svg>
+
+        <button id="manual-btn" onclick="toggleLights(event)">SWITCH LIGHT</button>
+
+        <div id="status">Listening...</div>
+    </div>
+
+    <div class="app-signature">TIU</div>
+
+    <script>
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        const body = document.body;
+        const lightText = document.getElementById('light-text');
+        const statusText = document.getElementById('status');
+        const controls = document.getElementById('controls');
+        const gameDisplay = document.getElementById('game-display');
+        const manualBtn = document.getElementById('manual-btn');
+
+        let recognition;
+        let currentMode = 'neutral'; 
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true; 
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+
+            recognition.onstart = function() {
+                controls.classList.add('hidden');
+                gameDisplay.classList.remove('hidden');
+                statusText.innerText = "Listening for commands...";
+            };
+
+            recognition.onend = function() {
+                if (!controls.classList.contains('hidden')) return;
+                recognition.start();
+            };
+
+            recognition.onresult = function(event) {
+                const lastResultIndex = event.results.length - 1;
+                const transcript = event.results[lastResultIndex][0].transcript.toLowerCase().trim();
+                
+                statusText.innerText = `Heard: "${transcript}"`;
+
+                if (transcript.includes("green") || transcript.includes("go")) {
+                    setGreenLight();
+                } 
+                else if (transcript.includes("red") || transcript.includes("stop")) {
+                    setRedLight();
+                }
+            };
+
+            recognition.onerror = function(event) {
+                console.error("Speech recognition error", event.error);
+            };
+
+        } else {
+            alert("Voice Recognition not supported in this browser. You can still use the Manual Button.");
+        }
+
+        function startListening() {
+            if (recognition) {
+                setTimeout(() => { recognition.start(); }, 100);
+            } else {
+                // If no voice support, just show game and use button
+                controls.classList.add('hidden');
+                gameDisplay.classList.remove('hidden');
+            }
+        }
+
+        function setGreenLight() {
+            if(currentMode === 'green') return; 
+            currentMode = 'green';
+            gameDisplay.classList.remove('is-red');
+            gameDisplay.classList.add('is-green');
+            lightText.innerText = "GREEN LIGHT";
+            body.style.backgroundColor = "#0d1f0d"; 
+            manualBtn.innerText = "SWITCH TO RED"; // Update button text
+            manualBtn.style.borderColor = "#ff5555"; // Hint at next color
+        }
+
+        function setRedLight() {
+            if(currentMode === 'red') return; 
+            currentMode = 'red';
+            gameDisplay.classList.remove('is-green');
+            gameDisplay.classList.add('is-red');
+            lightText.innerText = "RED LIGHT";
+            body.style.backgroundColor = "#240a0a";
+            manualBtn.innerText = "SWITCH TO GREEN"; // Update button text
+            manualBtn.style.borderColor = "#55ff55"; // Hint at next color
+        }
+
+        // Logic for the button
+        function toggleLights(e) {
+            e.stopPropagation(); // Prevent double firing
+            if (currentMode === 'red') {
+                setGreenLight();
+            } else {
+                setRedLight();
+            }
+        }
+        
+        // Background click (fallback)
+        body.addEventListener('click', (e) => {
+             // If clicking start button or manual button, do nothing here
+             if(e.target.id === 'start-btn' || e.target.id === 'manual-btn') return;
+
+             if (!gameDisplay.classList.contains('hidden')) {
+                 toggleLights(e);
+             }
+        });
+
+    </script>
+</body>
+</html>

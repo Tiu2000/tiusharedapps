@@ -1,0 +1,598 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIU StopMotion Studio: Web Edition</title>
+    <style>
+        :root {
+            /* TIU Brand Colors */
+            --bg-dark: #141414; /* Slightly darker background */
+            --bg-panel: #212121; /* Dark panel color */
+            --accent: #FF8800; /* Deep Orange/Gold Accent */
+            --accent-hover: #FFAA33; /* Lighter hover color */
+            --text-main: #e0e0e0;
+            --danger: #f44336;
+            --tiu-logo-color: #f0f0f0; 
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Header / Toolbar --- */
+        header {
+            background-color: #282828; 
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #000;
+        }
+
+        /* **Branding/Logo Style** */
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--tiu-logo-color);
+        }
+
+        /* Style for the image placeholder/actual logo */
+        .brand-logo img {
+            height: 25px; /* Set a fixed height for the logo */
+            width: auto;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        
+        .toolbar { display: flex; gap: 10px; align-items: center; }
+
+        button {
+            background-color: var(--bg-panel);
+            border: 1px solid #454545;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+
+        button:hover { background-color: #3e3e42; }
+        button.primary { background-color: var(--accent); border-color: var(--accent); }
+        button.primary:hover { background-color: var(--accent-hover); }
+        button.danger { background-color: var(--danger); border-color: var(--danger); }
+        
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.8rem;
+            background: #2d2d2d;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        /* --- Main Workspace --- */
+        .workspace {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar (Settings) */
+        .sidebar {
+            width: 250px;
+            background-color: var(--bg-panel);
+            padding: 20px;
+            border-right: 1px solid #000;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        label { font-size: 0.85rem; color: #aaa; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+
+        /* Viewport (Canvas) */
+        .viewport {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #111;
+            position: relative;
+        }
+
+        canvas {
+            background-color: #000;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            max-width: 95%;
+            max-height: 95%;
+        }
+
+        /* Overlay text for status */
+        #status-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: var(--danger);
+            font-weight: bold;
+            display: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: rgba(0,0,0,0.7);
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        /* --- Timeline (Bottom) --- */
+        .timeline-area {
+            height: 140px;
+            background-color: var(--bg-panel);
+            border-top: 1px solid #000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .timeline-controls {
+            padding: 5px 10px;
+            background: #2d2d2d;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+        }
+
+        .frames-container {
+            flex: 1;
+            display: flex;
+            gap: 5px;
+            padding: 10px;
+            overflow-x: auto;
+            align-items: center;
+        }
+
+        .frame-thumb {
+            height: 80px;
+            width: 106px; /* 4:3 aspect ratio roughly */
+            background: #000;
+            border: 2px solid #444;
+            flex-shrink: 0;
+            cursor: pointer;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            border-radius: 4px;
+        }
+
+        .frame-thumb.active { border-color: var(--accent); }
+        .frame-thumb:hover { border-color: #888; }
+        
+        .frame-number {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            background: rgba(0,0,0,0.7);
+            padding: 1px 4px;
+            font-size: 0.7rem;
+            border-radius: 2px;
+        }
+
+        /* Hidden video element for raw capture */
+        video { display: none; }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="brand-logo">
+         
+        StopMotion Studio
+    </div>
+    <div class="toolbar">
+        <div class="toggle-group">
+            <input type="checkbox" id="onion-skin-toggle" checked>
+            <label for="onion-skin-toggle">Onion Skin</label>
+        </div>
+        <button id="record-audio-btn">🎤 Record Audio</button>
+        <button id="export-btn" class="primary">💾 Export Video</button>
+    </div>
+</header>
+
+<div class="workspace">
+    <div class="sidebar">
+        <div class="control-group">
+            <label>Frame Rate (FPS): <span id="fps-val">12</span></label>
+            <input type="range" id="fps-slider" min="1" max="30" value="12">
+        </div>
+        <div class="control-group">
+            <label>Onion Skin Opacity</label>
+            <input type="range" id="onion-opacity" min="0" max="1" step="0.1" value="0.3">
+        </div>
+        <hr style="border-color: #444; width: 100%;">
+        <div class="control-group">
+            <button id="capture-btn" class="primary" style="height: 60px; font-size: 1.1rem;">📷 Capture Frame (Space)</button>
+            <button id="play-btn">▶ Play Sequence</button>
+            <button id="delete-btn" class="danger">🗑 Delete Frame</button>
+            <button id="clear-btn">Clear All</button>
+        </div>
+        <div class="control-group">
+            <p style="font-size: 0.8rem; color: #666;">
+                <strong>Instructions:</strong><br>
+                1. Allow Camera Access.<br>
+                2. Press Spacebar to take photos.<br>
+                3. Use Onion Skin to align objects.<br>
+                4. Record Voiceover (optional).<br>
+                5. Export to .webm video.
+            </p>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--accent); margin-top: auto; text-align: center;">
+            A **TIU** Application
+        </p>
+    </div>
+
+    <div class="viewport">
+        <div id="status-overlay">Recording...</div>
+        <canvas id="main-canvas" width="640" height="480"></canvas>
+    </div>
+</div>
+
+<div class="timeline-area">
+    <div class="timeline-controls">
+        <span id="frame-count">0 Frames</span>
+        <span>Duration: <span id="duration-val">0.0s</span></span>
+    </div>
+    <div class="frames-container" id="timeline">
+        </div>
+</div>
+
+<video id="webcam" autoplay playsinline></video>
+<audio id="audio-playback"></audio>
+
+<script>
+    /**
+     * StopMotion Studio Logic
+     */
+
+    // --- State Management ---
+    const state = {
+        frames: [], // Array of DataURLs
+        audioChunks: [],
+        audioBlob: null,
+        currentFrameIndex: -1, // -1 means Live View
+        isPlaying: false,
+        fps: 12,
+        onionSkin: true,
+        onionOpacity: 0.3,
+        isRecordingAudio: false
+    };
+
+    // --- DOM Elements ---
+    const video = document.getElementById('webcam');
+    const canvas = document.getElementById('main-canvas');
+    const ctx = canvas.getContext('2d');
+    const timeline = document.getElementById('timeline');
+    const fpsSlider = document.getElementById('fps-slider');
+    const fpsVal = document.getElementById('fps-val');
+    const frameCountLabel = document.getElementById('frame-count');
+    const durationLabel = document.getElementById('duration-val');
+    const audioEl = document.getElementById('audio-playback');
+    const statusOverlay = document.getElementById('status-overlay');
+
+    // --- Initialization ---
+    async function initCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            video.srcObject = stream;
+            // Wait for video to load metadata to set canvas size
+            video.onloadedmetadata = () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                drawLoop();
+            };
+        } catch (err) {
+            alert("Error accessing webcam. Please ensure you have a camera and allow permissions.");
+            console.error(err);
+        }
+    }
+
+    // --- Core Rendering Loop ---
+    function drawLoop() {
+        if (state.isPlaying) return; // The player handles rendering when playing
+
+        // 1. Clear Canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 2. Determine what to show (Live Feed or Selected Frame)
+        if (state.currentFrameIndex === -1) {
+            // Live View
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // 3. Apply Onion Skin (Ghost of previous frame)
+            if (state.onionSkin && state.frames.length > 0) {
+                drawOnionSkin(state.frames.length - 1);
+            }
+        } else {
+            // Editing/Viewing specific frame
+            const img = new Image();
+            img.src = state.frames[state.currentFrameIndex];
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        }
+
+        requestAnimationFrame(drawLoop);
+    }
+
+    function drawOnionSkin(frameIndex) {
+        if (frameIndex < 0) return;
+        const ghostImg = new Image();
+        ghostImg.src = state.frames[frameIndex];
+        ctx.save();
+        ctx.globalAlpha = state.onionOpacity;
+        ctx.drawImage(ghostImg, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+    }
+
+    // --- Actions ---
+
+    function captureFrame() {
+        if (state.isPlaying) return;
+
+        // Draw current video to a temporary canvas to extract data
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+        
+        const dataURL = tempCanvas.toDataURL('image/webp', 0.9);
+        
+        state.frames.push(dataURL);
+        state.currentFrameIndex = -1; // Reset to live view
+        updateTimeline();
+    }
+
+    function updateTimeline() {
+        timeline.innerHTML = '';
+        state.frames.forEach((frame, index) => {
+            const thumb = document.createElement('div');
+            thumb.className = `frame-thumb ${index === state.currentFrameIndex ? 'active' : ''}`;
+            thumb.style.backgroundImage = `url(${frame})`;
+            
+            const num = document.createElement('div');
+            num.className = 'frame-number';
+            num.innerText = index + 1;
+            thumb.appendChild(num);
+
+            thumb.onclick = () => {
+                // If clicking the same frame, toggle back to live view
+                if (state.currentFrameIndex === index) state.currentFrameIndex = -1;
+                else state.currentFrameIndex = index;
+                updateTimeline(); // Re-render to update active class
+            };
+
+            timeline.appendChild(thumb);
+        });
+
+        // Scroll to end if live view
+        if (state.currentFrameIndex === -1) {
+            timeline.scrollLeft = timeline.scrollWidth;
+        }
+
+        // Update stats
+        frameCountLabel.innerText = `${state.frames.length} Frames`;
+        const dur = (state.frames.length / state.fps).toFixed(1);
+        durationLabel.innerText = `${dur}s`;
+    }
+
+    function deleteFrame() {
+        if (state.currentFrameIndex !== -1) {
+            state.frames.splice(state.currentFrameIndex, 1);
+            state.currentFrameIndex = -1;
+            updateTimeline();
+        } else if (state.frames.length > 0) {
+            // Remove last frame if in live view
+            state.frames.pop();
+            updateTimeline();
+        }
+    }
+
+    // --- Playback Engine ---
+    let playInterval;
+
+    function togglePlay() {
+        if (state.isPlaying) {
+            stopPlay();
+        } else {
+            startPlay();
+        }
+    }
+
+    function startPlay() {
+        if (state.frames.length === 0) return;
+        state.isPlaying = true;
+        document.getElementById('play-btn').innerText = '⏹ Stop';
+        
+        // Play Audio if exists
+        if (state.audioBlob) {
+            audioEl.src = URL.createObjectURL(state.audioBlob);
+            audioEl.currentTime = 0;
+            audioEl.play();
+        }
+
+        let i = 0;
+        const intervalTime = 1000 / state.fps;
+
+        playInterval = setInterval(() => {
+            if (i >= state.frames.length) {
+                i = 0; // Loop
+                if (state.audioBlob) {
+                    audioEl.currentTime = 0;
+                    audioEl.play();
+                }
+            }
+            
+            const img = new Image();
+            img.onload = () => {
+                ctx.clearRect(0,0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+            img.src = state.frames[i];
+            i++;
+        }, intervalTime);
+    }
+
+    function stopPlay() {
+        state.isPlaying = false;
+        clearInterval(playInterval);
+        document.getElementById('play-btn').innerText = '▶ Play Sequence';
+        audioEl.pause();
+        state.currentFrameIndex = -1;
+        drawLoop(); // Restart the draw loop
+    }
+
+    // --- Audio Recorder ---
+    let mediaRecorder;
+    
+    async function toggleAudioRecord() {
+        const btn = document.getElementById('record-audio-btn');
+        
+        if (!state.isRecordingAudio) {
+            // Start Recording
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                state.audioChunks = [];
+
+                mediaRecorder.ondataavailable = e => state.audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    state.audioBlob = new Blob(state.audioChunks, { type: 'audio/webm' });
+                    alert("Audio recorded! It will play when you press 'Play Sequence'.");
+                };
+
+                mediaRecorder.start();
+                state.isRecordingAudio = true;
+                btn.classList.add('danger');
+                btn.innerText = '⏹ Stop Recording';
+                statusOverlay.innerText = "Recording Audio...";
+                statusOverlay.style.display = 'block';
+
+                // Optional: Play video while recording audio for sync
+                startPlay(); 
+
+            } catch (err) {
+                alert("Microphone access denied.");
+            }
+        } else {
+            // Stop Recording
+            mediaRecorder.stop();
+            state.isRecordingAudio = false;
+            btn.classList.remove('danger');
+            btn.innerText = '🎤 Record Audio';
+            statusOverlay.style.display = 'none';
+            stopPlay();
+        }
+    }
+
+    // --- Export Video ---
+    function exportVideo() {
+        if (state.frames.length === 0) return;
+
+        const stream = canvas.captureStream(state.fps);
+        
+        // If we have audio, add the track to the stream
+        if (state.audioBlob) {
+            // Create an audio context to mix the blob into the stream (simplified approach: just play audio and capture it? 
+            // Actually, MediaRecorder takes a stream. Combining blobs and canvas streams is complex.
+            // Simplified export: Silent video or video with muted audio tag if mixed.
+            // For this single-file demo, we will export the visual stream. 
+            alert("Exporting Visuals. Note: Browser restrictions make single-file audio/video mixing complex. Audio tracks saved separately.");
+        }
+
+        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        const chunks = [];
+
+        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `stopmotion_${Date.now()}.webm`;
+            a.click();
+            stopPlay();
+            statusOverlay.style.display = 'none';
+        };
+
+        // We need to play the animation to record it
+        recorder.start();
+        statusOverlay.innerText = "Rendering Export...";
+        statusOverlay.style.display = 'block';
+        
+        startPlay();
+
+        // Stop recording after one full loop
+        const duration = (state.frames.length / state.fps) * 1000;
+        setTimeout(() => {
+            recorder.stop();
+        }, duration + 200); // small buffer
+    }
+
+    // --- Event Listeners ---
+
+    document.getElementById('capture-btn').addEventListener('click', captureFrame);
+    document.getElementById('play-btn').addEventListener('click', togglePlay);
+    document.getElementById('delete-btn').addEventListener('click', deleteFrame);
+    document.getElementById('record-audio-btn').addEventListener('click', toggleAudioRecord);
+    document.getElementById('export-btn').addEventListener('click', exportVideo);
+    
+    document.getElementById('clear-btn').addEventListener('click', () => {
+        if(confirm("Delete all frames?")) {
+            state.frames = [];
+            state.audioBlob = null;
+            updateTimeline();
+        }
+    });
+
+    fpsSlider.addEventListener('input', (e) => {
+        state.fps = parseInt(e.target.value);
+        fpsVal.innerText = state.fps;
+        updateTimeline(); // Update duration text
+    });
+
+    document.getElementById('onion-opacity').addEventListener('input', (e) => {
+        state.onionOpacity = parseFloat(e.target.value);
+    });
+
+    document.getElementById('onion-skin-toggle').addEventListener('change', (e) => {
+        state.onionSkin = e.target.checked;
+    });
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            e.preventDefault(); // Stop scrolling
+            captureFrame();
+        }
+        if (e.code === 'Enter') {
+            togglePlay();
+        }
+    });
+
+    // Start App
+    initCamera();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Sound Meter (TIU)</title>
+    <style>
+        /* CSS Styles */
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+
+        #meter-container {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 500px;
+            position: relative; /* Essential for positioning the watermark inside */
+            overflow: hidden; /* Ensure the watermark doesn't spill out */
+            padding-bottom: 60px; /* Add space at the bottom for the watermark */
+        }
+
+        /* TIU Watermark Styling (Inside Container - Smaller and more subtle) */
+        #watermark-text {
+            position: absolute;
+            bottom: 10px; /* Position it a bit higher from the very bottom */
+            left: 50%;
+            transform: translateX(-50%); /* Center horizontally */
+            font-size: 2em; /* Significantly smaller font size */
+            color: rgba(0, 0, 0, 0.1); /* Very subtle opacity */
+            pointer-events: none;
+            z-index: 0; /* Keep it behind the main content */
+            font-weight: bold;
+            line-height: 1; /* Adjust line height to prevent extra space */
+        }
+
+        /* Ensure main content sits above the watermark */
+        #decibel-display,
+        .control-group,
+        #start-button,
+        #status-message {
+            position: relative;
+            z-index: 1;
+        }
+        
+        #decibel-display {
+            font-size: 6em;
+            font-weight: bold;
+            color: #2c3e50;
+            min-height: 1.2em;
+            transition: color 0.3s ease;
+        }
+
+        #decibel-bar {
+            width: 100%;
+            height: 30px;
+            background-color: #eee;
+            border-radius: 15px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        #bar-fill {
+            height: 100%;
+            width: 0%;
+            background-color: #2ecc71; /* Green */
+            transition: width 0.1s ease, background-color 0.3s ease;
+        }
+
+        .alarm-active #decibel-display {
+            color: #e74c3c; /* Red when alarming */
+            animation: pulse 0.5s infinite alternate; /* Alarm visual effect */
+        }
+
+        .alarm-active #bar-fill {
+            background-color: #e74c3c !important;
+        }
+
+        /* Simple pulsing effect for the alarm */
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.05); }
+        }
+
+        .control-group {
+            margin-top: 25px;
+            padding: 15px;
+            border: 1px solid #bdc3c7;
+            border-radius: 8px;
+            background-color: #ecf0f1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            -webkit-appearance: none;
+            height: 10px;
+            background: #bdc3c7;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 15px;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        #status-message {
+            margin-top: 20px;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="meter-container">
+        
+        <h1>🎙️ Live Decibel Meter</h1>
+        <div id="decibel-display">-- dB</div>
+
+        <div id="decibel-bar">
+            <div id="bar-fill"></div>
+        </div>
+
+        <div class="control-group">
+            <label for="threshold-slider">Alarm Threshold: <span id="threshold-value">80</span> dB</label>
+            <input type="range" id="threshold-slider" min="60" max="100" value="80" step="1">
+        </div>
+
+        <button id="start-button">Start Meter</button>
+        <div id="status-message">Click "Start Meter" to enable microphone.</div>
+        
+        <div id="watermark-text">TIU</div>
+
+    </div>
+
+    <script>
+        // JavaScript Logic
+        const startButton = document.getElementById('start-button');
+        const decibelDisplay = document.getElementById('decibel-display');
+        const barFill = document.getElementById('bar-fill');
+        const thresholdSlider = document.getElementById('threshold-slider');
+        const thresholdValueSpan = document.getElementById('threshold-value');
+        const meterContainer = document.getElementById('meter-container');
+        const statusMessage = document.getElementById('status-message');
+
+        let audioContext;
+        let analyser;
+        let dataArray;
+        let source;
+        let rafId;
+
+        const DB_OFFSET = 90; 
+
+        let alarmThreshold = parseInt(thresholdSlider.value, 10);
+        let isAlarming = false;
+        let alarmTimeout; 
+
+        /**
+         * Generates a short, audible beep using the AudioContext.
+         */
+        function playAlarmBeep() {
+            if (!audioContext) return;
+
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        }
+
+
+        /**
+         * Converts the Root Mean Square (RMS) of the audio data to a decibel (dB) value.
+         */
+        function calculateDecibels(buffer) {
+            let sumOfSquares = 0;
+            for (const amplitude of buffer) {
+                sumOfSquares += amplitude * amplitude;
+            }
+            const rms = Math.sqrt(sumOfSquares / buffer.length);
+            
+            const dbfs = 20 * Math.log10(Math.max(rms, 0.00001)); 
+
+            const estimatedDbSpl = Math.round(Math.max(0, DB_OFFSET + dbfs)); 
+
+            return estimatedDbSpl;
+        }
+
+        /**
+         * Main animation loop to check audio levels and update the UI.
+         */
+        function updateMeter() {
+            analyser.getFloatTimeDomainData(dataArray);
+
+            const currentDb = calculateDecibels(dataArray);
+
+            decibelDisplay.textContent = `${currentDb} dB`;
+
+            const minBarDb = 60;
+            const maxBarDb = 100;
+            const normalizedLevel = Math.min(100, Math.max(0, (currentDb - minBarDb) / (maxBarDb - minBarDb) * 100));
+            barFill.style.width = `${normalizedLevel}%`;
+
+            if (currentDb < alarmThreshold * 0.75) {
+                barFill.style.backgroundColor = '#2ecc71';
+            } else if (currentDb < alarmThreshold) {
+                barFill.style.backgroundColor = '#f39c12';
+            } else {
+                barFill.style.backgroundColor = '#e74c3c';
+            }
+
+            // --- Alarm Logic ---
+            if (currentDb >= alarmThreshold) {
+                if (!isAlarming) {
+                    isAlarming = true;
+                    meterContainer.classList.add('alarm-active');
+                    playAlarmBeep();
+                    alarmTimeout = setTimeout(() => { isAlarming = false; }, 2000); 
+                    
+                    if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
+                }
+            } else if (isAlarming && currentDb < alarmThreshold - 5) { 
+                isAlarming = false;
+                clearTimeout(alarmTimeout);
+                meterContainer.classList.remove('alarm-active');
+            }
+            // --- End Alarm Logic ---
+
+            rafId = requestAnimationFrame(updateMeter);
+        }
+
+        /**
+         * Initializes the microphone and audio processing graph.
+         */
+        async function startMicrophone() {
+            if (!audioContext || audioContext.state === 'closed') {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                source = audioContext.createMediaStreamSource(stream);
+                analyser = audioContext.createAnalyser();
+
+                analyser.fftSize = 2048; 
+                dataArray = new Float32Array(analyser.fftSize);
+
+                source.connect(analyser);
+
+                rafId = requestAnimationFrame(updateMeter);
+                startButton.textContent = "Stop Meter";
+                statusMessage.textContent = "🎙️ Listening... Check the decibel level.";
+
+            } catch (err) {
+                console.error('Microphone access error:', err);
+                statusMessage.textContent = "Error: Could not access microphone. Ensure permissions are granted.";
+                alert('Microphone access denied or error. Please allow microphone access to use the meter.');
+            }
+        }
+
+        /**
+         * Stops the audio processing and microphone stream.
+         */
+        function stopMicrophone() {
+            if (rafId) {
+                cancelAnimationFrame(rafId);
+                rafId = null;
+            }
+            if (source) {
+                source.mediaStream.getTracks().forEach(track => track.stop());
+                source = null;
+            }
+            if (audioContext) {
+                audioContext.suspend().catch(e => console.error("Error suspending audio context:", e));
+            }
+            startButton.textContent = "Start Meter";
+            decibelDisplay.textContent = "-- dB";
+            barFill.style.width = '0%';
+            statusMessage.textContent = "Meter stopped. Click 'Start Meter' to begin.";
+            meterContainer.classList.remove('alarm-active');
+            isAlarming = false;
+            clearTimeout(alarmTimeout);
+        }
+
+        // --- Event Listeners ---
+
+        startButton.addEventListener('click', () => {
+            if (audioContext && (audioContext.state === 'running' || audioContext.state === 'suspended')) {
+                stopMicrophone();
+            } else {
+                startMicrophone();
+            }
+        });
+
+        thresholdSlider.addEventListener('input', (e) => {
+            alarmThreshold = parseInt(e.target.value, 10);
+            thresholdValueSpan.textContent = alarmThreshold;
+        });
+
+        thresholdValueSpan.textContent = alarmThreshold;
+
+        document.addEventListener('click', () => {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+            }
+        }, { once: true });
+
+    </script>
+</body>
+</html>

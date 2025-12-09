@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Mystery Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600&family=Inter:wght@300;400;600&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            min-height: 100vh;
+        }
+
+        h1, h2, .mystery-text {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        .card-anim {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .chalkboard {
+            background-color: #2d3748;
+            background-image: linear-gradient(45deg, rgba(255,255,255,0.03) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.03) 75%, rgba(255,255,255,0.03)),
+                              linear-gradient(45deg, rgba(255,255,255,0.03) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.03) 75%, rgba(255,255,255,0.03));
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+        }
+
+        /* --- TIU WATERMARK --- */
+        .app-signature {
+            position: fixed; /* Keep it fixed relative to the viewport */
+            bottom: 5px;     /* Small margin from the bottom edge */
+            left: 10px;      /* Small margin from the left edge */
+            font-size: 14px; /* Small, legible font size */
+            color: #4b5563;  /* Darker gray for subtle look on light background */
+            opacity: 0.3;    /* Very subtle */
+            z-index: 1000;   /* Ensure it stays on top of everything */
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: 'Inter', sans-serif;
+            pointer-events: none; /* Allows clicks to pass through */
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex flex-col items-center">
+
+    <div class="w-full max-w-4xl flex justify-between items-center mb-6">
+        <div class="flex items-center gap-2 text-indigo-700">
+            <i data-lucide="graduation-cap" class="w-8 h-8"></i>
+            <h1 class="text-2xl font-bold hidden md:block">Math Mystery</h1>
+        </div>
+        <button onclick="toggleSetup()" class="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-indigo-600 transition">
+            <i data-lucide="settings" class="w-4 h-4"></i>
+            <span id="toggleText">Hide Setup</span>
+        </button>
+    </div>
+
+    <div id="setupPanel" class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6 transition-all duration-300">
+        <div class="p-6">
+            <label class="block text-sm font-bold text-gray-700 mb-2">
+                Teacher's Number Pool
+            </label>
+            <p class="text-xs text-gray-500 mb-3">Enter numbers separated by commas. Students won't see this when hidden.</p>
+            <textarea 
+                id="numberInput" 
+                class="w-full p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-20 text-gray-600 font-mono"
+                placeholder="10, 25, 50, 100, 12.5">10, 20, 30, 40, 50</textarea>
+            
+            <div class="mt-4 flex justify-end">
+                <button 
+                    onclick="generateProblem()" 
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transform active:scale-95 transition flex items-center gap-2">
+                    <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+                    Start Game
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="gameArea" class="hidden w-full max-w-4xl space-y-6">
+        
+        <div class="flex justify-end">
+             <button 
+                onclick="generateProblem()" 
+                class="bg-white border-2 border-indigo-100 hover:border-indigo-600 text-indigo-700 font-bold py-2 px-6 rounded-lg shadow-sm hover:shadow-md transition flex items-center gap-2 group">
+                <i data-lucide="shuffle" class="w-4 h-4 group-hover:rotate-180 transition-transform duration-500"></i>
+                Next Mystery Number
+            </button>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-xl overflow-hidden border-4 border-indigo-100 relative">
+            <div class="bg-indigo-50 p-4 text-center border-b border-indigo-100">
+                <span class="text-indigo-600 font-bold uppercase tracking-wider text-sm">The Mystery Number</span>
+            </div>
+            
+            <div class="p-10 flex flex-col items-center justify-center relative min-h-[160px]">
+                <div id="mysteryNumber" class="text-8xl font-bold text-gray-800 select-none hidden" aria-hidden="true">
+                    00
+                </div>
+                
+                <div id="questionOverlay" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span class="text-9xl text-indigo-200 font-bold opacity-50">?</span>
+                </div>
+
+                <button 
+                    id="revealBtn"
+                    onclick="revealAnswer()" 
+                    class="mt-8 bg-amber-400 hover:bg-amber-500 text-amber-900 font-bold py-2 px-6 rounded-full shadow-md transition flex items-center gap-2 z-10">
+                    <i data-lucide="eye" class="w-4 h-4"></i>
+                    Reveal Answer
+                </button>
+            </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 class="text-gray-500 font-semibold mb-4 flex items-center gap-2">
+                    <i data-lucide="list" class="w-4 h-4"></i>
+                    Select a Clue
+                </h3>
+                <div id="buttonContainer" class="space-y-3">
+                    </div>
+            </div>
+
+            <div class="chalkboard rounded-2xl shadow-inner border-8 border-gray-800 p-8 flex flex-col items-center justify-center min-h-[250px] relative">
+                <div class="absolute top-4 w-full text-center">
+                    <span class="text-gray-500 text-xs font-mono opacity-50">CLASSROOM_DISPLAY_V1</span>
+                </div>
+                
+                <div id="equationOutput" class="text-4xl md:text-5xl font-mono text-white text-center" style="text-shadow: 2px 2px 0px rgba(0,0,0,0.3);">
+                    <span class="text-gray-500 text-xl font-sans opacity-50">Waiting for selection...</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="app-signature">TIU</div>
+
+    <script>
+        lucide.createIcons();
+
+        let currentTarget = 0;
+        let lastTargetIndex = -1; // To prevent immediate repeats
+        let isRevealed = false;
+
+        function toggleSetup() {
+            const panel = document.getElementById('setupPanel');
+            const text = document.getElementById('toggleText');
+            
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                text.textContent = 'Hide Setup';
+            } else {
+                panel.style.display = 'none';
+                text.textContent = 'Show Setup';
+            }
+        }
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function formatNum(num) {
+            return Number.isInteger(num) ? num : num.toFixed(2);
+        }
+
+        function generateEquations(target) {
+            const list = [];
+            // Addition
+            let add1 = getRandomInt(1, Math.abs(target) > 1 ? Math.floor(Math.abs(target)) : 10);
+            if (target < 0) add1 = -add1;
+            let add2 = target - add1;
+            list.push({ label: "Addition Clue", text: `${formatNum(add1)} + ${formatNum(add2)}` });
+
+            // Subtraction
+            let subY = getRandomInt(1, 20);
+            let subX = target + subY;
+            list.push({ label: "Subtraction Clue", text: `${formatNum(subX)} - ${formatNum(subY)}` });
+
+            // Multiplication
+            if (Number.isInteger(target) && target !== 0) {
+                let factors = [];
+                for(let i=1; i <= Math.abs(target); i++) {
+                    if (target % i === 0) factors.push(i);
+                }
+                if (factors.length > 2) {
+                    let f1 = factors[getRandomInt(1, factors.length - 2)]; 
+                    let f2 = target / f1;
+                    list.push({ label: "Multiplication Clue", text: `${f1} × ${f2}` });
+                } else {
+                    let m1 = 2;
+                    let m2 = target / 2;
+                    list.push({ label: "Multiplication Clue", text: `${m1} × ${m2}` });
+                }
+            } else {
+                let m1 = getRandomInt(2, 5);
+                let m2 = target / m1;
+                list.push({ label: "Multiplication Clue", text: `${m1} × ${formatNum(m2)}` });
+            }
+
+            // Division
+            let divY = getRandomInt(2, 6);
+            let divX = target * divY;
+            list.push({ label: "Division Clue", text: `${formatNum(divX)} ÷ ${divY}` });
+
+            return list;
+        }
+
+        function generateProblem() {
+            const input = document.getElementById('numberInput').value;
+            const gameArea = document.getElementById('gameArea');
+            const mysteryNumber = document.getElementById('mysteryNumber');
+            const questionOverlay = document.getElementById('questionOverlay');
+            const buttonContainer = document.getElementById('buttonContainer');
+            const equationOutput = document.getElementById('equationOutput');
+            const revealBtn = document.getElementById('revealBtn');
+
+            // Parse
+            if (!input.trim()) return alert("Please enter numbers.");
+            const numberSet = input.split(',').map(n => parseFloat(n.trim())).filter(n => !isNaN(n));
+            if (numberSet.length === 0) return alert("No valid numbers found.");
+
+            // Reset UI States
+            isRevealed = false;
+            mysteryNumber.classList.add('hidden'); // Completely hide the number
+            questionOverlay.classList.remove('hidden'); // Show the ? overlay
+            
+            revealBtn.innerHTML = '<i data-lucide="eye" class="w-4 h-4"></i> Reveal Answer';
+            revealBtn.classList.remove('bg-gray-200', 'text-gray-500');
+            revealBtn.classList.add('bg-amber-400', 'text-amber-900');
+            lucide.createIcons();
+
+            // Select Target (Ensure we don't pick the same index twice in a row if possible)
+            let newIndex;
+            if (numberSet.length > 1) {
+                let attempts = 0;
+                do {
+                    newIndex = Math.floor(Math.random() * numberSet.length);
+                    attempts++;
+                } while (newIndex === lastTargetIndex && attempts < 10);
+            } else {
+                newIndex = 0;
+            }
+            
+            lastTargetIndex = newIndex;
+            currentTarget = numberSet[newIndex];
+            mysteryNumber.textContent = currentTarget;
+
+            // Generate Equations
+            const equations = generateEquations(currentTarget);
+
+            // Show Game Area & Auto-hide Setup
+            gameArea.classList.remove('hidden');
+            if(document.getElementById('setupPanel').style.display !== 'none') {
+                toggleSetup(); 
+            }
+
+            // Clear Board
+            equationOutput.innerHTML = '<span class="text-gray-500 text-xl font-sans opacity-50">Select a clue...</span>';
+
+            // Build Buttons
+            buttonContainer.innerHTML = '';
+            equations.forEach((eq, index) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left px-5 py-4 bg-gray-50 hover:bg-white border border-gray-200 hover:border-indigo-300 rounded-xl transition duration-200 flex items-center justify-between group shadow-sm hover:shadow-md";
+                
+                btn.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="bg-indigo-100 text-indigo-600 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold group-hover:bg-indigo-600 group-hover:text-white transition">${index + 1}</span>
+                        <span class="font-medium text-gray-700">${eq.label}</span>
+                    </div>
+                    <i data-lucide="chevron-right" class="w-5 h-5 text-gray-300 group-hover:text-indigo-400"></i>
+                `;
+
+                btn.onclick = () => {
+                    // Highlight active
+                    Array.from(buttonContainer.children).forEach(b => b.classList.remove('ring-2', 'ring-indigo-500', 'bg-white'));
+                    btn.classList.add('ring-2', 'ring-indigo-500', 'bg-white');
+                    
+                    // Show on blackboard
+                    equationOutput.innerHTML = `
+                        <div class="animate-pulse">
+                            ${eq.text} = <span class="text-yellow-400">?</span>
+                        </div>
+                    `;
+                };
+
+                buttonContainer.appendChild(btn);
+            });
+            lucide.createIcons();
+        }
+
+        function revealAnswer() {
+            const mysteryNumber = document.getElementById('mysteryNumber');
+            const questionOverlay = document.getElementById('questionOverlay');
+            const revealBtn = document.getElementById('revealBtn');
+
+            if (!isRevealed) {
+                // REVEAL
+                mysteryNumber.classList.remove('hidden'); // Show number
+                questionOverlay.classList.add('hidden');  // Hide overlay
+                
+                revealBtn.innerHTML = 'Hide Answer';
+                revealBtn.classList.remove('bg-amber-400', 'text-amber-900');
+                revealBtn.classList.add('bg-gray-200', 'text-gray-500');
+                isRevealed = true;
+            } else {
+                // HIDE
+                mysteryNumber.classList.add('hidden');     // Hide number
+                questionOverlay.classList.remove('hidden'); // Show overlay
+                
+                revealBtn.innerHTML = '<i data-lucide="eye" class="w-4 h-4"></i> Reveal Answer';
+                revealBtn.classList.remove('bg-gray-200', 'text-gray-500');
+                revealBtn.classList.add('bg-amber-400', 'text-amber-900');
+                isRevealed = false;
+                lucide.createIcons();
+            }
+        }
+    </script>
+</body>
+</html>

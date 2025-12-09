@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Name Randomizer App</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 0;
+            color: var(--primary);
+            font-size: 1.8rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            resize: vertical;
+            font-family: inherit;
+            box-sizing: border-box; /* Ensures padding doesn't affect width */
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        /* The Result Box */
+        .winner-display {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border-radius: 8px;
+            background-color: #eef2ff;
+            border: 2px dashed var(--primary);
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #winner {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            word-break: break-word;
+        }
+
+        .confetti {
+            animation: pop 0.3s ease-in-out;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* --- TIU WATERMARK --- */
+        .app-signature {
+            position: fixed; /* Keep it fixed relative to the viewport */
+            bottom: 5px;     /* Small margin from the bottom edge */
+            left: 10px;      /* Small margin from the left edge */
+            font-size: 14px; /* Small, legible font size */
+            color: #ccc;     /* Light gray color */
+            opacity: 0.5;    /* Subtle visibility against the light background */
+            z-index: 1000;   /* Ensure it stays on top of everything */
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            pointer-events: none; /* Allows clicks to pass through to elements behind it */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Name Picker</h1>
+        
+        <label for="namesInput">Paste Names (One per line):</label>
+        <textarea id="namesInput" placeholder="Alice&#10;Bob&#10;Charlie&#10;David..."></textarea>
+        
+        <button id="pickBtn" onclick="pickWinner()">Pick a Winner!</button>
+
+        <div class="winner-display">
+            <span id="winner">Waiting...</span>
+        </div>
+    </div>
+
+    <div class="app-signature">TIU</div>
+
+    <script>
+        function pickWinner() {
+            const textarea = document.getElementById('namesInput');
+            const winnerDisplay = document.getElementById('winner');
+            const button = document.getElementById('pickBtn');
+
+            // 1. Process Input
+            // Split by newline, trim whitespace, and remove empty lines
+            const names = textarea.value.split('\n')
+                .map(name => name.trim())
+                .filter(name => name !== "");
+
+            // 2. Validation
+            if (names.length === 0) {
+                alert("Please paste some names into the box first!");
+                return;
+            }
+
+            // 3. Animation Setup
+            button.disabled = true; // Prevent double clicking
+            button.innerText = "Rolling...";
+            let count = 0;
+            const totalRolls = 20; // How many times names flash before stopping
+
+            // 4. The Rolling Effect
+            const interval = setInterval(() => {
+                // Show a random name from the list temporarily
+                const randomIndex = Math.floor(Math.random() * names.length);
+                winnerDisplay.innerText = names[randomIndex];
+                winnerDisplay.classList.remove('confetti'); // Reset animation
+                
+                count++;
+
+                // 5. Stop and Select Final Winner
+                if (count >= totalRolls) {
+                    clearInterval(interval);
+                    
+                    // Pick final winner
+                    const finalIndex = Math.floor(Math.random() * names.length);
+                    winnerDisplay.innerText = names[finalIndex];
+                    
+                    // Add visual flair
+                    winnerDisplay.classList.add('confetti');
+                    button.disabled = false;
+                    button.innerText = "Pick Again";
+                }
+            }, 100); // Speed of the roll (100ms)
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Color Spin Wheel</title>
+    <style>
+        /* --- CSS STYLING --- */
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --bg-color: #ecf0f1;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-color);
+            overflow: hidden; 
+        }
+
+        .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 40px;
+            background: white;
+            padding: 30px;
+            border-radius: 25px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+            width: 95vw;
+            height: 90vh;
+            box-sizing: border-box;
+        }
+
+        /* Controls Side */
+        .controls {
+            flex: 1;
+            min-width: 320px;
+            max-width: 450px; 
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: 100%;
+            justify-content: center;
+            overflow-y: auto; /* Allow scrolling if controls get too tall */
+            padding-right: 10px;
+        }
+
+        h1 { margin: 0; color: var(--primary-color); font-size: 2.2rem; }
+        
+        label { font-weight: bold; margin-bottom: 5px; display: block; font-size: 1.1rem;}
+
+        textarea {
+            width: 100%;
+            height: 180px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            font-size: 18px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 18px;
+            box-sizing: border-box;
+            background: white;
+        }
+
+        /* --- NEW VISUAL COLOR PICKER STYLES --- */
+        .palette-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+            align-items: center;
+        }
+
+        .color-slot {
+            position: relative;
+            display: inline-block;
+        }
+
+        /* Style the actual color input to look like a circle */
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+        
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch {
+            border: 2px solid #ddd;
+            border-radius: 50%;
+        }
+
+        /* The remove (X) button on top of the color */
+        .remove-color-btn {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .add-color-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px dashed #bbb;
+            background: #f8f9fa;
+            color: #bbb;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .add-color-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
+
+        .hidden { display: none; }
+
+        .btn-group { display: flex; gap: 15px; margin-top: 10px; }
+
+        button.action-btn {
+            padding: 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        button.action-btn:active { transform: scale(0.98); }
+
+        #spinBtn { background-color: var(--accent-color); color: white; flex: 2; font-size: 24px; }
+        #updateBtn { background-color: var(--primary-color); color: white; flex: 1; }
+
+        #result {
+            margin-top: 10px;
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: center;
+            min-height: 60px;
+            color: var(--accent-color);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        /* Wheel Side */
+        .wheel-wrapper {
+            flex: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 75vh; 
+            height: 75vh;
+            max-width: 100%; 
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 0 25px rgba(0,0,0,0.2);
+        }
+
+        .pointer {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0; 
+            height: 0; 
+            border-left: 35px solid transparent;
+            border-right: 35px solid transparent;
+            border-top: 60px solid var(--primary-color);
+            z-index: 10;
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.3));
+        }
+
+        @media (max-width: 1000px) {
+            body { overflow: auto; }
+            .container { flex-direction: column-reverse; height: auto; width: 90%; margin: 20px 0;}
+            .wheel-container { width: 300px; height: 300px; }
+            .controls { max-width: 100%; }
+        }
+
+        /* --- TIU WATERMARK --- */
+        .app-signature {
+            position: fixed; /* Keep it fixed relative to the viewport */
+            bottom: 5px;     /* Small margin from the bottom edge */
+            left: 10px;      /* Small margin from the left edge */
+            font-size: 14px; /* Small, legible font size */
+            color: #ccc;     /* Light gray color */
+            opacity: 0.4;    /* Slightly more visible since the background is lighter */
+            z-index: 1000;   /* Ensure it stays on top of everything */
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="controls">
+            <h1>Spin Wheel</h1>
+            
+            <div>
+                <label for="itemInput">Items:</label>
+                <textarea id="itemInput">
+Pizza
+Burger
+Sushi
+Salad
+Tacos
+Pasta</textarea>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 12px; border: 1px solid #eee;">
+                <label for="themeSelect">Color Theme:</label>
+                <select id="themeSelect">
+                    <option value="random">Random (Vibrant)</option>
+                    <option value="pastel">Pastel (Soft)</option>
+                    <option value="custom">Custom Colors...</option>
+                </select>
+
+                <div id="customColorArea" class="hidden">
+                    <div class="palette-container" id="paletteContainer">
+                        </div>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button id="updateBtn" class="action-btn">Update</button>
+                <button id="spinBtn" class="action-btn">SPIN!</button>
+            </div>
+            <div id="result"></div>
+        </div>
+
+        <div class="wheel-wrapper">
+            <div class="wheel-container">
+                <div class="pointer"></div>
+                <canvas id="wheelCanvas" width="1000" height="1000"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-signature">TIU</div>
+
+    <script>
+        /* --- JAVASCRIPT LOGIC --- */
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        const spinBtn = document.getElementById('spinBtn');
+        const updateBtn = document.getElementById('updateBtn');
+        const itemInput = document.getElementById('itemInput');
+        const resultDiv = document.getElementById('result');
+        const themeSelect = document.getElementById('themeSelect');
+        const customColorArea = document.getElementById('customColorArea');
+        const paletteContainer = document.getElementById('paletteContainer');
+
+        let items = [];
+        let colors = [];
+        let customColorsList = ['#FF5733', '#33FF57', '#3357FF']; // Default custom start
+        let currentAngle = 0;
+        let isSpinning = false;
+        let tickTimer = null;
+
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const radius = canvas.width / 2;
+        const SPIN_DURATION_MS = 5000; 
+
+        // --- AUDIO SETUP ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(frequency, duration, type = 'sine', volume = 0.1) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+        function playTick() { playTone(800, 0.05, 'triangle', 0.2); }
+        function playWinFanfare() {
+            playTone(600, 0.2, 'sine', 0.3);
+            setTimeout(() => { playTone(800, 0.4, 'sine', 0.3); }, 200);
+            setTimeout(() => { playTone(1000, 0.6, 'sine', 0.3); }, 400);
+        }
+
+        // --- NEW CUSTOM COLOR UI LOGIC ---
+
+        function renderPaletteUI() {
+            paletteContainer.innerHTML = '';
+
+            // Render existing colors
+            customColorsList.forEach((color, index) => {
+                const slot = document.createElement('div');
+                slot.className = 'color-slot';
+
+                const input = document.createElement('input');
+                input.type = 'color';
+                input.value = color;
+                input.addEventListener('input', (e) => {
+                    customColorsList[index] = e.target.value;
+                    loadItems(false); // Update wheel live
+                });
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-color-btn';
+                removeBtn.innerHTML = '×';
+                removeBtn.title = "Remove Color";
+                removeBtn.onclick = () => {
+                    if (customColorsList.length > 1) {
+                        customColorsList.splice(index, 1);
+                        renderPaletteUI();
+                        loadItems(false);
+                    } else {
+                        alert("You must have at least one color!");
+                    }
+                };
+
+                slot.appendChild(input);
+                slot.appendChild(removeBtn);
+                paletteContainer.appendChild(slot);
+            });
+
+            // Add "+" button
+            const addBtn = document.createElement('div');
+            addBtn.className = 'add-color-btn';
+            addBtn.innerHTML = '+';
+            addBtn.title = "Add Color";
+            addBtn.onclick = () => {
+                // Add a random color or repeat last
+                customColorsList.push('#' + Math.floor(Math.random()*16777215).toString(16));
+                renderPaletteUI();
+                loadItems(false);
+            };
+            paletteContainer.appendChild(addBtn);
+        }
+
+
+        // --- WHEEL LOGIC ---
+
+        function getRandomHSL(saturation, lightness) {
+            const hue = Math.floor(Math.random() * 360);
+            return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        }
+
+        function getColors(count) {
+            const theme = themeSelect.value;
+            let generated = [];
+
+            if (theme === 'custom') {
+                // Use the Visual List
+                for(let i=0; i<count; i++) {
+                    generated.push(customColorsList[i % customColorsList.length]);
+                }
+            } 
+            else if (theme === 'pastel') {
+                for(let i=0; i<count; i++) { generated.push(getRandomHSL(70, 80)); }
+            } 
+            else { 
+                for(let i=0; i<count; i++) { generated.push(getRandomHSL(80, 55)); }
+            }
+            return generated;
+        }
+
+        function loadItems(isSpinAction = false) {
+            const text = itemInput.value;
+            items = text.split('\n').filter(item => item.trim() !== '');
+            
+            const theme = themeSelect.value;
+            // Regenerate colors if random, or if items count changed, or if we switched themes
+            const shouldUpdateColors = !isSpinAction || theme === 'random' || colors.length !== items.length || theme === 'custom';
+
+            if (shouldUpdateColors) {
+                colors = getColors(items.length);
+            }
+            drawWheel();
+        }
+
+        function drawWheel() {
+            if (items.length === 0) return;
+            const sliceAngle = (2 * Math.PI) / items.length;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            items.forEach((item, index) => {
+                const startAngle = index * sliceAngle;
+                const endAngle = startAngle + sliceAngle;
+
+                // Slice
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = colors[index];
+                ctx.fill();
+                ctx.lineWidth = 4; 
+                ctx.strokeStyle = "#ffffff";
+                ctx.stroke();
+
+                // Text
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(startAngle + sliceAngle / 2);
+                ctx.textAlign = "right";
+                ctx.fillStyle = "#fff";
+                
+                let fontSize = 40; 
+                if (items.length > 10) fontSize = 30;
+                if (items.length > 20) fontSize = 20;
+                
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.shadowColor = "rgba(0,0,0,0.5)";
+                ctx.shadowBlur = 5;
+                ctx.fillText(item, radius - 40, 10);
+                ctx.restore();
+            });
+        }
+
+        function spin() {
+            if (isSpinning || items.length === 0) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            isSpinning = true;
+            resultDiv.innerText = "Spinning...";
+            
+            loadItems(true);
+
+            const spinAmount = (Math.random() * 5 + 8) * 360; 
+            const endAngle = currentAngle + spinAmount;
+
+            canvas.style.transition = `transform ${SPIN_DURATION_MS / 1000}s cubic-bezier(0.25, 0.1, 0.25, 1)`;
+            canvas.style.transform = `rotate(${endAngle}deg)`;
+            currentAngle = endAngle;
+
+            let tickDelay = 50; 
+            function doTick() {
+                if (!isSpinning) return;
+                playTick();
+                tickDelay = Math.min(tickDelay * 1.05, 400); 
+                tickTimer = setTimeout(doTick, tickDelay);
+            }
+            doTick();
+
+            setTimeout(() => {
+                isSpinning = false;
+                clearTimeout(tickTimer);
+                determineWinner(currentAngle);
+                playWinFanfare();
+            }, SPIN_DURATION_MS);
+        }
+
+        function determineWinner(finalAngle) {
+            const sliceDegrees = 360 / items.length;
+            const effectiveAngle = (finalAngle + 90) % 360; 
+            const winningIndex = Math.floor((360 - effectiveAngle) / sliceDegrees) % items.length;
+            resultDiv.innerHTML = `Winner:<br>${items[winningIndex]} 🎉`;
+        }
+
+        // --- EVENT LISTENERS ---
+        spinBtn.addEventListener('click', spin);
+        
+        updateBtn.addEventListener('click', () => {
+            canvas.style.transition = 'none';
+            canvas.style.transform = `rotate(${currentAngle % 360}deg)`;
+            resultDiv.innerText = "";
+            loadItems(false);
+        });
+
+        themeSelect.addEventListener('change', () => {
+            if (themeSelect.value === 'custom') {
+                customColorArea.classList.remove('hidden');
+                // First time setup if empty?
+                if (paletteContainer.innerHTML === '') renderPaletteUI();
+            } else {
+                customColorArea.classList.add('hidden');
+            }
+            loadItems(false);
+        });
+
+        // Initialize
+        renderPaletteUI(); // Prepare the UI
+        loadItems(false);
+
+    </script>
+</body>
+</html>

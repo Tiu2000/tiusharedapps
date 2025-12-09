@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Basketball Scoreboard (TIU Edition)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --board-color: #000000;
+            --led-red: #ff0000;
+            --led-yellow: #ffcc00;
+            --led-green: #00ff00;
+            --text-color: #eeeeee;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            flex-direction: column;
+        }
+
+        /* Widescreen Scoreboard Frame */
+        .scoreboard {
+            background-color: var(--board-color);
+            border: 8px solid #333;
+            border-radius: 15px;
+            padding: 30px; 
+            display: grid;
+            grid-template-columns: 1fr 1.5fr 1fr;
+            gap: 40px; 
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            max-width: 1600px; /* Increased max width */
+            width: 95%; /* Increased width percentage */
+            text-align: center;
+            position: relative;
+        }
+
+        /* LED Text Styling */
+        .led-text {
+            font-family: 'Orbitron', sans-serif;
+            background-color: #111;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #333;
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        h2 { margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 3px; color: #fff; font-size: 2rem;}
+        
+        /* Scores - MAXIMIZED */
+        .score-box { display: flex; flex-direction: column; align-items: center; }
+        .score { 
+            font-size: 12rem; /* Significantly Larger */
+            color: var(--led-red); 
+            min-width: 250px;
+        }
+
+        /* Timer - MAXIMIZED */
+        .timer-box { 
+            grid-column: 2; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+        }
+        .timer { 
+            font-size: 10rem; /* Significantly Larger */
+            color: var(--led-yellow); 
+            margin-bottom: 20px;
+        }
+        .period {
+            font-size: 3rem;
+            color: var(--led-green);
+        }
+
+        /* Branding */
+        .branding {
+            position: absolute;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.2); 
+            letter-spacing: 4px;
+        }
+
+        /* Controls Area */
+        .controls {
+            margin-top: 30px;
+            background: #222;
+            padding: 20px;
+            border-radius: 10px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 1600px;
+            width: 95%;
+        }
+
+        .team-controls, .sound-controls {
+            display: flex;
+            gap: 5px;
+            flex-direction: column;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .sound-controls {
+            background: #1a1a1a;
+            flex-grow: 1;
+            min-width: 300px;
+        }
+        
+        .sound-controls input {
+            padding: 8px;
+            border: 1px solid #444;
+            background: #333;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        button:active { transform: scale(0.95); }
+        button:hover { opacity: 0.9; }
+
+        .btn-score { background-color: #444; color: white; }
+        .btn-start { background-color: var(--led-green); color: black; }
+        .btn-stop { background-color: var(--led-red); color: white; }
+        .btn-reset { background-color: #555; color: white; }
+        .btn-sound { background-color: var(--led-yellow); color: black; font-weight: 900; }
+
+        .label { font-size: 0.8rem; color: #888; margin-bottom: 5px; }
+
+    </style>
+</head>
+<body onload="loadUrls()"> <audio id="buzzerSoundFile" preload="auto"></audio>
+    <audio id="whistleSoundFile" preload="auto"></audio>
+
+    <div class="scoreboard">
+        <div class="score-box">
+            <h2>Home</h2>
+            <div id="homeScore" class="led-text score">00</div>
+            <div style="margin-top: 10px; color: #fff; font-size: 1.2rem;">BONUS</div>
+        </div>
+
+        <div class="timer-box">
+            <div id="timer" class="led-text timer">12:00</div>
+            <div style="margin-top:10px;">
+                <span style="color:#fff; font-size: 1rem;">PERIOD</span>
+                <div id="period" class="led-text period">1</div>
+            </div>
+        </div>
+
+        <div class="score-box">
+            <h2>Guest</h2>
+            <div id="guestScore" class="led-text score">00</div>
+            <div style="margin-top: 10px; color: #fff; font-size: 1.2rem;">BONUS</div>
+        </div>
+
+        <div class="branding">POWERED BY TIU</div>
+    </div>
+
+    <div class="controls">
+        
+        <div class="team-controls">
+            <div class="label">HOME SCORE</div>
+            <button class="btn-score" onclick="updateScore('home', 1)">+1</button>
+            <button class="btn-score" onclick="updateScore('home', 2)">+2</button>
+            <button class="btn-score" onclick="updateScore('home', 3)">+3</button>
+            <button class="btn-reset" onclick="updateScore('home', -1)">-1</button>
+        </div>
+
+        <div class="team-controls" style="border-left: 1px solid #444; padding-left: 20px;">
+            <div class="label">GAME CLOCK</div>
+            <button class="btn-start" onclick="startTimer()">START</button>
+            <button class="btn-stop" onclick="stopTimer()">STOP</button>
+            <button class="btn-reset" onclick="resetTimer()">RESET (12:00)</button>
+            <div class="label" style="margin-top: 10px;">PERIOD</div>
+            <button class="btn-score" onclick="nextPeriod()">NEXT QTR</button>
+        </div>
+
+        <div class="sound-controls">
+             <div class="label">EXTERNAL AUDIO CONFIGURATION (URLs saved automatically)</div>
+             <input type="text" id="buzzerUrl" placeholder="Buzzer URL (e.g., https://example.com/buzzer.mp3)" onchange="setAudioSource('buzzer'); saveUrls()">
+             <input type="text" id="whistleUrl" placeholder="Whistle URL (e.g., https://example.com/whistle.wav)" onchange="setAudioSource('whistle'); saveUrls()">
+             <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <button class="btn-sound" onclick="playBuzzer()">🔊 TEST BUZZER</button>
+                <button class="btn-sound" onclick="playWhistle()">📢 TEST WHISTLE</button>
+             </div>
+             <div class="label" style="margin-top: 5px; color: yellow;">* If URLs are empty, the synthesized sound is used.</div>
+        </div>
+
+        <div class="team-controls" style="border-left: 1px solid #444; padding-left: 20px;">
+            <div class="label">GUEST SCORE</div>
+            <button class="btn-score" onclick="updateScore('guest', 1)">+1</button>
+            <button class="btn-score" onclick="updateScore('guest', 2)">+2</button>
+            <button class="btn-score" onclick="updateScore('guest', 3)">+3</button>
+            <button class="btn-reset" onclick="updateScore('guest', -1)">-1</button>
+        </div>
+    </div>
+
+    <script>
+        // State Variables
+        let homeScore = 0;
+        let guestScore = 0;
+        let period = 1;
+        let timeInSeconds = 12 * 60; // 12 minutes
+        let timerInterval = null;
+        let isRunning = false;
+
+        // Audio Elements
+        const buzzerAudio = document.getElementById('buzzerSoundFile');
+        const whistleAudio = document.getElementById('whistleSoundFile');
+        
+        // --- PERSISTENCE (LOCAL STORAGE) ---
+        function saveUrls() {
+            localStorage.setItem('buzzerUrl', document.getElementById('buzzerUrl').value);
+            localStorage.setItem('whistleUrl', document.getElementById('whistleUrl').value);
+        }
+
+        function loadUrls() {
+            const savedBuzzerUrl = localStorage.getItem('buzzerUrl');
+            const savedWhistleUrl = localStorage.getItem('whistleUrl');
+
+            if (savedBuzzerUrl) {
+                document.getElementById('buzzerUrl').value = savedBuzzerUrl;
+                setAudioSource('buzzer');
+            }
+            if (savedWhistleUrl) {
+                document.getElementById('whistleUrl').value = savedWhistleUrl;
+                setAudioSource('whistle');
+            }
+        }
+
+        // --- EXTERNAL/SYNTHESIZED AUDIO SYSTEM ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Function to update the <audio> source when the input field changes
+        function setAudioSource(type) {
+            const urlInput = document.getElementById(type + 'Url').value;
+            if (type === 'buzzer') {
+                buzzerAudio.src = urlInput;
+                buzzerAudio.load();
+            } else if (type === 'whistle') {
+                whistleAudio.src = urlInput;
+                whistleAudio.load();
+            }
+        }
+
+        function playSound(type) {
+            let audioElem = type === 'buzzer' ? buzzerAudio : whistleAudio;
+            
+            // 1. Check if an external sound file is loaded
+            if (audioElem.src && audioElem.src.includes('http')) {
+                audioElem.pause();
+                audioElem.currentTime = 0;
+                // Use .play() with catch to prevent promise rejection errors if blocked by browser
+                audioElem.play().catch(e => console.log(`External ${type} failed to play (CORS/Browser Blocked):`, e));
+                return;
+            }
+
+            // 2. Fallback to Synthesized Sound (Web Audio API)
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            if (type === 'buzzer') {
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                osc.type = 'sawtooth'; 
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime); 
+                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 1.5);
+            } else if (type === 'whistle') {
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(2500, audioCtx.currentTime);
+                const lfo = audioCtx.createOscillator();
+                lfo.type = 'square';
+                lfo.frequency.value = 50; 
+                const lfoGain = audioCtx.createGain();
+                lfoGain.gain.value = 500; 
+                lfo.connect(lfoGain);
+                lfoGain.connect(osc.frequency);
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                lfo.start();
+                osc.start();
+                lfo.stop(audioCtx.currentTime + 0.5);
+                osc.stop(audioCtx.currentTime + 0.5);
+            }
+        }
+
+        // Wrapper functions for buttons/timer to call the main sound function
+        function playBuzzer() { playSound('buzzer'); }
+        function playWhistle() { playSound('whistle'); }
+
+        // --- SCORE LOGIC (Unchanged) ---
+        function updateScore(team, amount) {
+            if (team === 'home') {
+                homeScore += amount;
+                if(homeScore < 0) homeScore = 0;
+                document.getElementById('homeScore').textContent = formatScore(homeScore);
+            } else {
+                guestScore += amount;
+                if(guestScore < 0) guestScore = 0;
+                document.getElementById('guestScore').textContent = formatScore(guestScore);
+            }
+        }
+
+        function formatScore(score) {
+            return score < 10 ? `0${score}` : score;
+        }
+
+        function nextPeriod() {
+            period++;
+            if(period > 4) period = 1;
+            document.getElementById('period').textContent = period;
+        }
+
+        // --- TIMER LOGIC ---
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeInSeconds / 60);
+            const seconds = timeInSeconds % 60;
+            const displayMin = minutes < 10 ? `0${minutes}` : minutes;
+            const displaySec = seconds < 10 ? `0${seconds}` : seconds;
+            document.getElementById('timer').textContent = `${displayMin}:${displaySec}`;
+            
+            // Turn timer red in last minute
+            if(timeInSeconds < 60) {
+                document.getElementById('timer').style.color = '#ff0000';
+            } else {
+                document.getElementById('timer').style.color = '#ffcc00';
+            }
+        }
+
+        function startTimer() {
+            if (isRunning) return;
+            if (timeInSeconds <= 0) return;
+            
+            isRunning = true;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            timerInterval = setInterval(() => {
+                timeInSeconds--;
+                updateTimerDisplay();
+
+                if (timeInSeconds <= 0) {
+                    stopTimer();
+                    playBuzzer(); // Auto play buzzer at 0:00
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            isRunning = false;
+        }
+
+        function resetTimer() {
+            stopTimer();
+            timeInSeconds = 12 * 60; // Reset to 12 mins
+            updateTimerDisplay();
+        }
+
+        // Initialize display on startup
+        updateTimerDisplay();
+    </script>
+</body>
+</html>

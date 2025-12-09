@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro TV Scoreboard</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --border-color: #222;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- TOP BAR --- */
+        .top-bar {
+            flex: 0 0 20vh; /* Top 20% of screen */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 40px;
+            background: #111;
+            border-bottom: 3px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+
+        .timer-container {
+            text-align: center;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .timer-display {
+            font-size: 15vh;
+            font-family: 'Courier New', monospace;
+            font-weight: 800;
+            color: #ff3838; /* LED Red */
+            text-shadow: 0 0 15px rgba(255, 56, 56, 0.4);
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .timer-edit {
+            display: none;
+            gap: 10px;
+        }
+        .timer-edit.active { display: flex; }
+        
+        .timer-input {
+            background: #222; border: 1px solid #444; color: white;
+            font-size: 3vh; width: 3em; text-align: center; padding: 5px;
+        }
+
+        .controls-side {
+            display: flex;
+            gap: 15px;
+        }
+
+        /* --- TEAMS AREA --- */
+        #teams-container {
+            flex: 1;
+            display: flex;
+            width: 100%;
+            height: 80vh;
+        }
+
+        .team-card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            border-right: 1px solid var(--border-color);
+            position: relative;
+            padding-top: 5vh;
+            transition: background 0.3s;
+        }
+
+        /* Color Picker Wrapper */
+        .color-strip {
+            width: 100%;
+            height: 15px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+        }
+        .color-input {
+            opacity: 0; /* Hidden but clickable */
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        /* Team Name Input */
+        .team-name {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #eee;
+            font-size: 5vw;
+            font-weight: 700;
+            text-align: center;
+            text-transform: uppercase;
+            width: 80%;
+            margin-bottom: 2vh;
+        }
+        .team-name:focus { 
+            outline: none; 
+            border-bottom: 2px solid #555; 
+            background: rgba(255,255,255,0.05);
+        }
+
+        /* Score */
+        .score-display {
+            font-size: 30vh;
+            font-weight: 800;
+            line-height: 1;
+            margin: 2vh 0;
+            user-select: none;
+        }
+
+        /* Controls hidden until hover */
+        .score-controls {
+            display: flex;
+            gap: 20px;
+            opacity: 0.1; /* Almost invisible */
+            transition: opacity 0.2s;
+        }
+        .team-card:hover .score-controls { opacity: 1; }
+
+        /* --- BUTTONS --- */
+        button {
+            border: none; padding: 10px 20px; border-radius: 6px;
+            font-weight: bold; cursor: pointer; text-transform: uppercase;
+            font-family: inherit; transition: transform 0.1s;
+        }
+        button:active { transform: scale(0.95); }
+
+        .btn-start { background: #2ed573; color: black; font-size: 1.2rem; }
+        .btn-stop { background: #ff4757; color: white; font-size: 1.2rem; }
+        .btn-std { background: #444; color: white; }
+
+        .btn-score {
+            width: 80px; height: 80px; border-radius: 50%;
+            font-size: 3rem; display: flex; align-items: center; justify-content: center;
+            background: #333; color: white;
+        }
+        .btn-score:hover { background: white; color: black; }
+
+        .btn-close-team {
+            position: absolute; bottom: 15px; right: 15px;
+            background: transparent; color: #444; font-size: 1.5rem;
+        }
+        .btn-close-team:hover { color: red; }
+
+        /* --- TIU WATERMARK --- */
+        .app-signature {
+            position: fixed; /* Keep it fixed relative to the viewport */
+            bottom: 5px;     /* Small margin from the bottom edge */
+            left: 10px;      /* Small margin from the left edge */
+            font-size: 1.5vh; /* Very small, responsive size */
+            color: #ccc;     /* Light gray color */
+            opacity: 0.2;    /* The key to non-intrusiveness: 20% transparent */
+            z-index: 1000;   /* Ensure it stays on top of everything */
+            font-weight: 300;
+            text-transform: uppercase;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="controls-side">
+            <button class="btn-std" onclick="addTeam()">+ Team</button>
+            <button class="btn-std" onclick="toggleFullScreen()">[ ] Full</button>
+        </div>
+
+        <div class="timer-container">
+            <div class="timer-display" id="timer" onclick="toggleTimerEdit()">10:00</div>
+            
+            <div class="timer-edit" id="timer-edit">
+                <input type="number" id="t-min" class="timer-input" value="10">
+                <span style="font-size:2rem; padding-top:5px;">:</span>
+                <input type="number" id="t-sec" class="timer-input" value="00">
+                <button class="btn-std" onclick="saveTimer()">Set</button>
+            </div>
+        </div>
+
+        <div class="controls-side">
+            <button class="btn-start" onclick="startTimer()">Start</button>
+            <button class="btn-stop" onclick="stopTimer()">Stop</button>
+        </div>
+    </div>
+
+    <div id="teams-container">
+    </div>
+
+    <div class="app-signature">TIU</div>
+
+    <script>
+        // --- AUDIO SYSTEM (Generated via JS, no files needed) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        function playSound(type) {
+            // Resume context if browser suspended it (common in Chrome)
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (type === 'buzzer') {
+                // Low, Loud Sawtooth (Basketball Buzzer style)
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 1.5);
+                
+                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + 1.5);
+            } else if (type === 'blip') {
+                // Short high blip for scoring
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            }
+        }
+
+        // --- TIMER LOGIC ---
+        let timerInterval;
+        let totalSeconds = 600;
+        let isRunning = false;
+        
+        const timerDisplay = document.getElementById('timer');
+        const timerEdit = document.getElementById('timer-edit');
+
+        function updateDisplay() {
+            const m = Math.floor(totalSeconds / 60);
+            const s = totalSeconds % 60;
+            timerDisplay.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function startTimer() {
+            if (isRunning) return;
+            if (totalSeconds <= 0) return;
+            
+            // Ensure audio context is ready on first user click
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            timerEdit.classList.remove('active');
+            timerDisplay.style.display = 'block';
+
+            isRunning = true;
+            timerInterval = setInterval(() => {
+                if (totalSeconds > 0) {
+                    totalSeconds--;
+                    updateDisplay();
+                } else {
+                    stopTimer();
+                    playSound('buzzer'); // PLAY SOUND
+                    document.body.style.background = "#550000"; // Visual Flash
+                    setTimeout(() => document.body.style.background = "#000", 1000);
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            isRunning = false;
+        }
+
+        function toggleTimerEdit() {
+            if(isRunning) return;
+            timerDisplay.style.display = 'none';
+            timerEdit.classList.add('active');
+        }
+
+        function saveTimer() {
+            const m = parseInt(document.getElementById('t-min').value) || 0;
+            const s = parseInt(document.getElementById('t-sec').value) || 0;
+            totalSeconds = (m * 60) + s;
+            updateDisplay();
+            timerEdit.classList.remove('active');
+            timerDisplay.style.display = 'block';
+        }
+
+        // --- TEAMS LOGIC ---
+        let teamCount = 0;
+        const container = document.getElementById('teams-container');
+
+        function addTeam() {
+            teamCount++;
+            const div = document.createElement('div');
+            div.className = 'team-card';
+            div.id = `card-${teamCount}`;
+            
+            // Default Colors
+            const defaultColor = teamCount % 2 === 0 ? '#3498db' : '#e74c3c';
+
+            div.innerHTML = `
+                <div class="color-strip" style="background:${defaultColor}" id="strip-${teamCount}">
+                    <input type="color" class="color-input" onchange="updateColor(${teamCount}, this.value)" value="${defaultColor}">
+                </div>
+                
+                <input type="text" class="team-name" value="TEAM ${teamCount}" onclick="this.select()">
+                
+                <div class="score-display" id="score-${teamCount}">0</div>
+                
+                <div class="score-controls">
+                    <button class="btn-score" onclick="changeScore(${teamCount}, -1)">-</button>
+                    <button class="btn-score" onclick="changeScore(${teamCount}, 1)">+</button>
+                </div>
+                
+                <button class="btn-close-team" onclick="removeTeam(${teamCount})">&times;</button>
+            `;
+            container.appendChild(div);
+        }
+
+        function removeTeam(id) {
+            document.getElementById(`card-${id}`).remove();
+        }
+
+        function changeScore(id, amount) {
+            const display = document.getElementById(`score-${id}`);
+            let s = parseInt(display.innerText) + amount;
+            if(s < 0) s = 0;
+            display.innerText = s;
+            playSound('blip'); // Play Sound
+        }
+
+        function updateColor(id, color) {
+            document.getElementById(`strip-${id}`).style.background = color;
+            // Also subtly tint the background of that card
+            document.getElementById(`card-${id}`).style.background = `linear-gradient(to bottom, ${color}22, transparent)`;
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        // Init
+        window.onload = () => {
+            addTeam();
+            addTeam();
+        }
+    </script>
+</body>
+</html>

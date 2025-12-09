@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplication Master</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --success-color: #2ecc71;
+            --error-color: #e74c3c;
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+            overflow: hidden; /* Prevents scrollbars if watermark hits edge */
+        }
+
+        .app-container {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            position: relative;
+            z-index: 10;
+        }
+
+        h1 {
+            margin-top: 0;
+            color: var(--primary-color);
+            font-size: 1.8rem;
+        }
+
+        /* Controls Section */
+        .controls {
+            margin-bottom: 2rem;
+            background: #f0f4f8;
+            padding: 1rem;
+            border-radius: 10px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: var(--primary-color);
+        }
+
+        .range-value {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        /* Problem Section */
+        .problem-area {
+            font-size: 3rem;
+            font-weight: bold;
+            margin: 1.5rem 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        input[type="number"] {
+            padding: 10px;
+            font-size: 1.5rem;
+            width: 100px;
+            text-align: center;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        /* Buttons */
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            filter: brightness(110%);
+        }
+
+        .btn.secondary {
+            background-color: #95a5a6;
+        }
+
+        /* Feedback */
+        .message {
+            margin-top: 1rem;
+            height: 1.5rem; /* Fixed height to prevent jumping */
+            font-weight: bold;
+        }
+
+        .correct { color: var(--success-color); }
+        .incorrect { color: var(--error-color); }
+
+        /* Watermark Styles */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-family: 'Georgia', serif;
+            font-size: 2rem;
+            color: rgba(0, 0, 0, 0.08); /* Very subtle opacity */
+            font-style: italic;
+            pointer-events: none; /* Allows clicking through it */
+            user-select: none;
+            z-index: 0;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <h1>Multiplication Trainer</h1>
+
+        <div class="controls">
+            <label for="difficulty">Max Number: <span id="maxValDisplay" class="range-value">12</span></label>
+            <input type="range" id="difficulty" min="2" max="50" value="12">
+        </div>
+
+        <div class="problem-area" id="problem">
+            </div>
+
+        <input type="number" id="userAnswer" placeholder="?" autocomplete="off">
+        
+        <br>
+        
+        <button class="btn" onclick="checkAnswer()">Check Answer</button>
+        <button class="btn secondary" onclick="newProblem()">Skip / Next</button>
+
+        <div class="message" id="message"></div>
+    </div>
+
+    <div class="watermark">Tiu</div>
+
+    <script>
+        // DOM Elements
+        const rangeInput = document.getElementById('difficulty');
+        const maxValDisplay = document.getElementById('maxValDisplay');
+        const problemDisplay = document.getElementById('problem');
+        const answerInput = document.getElementById('userAnswer');
+        const messageDisplay = document.getElementById('message');
+
+        // State variables
+        let num1, num2, correctAnswer;
+
+        // Initialize
+        rangeInput.addEventListener('input', function() {
+            maxValDisplay.textContent = this.value;
+            // Optional: Generate new problem immediately on slide? 
+            // Let's not, to avoid disrupting current thought process, 
+            // but the next problem will use the new range.
+        });
+
+        // Generate a new problem
+        function newProblem() {
+            const max = parseInt(rangeInput.value);
+            
+            // Random number between 1 and max
+            num1 = Math.floor(Math.random() * max) + 1;
+            num2 = Math.floor(Math.random() * max) + 1;
+            correctAnswer = num1 * num2;
+
+            // Update UI
+            problemDisplay.textContent = `${num1} × ${num2} =`;
+            answerInput.value = '';
+            answerInput.focus();
+            messageDisplay.textContent = '';
+            messageDisplay.className = 'message';
+        }
+
+        // Check the user's answer
+        function checkAnswer() {
+            const userVal = parseInt(answerInput.value);
+
+            if (isNaN(userVal)) {
+                setMessage("Please enter a number.", "incorrect");
+                return;
+            }
+
+            if (userVal === correctAnswer) {
+                setMessage("Correct! Great job.", "correct");
+                // Wait a moment then generate new problem automatically
+                setTimeout(newProblem, 1000);
+            } else {
+                setMessage("Not quite. Try again!", "incorrect");
+                answerInput.select(); // Select text for easy retry
+            }
+        }
+
+        // Helper to set status message
+        function setMessage(text, type) {
+            messageDisplay.textContent = text;
+            messageDisplay.className = `message ${type}`;
+        }
+
+        // Allow "Enter" key to submit
+        answerInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkAnswer();
+            }
+        });
+
+        // Start the app
+        newProblem();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV Audio Visualizer - Note Tuner Edition</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* Watermark Style (New Addition) */
+        #watermark {
+            position: absolute;
+            bottom: 20px;
+            right: 30px;
+            z-index: 2; /* Sits above canvas */
+            font-size: 1.5rem;
+            font-weight: 300;
+            color: #00ffcc; /* Matches the accent color */
+            opacity: 0.15; /* Subtle opacity */
+            letter-spacing: 0.1em;
+            pointer-events: none; /* Ignore mouse clicks */
+        }
+
+        /* HUD Overlay */
+        #hud {
+            position: absolute;
+            top: 5vh;
+            width: 90%;
+            left: 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 3; /* Increased Z-index to ensure it's above the watermark */
+            pointer-events: none;
+        }
+
+        /* Left Side: Meters */
+        .meters-container {
+            display: flex;
+            gap: 4vw;
+        }
+
+        .metric-group {
+            text-align: center;
+            min-width: 15vw; /* Fixed width to prevent jumping */
+        }
+
+        .metric-value {
+            font-size: 6vw; 
+            font-weight: 700;
+            color: #fff;
+            line-height: 1;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
+        }
+        
+        /* Smaller sub-text for the Hertz readout */
+        .metric-sub {
+            font-size: 1.5vw;
+            color: #00ffcc;
+            font-weight: bold;
+            display: block;
+            margin-top: 5px;
+        }
+
+        .metric-label {
+            font-size: 1.2vw;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: #aaa;
+            margin-top: 10px;
+        }
+
+        /* Right Side: Controls */
+        .controls-container {
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: rgba(0,0,0,0.6);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #333;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .control-label {
+            font-size: 1rem;
+            color: #00ffcc;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        select {
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            border: 1px solid #00ffcc;
+            padding: 10px;
+            font-size: 1.2rem;
+            border-radius: 5px;
+            outline: none;
+            cursor: pointer;
+            width: 250px;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 250px;
+            height: 10px;
+            background: #333;
+            outline: none;
+            border-radius: 5px;
+            opacity: 0.9;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            background: #00ffcc;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00ffcc;
+        }
+
+        /* Start Button Overlay */
+        #start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        #startBtn {
+            padding: 20px 50px;
+            font-size: 2rem;
+            background: transparent;
+            border: 3px solid #00ffcc;
+            color: #00ffcc;
+            border-radius: 50px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+        }
+
+        #startBtn:hover {
+            background: #00ffcc;
+            color: #000;
+            box-shadow: 0 0 50px #00ffcc;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-overlay">
+        <button id="startBtn">Initialize Tuner</button>
+    </div>
+
+    <div id="hud">
+        <div class="meters-container">
+            <div class="metric-group">
+                <div id="dbDisplay" class="metric-value">--</div>
+                <div class="metric-label">dB Level</div>
+            </div>
+            <div class="metric-group">
+                <div id="noteDisplay" class="metric-value">--</div>
+                <span id="hzDisplay" class="metric-sub">0 Hz</span>
+                <div class="metric-label">Dominant Note</div>
+            </div>
+        </div>
+
+        <div class="controls-container">
+            <div class="control-group">
+                <div class="control-label">Visualization Mode</div>
+                <select id="modeSelector">
+                    <option value="bars">Digital Bars</option>
+                    <option value="smooth">Liquid Smooth</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">Sensitivity (Gain): <span id="gainValue">1.0</span>x</div>
+                <input type="range" id="gainSlider" min="0" max="5" step="0.1" value="1.0">
+            </div>
+        </div>
+    </div>
+
+    <div id="watermark">TIU</div>
+
+    <canvas id="visualizer"></canvas>
+
+    <script>
+        const startBtn = document.getElementById('startBtn');
+        const overlay = document.getElementById('start-overlay');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        
+        const dbDisplay = document.getElementById('dbDisplay');
+        const noteDisplay = document.getElementById('noteDisplay'); // Changed from peakDisplay
+        const hzDisplay = document.getElementById('hzDisplay');    // New Hz display
+        
+        const modeSelector = document.getElementById('modeSelector');
+        const gainSlider = document.getElementById('gainSlider');
+        const gainValueDisplay = document.getElementById('gainValue');
+
+        let audioContext, analyser, microphone, gainNode, javascriptNode, dataArray, bufferLength;
+        let currentMode = 'bars';
+
+        // --- Music Theory Data ---
+        const noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+        // Helper: Convert Hz to Note
+        function getNote(frequency) {
+            if (frequency < 20) return "--"; 
+            
+            // Formula to get the "MIDI note number"
+            // 69 is the MIDI number for A4 (440Hz)
+            const noteNum = 12 * (Math.log(frequency / 440) / Math.log(2));
+            const midiNote = Math.round(noteNum) + 69;
+
+            const noteIndex = midiNote % 12;
+            const octave = Math.floor(midiNote / 12) - 1;
+            
+            // Handle edge case where low frequencies might result in negative indices
+            if(midiNote < 0) return "--";
+
+            return noteStrings[noteIndex] + octave;
+        }
+
+        // --- Controls Listeners ---
+        gainSlider.addEventListener('input', (e) => {
+            const val = e.target.value;
+            gainValueDisplay.innerText = val; 
+            if(gainNode) gainNode.gain.value = val;
+        });
+
+        modeSelector.addEventListener('change', (e) => {
+            currentMode = e.target.value;
+            if(analyser) analyser.smoothingTimeConstant = (currentMode === 'smooth') ? 0.92 : 0.85; 
+        });
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        startBtn.addEventListener('click', async () => {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+            }
+
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.style.display = 'none', 500);
+            
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                microphone = audioContext.createMediaStreamSource(stream);
+                gainNode = audioContext.createGain();
+                gainNode.gain.value = gainSlider.value;
+
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 4096; // Increased resolution for better Note detection
+                analyser.smoothingTimeConstant = 0.85; 
+                bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+
+                javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+
+                microphone.connect(gainNode);
+                gainNode.connect(analyser);
+                analyser.connect(javascriptNode);
+                javascriptNode.connect(audioContext.destination);
+
+                javascriptNode.onaudioprocess = function(event) {
+                    const input = event.inputBuffer.getChannelData(0);
+                    let sum = 0;
+                    for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
+                    let rms = Math.sqrt(sum / input.length);
+                    let db = 20 * Math.log10(rms + 0.00001); 
+                    
+                    let displayDb = Math.max(0, Math.floor(db + 100)); 
+                    dbDisplay.innerText = displayDb;
+                    
+                    // Color coding dB
+                    if(displayDb > 85) dbDisplay.style.color = '#ff0055'; 
+                    else if(displayDb > 60) dbDisplay.style.color = '#ffcc00'; 
+                    else dbDisplay.style.color = '#fff'; 
+                };
+
+                animate();
+
+            } catch (err) {
+                alert("Error: " + err);
+                overlay.style.opacity = '1';
+            }
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            analyser.getByteFrequencyData(dataArray);
+
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Find the Peak Frequency
+            let maxVal = 0;
+            let maxIndex = 0;
+            for(let i=0; i<bufferLength; i++){
+                // We add a simple weight to favor mid-range frequencies
+                // because low-end rumble often triggers false positives
+                if(dataArray[i] > maxVal){
+                    maxVal = dataArray[i];
+                    maxIndex = i;
+                }
+            }
+
+            // 2. Convert Index to Hz
+            const nyquist = audioContext.sampleRate / 2;
+            const dominantFrequency = (maxIndex / bufferLength) * nyquist;
+            
+            // 3. Update Text
+            if (maxVal > 100) { // Threshold: only show note if sound is loud enough
+                const note = getNote(dominantFrequency);
+                noteDisplay.innerText = note;
+                hzDisplay.innerText = Math.round(dominantFrequency) + " Hz";
+                
+                // Visual feedback: Text turns Cyan if loud
+                noteDisplay.style.color = "#00ffcc";
+            } else {
+                noteDisplay.style.color = "#555"; // Dim if quiet
+            }
+
+            // 4. Render Visuals
+            if (currentMode === 'bars') drawBars();
+            else drawSmooth();
+        }
+
+        function drawBars() {
+            // Cut off high end (above 15kHz usually empty)
+            const renderCount = bufferLength * 0.4; 
+            const barWidth = (canvas.width / renderCount) * 1.2;
+            let x = 0;
+
+            for (let i = 0; i < renderCount; i++) {
+                let barHeight = (dataArray[i] / 255) * canvas.height * 0.9;
+                const hue = (i / renderCount) * 360; 
+                ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.2)`; 
+                ctx.fillRect(x, 0, barWidth, barHeight * 0.5); 
+                x += barWidth;
+            }
+        }
+
+        function drawSmooth() {
+            const renderCount = bufferLength * 0.4;
+            const sliceWidth = canvas.width / renderCount;
+            let x = 0;
+
+            let gradient = ctx.createLinearGradient(0, canvas.height, 0, 0);
+            gradient.addColorStop(0, "rgba(0, 255, 204, 0.8)"); 
+            gradient.addColorStop(0.5, "rgba(51, 51, 255, 0.6)"); 
+            gradient.addColorStop(1, "rgba(255, 0, 204, 0)"); 
+
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+
+            for(let i = 0; i < renderCount; i++) {
+                let v = dataArray[i] / 255.0;
+                let y = canvas.height - (v * canvas.height * 0.95);
+                ctx.lineTo(x, y);
+                x += sliceWidth;
+            }
+
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
+        }
+    </script>
+</body>
+</html>

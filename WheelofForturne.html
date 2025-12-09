@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wheel of Knowledge Game Show</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Dark background */
+        }
+        /* --- GAME TILES & BUTTONS (Tailwind-based) --- */
+        .puzzle-letter {
+            width: 3rem;
+            height: 4rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 900;
+            color: #1e3a8a; /* Dark blue for letters */
+            background-color: #fef3c7; /* Light yellow/cream tile */
+            border: 3px solid #f59e0b; /* Orange border */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            border-radius: 0.5rem;
+            transition: all 0.2s ease-in-out;
+            user-select: none;
+        }
+        .puzzle-space {
+            width: 3rem;
+            height: 4rem;
+            background-color: transparent;
+        }
+        .revealed {
+            background-color: #3b82f6; /* Blue for revealed tiles */
+            color: #fef3c7;
+            border-color: #1d4ed8;
+            animation: flip 0.5s ease-out;
+        }
+        @keyframes flip {
+            0% { transform: perspective(600px) rotateY(90deg); }
+            100% { transform: perspective(600px) rotateY(0deg); }
+        }
+        .letter-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+        .btn-primary {
+            @apply bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition duration-200;
+        }
+        .btn-secondary {
+            @apply bg-yellow-600 hover:bg-yellow-700 text-gray-900 font-bold py-3 px-6 rounded-xl shadow-lg transition duration-200;
+        }
+        .btn-disabled {
+            @apply bg-gray-500 cursor-not-allowed opacity-50;
+        }
+        .vowel-button {
+            @apply bg-indigo-600 hover:bg-indigo-700 text-white text-xl font-bold rounded-lg w-12 h-12 flex items-center justify-center transition duration-150 shadow-md;
+        }
+        .vowel-button:disabled {
+            @apply bg-gray-500 hover:bg-gray-500 cursor-not-allowed opacity-70;
+        }
+        .team-card {
+            @apply p-4 rounded-xl shadow-lg border-2 border-gray-700 transition duration-300 transform;
+        }
+        .active-team {
+            /* Highlighted styles */
+            @apply bg-yellow-900 border-yellow-400 scale-105;
+            box-shadow: 0 0 20px 5px rgba(252, 211, 77, 0.8);
+            animation: pulse-glow 1.5s infinite alternate;
+        }
+        @keyframes pulse-glow {
+            from { box-shadow: 0 0 10px 3px rgba(252, 211, 77, 0.5), 0 0 0 0 rgba(252, 211, 77, 0.1); }
+            to { box-shadow: 0 0 25px 8px rgba(252, 211, 77, 1), 0 0 0 5px rgba(252, 211, 77, 0); }
+        }
+        /* --- TIU Watermark Style --- */
+        .app-signature {
+            position: fixed; bottom: 10px; right: 10px; font-size: 0.75rem; font-weight: 700;
+            color: #4b5563; background-color: #1f2937; padding: 4px 8px; border-radius: 4px;
+            z-index: 1000; user-select: none;
+        }
+
+        /* --- SPIN WHEEL STYLES --- */
+        .wheel-wrapper {
+            flex: none; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .wheel-container {
+            position: relative;
+            width: 400px; 
+            height: 400px;
+            max-width: 100%; 
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 0 25px rgba(0,0,0,0.4); /* Darker shadow for dark theme */
+            transition: transform 0s; /* Needed to reset transitions */
+        }
+        .pointer {
+            position: absolute;
+            top: -20px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0; 
+            height: 0; 
+            border-left: 25px solid transparent;
+            border-right: 25px solid transparent;
+            border-top: 40px solid #f59e0b; /* Yellow/Orange pointer */
+            z-index: 10;
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.6));
+        }
+        @media (max-width: 640px) {
+            .wheel-container {
+                width: 300px;
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 flex flex-col items-center">
+
+    <div class="max-w-5xl w-full bg-gray-800 p-8 rounded-3xl shadow-2xl mt-4">
+        <h1 class="text-4xl font-black text-center text-yellow-400 mb-6">Wheel of Knowledge Game Show</h1>
+
+        <div id="wheelArea" class="flex justify-center my-8">
+            <div class="wheel-wrapper">
+                <div class="wheel-container">
+                    <div class="pointer"></div>
+                    <canvas id="wheelCanvas" width="1000" height="1000"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-center space-x-4 mb-6">
+            <button id="addTeamButton" class="btn-primary" onclick="addTeam()">Add Team</button>
+            <button id="removeTeamButton" class="btn-primary bg-red-600 hover:bg-red-700" onclick="removeLastTeam()">Remove Last Team</button>
+        </div>
+
+        <div id="teamsContainer" class="flex flex-wrap justify-center gap-4 mb-8">
+        </div>
+
+        <div id="categoryContainer" class="text-center mb-4 p-2 bg-gray-900 rounded-lg">
+            <p class="text-xl font-semibold text-gray-400">CATEGORY:</p>
+            <p id="puzzleCategory" class="text-3xl font-black text-white italic">Loading...</p>
+        </div>
+
+        <div id="puzzleContainer" class="flex flex-wrap justify-center items-center gap-2 mb-8 p-4 bg-gray-700 rounded-xl min-h-[150px] border-4 border-yellow-500">
+        </div>
+
+        <div class="mb-6 p-4 bg-gray-900 rounded-xl">
+            <h2 class="text-lg font-semibold text-gray-300 mb-2">Guessed Letters:</h2>
+            <p id="guessedLettersDisplay" class="text-2xl font-mono text-cyan-400 break-words"></p>
+        </div>
+
+        <div id="controlButtons" class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+            <button id="spinButton" class="btn-primary" onclick="spinWheel()">Spin Wheel</button>
+            <button id="buyVowelButton" class="btn-secondary" onclick="openVowelModal()">Buy Vowel (-$250)</button>
+            <button id="solveButton" class="btn-primary" onclick="solvePuzzle()">Solve Puzzle</button>
+            <button id="newGameButton" class="btn-primary" onclick="newGame()">New Puzzle</button>
+        </div>
+        
+        <div id="guessInputContainer" class="mt-6 p-4 bg-yellow-800 rounded-xl hidden">
+            <h2 id="guessPrompt" class="text-xl font-bold text-white mb-3 text-center"></h2>
+            <div class="flex space-x-2">
+                <input id="letterInput" type="text" maxlength="1" 
+                        class="flex-grow p-3 rounded-lg text-gray-900 text-2xl font-bold uppercase text-center focus:ring-4 focus:ring-yellow-300"
+                        placeholder="Enter consonant">
+                <button id="guessLetterButton" class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-6 rounded-xl transition duration-200" onclick="handleManualGuess()">Guess Letter</button>
+            </div>
+        </div>
+
+        <div id="solveInputContainer" class="mt-6 p-4 bg-green-800 rounded-xl hidden">
+            <h2 class="text-xl font-bold text-white mb-3 text-center">Enter your solution for the puzzle:</h2>
+            <div class="flex space-x-2">
+                <input id="solveInput" type="text" 
+                        class="flex-grow p-3 rounded-lg text-gray-900 text-2xl font-bold uppercase text-center focus:ring-4 focus:ring-green-300"
+                        placeholder="Your full solution">
+                <button class="bg-green-500 hover:bg-green-600 text-gray-900 font-bold py-3 px-6 rounded-xl transition duration-200" onclick="submitSolveAttempt()">Submit Solution</button>
+            </div>
+        </div>
+
+        <div id="messageBox" class="mt-4 text-center text-xl font-bold text-red-400 h-8"></div>
+    </div>
+
+    <div id="vowelModal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-sm w-full border-4 border-indigo-500">
+            <h2 class="text-2xl font-bold text-white mb-4 text-center">Select a Vowel ($250)</h2>
+            <p id="vowelError" class="text-red-400 text-center mb-4 hidden">Not enough money! Need $250.</p>
+            <p class="text-gray-300 text-center mb-6">Choose one of the available vowels:</p>
+
+            <div id="vowelButtons" class="flex justify-center space-x-3 mb-6">
+            </div>
+
+            <button class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg w-full" onclick="closeVowelModal()">Cancel</button>
+        </div>
+    </div>
+    
+    <div class="app-signature">
+        App by TIU (Integrated Spin Wheel)
+    </div>
+
+    <script>
+        // --- Audio Utilities (Simplified) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playTone(frequency, duration, type = 'sine', volume = 0.1) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+        let lastTickTime = 0;
+        function playTick() { 
+            const now = audioCtx.currentTime;
+            if (now - lastTickTime > 0.05) {
+                playTone(800, 0.05, 'triangle', 0.1); 
+                lastTickTime = now;
+            }
+        }
+        function playWinFanfare() {
+            playTone(600, 0.2, 'sine', 0.3);
+            setTimeout(() => { playTone(800, 0.4, 'sine', 0.3); }, 200);
+            setTimeout(() => { playTone(1000, 0.6, 'sine', 0.3); }, 400);
+        }
+        // Dummy TTS function (replace with your API call if needed)
+        function say(text) {
+             console.log("TTS attempted to speak: " + text);
+        }
+        // End of Audio
+
+        // --- GAME STATE VARIABLES ---
+        let teams = [];
+        let currentTeamIndex = 0;
+        let currentPuzzle = {
+            category: "",
+            word: "",
+            revealed: [], 
+            guessedLetters: new Set(),
+        };
+        const VOWELS = ['A', 'E', 'I', 'O', 'U'];
+        let currentSpinValue = 0; // The dollar amount won from the last spin
+        
+        // --- SPIN WHEEL VARIABLES ---
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        let currentAngle = 0;
+        let isSpinning = false;
+        let tickTimer = null;
+        
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const radius = canvas.width / 2;
+        const SPIN_DURATION_MS = 5000;
+
+        // --- WHEEL OF FORTUNE WEDGES ---
+        const WOF_WEDGES = [
+            { text: "500", color: "#10b981", value: 500, type: "money" },
+            { text: "Lose Turn", color: "#ef4444", value: 0, type: "lose_turn" },
+            { text: "800", color: "#f59e0b", value: 800, type: "money" },
+            { text: "150", color: "#6366f1", value: 150, type: "money" },
+            { text: "Bankrupt", color: "#000000", value: 0, type: "bankrupt" },
+            { text: "750", color: "#22c3e6", value: 750, type: "money" },
+            { text: "300", color: "#be185d", value: 300, type: "money" },
+            { text: "400", color: "#14b8a6", value: 400, type: "money" },
+            { text: "500", color: "#10b981", value: 500, type: "money" },
+            { text: "Lose Turn", color: "#ef4444", value: 0, type: "lose_turn" },
+            { text: "900", color: "#f59e0b", value: 900, type: "money" },
+            { text: "200", color: "#6366f1", value: 200, type: "money" },
+            { text: "Bankrupt", color: "#000000", value: 0, type: "bankrupt" },
+            { text: "600", color: "#22c3e6", value: 600, type: "money" },
+            { text: "350", color: "#be185d", value: 350, type: "money" },
+            { text: "450", color: "#14b8a6", value: 450, type: "money" },
+        ];
+
+
+        // --- INTEGRATED WHEEL FUNCTIONS ---
+
+        /**
+         * Draws the Wheel of Fortune style wedges onto the canvas.
+         */
+        function drawWheelWOF() {
+            if (WOF_WEDGES.length === 0) return;
+            const sliceAngle = (2 * Math.PI) / WOF_WEDGES.length;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            WOF_WEDGES.forEach((wedge, index) => {
+                const startAngle = index * sliceAngle;
+                const endAngle = startAngle + sliceAngle;
+
+                // 1. Slice
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = wedge.color;
+                ctx.fill();
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = "#ffffff";
+                ctx.stroke();
+
+                // 2. Text (Prize Value)
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(startAngle + sliceAngle / 2);
+                ctx.textAlign = "right";
+
+                // Determine text color
+                ctx.fillStyle = (wedge.color === "#f59e0b" || wedge.color === "#22c3e6" || wedge.color === "#10b981") ? "#000" : "#fff";
+                
+                let fontSize = 50;
+                ctx.font = `bold ${fontSize}px 'Inter', sans-serif`;
+                ctx.shadowColor = "rgba(0,0,0,0.5)";
+                ctx.shadowBlur = 5;
+                
+                let textToDisplay = wedge.text;
+                if (wedge.type === 'money') {
+                    textToDisplay = `$${wedge.text}`; 
+                    ctx.fillText(textToDisplay, radius - 40, 15);
+                } else {
+                    ctx.font = `bold 40px 'Inter', sans-serif`;
+                    ctx.fillText(textToDisplay.toUpperCase(), radius - 40, 15);
+                }
+                
+                ctx.restore();
+            });
+        }
+        
+        /**
+         * Initiates the spinning of the wheel.
+         */
+        function spinWheel() {
+            if (isSpinning) return;
+            if (currentPuzzle.word === '' || teams.length === 0) {
+                showMessage("Start a new game with at least one team first!", 'red');
+                return;
+            }
+            // Hide any open input containers
+            document.getElementById('guessInputContainer').classList.add('hidden');
+            document.getElementById('solveInputContainer').classList.add('hidden');
+            showMessage("", 'white'); // Clear message box
+
+            isSpinning = true;
+            say(`Team ${currentTeamIndex + 1}: Spinning the wheel!`);
+            
+            drawWheelWOF(); 
+
+            // Calculate spin parameters
+            const spinAmount = (Math.random() * 5 + 8) * 360; 
+            const finalDegreeAdjustment = Math.random() * 360; 
+            const endAngle = currentAngle + spinAmount + finalDegreeAdjustment;
+
+            // Apply spin animation
+            canvas.style.transition = `transform ${SPIN_DURATION_MS / 1000}s cubic-bezier(0.25, 0.1, 0.25, 1)`;
+            canvas.style.transform = `rotate(${endAngle}deg)`;
+            currentAngle = endAngle;
+
+            // Start the ticking sound
+            let tickDelay = 50;
+            function doTick() {
+                if (!isSpinning) return;
+                playTick(); 
+                tickDelay = Math.min(tickDelay * 1.05, 400); 
+                tickTimer = setTimeout(doTick, tickDelay);
+            }
+            doTick();
+            
+            // Wait for the spin to finish
+            setTimeout(() => {
+                isSpinning = false;
+                clearTimeout(tickTimer);
+                determineWinnerWOF(currentAngle);
+                playWinFanfare(); 
+            }, SPIN_DURATION_MS);
+            
+            // Disable buttons while spinning
+            document.getElementById('spinButton').disabled = true;
+            document.getElementById('buyVowelButton').disabled = true;
+            document.getElementById('solveButton').disabled = true;
+        }
+
+        /**
+         * Determines the winning wedge and applies the game consequences.
+         */
+        function determineWinnerWOF(finalAngle) {
+            // Re-enable buttons after spin stops
+            document.getElementById('spinButton').disabled = false;
+            document.getElementById('buyVowelButton').disabled = false;
+            document.getElementById('solveButton').disabled = false;
+            
+            const sliceDegrees = 360 / WOF_WEDGES.length;
+            // Adjust so the pointer (at 12 o'clock) corresponds to the start of the first wedge
+            const effectiveAngle = (finalAngle + 90) % 360; 
+            
+            // Calculate the winning index based on the angle
+            const winningIndex = Math.floor((360 - (effectiveAngle % 360)) / sliceDegrees) % WOF_WEDGES.length;
+            
+            const winnerWedge = WOF_WEDGES[winningIndex];
+
+            showMessage(`The wheel landed on: ${winnerWedge.text}!`, 'yellow');
+            say(`The wheel landed on ${winnerWedge.text}!`);
+
+            if (winnerWedge.type === 'bankrupt') {
+                teams[currentTeamIndex].score = 0;
+                updateScoreDisplay(currentTeamIndex);
+                showMessage("BANKRUPT! Team loses all money. Next Team's turn.", 'red');
+                say("Bankrupt! You lose all your money. Next team's turn.");
+                nextTurn();
+            } else if (winnerWedge.type === 'lose_turn') {
+                showMessage("LOSE A TURN! Next Team's turn.", 'red');
+                say("Lose a Turn! Next team's turn.");
+                nextTurn();
+            } else {
+                // Money: Prompt for consonant guess
+                const prizeValue = winnerWedge.value;
+                currentSpinValue = prizeValue; // Store the value for the guess
+                showMessage(`Team ${currentTeamIndex + 1}, you spun $${prizeValue}! Guess a CONSONANT.`, 'green');
+                say(`Team ${currentTeamIndex + 1}, you spun ${prizeValue} dollars! Guess a consonant.`);
+                
+                // Show the guess input UI for a consonant
+                document.getElementById('guessPrompt').innerText = `Guess a CONSONANT (for $${prizeValue} each):`;
+                document.getElementById('letterInput').placeholder = "Enter consonant";
+                document.getElementById('guessInputContainer').classList.remove('hidden');
+                document.getElementById('letterInput').focus();
+            }
+        }
+
+
+        // --- CORE GAME LOGIC ---
+
+        const teamContainer = document.getElementById('teamsContainer');
+        const puzzleContainer = document.getElementById('puzzleContainer');
+        const guessedLettersDisplay = document.getElementById('guessedLettersDisplay');
+        const messageBox = document.getElementById('messageBox');
+        const letterInput = document.getElementById('letterInput');
+        const guessInputContainer = document.getElementById('guessInputContainer');
+        const solveInputContainer = document.getElementById('solveInputContainer');
+        const vowelModal = document.getElementById('vowelModal');
+        const vowelButtonsContainer = document.getElementById('vowelButtons');
+
+        const Puzzles = [
+            { category: "Phrase", word: "A PIECE OF CAKE" },
+            { category: "Thing", word: "DIAMOND RING" },
+            { category: "Title", word: "WAR AND PEACE" },
+            { category: "Person", word: "ABRAHAM LINCOLN" },
+            { category: "Event", word: "THE SUPER BOWL" }
+        ];
+
+        // --- Team Management ---
+
+        function addTeam() {
+            if (teams.length >= 4) return;
+            const newTeam = { name: `Team ${teams.length + 1}`, score: 0 };
+            teams.push(newTeam);
+            renderTeams();
+        }
+
+        function removeLastTeam() {
+            if (teams.length > 0) {
+                teams.pop();
+                currentTeamIndex = teams.length > 0 ? currentTeamIndex % teams.length : 0;
+                renderTeams();
+            }
+        }
+
+        function renderTeams() {
+            teamContainer.innerHTML = '';
+            teams.forEach((team, index) => {
+                const card = document.createElement('div');
+                card.className = `team-card text-white w-40 text-center ${index === currentTeamIndex ? 'active-team' : 'bg-gray-700'}`;
+                card.innerHTML = `<h3 class="font-bold text-lg">${team.name}</h3><p id="score${index}" class="text-3xl font-black text-yellow-300">$${team.score}</p>`;
+                teamContainer.appendChild(card);
+            });
+        }
+
+        function updateScoreDisplay(index) {
+            document.getElementById(`score${index}`).innerText = `$${teams[index].score}`;
+        }
+
+        function nextTurn() {
+            if (teams.length === 0) return;
+            currentTeamIndex = (currentTeamIndex + 1) % teams.length;
+            renderTeams(); 
+        }
+
+        function showMessage(msg, color) {
+            messageBox.style.color = color;
+            messageBox.innerText = msg;
+        }
+
+        // --- Puzzle Logic ---
+
+        function initializePuzzle(puzzle) {
+            currentPuzzle.category = puzzle.category;
+            currentPuzzle.word = puzzle.word.toUpperCase();
+            currentPuzzle.revealed = Array(currentPuzzle.word.length).fill(false);
+            currentPuzzle.guessedLetters = new Set();
+            document.getElementById('puzzleCategory').innerText = puzzle.category.toUpperCase();
+            renderPuzzle();
+            renderGuessedLetters();
+            drawWheelWOF(); 
+            showMessage("Spin the wheel to begin!", 'white');
+            currentSpinValue = 0;
+            currentTeamIndex = 0;
+            renderTeams();
+        }
+
+        function renderPuzzle() {
+            puzzleContainer.innerHTML = '';
+            let currentLineGroup = document.createElement('div');
+            currentLineGroup.className = 'letter-group';
+
+            for (let i = 0; i < currentPuzzle.word.length; i++) {
+                const char = currentPuzzle.word[i];
+
+                if (char === ' ') {
+                    if (currentLineGroup.children.length > 0) {
+                        puzzleContainer.appendChild(currentLineGroup);
+                    }
+                    puzzleContainer.appendChild(document.createElement('div')).className = 'puzzle-space w-4 h-4';
+                    currentLineGroup = document.createElement('div');
+                    currentLineGroup.className = 'letter-group';
+                    continue;
+                }
+
+                const tile = document.createElement('div');
+                tile.className = 'puzzle-letter';
+
+                if (currentPuzzle.revealed[i]) {
+                    tile.classList.add('revealed');
+                    tile.innerText = char;
+                } else {
+                    tile.innerText = '';
+                }
+
+                currentLineGroup.appendChild(tile);
+            }
+            if (currentLineGroup.children.length > 0) {
+                puzzleContainer.appendChild(currentLineGroup);
+            }
+            checkWin();
+        }
+
+        function renderGuessedLetters() {
+            guessedLettersDisplay.innerText = Array.from(currentPuzzle.guessedLetters).sort().join(' ');
+        }
+
+        function checkWin() {
+            const isSolved = currentPuzzle.revealed.every((r, i) => r || currentPuzzle.word[i] === ' ');
+            if (isSolved) {
+                showMessage(`CONGRATULATIONS! Team ${currentTeamIndex + 1} solves the puzzle!`, 'lime');
+                say(`Congratulations! Team ${currentTeamIndex + 1} solves the puzzle and wins the round!`);
+                
+                // Add a bonus amount for solving
+                teams[currentTeamIndex].score += 1000;
+                updateScoreDisplay(currentTeamIndex);
+                
+                // Disable controls
+                document.getElementById('spinButton').disabled = true;
+                document.getElementById('buyVowelButton').disabled = true;
+                document.getElementById('solveButton').disabled = true;
+
+                // Ensure all letters are revealed
+                for (let i = 0; i < currentPuzzle.word.length; i++) {
+                    currentPuzzle.revealed[i] = true;
+                }
+                renderPuzzle();
+            }
+        }
+
+        function guessLetter(letter) {
+            const letterUpper = letter.toUpperCase();
+            
+            if (currentPuzzle.guessedLetters.has(letterUpper)) {
+                showMessage(`The letter ${letterUpper} has already been guessed. Try again.`, 'orange');
+                return { success: false, count: 0 };
+            }
+
+            currentPuzzle.guessedLetters.add(letterUpper);
+            renderGuessedLetters();
+            
+            let matchCount = 0;
+            for (let i = 0; i < currentPuzzle.word.length; i++) {
+                if (currentPuzzle.word[i] === letterUpper && !currentPuzzle.revealed[i]) {
+                    currentPuzzle.revealed[i] = true;
+                    matchCount++;
+                }
+            }
+
+            if (matchCount > 0) {
+                const isVowel = VOWELS.includes(letterUpper);
+                const scoreIncrease = isVowel ? 0 : matchCount * currentSpinValue;
+                
+                if (isVowel) {
+                    showMessage(`Yes! ${matchCount} ${letterUpper}(s) revealed.`, 'cyan');
+                    say(`Yes! ${matchCount} ${letterUpper}s revealed!`);
+                } else {
+                    teams[currentTeamIndex].score += scoreIncrease;
+                    updateScoreDisplay(currentTeamIndex);
+                    showMessage(`Yes! ${matchCount} ${letterUpper}(s) revealed. Team earns $${scoreIncrease}.`, 'green');
+                    say(`Yes! ${matchCount} ${letterUpper}s revealed! Team earns ${scoreIncrease} dollars.`);
+                }
+                renderPuzzle(); 
+                return { success: true, count: matchCount };
+            } else {
+                showMessage(`No ${letterUpper}(s) in the puzzle. Next team's turn.`, 'red');
+                say(`Sorry, no ${letterUpper}s. Next team's turn.`);
+                nextTurn();
+                return { success: false, count: 0 };
+            }
+        }
+
+        function handleManualGuess() {
+            const letter = letterInput.value.trim().toUpperCase();
+            letterInput.value = ''; 
+
+            if (letter.length !== 1 || !/^[A-Z]$/.test(letter)) {
+                showMessage("Please enter a single letter.", 'red');
+                return;
+            }
+
+            const isVowel = VOWELS.includes(letter);
+            
+            if (isVowel) {
+                showMessage("You must buy a vowel or spin for a consonant.", 'orange');
+                return;
+            }
+
+            if (currentSpinValue === 0) {
+                showMessage("You must spin the wheel first!", 'orange');
+                return;
+            }
+
+            guessLetter(letter);
+            guessInputContainer.classList.add('hidden');
+            currentSpinValue = 0; 
+        }
+
+        // --- Vowel Modal Functions ---
+
+        function openVowelModal() {
+            if (teams.length === 0) {
+                showMessage("Please add a team first!", 'red');
+                return;
+            }
+            if (teams[currentTeamIndex].score < 250) {
+                document.getElementById('vowelError').classList.remove('hidden');
+                showMessage(`Team ${currentTeamIndex + 1} cannot afford a vowel. Need $250.`, 'red');
+                return;
+            }
+
+            document.getElementById('guessInputContainer').classList.add('hidden');
+            document.getElementById('solveInputContainer').classList.add('hidden');
+            document.getElementById('vowelError').classList.add('hidden');
+            
+            vowelButtonsContainer.innerHTML = '';
+            VOWELS.forEach(vowel => {
+                const btn = document.createElement('button');
+                btn.className = 'vowel-button';
+                btn.innerText = vowel;
+                btn.disabled = currentPuzzle.guessedLetters.has(vowel);
+                btn.onclick = () => selectVowel(vowel);
+                vowelButtonsContainer.appendChild(btn);
+            });
+
+            vowelModal.classList.remove('hidden');
+            say("Buy a vowel for 250 dollars.");
+        }
+
+        function closeVowelModal() {
+            vowelModal.classList.add('hidden');
+        }
+
+        function selectVowel(vowel) {
+            closeVowelModal();
+            teams[currentTeamIndex].score -= 250;
+            updateScoreDisplay(currentTeamIndex);
+            
+            currentSpinValue = 1; 
+            guessLetter(vowel);
+            currentSpinValue = 0; 
+        }
+
+        // --- Solve Puzzle Functions ---
+
+        function solvePuzzle() {
+            if (teams.length === 0) {
+                showMessage("Please add a team first!", 'red');
+                return;
+            }
+            document.getElementById('guessInputContainer').classList.add('hidden');
+            solveInputContainer.classList.remove('hidden');
+            document.getElementById('solveInput').value = '';
+            document.getElementById('solveInput').focus();
+            say(`Team ${currentTeamIndex + 1}, what is the solution?`);
+        }
+
+        function submitSolveAttempt() {
+            const attempt = document.getElementById('solveInput').value.trim().toUpperCase().replace(/\s/g, '');
+            const correctWord = currentPuzzle.word.replace(/\s/g, ''); // Remove spaces for comparison
+            solveInputContainer.classList.add('hidden');
+
+            if (attempt === correctWord) { 
+                for (let i = 0; i < currentPuzzle.word.length; i++) {
+                    currentPuzzle.revealed[i] = true;
+                }
+                renderPuzzle(); 
+            } else {
+                showMessage(`INCORRECT! The solution was wrong. Next team's turn.`, 'red');
+                say(`Incorrect solution! Next team's turn.`);
+                nextTurn();
+            }
+        }
+
+
+        // --- Initialization and New Game ---
+
+        function newGame() {
+            const randomIndex = Math.floor(Math.random() * Puzzles.length);
+            initializePuzzle(Puzzles[randomIndex]);
+
+            if (teams.length === 0) {
+                addTeam();
+                addTeam();
+            }
+            
+            document.getElementById('spinButton').disabled = false;
+            document.getElementById('buyVowelButton').disabled = false;
+            document.getElementById('solveButton').disabled = false;
+            document.getElementById('guessInputContainer').classList.add('hidden');
+            document.getElementById('solveInputContainer').classList.add('hidden');
+        }
+
+        // Initial setup on load
+        window.onload = () => {
+            newGame();
+        };
+
+    </script>
+</body>
+</html>

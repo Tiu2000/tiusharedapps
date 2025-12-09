@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Seating Chart - Passaic</title>
+    <style>
+        :root {
+            /* Colors */
+            --floor-color: #dcb382;
+            --floor-grain: #cd9f6d;
+            
+            --line-basketball: #1a1a1a; /* Black */
+            --line-baseball: #1e40af;   /* Blue */
+            --line-center: #16a34a;     /* Green */
+            --line-circle: #fbbf24;     /* Yellow */
+            --line-volleyball: #dc2626; /* Red */
+            
+            --seat-color: #3b82f6;
+            --seat-hover: #2563eb;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #333;
+        }
+
+        /* --- Basketball Court Background --- */
+        #court-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--floor-color);
+            background-image: repeating-linear-gradient(90deg, 
+                transparent 0, transparent 20px, 
+                rgba(0,0,0,0.03) 20px, rgba(0,0,0,0.03) 40px),
+                linear-gradient(0deg, rgba(0,0,0,0.05) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 60px;
+            overflow: hidden;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* Top and Bottom Wall Pads */
+        .wall-padding {
+            position: absolute;
+            width: 100%;
+            height: 4%;
+            background-color: #1e3a8a;
+            z-index: 1;
+            border-bottom: 2px solid #172554;
+        }
+        .wall-top { top: 0; }
+        .wall-bottom { bottom: 0; border-top: 2px solid #172554; border-bottom: none; }
+
+        .court-lines {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 95%;
+            height: 90%;
+            pointer-events: none;
+            z-index: 2;
+            transition: opacity 0.3s;
+        }
+
+        /* --- Watermark --- */
+        .watermark {
+            position: absolute;
+            bottom: 5%;
+            right: 3%;
+            font-size: 6rem;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.15); 
+            pointer-events: none;
+            user-select: none;
+            z-index: 1;
+            font-family: sans-serif;
+            text-transform: uppercase;
+            transform: rotate(-5deg);
+        }
+
+        /* --- Controls --- */
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        
+        .controls-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 8px 16px;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button:active { transform: scale(0.98); }
+
+        .btn-add { background-color: #22c55e; }
+        .btn-add:hover { background-color: #16a34a; }
+
+        .btn-action { background-color: #3b82f6; }
+        .btn-action:hover { background-color: #2563eb; }
+        
+        .btn-print { background-color: #64748b; }
+        .btn-print:hover { background-color: #475569; }
+
+        .btn-sound { background-color: #8b5cf6; min-width: 100px; }
+        .btn-sound:hover { background-color: #7c3aed; }
+        .btn-sound.muted { background-color: #9ca3af; }
+
+        .btn-toggle { background-color: #f59e0b; }
+        .btn-toggle:hover { background-color: #d97706; }
+        
+        /* Floating Show Menu Button (Hidden by default) */
+        #show-menu-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 999;
+            background-color: #3b82f6;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            display: none; /* Initially hidden */
+        }
+        
+        .btn-close {
+            background: transparent;
+            color: #ef4444;
+            padding: 4px 8px;
+            font-size: 16px;
+        }
+        .btn-close:hover { background: #fee2e2; }
+
+        .hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        /* --- Modal for Bulk Add --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .modal h3 { margin: 0; color: #333; }
+        .modal textarea {
+            height: 200px;
+            resize: vertical;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        /* --- Draggable Seat --- */
+        .seat {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            background: white;
+            border: 3px solid var(--seat-color);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: grab;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.1s, box-shadow 0.1s;
+            z-index: 10;
+            user-select: none;
+        }
+
+        .seat:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+
+        .seat input {
+            width: 90%;
+            border: none;
+            background: transparent;
+            text-align: center;
+            font-weight: bold;
+            font-size: 13px;
+            color: #333;
+            pointer-events: auto;
+        }
+
+        .seat input:focus {
+            outline: none;
+            border-bottom: 2px solid var(--seat-color);
+        }
+
+        /* Hidden Inputs */
+        #fileInput, #bgInput { display: none; }
+
+        /* --- Print Styles --- */
+        @media print {
+            @page { size: landscape; margin: 0; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            #controls, #show-menu-btn, .modal-overlay { display: none !important; }
+            .seat { border: 2px solid #000; }
+            #court-container { background-color: var(--floor-color) !important; }
+            .wall-padding { display: none; } 
+        }
+        
+        /* Logo Text Path Styling */
+        .logo-text {
+            font-family: 'Times New Roman', serif;
+            font-weight: bold;
+            font-size: 24px;
+            fill: #1e3a8a; /* Blue text */
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="court-container">
+        <div class="wall-padding wall-top"></div>
+        <div class="wall-padding wall-bottom"></div>
+
+        <svg id="court-lines" class="court-lines" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
+            
+            <polygon points="500,50 900,300 500,550 100,300" fill="none" stroke="var(--line-baseball)" stroke-width="3" opacity="0.8"/>
+
+            <line x1="250" y1="50" x2="250" y2="550" stroke="var(--line-volleyball)" stroke-width="3" />
+            <line x1="750" y1="50" x2="750" y2="550" stroke="var(--line-volleyball)" stroke-width="3" />
+
+            <circle cx="500" cy="300" r="235" fill="none" stroke="var(--line-circle)" stroke-width="4" />
+
+            <line x1="500" y1="50" x2="500" y2="550" stroke="var(--line-center)" stroke-width="4" />
+
+            <rect x="50" y="50" width="900" height="500" fill="none" stroke="var(--line-basketball)" stroke-width="4"/>
+            
+            <rect x="50" y="190" width="230" height="220" fill="none" stroke="var(--line-basketball)" stroke-width="4"/>
+            <path d="M 280 190 A 110 110 0 0 1 280 410" fill="none" stroke="var(--line-basketball)" stroke-width="4"/> 
+            <path d="M 280 410 A 110 110 0 0 1 280 190" fill="none" stroke="var(--line-basketball)" stroke-width="4" stroke-dasharray="10,10"/> 
+            
+            <rect x="720" y="190" width="230" height="220" fill="none" stroke="var(--line-basketball)" stroke-width="4"/>
+            <path d="M 720 190 A 110 110 0 0 0 720 410" fill="none" stroke="var(--line-basketball)" stroke-width="4"/>
+            <path d="M 720 410 A 110 110 0 0 0 720 190" fill="none" stroke="var(--line-basketball)" stroke-width="4" stroke-dasharray="10,10"/>
+
+            <g transform="translate(500, 300)">
+                <circle r="75" fill="none" stroke="#1e3a8a" stroke-width="4"/> 
+                <circle r="65" fill="none" stroke="#1e3a8a" stroke-width="2"/>
+                
+                <path id="textCurveTop" d="M -60,10 A 60,60 0 0,1 60,10" fill="none" />
+                <path id="textCurveBottom" d="M -60,-10 A 60,60 0 0,0 60,-10" fill="none" />
+                
+                <text class="logo-text" font-size="14" text-anchor="middle">
+                    <textPath href="#textCurveTop" startOffset="50%">PASSAIC PUBLIC</textPath>
+                </text>
+                <text class="logo-text" font-size="14" text-anchor="middle" dominant-baseline="hanging">
+                    <textPath href="#textCurveBottom" startOffset="50%">SCHOOLS</textPath>
+                </text>
+
+                <path d="M -5,20 L 5,20 L 5,-5 Q 15,-15 25,-5 Q 35,-20 15,-30 Q 0,-45 -15,-30 Q -35,-20 -25,-5 Q -15,-15 -5,-5 Z" fill="#1e3a8a"/>
+                <circle cx="0" cy="-35" r="5" fill="#1e3a8a"/> 
+                <path d="M -20,25 L 20,25 L 25,35 L -25,35 Z" fill="#1e3a8a"/>
+            </g>
+        </svg>
+
+        <div class="watermark">Tiu</div>
+
+        <button id="show-menu-btn" onclick="toggleMenu()">☰ Menu</button>
+
+        <div id="controls">
+            <div class="controls-header">
+                <span style="font-weight:bold; color:#333;">Controls</span>
+                <button class="btn-close" onclick="toggleMenu()" title="Hide Menu">✖</button>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-add" onclick="addSeat()">+ 1 Student</button>
+                <button class="btn-add" style="background-color: #059669;" onclick="openBulkModal()">Bulk Add</button>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn-action" onclick="saveLayout()">Save</button>
+                <button class="btn-action" onclick="document.getElementById('fileInput').click()">Load</button>
+                <button class="btn-print" onclick="window.print()">Print</button>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-action" onclick="document.getElementById('bgInput').click()">Upload Court</button>
+                <button class="btn-toggle" onclick="toggleLines()">Toggle Lines</button>
+            </div>
+
+            <button id="btnSound" class="btn-sound" onclick="toggleSound()">Sound: ON</button>
+            
+            <div class="hint">Double-click circle to remove.</div>
+            <input type="file" id="fileInput" accept=".json" onchange="loadLayout(this)">
+            <input type="file" id="bgInput" accept="image/*" onchange="loadBackground(this)">
+        </div>
+
+        <div id="bulkModal" class="modal-overlay">
+            <div class="modal">
+                <h3>Bulk Add Students</h3>
+                <p style="font-size:12px; margin:0; color:#666;">Paste names (one per line):</p>
+                <textarea id="bulkNames" placeholder="Student 1&#10;Student 2&#10;Student 3"></textarea>
+                <div class="btn-group" style="justify-content: flex-end;">
+                    <button onclick="closeBulkModal()" style="background:#64748b;">Cancel</button>
+                    <button class="btn-add" onclick="processBulkAdd()">Add All</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const container = document.getElementById('court-container');
+        const courtLines = document.getElementById('court-lines');
+        let zIndexCounter = 100;
+        
+        // --- Menu Toggle Logic ---
+        function toggleMenu() {
+            const controls = document.getElementById('controls');
+            const showBtn = document.getElementById('show-menu-btn');
+            
+            if (controls.style.display === 'none') {
+                controls.style.display = 'flex';
+                showBtn.style.display = 'none';
+            } else {
+                controls.style.display = 'none';
+                showBtn.style.display = 'block';
+            }
+        }
+
+        // --- Sound Logic ---
+        let isSoundEnabled = true;
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const btnSound = document.getElementById('btnSound');
+
+        function toggleSound() {
+            isSoundEnabled = !isSoundEnabled;
+            if(isSoundEnabled) {
+                btnSound.innerText = "Sound: ON";
+                btnSound.classList.remove('muted');
+            } else {
+                btnSound.innerText = "Sound: OFF";
+                btnSound.classList.add('muted');
+            }
+        }
+
+        function playSound(type) {
+            if (!isSoundEnabled) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (type === 'pickup') {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+            } else if (type === 'drop') {
+                oscillator.type = 'triangle';
+                oscillator.frequency.setValueAtTime(200, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+            }
+
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.1);
+        }
+
+        // --- Visual Logic ---
+        function loadBackground(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                container.style.backgroundImage = `url(${e.target.result})`;
+                container.style.backgroundSize = 'cover'; 
+                input.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function toggleLines() {
+            if (courtLines.style.opacity === '0') {
+                courtLines.style.opacity = '1';
+            } else {
+                courtLines.style.opacity = '0';
+            }
+        }
+
+        // --- Seat Logic ---
+        function createSeatElement(x, y, name = "") {
+            const seat = document.createElement('div');
+            seat.className = 'seat';
+            
+            const finalX = x !== undefined ? x : (window.innerWidth / 2) - 35 + (Math.random() * 40 - 20);
+            const finalY = y !== undefined ? y : (window.innerHeight / 2) - 35 + (Math.random() * 40 - 20);
+            
+            seat.style.left = finalX + 'px';
+            seat.style.top = finalY + 'px';
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = name || 'Student';
+            input.placeholder = 'Name';
+            
+            seat.appendChild(input);
+            container.appendChild(seat);
+
+            makeDraggable(seat);
+            
+            seat.addEventListener('dblclick', function() {
+                if(confirm('Remove this student?')) {
+                    seat.remove();
+                }
+            });
+            return seat;
+        }
+
+        function addSeat() {
+            createSeatElement();
+            playSound('pickup');
+        }
+
+        // --- Bulk Add Logic ---
+        function openBulkModal() {
+            document.getElementById('bulkModal').style.display = 'flex';
+            document.getElementById('bulkNames').focus();
+        }
+        function closeBulkModal() {
+            document.getElementById('bulkModal').style.display = 'none';
+            document.getElementById('bulkNames').value = '';
+        }
+        function processBulkAdd() {
+            const text = document.getElementById('bulkNames').value;
+            const lines = text.split('\n').map(line => line.trim()).filter(line => line !== '');
+            
+            if (lines.length === 0) {
+                closeBulkModal();
+                return;
+            }
+
+            const startX = 100; 
+            const startY = 100; 
+            const spacingX = 80; 
+            const spacingY = 80; 
+            const cols = Math.floor((window.innerWidth - 200) / spacingX); 
+            
+            lines.forEach((name, index) => {
+                const col = index % cols;
+                const row = Math.floor(index / cols);
+                
+                const x = startX + (col * spacingX);
+                const y = startY + (row * spacingY);
+                
+                createSeatElement(x, y, name);
+            });
+            
+            playSound('pickup');
+            closeBulkModal();
+        }
+
+
+        // --- Save & Load Logic ---
+        function saveLayout() {
+            const seats = document.querySelectorAll('.seat');
+            const data = [];
+            
+            seats.forEach(seat => {
+                const name = seat.querySelector('input').value;
+                data.push({
+                    left: seat.style.left,
+                    top: seat.style.top,
+                    name: name
+                });
+            });
+
+            const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'passaic_gym_chart.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadLayout(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    document.querySelectorAll('.seat').forEach(s => s.remove());
+                    data.forEach(item => {
+                        const x = parseFloat(item.left);
+                        const y = parseFloat(item.top);
+                        createSeatElement(x, y, item.name);
+                    });
+                    input.value = ''; 
+                } catch (err) {
+                    alert('Error loading file.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- Drag and Drop Logic ---
+        function makeDraggable(el) {
+            let isDragging = false;
+            let startX, startY, initialLeft, initialTop;
+
+            el.addEventListener('mousedown', dragStart);
+            el.addEventListener('touchstart', dragStart, {passive: false});
+
+            function dragStart(e) {
+                if (e.target.tagName === 'INPUT') return;
+
+                if (e.type === 'touchstart') {
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+                } else {
+                    startX = e.clientX;
+                    startY = e.clientY;
+                }
+
+                initialLeft = el.offsetLeft;
+                initialTop = el.offsetTop;
+                isDragging = true;
+                
+                zIndexCounter++;
+                el.style.zIndex = zIndexCounter;
+
+                playSound('pickup');
+
+                document.addEventListener('mousemove', dragMove);
+                document.addEventListener('mouseup', dragEnd);
+                document.addEventListener('touchmove', dragMove, {passive: false});
+                document.addEventListener('touchend', dragEnd);
+            }
+
+            function dragMove(e) {
+                if (!isDragging) return;
+                e.preventDefault(); 
+
+                let currentX, currentY;
+
+                if (e.type === 'touchmove') {
+                    currentX = e.touches[0].clientX;
+                    currentY = e.touches[0].clientY;
+                } else {
+                    currentX = e.clientX;
+                    currentY = e.clientY;
+                }
+
+                const dx = currentX - startX;
+                const dy = currentY - startY;
+
+                el.style.left = `${initialLeft + dx}px`;
+                el.style.top = `${initialTop + dy}px`;
+            }
+
+            function dragEnd() {
+                if (!isDragging) return;
+                isDragging = false;
+                playSound('drop');
+
+                document.removeEventListener('mousemove', dragMove);
+                document.removeEventListener('mouseup', dragEnd);
+                document.removeEventListener('touchmove', dragMove);
+                document.removeEventListener('touchend', dragEnd);
+            }
+        }
+    </script>
+</body>
+</html>
