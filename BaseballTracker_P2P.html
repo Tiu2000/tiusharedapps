@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wiffle Ball Tracker Pro (P2P)</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --panel-color: #2d2d2d;
+            --text-color: #e0e0e0;
+            --accent-color: #4CAF50; /* Green */
+            --highlight: #2196F3; /* Blue */
+            --danger: #ff4444;    /* Red */
+            --warning: #FF9800;    /* Orange */
+            --base-occupied: #FFD700; /* Gold */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            width: 100vw;
+            user-select: none;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* --- TIU Watermark (Subtle) --- */
+        #watermark {
+            position: absolute;
+            bottom: 10px;
+            right: 20px;
+            font-size: 1.2rem; /* Slightly larger for visibility */
+            color: var(--text-color);
+            opacity: 0.1; /* Very subtle */
+            pointer-events: none;
+            letter-spacing: 0.2em;
+            font-weight: 300;
+            z-index: 10;
+            font-family: 'Courier New', Courier, monospace; /* Branding font */
+        }
+
+        /* --- CONNECTION MODAL STYLES --- */
+        #connection-modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .modal-content {
+            background: var(--panel-color);
+            padding: 40px;
+            border-radius: 20px;
+            border: 2px solid #555;
+            max-width: 400px;
+            width: 90%;
+        }
+        .modal-title { font-size: 2rem; margin-bottom: 20px; font-weight: bold; color: var(--highlight); }
+        .conn-btn {
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 15px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+            color: white;
+            font-weight: bold;
+        }
+        .btn-host { background: var(--accent-color); }
+        .btn-join { background: var(--highlight); }
+        input.room-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.5rem;
+            text-align: center;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #555;
+            background: #111;
+            color: white;
+            text-transform: uppercase;
+        }
+        .status-msg { margin-top: 15px; color: #888; min-height: 1.2em; }
+        
+        /* CONNECTION BAR (In Game) */
+        #conn-status-bar {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #333;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #aaa;
+            z-index: 50;
+            border: 1px solid #444;
+        }
+
+        /* --- Main Dashboard --- */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto 1fr;
+            gap: 30px; 
+            width: 95%; 
+            max-width: 1400px; 
+            background-color: #000;
+            padding: 40px; 
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 20;
+        }
+
+        .header-section {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel-color);
+            padding: 25px 40px; 
+            border-radius: 15px;
+            border: 1px solid #444;
+            height: 150px; 
+        }
+
+        .team-score { text-align: center; width: 200px; } 
+        .team-name { font-size: 1.8rem; color: #aaa; margin-bottom: 5px; letter-spacing: 3px; font-weight: 300; } 
+        .score-display { font-size: 6rem; font-weight: 900; line-height: 1; } 
+        
+        .score-controls { 
+            display: flex; 
+            gap: 10px; 
+            justify-content: center; 
+            margin-top: 10px;
+        }
+        
+        .inning-display {    
+            text-align: center;    
+            background: #222;    
+            padding: 15px 35px;    
+            border-radius: 10px;
+            border: 1px solid #555;
+            min-width: 150px; 
+        }
+        .inning-text { font-size: 1.2rem; display: block; }
+        .inning-num { font-size: 3.5rem; font-weight: bold; line-height: 1.1; } 
+        .arrow { font-size: 2rem; display: block; height: 35px; } 
+
+        .field-section {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle, #3a3a3a 0%, #222 70%);
+            border-radius: 15px;
+            min-height: 400px;
+            position: relative;
+            border: 4px solid #444;
+        }
+
+        .diamond-wrap {
+            position: relative;
+            width: 350px; 
+            height: 350px;
+            transform: rotate(-45deg); 
+            top: 0; left: 0; 
+        }
+
+        .base {
+            width: 65px; 
+            height: 65px;
+            background-color: rgba(255,255,255,0.2);
+            position: absolute;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 3px solid #fff;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            font-size: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform: rotate(45deg);
+        }
+
+        .base:hover { transform: scale(1.1) rotate(45deg); }
+        .base.occupied {    
+            background-color: var(--base-occupied);    
+            box-shadow: 0 0 20px var(--base-occupied);
+            transform: scale(1.1) rotate(45deg);
+            border-color: #fff;
+        }
+
+        .b1 { top: 15px; right: 15px; } 
+        .b2 { top: 15px; left: 15px; }
+        .b3 { bottom: 15px; left: 15px; }
+        
+        .home {    
+            bottom: 15px; right: 15px;    
+            background: transparent;    
+            border-color: rgba(255,255,255,0.5);    
+            border-radius: 0 0 50% 0;
+            cursor: default;
+        }
+        .base-label { position: absolute; font-size: 1rem; color: #fff; transform: rotate(45deg); }
+
+        .field-label {
+            position: absolute;
+            bottom: 20px;
+            color: #777;
+            font-size: 1.1rem;
+        }
+
+        .controls-section {
+            display: grid;
+            grid-template-rows: 1fr 1fr 1fr;
+            gap: 20px; 
+        }
+
+        .control-row {
+            background: var(--panel-color);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .count-info { text-align: left; }
+        .label { display: block; font-size: 1.1rem; text-transform: uppercase; color: #888; letter-spacing: 1px;}
+        .big-number { font-size: 4rem; font-weight: 700; margin-left: 20px; min-width: 40px;} 
+
+        .led-container { display: flex; gap: 8px; margin-top: 5px; }
+        .led { width: 18px; height: 18px; border-radius: 50%; background: #444; box-shadow: inset 0 0 5px #000; } 
+        .led.on-green { background: var(--highlight); box-shadow: 0 0 10px var(--highlight); }
+        .led.on-red { background: var(--danger); box-shadow: 0 0 10px var(--danger); }
+        
+        .btn-group { display: flex; gap: 10px; }
+        button {
+            border: none;
+            padding: 20px 30px; 
+            border-radius: 10px;
+            font-size: 1.3rem; 
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: filter 0.2s, transform 0.1s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            min-width: 100px;
+        }
+        button:active { transform: translateY(2px); box-shadow: none; }
+        
+        .btn-ball { background: var(--highlight); }
+        .btn-strike { background: var(--warning); }
+        .btn-basehit { background: var(--accent-color); } 
+        .btn-foul { background: #b87814; font-size: 1.1rem; padding: 15px 15px; min-width: 70px; }
+        .btn-out { background: var(--danger); width: 120px; }
+        .btn-undo { background: #333; color: #777; padding: 15px 15px; min-width: 50px; font-size: 1.5rem; line-height: 1; border: 1px solid #444; }
+        .btn-undo:hover { background: #444; color: #fff; border-color: #666; }
+
+        .btn-run { background: #444; border: 1px solid #666; padding: 8px 20px; font-size: 1rem; width: 100px; }
+        .btn-run.add:hover { background: var(--accent-color); border-color: var(--accent-color); }
+        .btn-run.subtract { background: #333; border-color: #555; }
+        .btn-run.subtract:hover { background: var(--danger); border-color: var(--danger); }
+
+        .settings-bar { grid-column: 1 / -1; text-align: center; margin-top: 10px; }
+        .btn-reset { background: transparent; border: 1px solid #555; color: #777; font-size: 0.9rem; padding: 10px 20px; }
+        .btn-reset:hover { color: #fff; border-color: #fff; }
+
+        @media (max-width: 1000px) {
+            .dashboard { grid-template-columns: 1fr; padding: 15px; width: 95%; gap: 15px;}
+            .header-section { padding: 15px; height: auto; }
+            .score-display { font-size: 4rem; }
+            .inning-num { font-size: 2.5rem; }
+            .btn-group { flex-direction: column; }
+            .big-number { font-size: 3rem; }
+            button { padding: 15px 20px; font-size: 1.1rem; min-width: 80px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="connection-modal">
+    <div class="modal-content">
+        <div class="modal-title">WIFFLE TRACKER</div>
+        
+        <div id="setup-step-1">
+            <button class="conn-btn btn-host" onclick="startHost()">HOST GAME (Scoreboard)</button>
+            <div style="margin:10px; color:#666">- OR -</div>
+            <button class="conn-btn btn-join" onclick="showJoinInput()">JOIN GAME (Remote)</button>
+        </div>
+
+        <div id="setup-step-host" style="display:none;">
+            <p>Your Game ID is:</p>
+            <input type="text" id="host-id-display" class="room-input" readonly>
+            <div class="status-msg">Waiting for remote...</div>
+            <button class="conn-btn btn-join" onclick="enterGame()">OPEN BOARD</button>
+        </div>
+
+        <div id="setup-step-join" style="display:none;">
+            <p>Enter Game ID:</p>
+            <input type="text" id="remote-id-input" class="room-input" placeholder="e.g. A1B2">
+            <button class="conn-btn btn-host" onclick="joinGame()">CONNECT</button>
+            <button class="conn-btn" style="background:#333" onclick="backToMain()">BACK</button>
+            <div id="join-status" class="status-msg"></div>
+        </div>
+    </div>
+</div>
+
+<div id="conn-status-bar" style="display:none">Offline</div>
+
+<div class="dashboard">
+
+    <div class="header-section">
+        <div class="team-score">
+            <div class="team-name">GUEST</div>
+            <div id="score-guest" class="score-display">0</div>
+            <div class="score-controls">
+                <button class="btn-run subtract" onclick="handleInput('scoreGuestSub')">- RUN</button>
+                <button class="btn-run add" onclick="handleInput('scoreGuestAdd')">+ RUN</button>
+            </div>
+        </div>
+
+        <div class="inning-display">
+            <span class="inning-text">INNING</span>
+            <span id="inning-arrow" class="arrow">▲</span>
+            <span id="inning-number" class="inning-num">1</span>
+        </div>
+
+        <div class="team-score">
+            <div class="team-name">HOME</div>
+            <div id="score-home" class="score-display">0</div>
+            <div class="score-controls">
+                <button class="btn-run subtract" onclick="handleInput('scoreHomeSub')">- RUN</button>
+                <button class="btn-run add" onclick="handleInput('scoreHomeAdd')">+ RUN</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="field-section">
+        <div class="diamond-wrap">
+            <div class="base b2" id="base-2" onclick="handleInput('base2')"><span class="base-label">2B</span></div> 
+            <div class="base b1" id="base-1" onclick="handleInput('base1')"><span class="base-label">1B</span></div> 
+            <div class="base b3" id="base-3" onclick="handleInput('base3')"><span class="base-label">3B</span></div> 
+            <div class="base home" id="home-plate"></div>
+        </div>
+        <div class="field-label">Tap base to toggle runner</div>
+    </div>
+
+    <div class="controls-section">
+        <div class="control-row">
+            <div class="count-info">
+                <span class="label">Balls</span>
+                <div class="led-container">
+                    <div id="led-ball-1" class="led"></div>
+                    <div id="led-ball-2" class="led"></div>
+                    <div id="led-ball-3" class="led"></div>
+                </div>
+            </div>
+            <div id="text-ball" class="big-number" style="color: var(--highlight)">0</div>
+            <div class="btn-group">
+                <button class="btn-undo" onclick="handleInput('undoBall')" title="Undo Ball">-</button>
+                <button class="btn-ball" onclick="handleInput('ball')">BALL</button>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <div class="count-info">
+                <span class="label">Strikes</span>
+                <div class="led-container">
+                    <div id="led-strike-1" class="led"></div>
+                    <div id="led-strike-2" class="led"></div>
+                </div>
+            </div>
+            <div id="text-strike" class="big-number" style="color: var(--warning)">0</div>
+            <div class="btn-group">
+                <button class="btn-undo" onclick="handleInput('undoStrike')" title="Undo Strike">-</button>
+                <button class="btn-foul" onclick="handleInput('foul')">FOUL</button>
+                <button class="btn-strike" onclick="handleInput('strike')">STRIKE</button>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <div class="count-info">
+                <span class="label">Actions</span>
+                <div class="led-container">
+                    <span class="label" style="color: var(--danger); margin-left: -5px;">Outs:</span>
+                    <div id="led-out-1" class="led"></div>
+                    <div id="led-out-2" class="led"></div>
+                </div>
+            </div>
+            <div id="text-out" class="big-number" style="color: var(--danger)">0</div>
+            <div class="btn-group">
+                <button class="btn-undo" onclick="handleInput('undoOut')" title="Undo Out">-</button>
+                <button class="btn-basehit" onclick="handleInput('hit')">BASE HIT</button>
+                <button class="btn-out" onclick="handleInput('out')">OUT</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-bar">
+        <button class="btn-reset" onclick="handleInput('reset')">RESET GAME</button>
+    </div>
+
+</div>
+
+<div id="watermark">TIU</div>
+
+<script>
+    // --- Audio System (Web Audio API) ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx; 
+
+    function initAudio() {
+        if (!audioCtx) audioCtx = new AudioContext();
+    }
+
+    function playSound(type) {
+        if (!audioCtx) initAudio();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+
+        // Sounds configuration
+        if (type === 'ball') {
+            osc.type = 'sine'; osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+            gainNode.gain.setValueAtTime(0.3, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            osc.start(now); osc.stop(now + 0.1);
+        } else if (type === 'strike') {
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now);
+            gainNode.gain.setValueAtTime(0.2, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+            osc.start(now); osc.stop(now + 0.15);
+        } else if (type === 'out') {
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(100, now + 0.4);
+            gainNode.gain.setValueAtTime(0.3, now); gainNode.gain.linearRampToValueAtTime(0.01, now + 0.4);
+            osc.start(now); osc.stop(now + 0.4);
+        } else if (type === 'hit') {
+            osc.type = 'square'; osc.frequency.setValueAtTime(700, now); osc.frequency.exponentialRampToValueAtTime(1000, now + 0.2);
+            gainNode.gain.setValueAtTime(0.4, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.start(now); osc.stop(now + 0.2);
+        } else if (type === 'score') {
+            osc.type = 'sine'; osc.frequency.setValueAtTime(1200, now);
+            gainNode.gain.setValueAtTime(0.3, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+            osc.start(now); osc.stop(now + 0.5);
+        } else if (type === 'click') {
+            osc.type = 'square'; osc.frequency.setValueAtTime(800, now);
+            gainNode.gain.setValueAtTime(0.05, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+            osc.start(now); osc.stop(now + 0.05);
+        } else if (type === 'inning') {
+            osc.type = 'sine'; osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(800, now + 0.3);
+            gainNode.gain.setValueAtTime(0.3, now); gainNode.gain.linearRampToValueAtTime(0.01, now + 0.3);
+            osc.start(now); osc.stop(now + 0.3);
+        }
+    }
+
+    // --- State & P2P Logic ---
+    let state = {
+        balls: 0, strikes: 0, outs: 0,
+        inning: 1, isTop: true,
+        scoreGuest: 0, scoreHome: 0,
+        bases: [false, false, false, false]
+    };
+
+    let peer = null;
+    let conn = null;
+    let isHost = false;
+    let myId = "";
+
+    // -- Connection UI Functions --
+    function generateId() {
+        return Math.random().toString(36).substring(2, 6).toUpperCase();
+    }
+
+    function startHost() {
+        myId = "WIF-" + generateId();
+        document.getElementById('setup-step-1').style.display = 'none';
+        document.getElementById('setup-step-host').style.display = 'block';
+        document.getElementById('host-id-display').value = myId;
+
+        // Initialize PeerJS as Host
+        peer = new Peer(myId);
+        peer.on('open', (id) => {
+            console.log('Host ID:', id);
+            isHost = true;
+            updateStatus('Waiting for connection...');
+        });
+
+        peer.on('connection', (connection) => {
+            conn = connection;
+            updateStatus('Remote Connected!');
+            document.querySelector('.status-msg').style.color = '#4CAF50';
+            document.querySelector('.status-msg').textContent = "Remote Device Connected!";
+            
+            // Send current state immediately upon connection
+            setTimeout(() => sendState(), 500);
+
+            // Listen for data from remote
+            conn.on('data', (data) => {
+                if(data.command) {
+                    processCommand(data.command);
+                }
+            });
+        });
+        
+        peer.on('error', (err) => {
+            alert("Error: " + err.type + ". Try a different ID or refresh.");
+        });
+    }
+
+    function showJoinInput() {
+        document.getElementById('setup-step-1').style.display = 'none';
+        document.getElementById('setup-step-join').style.display = 'block';
+    }
+
+    function backToMain() {
+        document.getElementById('setup-step-join').style.display = 'none';
+        document.getElementById('setup-step-1').style.display = 'block';
+    }
+
+    function joinGame() {
+        let hostId = document.getElementById('remote-id-input').value.trim().toUpperCase();
+        if(!hostId) return;
+
+        document.getElementById('join-status').textContent = "Connecting...";
+        
+        // Init PeerJS as Remote (auto ID)
+        peer = new Peer();
+        peer.on('open', (id) => {
+            conn = peer.connect(hostId);
+            
+            conn.on('open', () => {
+                isHost = false;
+                enterGame();
+                updateStatus('Connected to Host');
+            });
+
+            conn.on('data', (data) => {
+                if(data.state) {
+                    state = data.state;
+                    render();
+                }
+            });
+            
+            conn.on('error', (err) => {
+                document.getElementById('join-status').textContent = "Connection Failed.";
+            });
+        });
+    }
+
+    function enterGame() {
+        document.getElementById('connection-modal').style.display = 'none';
+        // Init audio context on first user interaction
+        initAudio();
+    }
+
+    function updateStatus(msg) {
+        const bar = document.getElementById('conn-status-bar');
+        bar.style.display = 'block';
+        bar.textContent = (isHost ? "HOST: " : "REMOTE: ") + msg;
+    }
+
+    // --- Data Transmission ---
+    
+    // Called by UI buttons
+    function handleInput(action) {
+        initAudio(); // Ensure audio context is ready
+        
+        if (isHost) {
+            // If I am Host, I process logic, update state, then broadcast
+            processCommand(action);
+        } else {
+            // If I am Remote, I send command to Host, but play a click locally for feedback
+            if(conn && conn.open) {
+                conn.send({ command: action });
+                playSound('click'); // Local feedback
+            } else {
+                // If offline, just work locally
+                processCommand(action);
+            }
+        }
+    }
+
+    // Called by Host to update Remote
+    function sendState() {
+        if(conn && conn.open) {
+            conn.send({ state: state });
+        }
+    }
+
+    // Process logic (Runs on Host, or locally if offline)
+    function processCommand(action) {
+        switch(action) {
+            case 'ball': actionBall(); break;
+            case 'undoBall': undoBall(); break;
+            case 'strike': actionStrike(); break;
+            case 'undoStrike': undoStrike(); break;
+            case 'foul': actionFoul(); break;
+            case 'out': actionOut(); break;
+            case 'undoOut': undoOut(); break;
+            case 'hit': actionBaseHit(); break;
+            case 'scoreGuestAdd': addScore('guest', 1); break;
+            case 'scoreGuestSub': addScore('guest', -1); break;
+            case 'scoreHomeAdd': addScore('home', 1); break;
+            case 'scoreHomeSub': addScore('home', -1); break;
+            case 'base1': toggleBase(1); break;
+            case 'base2': toggleBase(2); break;
+            case 'base3': toggleBase(3); break;
+            case 'reset': resetGame(); break;
+        }
+        
+        // After processing, if Host, sync everyone
+        if(isHost) sendState();
+    }
+
+    // --- Core Game Logic ---
+
+    function render() {
+        document.getElementById('text-ball').textContent = state.balls;
+        document.getElementById('text-strike').textContent = state.strikes;
+        document.getElementById('text-out').textContent = state.outs;
+        document.getElementById('score-guest').textContent = state.scoreGuest;
+        document.getElementById('score-home').textContent = state.scoreHome;
+        document.getElementById('inning-number').textContent = state.inning;
+
+        const arrow = document.getElementById('inning-arrow');
+        arrow.textContent = state.isTop ? '▲' : '▼';
+        arrow.style.color = state.isTop ? 'var(--accent-color)' : 'var(--danger)';
+
+        for(let i=1; i<=3; i++) {
+            const el = document.getElementById(`led-ball-${i}`);
+            if(el) el.className = (state.balls >= i) ? 'led on-green' : 'led';
+        }
+        for(let i=1; i<=2; i++) {
+            const elS = document.getElementById(`led-strike-${i}`);
+            if(elS) elS.className = (state.strikes >= i) ? 'led on-red' : 'led';
+            const elO = document.getElementById(`led-out-${i}`);
+            if(elO) elO.className = (state.outs >= i) ? 'led on-red' : 'led';
+        }
+
+        const renderBase = (idx) => {
+            const el = document.getElementById(`base-${idx}`);
+            if (el) {
+                const labelText = idx === 1 ? '1B' : idx === 2 ? '2B' : '3B';
+                el.innerHTML = `<span class="base-label">${labelText}</span>`; 
+                el.className = state.bases[idx] ? `base b${idx} occupied` : `base b${idx}`;
+            }
+        };
+        renderBase(1); renderBase(2); renderBase(3);
+    }
+
+    function clearCount() { state.balls = 0; state.strikes = 0; }
+    function clearBases() { state.bases = [false, false, false, false]; }
+
+    function advanceRunnersOnSafe(isHit) {
+        let runScored = false;
+        if (state.bases[3]) {
+            addScore(state.isTop ? 'guest' : 'home', 1, true);
+            runScored = true;
+        }
+        state.bases[3] = state.bases[2];
+        state.bases[2] = state.bases[1];
+        state.bases[1] = true;
+        if (runScored) playSound('score');
+        clearCount();
+    }
+
+    function addScore(team, value = 1, silent = false) {
+        if(team === 'guest') state.scoreGuest = Math.max(0, state.scoreGuest + value);
+        else state.scoreHome = Math.max(0, state.scoreHome + value);
+        if(value > 0 && !silent) playSound('score'); 
+        if (Math.abs(value) > 0 && !silent) playSound('click');
+        render();
+    }
+
+    function actionBall() {
+        state.balls++; playSound('ball');
+        if(state.balls >= 4) advanceRunnersOnSafe(false);
+        render();
+    }
+    function undoBall() {
+        if (state.balls > 0) { state.balls--; playSound('click'); render(); }
+    }
+    function actionStrike() {
+        state.strikes++; playSound('strike');
+        if(state.strikes >= 3) actionOut(true); 
+        else render();
+    }
+    function undoStrike() {
+        if (state.strikes > 0) { state.strikes--; playSound('click'); render(); }
+    }
+    function actionFoul() {
+        if(state.strikes < 2) { state.strikes++; playSound('strike'); } 
+        else playSound('click'); 
+        render();
+    }
+    function actionOut(silent = false) {
+        state.outs++; clearCount();
+        if(!silent) playSound('out');
+        if(state.outs >= 3) setTimeout(() => switchInning(), 300);
+        render();
+    }
+    function undoOut() {
+        if (state.outs > 0) { state.outs--; playSound('click'); render(); }
+    }
+    function actionBaseHit() { playSound('hit'); advanceRunnersOnSafe(true); render(); }
+    
+    function switchInning() {
+        playSound('inning'); state.outs = 0; clearBases();
+        if(state.isTop) state.isTop = false;
+        else { state.isTop = true; state.inning++; }
+        render();
+    }
+    function toggleBase(idx) {
+        state.bases[idx] = !state.bases[idx]; playSound('click'); render();
+    }
+    function resetGame() {
+        if(confirm("Reset entire game?")) {
+            state = { balls: 0, strikes: 0, outs: 0, inning: 1, isTop: true, scoreGuest: 0, scoreHome: 0, bases: [false, false, false, false] };
+            playSound('inning'); render();
+        }
+    }
+
+    // Init
+    render();
+
+</script>
+</body>
+</html>
