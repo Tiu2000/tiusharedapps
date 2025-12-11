@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Possession Arrow (P2P)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             --bg-color: #000000;
@@ -39,342 +40,258 @@
             pointer-events: none;
             font-family: 'Courier New', Courier, monospace;
             z-index: 100;
-            font-weight: 300;
-            letter-spacing: 0.2em;
         }
 
-        /* --- CONNECTION MODAL --- */
-        #connection-modal {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 2000;
+        /* --- ARROW LAYOUT --- */
+        #display-container {
             display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-content {
-            background: #1a1a1a;
-            padding: 40px;
-            border-radius: 15px;
-            border: 2px solid #333;
-            width: 90%;
-            max-width: 400px;
-            text-align: center;
-        }
-        .conn-btn {
-            display: block; width: 100%; margin: 10px 0; padding: 15px;
-            font-size: 1.2rem; cursor: pointer; border-radius: 8px; border: none;
-            color: white; font-weight: bold;
-        }
-        .btn-host { background: var(--on-color); color: white; }
-        .btn-join { background: var(--highlight); }
-        input.room-input {
-            width: 100%; padding: 15px; font-size: 1.5rem; text-align: center;
-            margin: 10px 0; border-radius: 8px; border: 1px solid #555;
-            background: #111; color: white; text-transform: uppercase;
-        }
-        #conn-status-bar {
-            position: absolute; top: 10px; right: 10px;
-            background: #333; padding: 5px 15px; border-radius: 20px;
-            font-size: 0.8rem; color: #aaa; z-index: 50;
-        }
-
-        /* --- MAIN DISPLAY --- */
-        #main-container {
             flex: 1;
-            display: flex;
             width: 100%;
-            height: 100%;
         }
 
-        .side {
+        .side-panel {
             flex: 1;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             border: 2px solid #111;
+            transition: background-color 0.2s;
             cursor: pointer;
-            transition: background 0.2s;
             position: relative;
         }
-        
-        /* Hover effect for control feedback */
-        .side:active { background-color: #111; }
 
-        .team-name {
-            font-size: 5vw;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin-bottom: 5vh;
-            color: #555;
+        /* The Arrow Graphics (CSS Triangle) */
+        .arrow-graphic {
+            width: 0; 
+            height: 0; 
+            border-top: 100px solid transparent;
+            border-bottom: 100px solid transparent;
+            opacity: 0.2;
+            transition: opacity 0.3s, transform 0.2s;
+        }
+        
+        #side-left .arrow-graphic { border-right: 150px solid var(--on-color); transform: scale(0.8); }
+        #side-right .arrow-graphic { border-left: 150px solid var(--on-color); transform: scale(0.8); }
+
+        /* Active State */
+        .side-panel.active { background-color: var(--off-color); }
+        .side-panel.active .arrow-graphic { opacity: 1; transform: scale(1.2); filter: drop-shadow(0 0 40px red); }
+
+        /* Team Names */
+        .team-name-input {
+            position: absolute;
+            top: 20px;
             background: transparent;
             border: none;
-            text-align: center;
-            width: 80%;
-            transition: color 0.3s;
-        }
-        .team-name:focus { outline: none; border-bottom: 2px solid #555; color: #fff; }
-
-        .arrow-graphic {
-            width: 60%;
-            max-width: 400px;
-            height: auto;
-            fill: var(--off-color);
-            filter: drop-shadow(0 0 0 transparent);
-            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-        }
-
-        /* ACTIVE STATES */
-        .side.active .team-name { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
-        .side.active .arrow-graphic {
-            fill: var(--on-color);
-            filter: drop-shadow(0 0 30px var(--on-color));
-            transform: scale(1.05);
-        }
-
-        /* Middle divider */
-        .divider {
-            width: 4px;
-            background: #222;
-            height: 80%;
-            align-self: center;
-            border-radius: 2px;
-        }
-
-        /* Reset Button */
-        #btn-reset {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: transparent;
-            border: 1px solid #333;
             color: #555;
-            padding: 8px 20px;
-            border-radius: 20px;
-            cursor: pointer;
-            z-index: 50;
+            font-size: 2rem;
+            text-align: center;
+            font-weight: bold;
+            text-transform: uppercase;
+            width: 80%;
+            z-index: 10;
         }
-        #btn-reset:hover { border-color: #666; color: #aaa; }
+        .active .team-name-input { color: white; }
+
+        /* --- CONTROL BAR (For Remote) --- */
+        #controls {
+            height: 80px;
+            background: #222;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid #444;
+            display: none; /* Hidden by default */
+        }
+        .btn {
+            background: #333; color: white; border: none; padding: 15px 30px;
+            border-radius: 8px; font-size: 1rem; font-weight: bold;
+        }
+        .btn-reset { background: #555; }
+
+        /* MODALS */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 200;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .big-btn {
+            padding: 20px 40px; font-size: 1.5rem; background: var(--highlight);
+            border: none; border-radius: 10px; color: white; margin: 10px; cursor: pointer;
+        }
+        
+        #conn-status {
+            position: absolute; top: 5px; left: 50%; transform: translateX(-50%);
+            color: #555; font-family: monospace; font-size: 12px;
+            display: flex; gap: 5px; align-items: center;
+        }
 
     </style>
 </head>
 <body>
 
-    <div id="connection-modal">
-        <div class="modal-content">
-            <h2 style="margin:0 0 20px 0; color:var(--on-color)">POSSESSION ARROW</h2>
-            
-            <div id="setup-step-1">
-                <button class="conn-btn btn-host" onclick="startHost()">HOST (Display)</button>
-                <div style="margin:10px; color:#666">- OR -</div>
-                <button class="conn-btn btn-join" onclick="showJoinInput()">JOIN (Remote)</button>
-            </div>
-
-            <div id="setup-step-host" style="display:none;">
-                <p>Game ID:</p>
-                <input type="text" id="host-id-display" class="room-input" readonly>
-                <div style="color:#888; margin-top:10px;">Waiting for remote...</div>
-                <button class="conn-btn btn-join" onclick="enterGame()">OPEN DISPLAY</button>
-            </div>
-
-            <div id="setup-step-join" style="display:none;">
-                <p>Enter ID:</p>
-                <input type="text" id="remote-id-input" class="room-input" placeholder="e.g. A1B2">
-                <button class="conn-btn btn-host" onclick="joinGame()">CONNECT</button>
-                <button class="conn-btn" style="background:#333" onclick="backToMain()">BACK</button>
-                <div id="join-status" style="margin-top:10px; color:#f00"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="conn-status-bar" style="display:none">Offline</div>
-
-    <div id="main-container">
-        
-        <div class="side" id="side-left" onclick="handleInput('setLeft')">
-            <input type="text" class="team-name" id="name-left" value="GUEST" onchange="handleInput('updateNames', {left: this.value, right: document.getElementById('name-right').value})">
-            <svg class="arrow-graphic" viewBox="0 0 100 60">
-                <path d="M 40 10 L 40 25 L 90 25 L 90 35 L 40 35 L 40 50 L 10 30 Z" />
-            </svg>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="side" id="side-right" onclick="handleInput('setRight')">
-            <input type="text" class="team-name" id="name-right" value="HOME" onchange="handleInput('updateNames', {left: document.getElementById('name-left').value, right: this.value})">
-            <svg class="arrow-graphic" viewBox="0 0 100 60">
-                <path d="M 60 10 L 60 25 L 10 25 L 10 35 L 60 35 L 60 50 L 90 30 Z" />
-            </svg>
-        </div>
-
-    </div>
-
-    <button id="btn-reset" onclick="handleInput('reset')">RESET ARROW</button>
     <div id="watermark">TIU</div>
+    
+    <div id="conn-status">
+        <span id="status-text">OFFLINE</span>
+        <button id="reconnectBtn" style="display:none; border:none; background:#444; color:white; border-radius:4px;" onclick="location.reload()">🔄</button>
+    </div>
+
+    <div id="display-container">
+        <div id="side-left" class="side-panel" onclick="setPossession('left')">
+            <input id="name-left" class="team-name-input" value="HOME" onkeyup="updateNames()">
+            <div class="arrow-graphic"></div>
+        </div>
+
+        <div id="side-right" class="side-panel" onclick="setPossession('right')">
+            <input id="name-right" class="team-name-input" value="GUEST" onkeyup="updateNames()">
+            <div class="arrow-graphic"></div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button class="btn" onclick="setPossession('left')">LEFT</button>
+        <button class="btn btn-reset" onclick="setPossession('none')">RESET</button>
+        <button class="btn" onclick="setPossession('right')">RIGHT</button>
+    </div>
+
+    <div id="setup-screen" class="modal">
+        <h1 style="color:var(--on-color); margin-bottom: 20px;">POSSESSION ARROW</h1>
+        <button class="big-btn" onclick="initHost()">HOST (Screen)</button>
+        <div style="height:20px;"></div>
+        <p style="color:#666;">Scan host to connect remote.</p>
+    </div>
+
+    <div id="qr-modal" class="modal" style="display:none; background:rgba(0,0,0,0.9);">
+        <h2 style="color:white;">Scan to Control</h2>
+        <div id="qrcode" style="background:white; padding:10px; margin:20px;"></div>
+        <button class="btn btn-reset" onclick="document.getElementById('qr-modal').style.display='none'">Hide</button>
+    </div>
 
     <script>
-        // --- AUDIO ---
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        let audioCtx; 
-
-        function playSound(type) {
-            if (!audioCtx) audioCtx = new AudioContext();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            const now = audioCtx.currentTime;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            if (type === 'switch') {
-                // Heavy switch sound
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(200, now);
-                osc.frequency.exponentialRampToValueAtTime(50, now + 0.1);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
-                osc.start(now); osc.stop(now + 0.1);
-            } else if (type === 'reset') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(400, now);
-                gain.gain.setValueAtTime(0.1, now);
-                osc.start(now); osc.stop(now + 0.1);
-            }
-        }
-
-        // --- STATE & P2P ---
+        // --- STATE ---
         let state = {
             possession: 'none', // 'left', 'right', 'none'
-            nameLeft: 'GUEST',
-            nameRight: 'HOME'
+            nameLeft: "HOME",
+            nameRight: "GUEST"
         };
+        
+        let isHost = false;
+        let peer, conn;
+        let heartbeatInterval;
 
-        let peer = null, conn = null, isHost = false, myId = "";
+        function render() {
+            // Update Visuals
+            const l = document.getElementById('side-left');
+            const r = document.getElementById('side-right');
+            
+            l.classList.remove('active');
+            r.classList.remove('active');
+            
+            if(state.possession === 'left') l.classList.add('active');
+            if(state.possession === 'right') r.classList.add('active');
+            
+            // Update Names (only if not typing)
+            if(document.activeElement !== document.getElementById('name-left')) 
+                document.getElementById('name-left').value = state.nameLeft;
+            if(document.activeElement !== document.getElementById('name-right')) 
+                document.getElementById('name-right').value = state.nameRight;
 
-        function generateId() { return Math.random().toString(36).substring(2, 6).toUpperCase(); }
-
-        // --- P2P HANDLERS ---
-        function startHost() {
-            myId = "TIU-" + generateId();
-            document.getElementById('setup-step-1').style.display = 'none';
-            document.getElementById('setup-step-host').style.display = 'block';
-            document.getElementById('host-id-display').value = myId;
-
-            peer = new Peer(myId);
-            peer.on('open', () => { isHost = true; updateStatus("Waiting..."); });
-            peer.on('connection', (c) => {
-                conn = c;
-                updateStatus("Remote Connected");
-                setTimeout(sendState, 500);
-                conn.on('data', (d) => { if(d.command) processCommand(d.command, d.payload); });
-            });
-        }
-
-        function showJoinInput() {
-            document.getElementById('setup-step-1').style.display = 'none';
-            document.getElementById('setup-step-join').style.display = 'block';
-        }
-
-        function backToMain() {
-            document.getElementById('setup-step-join').style.display = 'none';
-            document.getElementById('setup-step-1').style.display = 'block';
-        }
-
-        function joinGame() {
-            let hostId = document.getElementById('remote-id-input').value.trim().toUpperCase();
-            if(!hostId) return;
-            document.getElementById('join-status').innerText = "Connecting...";
-
-            peer = new Peer();
-            peer.on('open', () => {
-                conn = peer.connect(hostId);
-                conn.on('open', () => {
-                    isHost = false;
-                    enterGame();
-                    updateStatus("Connected");
-                });
-                conn.on('data', (d) => { if(d.state) receiveState(d.state); });
-                conn.on('error', () => document.getElementById('join-status').innerText = "Failed.");
-            });
-        }
-
-        function enterGame() {
-            document.getElementById('connection-modal').style.display = 'none';
-            render();
-        }
-
-        function updateStatus(msg) {
-            const bar = document.getElementById('conn-status-bar');
-            bar.style.display = 'block';
-            bar.innerText = (isHost ? "HOST: " : "REMOTE: ") + msg;
-        }
-
-        // --- GAME LOGIC ---
-        function handleInput(cmd, payload = {}) {
-            // Prevent changing input focus from triggering audio unless it's a click
-            if(cmd !== 'updateNames') playSound(cmd === 'reset' ? 'reset' : 'switch');
-
-            if(isHost || !conn) {
-                processCommand(cmd, payload);
-            } else {
-                conn.send({ command: cmd, payload: payload });
-            }
-        }
-
-        function sendState() {
-            if(conn && conn.open) conn.send({ state: state });
-        }
-
-        function receiveState(newState) {
-            state = newState;
-            render();
-        }
-
-        function processCommand(cmd, p) {
-            let changed = true;
-            if (cmd === 'setLeft') state.possession = 'left';
-            else if (cmd === 'setRight') state.possession = 'right';
-            else if (cmd === 'reset') state.possession = 'none';
-            else if (cmd === 'updateNames') {
-                state.nameLeft = p.left;
-                state.nameRight = p.right;
-                changed = false; // Don't full re-render on keystroke
-            }
-
-            if(changed) render();
             if(isHost) sendState();
         }
 
-        function render() {
-            const leftDiv = document.getElementById('side-left');
-            const rightDiv = document.getElementById('side-right');
-            const nameL = document.getElementById('name-left');
-            const nameR = document.getElementById('name-right');
+        function setPossession(side) {
+            state.possession = (state.possession === side) ? 'none' : side;
+            render();
+            if(!isHost && conn) conn.send({type:'cmd', act: 'set', side: state.possession});
+        }
 
-            // Set Active Classes
-            if (state.possession === 'left') {
-                leftDiv.classList.add('active');
-                rightDiv.classList.remove('active');
-            } else if (state.possession === 'right') {
-                rightDiv.classList.add('active');
-                leftDiv.classList.remove('active');
-            } else {
-                leftDiv.classList.remove('active');
-                rightDiv.classList.remove('active');
-            }
+        function updateNames() {
+            state.nameLeft = document.getElementById('name-left').value.toUpperCase();
+            state.nameRight = document.getElementById('name-right').value.toUpperCase();
+            if(!isHost && conn) conn.send({type:'cmd', act: 'names', l: state.nameLeft, r: state.nameRight});
+            // Don't re-render immediately while typing to avoid cursor jumps
+        }
 
-            // Sync names only if not typing
-            if (document.activeElement !== nameL) nameL.value = state.nameLeft;
-            if (document.activeElement !== nameR) nameR.value = state.nameRight;
+        // --- P2P ---
+        function initHost() {
+            isHost = true;
+            document.getElementById('setup-screen').style.display = 'none';
+            
+            peer = new Peer();
+            peer.on('open', (id) => {
+                const url = window.location.href.split('?')[0] + '?connect=' + id;
+                new QRCode(document.getElementById("qrcode"), { text: url, width: 200, height: 200 });
+                document.getElementById('qr-modal').style.display = 'flex';
+                document.getElementById('status-text').innerText = "Waiting for remote...";
+            });
+
+            peer.on('connection', (c) => {
+                conn = c;
+                document.getElementById('status-text').innerText = "REMOTE CONNECTED";
+                document.getElementById('qr-modal').style.display = 'none';
+                
+                conn.on('data', (d) => {
+                    if(d.type === 'heartbeat') return;
+                    if(d.type === 'cmd') {
+                        if(d.act === 'set') { state.possession = d.side; render(); }
+                        if(d.act === 'names') { state.nameLeft = d.l; state.nameRight = d.r; render(); }
+                    }
+                });
+                sendState();
+            });
+            render();
+        }
+
+        function sendState() {
+            if(conn && conn.open) conn.send({type: 'state', data: state});
+        }
+
+        function initClient(id) {
+            isHost = false;
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('controls').style.display = 'flex'; // Show buttons
+            
+            connectToHost(id);
+        }
+
+        function connectToHost(id) {
+            document.getElementById('status-text').innerText = "Connecting...";
+            if(peer) peer.destroy();
+            peer = new Peer();
+
+            peer.on('open', () => {
+                conn = peer.connect(id);
+                
+                conn.on('open', () => {
+                    document.getElementById('status-text').innerText = "CONNECTED";
+                    document.getElementById('reconnectBtn').style.display = 'none';
+                    
+                    // Heartbeat
+                    if(heartbeatInterval) clearInterval(heartbeatInterval);
+                    heartbeatInterval = setInterval(() => {
+                        if(conn && conn.open) conn.send({type: 'heartbeat'});
+                    }, 2000);
+                });
+
+                conn.on('data', (d) => {
+                    if(d.type === 'state') {
+                        state = d.data;
+                        render();
+                    }
+                });
+                
+                conn.on('close', () => {
+                    document.getElementById('status-text').innerText = "DISCONNECTED";
+                    document.getElementById('reconnectBtn').style.display = 'inline-block';
+                    setTimeout(() => connectToHost(id), 1000);
+                });
+            });
         }
 
         // Init
-        render();
+        const params = new URLSearchParams(window.location.search);
+        if(params.get('connect')) initClient(params.get('connect'));
 
     </script>
 </body>
