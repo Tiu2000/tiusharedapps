@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wiffle Ball Tracker Pro (P2P)</title>
+    <title>Wiffle Ball Tracker Pro (P2P Stable)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -11,11 +11,11 @@
             --bg-color: #1a1a1a;
             --panel-color: #2d2d2d;
             --text-color: #e0e0e0;
-            --accent-color: #4CAF50;
-            --highlight: #2196F3;
-            --danger: #ff4444;
-            --warning: #FF9800;
-            --base-occupied: #FFD700;
+            --accent-color: #4CAF50; /* Green */
+            --highlight: #2196F3; /* Blue */
+            --danger: #ff4444;    /* Red */
+            --warning: #FF9800;    /* Orange */
+            --base-occupied: #FFD700; /* Gold */
         }
 
         body {
@@ -31,578 +31,634 @@
             width: 100vw;
             user-select: none;
             position: relative;
-            overflow-x: hidden;
         }
-
+        
+        /* --- TIU Watermark --- */
         #watermark {
-            position: fixed;
+            position: absolute;
             bottom: 10px;
             right: 20px;
-            font-size: 1.5rem;
-            color: #fff;
-            opacity: 0.1;
+            font-size: 0.9rem;
+            color: var(--text-color);
+            opacity: 0.08;
             pointer-events: none;
-            font-weight: 900;
-            z-index: 1000;
-        }
-
-        #app-container {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            height: 100vh;
-            max-width: 800px;
-            position: relative;
-        }
-
-        /* --- SCOREBOARD --- */
-        #scoreboard {
-            background-color: var(--panel-color);
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid #444;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            letter-spacing: 0.2em;
+            font-weight: 200;
             z-index: 10;
         }
 
-        .team-score {
-            text-align: center;
-            flex: 1;
-        }
-        .team-name { font-size: 0.9rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
-        .score-val { font-size: 3.5rem; font-weight: bold; line-height: 1; color: var(--text-color); }
-        .inning-box { 
-            text-align: center; width: 80px; 
-            background: #222; padding: 5px; border-radius: 8px; border: 1px solid #444;
-        }
-        .inn-top-bot { font-size: 1.2rem; color: var(--highlight); }
-        .inn-num { font-size: 1.8rem; font-weight: bold; }
-
-        /* --- FIELD DISPLAY --- */
-        #field-view {
-            flex: 1;
-            position: relative;
-            background: radial-gradient(circle at 50% 100%, #2e7d32 0%, #1b5e20 60%, #1a1a1a 100%);
+        /* --- P2P Status Indicator --- */
+        #conn-status {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            z-index: 100;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #666;
             display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .reconnect-btn {
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .reconnect-btn:hover { background: #555; }
+        .hidden { display: none; }
+
+        /* --- Main Dashboard Container --- */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto 1fr;
+            gap: 30px; 
+            width: 95%; 
+            max-width: 1400px; 
+            background-color: #000;
+            padding: 40px; 
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 20;
+        }
+
+        /* --- Header / Scoreboard --- */
+        .header-section {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel-color);
+            padding: 25px 40px; 
+            border-radius: 15px;
+            border: 1px solid #444;
+            height: 150px; 
+        }
+
+        .team-score { text-align: center; width: 200px; } 
+        .team-name { font-size: 1.8rem; color: #aaa; margin-bottom: 5px; letter-spacing: 3px; font-weight: 300; } 
+        .score-display { font-size: 6rem; font-weight: 900; line-height: 1; } 
+        
+        .score-controls { 
+            display: flex; 
+            gap: 10px; 
+            justify-content: center; 
+            margin-top: 10px;
+        }
+        
+        .inning-display {    
+            text-align: center;    
+            background: #222;    
+            padding: 15px 35px;    
+            border-radius: 10px;
+            border: 1px solid #555;
+            min-width: 150px; 
+        }
+        .inning-text { font-size: 1.2rem; display: block; }
+        .inning-num { font-size: 3.5rem; font-weight: bold; line-height: 1.1; } 
+        .arrow { font-size: 2rem; display: block; height: 35px; } 
+
+        /* --- Field --- */
+        .field-section {
+            display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
+            background: radial-gradient(circle, #3a3a3a 0%, #222 70%);
+            border-radius: 15px;
+            min-height: 400px;
+            position: relative;
+            border: 4px solid #444;
         }
 
-        .diamond {
-            width: 200px; height: 200px;
+        .diamond-wrap {
             position: relative;
-            transform: rotate(-45deg);
-            margin-top: -50px;
+            width: 350px; 
+            height: 350px;
+            transform: rotate(-45deg); 
+            top: 0; left: 0; 
         }
 
         .base {
-            width: 35px; height: 35px;
-            background-color: white;
+            width: 65px; 
+            height: 65px;
+            background-color: rgba(255,255,255,0.2);
             position: absolute;
-            transform: rotate(45deg); /* Counter-rotate to look square */
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-            border: 2px solid #ccc;
-            transition: background-color 0.3s, transform 0.2s;
             cursor: pointer;
-        }
-        .base.active { background-color: var(--base-occupied); border-color: #ffb300; transform: rotate(45deg) scale(1.2); }
-        
-        #base-1 { top: 0; right: 0; }
-        #base-2 { top: 0; left: 0; }
-        #base-3 { bottom: 0; left: 0; }
-        #home-plate { 
-            bottom: 0; right: 0; 
-            background-color: white;
-            clip-path: polygon(0 0, 50% 20%, 100% 0, 100% 100%, 0 100%); /* Pentago home plate shape if not rotated */
-             /* Actually, since diamond is rotated, a square works fine for 1st/2nd/3rd. Home needs style. */
-             /* Let's keep simple squares for now */
-        }
-
-        /* --- CONTROLS --- */
-        #controls-area {
-            background-color: var(--panel-color);
-            padding: 15px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: auto auto auto;
-            gap: 12px;
-            border-top: 2px solid #444;
-        }
-
-        .btn {
-            border: none;
-            border-radius: 12px;
-            padding: 20px 0;
-            font-size: 1.4rem;
-            font-weight: bold;
-            color: white;
-            cursor: pointer;
-            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
-            transition: transform 0.1s, box-shadow 0.1s;
-            text-transform: uppercase;
-            touch-action: manipulation;
-        }
-        .btn:active { transform: translateY(4px); box-shadow: none; }
-        .btn-lrg { grid-column: span 2; }
-
-        .btn-strike { background-color: var(--danger); }
-        .btn-ball { background-color: var(--highlight); }
-        .btn-foul { background-color: var(--warning); color: #222; }
-        .btn-out { background-color: #555; }
-        .btn-hit { background-color: var(--accent-color); font-size: 1.8rem; }
-        .btn-safe { background-color: #444; border: 1px solid #666; font-size: 1rem; padding: 10px; }
-
-        /* --- COUNT DISPLAY --- */
-        #count-display {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 3px solid #fff;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            font-size: 1.5rem;
             display: flex;
-            gap: 20px;
-            background: rgba(0,0,0,0.6);
-            padding: 10px 20px;
-            border-radius: 20px;
+            justify-content: center;
+            align-items: center;
+            transform: rotate(45deg);
         }
-        .count-group { text-align: center; }
-        .count-label { font-size: 0.7rem; color: #ccc; }
-        .count-val { font-size: 2rem; font-weight: bold; font-family: 'Courier New', monospace; }
-        .c-balls { color: var(--highlight); }
-        .c-strikes { color: var(--danger); }
-        .c-outs { color: #aaa; }
 
-        /* --- MODALS --- */
+        .base:hover { transform: scale(1.1) rotate(45deg); }
+        .base.occupied {    
+            background-color: var(--base-occupied);    
+            box-shadow: 0 0 20px var(--base-occupied);
+            transform: scale(1.1) rotate(45deg);
+            border-color: #fff;
+        }
+
+        .b1 { top: 15px; right: 15px; } 
+        .b2 { top: 15px; left: 15px; }
+        .b3 { bottom: 15px; left: 15px; }
+        
+        .home {    
+            bottom: 15px; right: 15px;    
+            background: transparent;    
+            border-color: rgba(255,255,255,0.5);    
+            border-radius: 0 0 50% 0;
+            cursor: default;
+        }
+        .base-label { position: absolute; font-size: 1rem; color: #fff; transform: rotate(45deg); }
+        .field-label { position: absolute; bottom: 20px; color: #777; font-size: 1.1rem; }
+
+        /* --- Controls --- */
+        .controls-section { display: grid; grid-template-rows: 1fr 1fr 1fr; gap: 20px; }
+        .control-row {
+            background: var(--panel-color);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .count-info { text-align: left; }
+        .label { display: block; font-size: 1.1rem; text-transform: uppercase; color: #888; letter-spacing: 1px;}
+        .big-number { font-size: 4rem; font-weight: 700; margin-left: 20px; min-width: 40px;} 
+
+        /* LED Dots */
+        .led-container { display: flex; gap: 8px; margin-top: 5px; }
+        .led { width: 18px; height: 18px; border-radius: 50%; background: #444; box-shadow: inset 0 0 5px #000; } 
+        .led.on-green { background: var(--highlight); box-shadow: 0 0 10px var(--highlight); }
+        .led.on-red { background: var(--danger); box-shadow: 0 0 10px var(--danger); }
+        
+        /* Buttons */
+        .btn-group { display: flex; gap: 10px; }
+        button {
+            border: none; padding: 20px 30px; border-radius: 10px;
+            font-size: 1.3rem; font-weight: bold; color: white; cursor: pointer;
+            transition: filter 0.2s, transform 0.1s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); min-width: 100px;
+        }
+        button:active { transform: translateY(2px); box-shadow: none; }
+        
+        .btn-ball { background: var(--highlight); }
+        .btn-strike { background: var(--warning); }
+        .btn-basehit { background: var(--accent-color); } 
+        .btn-foul { background: #b87814; font-size: 1.1rem; padding: 15px 15px; min-width: 70px; }
+        .btn-out { background: var(--danger); width: 120px; }
+        
+        .btn-undo {
+            background: #333; color: #777; padding: 15px 15px;
+            min-width: 50px; font-size: 1.5rem; line-height: 1; border: 1px solid #444;
+        }
+        .btn-undo:hover { background: #444; color: #fff; border-color: #666; }
+
+        .btn-run { background: #444; border: 1px solid #666; padding: 8px 20px; font-size: 1rem; width: 100px; }
+        .btn-run.add:hover { background: var(--accent-color); border-color: var(--accent-color); }
+        .btn-run.subtract { background: #333; border-color: #555; }
+        .btn-run.subtract:hover { background: var(--danger); border-color: var(--danger); }
+
+        .settings-bar { grid-column: 1 / -1; text-align: center; margin-top: 10px; }
+        .btn-reset { background: transparent; border: 1px solid #555; color: #777; font-size: 0.9rem; padding: 10px 20px; }
+        .btn-reset:hover { color: #fff; border-color: #fff; }
+
+        @media (max-width: 1000px) {
+            .dashboard { grid-template-columns: 1fr; padding: 15px; width: 95%; gap: 15px;}
+            .header-section { padding: 15px; height: auto; }
+            .score-display { font-size: 4rem; }
+            .inning-num { font-size: 2.5rem; }
+            .btn-group { flex-direction: column; }
+            .big-number { font-size: 3rem; }
+            button { padding: 15px 20px; font-size: 1.1rem; min-width: 80px; }
+        }
+
+        /* --- P2P Modals --- */
         .modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            display: none; align-items: center; justify-content: center;
-            z-index: 100;
+            background: rgba(0,0,0,0.95); z-index: 200;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
         .modal-content {
-            background: var(--panel-color);
-            padding: 30px; border-radius: 15px; text-align: center;
-            max-width: 90%; width: 350px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            background: var(--panel-color); padding: 30px; border-radius: 15px; 
+            text-align: center; max-width: 90%; width: 350px; border: 1px solid #444;
         }
-        .modal h2 { margin-top: 0; color: var(--highlight); }
-        .menu-btn {
-            display: block; width: 100%; padding: 15px; margin: 10px 0;
-            background: #444; color: white; border: none; border-radius: 8px;
-            font-size: 1.1rem; cursor: pointer;
+        .big-btn {
+            padding: 20px 40px; font-size: 1.2rem; background: var(--highlight);
+            border: none; border-radius: 10px; color: white; margin: 10px; cursor: pointer; width: 100%;
         }
-        .menu-btn:hover { background: #555; }
-        input[type="text"], input[type="number"] {
-            width: 100%; padding: 10px; margin: 10px 0;
-            background: #222; border: 1px solid #555; color: white;
-            border-radius: 5px; font-size: 1.1rem; text-align: center;
-        }
-
-        #setup-screen { z-index: 200; background: var(--bg-color); }
-        .role-btn {
-            width: 100%; padding: 25px; margin: 15px 0;
-            font-size: 1.5rem; font-weight: bold; border-radius: 12px; border: none;
-            cursor: pointer; transition: transform 0.2s;
-        }
-        .role-host { background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; }
-        .role-client { background: linear-gradient(135deg, #064e3b, #10b981); color: white; }
-        
-        #remote-status {
-            position: absolute; top: 5px; right: 5px;
-            font-size: 0.7rem; color: #666;
-            display: flex; gap: 8px; align-items: center;
-        }
-        .reconnect-btn { background: #333; color: white; border: none; border-radius: 4px; padding: 2px 6px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="watermark">TIU</div>
+<div id="conn-status">
+    <span id="status-text">OFFLINE</span>
+    <button id="reconnectBtn" class="reconnect-btn hidden" onclick="window.location.reload()" title="Force Reconnect">🔄</button>
+</div>
 
-    <div id="app-container">
-        <div id="scoreboard">
-            <div class="team-score" onclick="editScore('home')">
-                <div class="team-name" id="name-home">HOME</div>
-                <div class="score-val" id="score-home">0</div>
-            </div>
-            
-            <div class="inning-box" onclick="editInning()">
-                <div class="inn-top-bot" id="inn-indicator">▲</div>
-                <div class="inn-num" id="inn-number">1</div>
-            </div>
-
-            <div class="team-score" onclick="editScore('away')">
-                <div class="team-name" id="name-away">AWAY</div>
-                <div class="score-val" id="score-away">0</div>
+<div class="dashboard" id="main-dashboard">
+    <div class="header-section">
+        <div class="team-score">
+            <div class="team-name">GUEST</div>
+            <div id="score-guest" class="score-display">0</div>
+            <div class="score-controls">
+                <button class="btn-run subtract" onclick="addScore('guest', -1)">- RUN</button>
+                <button class="btn-run add" onclick="addScore('guest', 1)">+ RUN</button>
             </div>
         </div>
 
-        <div id="field-view">
-            <div id="count-display">
-                <div class="count-group"><div class="count-val c-balls" id="count-b">0</div><div class="count-label">BALL</div></div>
-                <div class="count-group"><div class="count-val c-strikes" id="count-s">0</div><div class="count-label">STRIKE</div></div>
-                <div class="count-group"><div class="count-val c-outs" id="count-o">0</div><div class="count-label">OUT</div></div>
-            </div>
-
-            <div class="diamond">
-                <div class="base" id="base-2" onclick="toggleBase(1)"></div>
-                <div class="base" id="base-1" onclick="toggleBase(0)"></div>
-                <div class="base" id="base-3" onclick="toggleBase(2)"></div>
-                <div class="base" id="home-plate" style="background:none; border:none; box-shadow:none;"></div> </div>
-            
-            <div id="remote-status">
-                <span id="conn-text">OFFLINE</span>
-                <button id="reconnectBtn" class="reconnect-btn hidden" onclick="window.location.reload()">🔄</button>
-            </div>
-            <button style="position:absolute; bottom:10px; left:10px; background:none; border:none; color:#444; font-size:2rem;" onclick="openMenu()">⚙️</button>
+        <div class="inning-display">
+            <span class="inning-text">INNING</span>
+            <span id="inning-arrow" class="arrow">▲</span>
+            <span id="inning-number" class="inning-num">1</span>
         </div>
 
-        <div id="controls-area">
-            <button class="btn btn-ball" onclick="actionBall()">BALL</button>
-            <button class="btn btn-strike" onclick="actionStrike()">STRIKE</button>
-            
-            <button class="btn btn-foul" onclick="actionFoul()">FOUL</button>
-            <button class="btn btn-out" onclick="actionOut()">OUT</button>
-            
-            <button class="btn btn-lrg btn-hit" onclick="actionBaseHit()">HIT / IN PLAY</button>
-            
-            <button class="btn btn-safe" onclick="undoOut()">UNDO OUT</button>
-            <button class="btn btn-safe" onclick="clearCount()">CLEAR COUNT</button>
+        <div class="team-score">
+            <div class="team-name">HOME</div>
+            <div id="score-home" class="score-display">0</div>
+            <div class="score-controls">
+                <button class="btn-run subtract" onclick="addScore('home', -1)">- RUN</button>
+                <button class="btn-run add" onclick="addScore('home', 1)">+ RUN</button>
+            </div>
         </div>
     </div>
 
-    <div id="menu-modal" class="modal">
-        <div class="modal-content">
-            <h2>Game Menu</h2>
-            <button class="menu-btn" onclick="resetGame()">New Game</button>
-            <button class="menu-btn" onclick="setTeamNames()">Rename Teams</button>
-            <button class="menu-btn" onclick="toggleSound()">Mute/Unmute</button>
-            <div style="margin:10px 0; border-top:1px solid #444;"></div>
-            <button class="menu-btn" style="color:#aaa;" onclick="closeModal()">Back to Game</button>
+    <div class="field-section">
+        <div class="diamond-wrap">
+            <div class="base b2" id="base-2" onclick="toggleBase(2)"><span class="base-label">2B</span></div> 
+            <div class="base b1" id="base-1" onclick="toggleBase(1)"><span class="base-label">1B</span></div> 
+            <div class="base b3" id="base-3" onclick="toggleBase(3)"><span class="base-label">3B</span></div> 
+            <div class="base home" id="home-plate"></div>
+        </div>
+        <div class="field-label">Tap base to toggle runner</div>
+    </div>
+
+    <div class="controls-section">
+        <div class="control-row">
+            <div class="count-info">
+                <span class="label">Balls</span>
+                <div class="led-container">
+                    <div id="led-ball-1" class="led"></div>
+                    <div id="led-ball-2" class="led"></div>
+                    <div id="led-ball-3" class="led"></div>
+                </div>
+            </div>
+            <div id="text-ball" class="big-number" style="color: var(--highlight)">0</div>
+            <div class="btn-group">
+                <button class="btn-undo" onclick="undoBall()" title="Undo Ball">-</button>
+                <button class="btn-ball" onclick="actionBall()">BALL</button>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <div class="count-info">
+                <span class="label">Strikes</span>
+                <div class="led-container">
+                    <div id="led-strike-1" class="led"></div>
+                    <div id="led-strike-2" class="led"></div>
+                </div>
+            </div>
+            <div id="text-strike" class="big-number" style="color: var(--warning)">0</div>
+            <div class="btn-group">
+                <button class="btn-undo" onclick="undoStrike()" title="Undo Strike">-</button>
+                <button class="btn-foul" onclick="actionFoul()">FOUL</button>
+                <button class="btn-strike" onclick="actionStrike()">STRIKE</button>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <div class="count-info">
+                <span class="label">Actions</span>
+                <div class="led-container">
+                    <span class="label" style="color: var(--danger); margin-left: -5px;">Outs:</span>
+                    <div id="led-out-1" class="led"></div>
+                    <div id="led-out-2" class="led"></div>
+                </div>
+            </div>
+            <div id="text-out" class="big-number" style="color: var(--danger)">0</div>
+            <div class="btn-group">
+                <button class="btn-undo" onclick="undoOut()" title="Undo Out">-</button>
+                <button class="btn-basehit" onclick="actionBaseHit()">BASE HIT</button>
+                <button class="btn-out" onclick="actionOut()">OUT</button>
+            </div>
         </div>
     </div>
 
-    <div id="setup-screen" class="modal" style="display:flex;">
-        <div class="modal-content" style="width: 400px;">
-            <h1 style="color:white; margin-bottom:0;">BASEBALL</h1>
-            <h2 style="color:#666; margin-top:0;">TRACKER P2P</h2>
-            
-            <button class="role-btn role-host" onclick="initHost()">HOST (Display)</button>
-            <p style="font-size:0.9rem; color:#888;">Use this device as the scoreboard.</p>
-            
-            <div style="margin:20px 0; border-top:1px solid #333;"></div>
-            
-            <p id="client-instruction" style="color:#666;">Scan QR code on Host to connect phone.</p>
-        </div>
+    <div class="settings-bar">
+        <button class="btn-reset" onclick="resetGame()">RESET GAME</button>
     </div>
+</div>
 
-    <div id="qr-modal" class="modal">
-        <div class="modal-content">
-            <h2>Remote Connect</h2>
-            <div id="qrcode" style="display:flex; justify-content:center; margin:15px auto;"></div>
-            <p style="font-size:0.8rem; color:#aaa; word-break:break-all;" id="host-id-display"></p>
-            <button class="menu-btn" onclick="document.getElementById('qr-modal').style.display='none'">Close</button>
-        </div>
+<div id="watermark">TIU Wiffle Tracker</div>
+
+<div id="setup-screen" class="modal">
+    <div class="modal-content">
+        <h1 style="color:white; margin-bottom:10px;">TRACKER SETUP</h1>
+        <button class="big-btn" onclick="initHost()">HOST (Screen)</button>
+        <p style="color:#888; margin-top:10px;">Select Host to generate a QR code for your remote.</p>
+        <div style="margin:20px 0; border-top:1px solid #444;"></div>
+        <p style="color:#666; font-size:0.8rem;">If you scanned a QR code, you are connecting automatically.</p>
     </div>
+</div>
 
-    <script>
-        // --- GAME STATE ---
-        let state = {
-            balls: 0, strikes: 0, outs: 0,
-            inning: 1, isTop: true,
-            scoreHome: 0, scoreAway: 0,
-            bases: [false, false, false], // 1st, 2nd, 3rd
-            nameHome: "HOME", nameAway: "AWAY"
+<div id="qr-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <h2 style="color:var(--highlight);">Scan to Connect</h2>
+        <div id="qrcode" style="display:flex; justify-content:center; margin:20px auto; background: white; padding: 10px; border-radius: 5px;"></div>
+        <button class="btn-reset" onclick="document.getElementById('qr-modal').style.display='none'">Close</button>
+    </div>
+</div>
+
+<script>
+    // --- Audio System (Web Audio API) ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+
+    function playSound(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+
+        if (type === 'ball') {
+            osc.type = 'sine'; osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+            gainNode.gain.setValueAtTime(0.3, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1); osc.start(now); osc.stop(now + 0.1);
+        } else if (type === 'strike') {
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); gainNode.gain.setValueAtTime(0.2, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15); osc.start(now); osc.stop(now + 0.15);
+        } else if (type === 'out') {
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(100, now + 0.4);
+            gainNode.gain.setValueAtTime(0.3, now); gainNode.gain.linearRampToValueAtTime(0.01, now + 0.4); osc.start(now); osc.stop(now + 0.4);
+        } else if (type === 'hit') {
+            osc.type = 'square'; osc.frequency.setValueAtTime(700, now); osc.frequency.exponentialRampToValueAtTime(1000, now + 0.2);
+            gainNode.gain.setValueAtTime(0.4, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2); osc.start(now); osc.stop(now + 0.2);
+        } else if (type === 'score') {
+            osc.type = 'sine'; osc.frequency.setValueAtTime(1200, now); gainNode.gain.setValueAtTime(0.3, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5); osc.start(now); osc.stop(now + 0.5);
+        } else if (type === 'click') {
+            osc.type = 'square'; osc.frequency.setValueAtTime(800, now); gainNode.gain.setValueAtTime(0.05, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05); osc.start(now); osc.stop(now + 0.05);
+        } else if (type === 'inning') {
+            osc.type = 'sine'; osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(800, now + 0.3);
+            gainNode.gain.setValueAtTime(0.3, now); gainNode.gain.linearRampToValueAtTime(0.01, now + 0.3); osc.start(now); osc.stop(now + 0.3);
+        }
+    }
+
+    // --- Game Logic ---
+    let state = {
+        balls: 0, strikes: 0, outs: 0,
+        inning: 1, isTop: true,
+        scoreGuest: 0, scoreHome: 0,
+        bases: [false, false, false, false]
+    };
+
+    // --- P2P Variables ---
+    let peer, conn;
+    let isHost = false;
+    let heartbeatInterval;
+
+    function render() {
+        document.getElementById('text-ball').textContent = state.balls;
+        document.getElementById('text-strike').textContent = state.strikes;
+        document.getElementById('text-out').textContent = state.outs;
+        document.getElementById('score-guest').textContent = state.scoreGuest;
+        document.getElementById('score-home').textContent = state.scoreHome;
+        document.getElementById('inning-number').textContent = state.inning;
+        const arrow = document.getElementById('inning-arrow');
+        arrow.textContent = state.isTop ? '▲' : '▼';
+        arrow.style.color = state.isTop ? 'var(--accent-color)' : 'var(--danger)';
+
+        for(let i=1; i<=3; i++) {
+            const el = document.getElementById(`led-ball-${i}`);
+            if(el) el.className = (state.balls >= i) ? 'led on-green' : 'led';
+        }
+        for(let i=1; i<=2; i++) {
+            const elS = document.getElementById(`led-strike-${i}`);
+            if(elS) elS.className = (state.strikes >= i) ? 'led on-red' : 'led';
+            const elO = document.getElementById(`led-out-${i}`);
+            if(elO) elO.className = (state.outs >= i) ? 'led on-red' : 'led';
+        }
+
+        const renderBase = (idx) => {
+            const el = document.getElementById(`base-${idx}`);
+            if (el) {
+                const labelText = idx === 1 ? '1B' : idx === 2 ? '2B' : '3B';
+                el.innerHTML = `<span class="base-label">${labelText}</span>`; 
+                el.className = state.bases[idx] ? `base b${idx} occupied` : `base b${idx}`;
+            }
         };
-        let audioEnabled = true;
+        renderBase(1); renderBase(2); renderBase(3);
 
-        // --- P2P VARS ---
-        let peer, conn;
-        let isHost = false;
-        let heartbeatInterval;
+        if (isHost && conn) sendState();
+    }
 
-        // --- AUDIO ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playTone(freq, type, dur) {
-            if(!audioEnabled) return;
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + dur);
-        }
-        function playSound(evt) {
-            if(evt === 'ball') playTone(300, 'sine', 0.1);
-            if(evt === 'strike') playTone(150, 'sawtooth', 0.2);
-            if(evt === 'out') { playTone(100, 'square', 0.1); setTimeout(()=>playTone(80, 'square', 0.3), 150); }
-            if(evt === 'hit') playTone(600, 'triangle', 0.1);
-            if(evt === 'click') playTone(800, 'sine', 0.05);
-            if(evt === 'inning') { playTone(400, 'sine', 0.1); setTimeout(()=>playTone(600, 'sine', 0.2), 150); }
-        }
+    // --- Actions ---
+    function clearCount() { state.balls = 0; state.strikes = 0; }
+    function clearBases() { state.bases = [false, false, false, false]; }
 
-        // --- GAME LOGIC ---
-        function render() {
-            document.getElementById('count-b').innerText = state.balls;
-            document.getElementById('count-s').innerText = state.strikes;
-            document.getElementById('count-o').innerText = state.outs;
-            
-            document.getElementById('score-home').innerText = state.scoreHome;
-            document.getElementById('score-away').innerText = state.scoreAway;
-            document.getElementById('name-home').innerText = state.nameHome;
-            document.getElementById('name-away').innerText = state.nameAway;
+    function advanceRunnersOnSafe(isHit) {
+        let runScored = false;
+        if (state.bases[3]) {
+            addScore(state.isTop ? 'guest' : 'home', 1, true);
+            runScored = true;
+        }
+        state.bases[3] = state.bases[2];
+        state.bases[2] = state.bases[1];
+        state.bases[1] = true;
+        if (runScored) playSound('score');
+        clearCount();
+    }
 
-            document.getElementById('inn-number').innerText = state.inning;
-            document.getElementById('inn-indicator').innerText = state.isTop ? '▲' : '▼';
-            document.getElementById('inn-indicator').style.color = state.isTop ? '#4CAF50' : '#2196F3'; // Color cue
+    function addScore(team, value = 1, silent = false) {
+        if(team === 'guest') state.scoreGuest = Math.max(0, state.scoreGuest + value);
+        else state.scoreHome = Math.max(0, state.scoreHome + value);
+        if(value > 0 && !silent) playSound('score');
+        if (Math.abs(value) > 0 && !silent) playSound('click');
+        render();
+    }
 
-            document.getElementById('base-1').className = state.bases[0] ? 'base active' : 'base';
-            document.getElementById('base-2').className = state.bases[1] ? 'base active' : 'base';
-            document.getElementById('base-3').className = state.bases[2] ? 'base active' : 'base';
+    function actionBall() {
+        state.balls++; playSound('ball');
+        if(state.balls >= 4) advanceRunnersOnSafe(false);
+        render();
+    }
+    function undoBall() {
+        if (state.balls > 0) { state.balls--; playSound('click'); render(); }
+    }
+    function actionStrike() {
+        state.strikes++; playSound('strike');
+        if(state.strikes >= 3) actionOut(true); else render();
+    }
+    function undoStrike() {
+        if (state.strikes > 0) { state.strikes--; playSound('click'); render(); }
+    }
+    function actionFoul() {
+        if(state.strikes < 2) { state.strikes++; playSound('strike'); } else playSound('click');
+        render();
+    }
+    function actionOut(silent = false) {
+        state.outs++; clearCount();
+        if(!silent) playSound('out');
+        if(state.outs >= 3) setTimeout(() => switchInning(), 300);
+        render();
+    }
+    function undoOut() {
+        if (state.outs > 0) { state.outs--; playSound('click'); render(); }
+    }
+    function actionBaseHit() {
+        playSound('hit'); advanceRunnersOnSafe(true); render();
+    }
+    function switchInning() {
+        playSound('inning'); state.outs = 0; clearBases();
+        if(state.isTop) state.isTop = false; else { state.isTop = true; state.inning++; }
+        render();
+    }
+    function toggleBase(idx) {
+        state.bases[idx] = !state.bases[idx]; playSound('click'); render();
+    }
+    function resetGame() {
+        if(confirm("Reset entire game?")) {
+            state = { balls: 0, strikes: 0, outs: 0, inning: 1, isTop: true, scoreGuest: 0, scoreHome: 0, bases: [false, false, false, false] };
+            playSound('inning'); render();
+        }
+    }
 
-            if(isHost) sendState();
-        }
+    // --- P2P NETWORK LOGIC ---
 
-        function actionBall() {
-            state.balls++; playSound('ball');
-            if(state.balls >= 4) { advanceRunnersOnWalk(); clearCount(); }
-            render();
-        }
-        function actionStrike() {
-            state.strikes++; playSound('strike');
-            if(state.strikes >= 3) actionOut(true); 
-            else render();
-        }
-        function undoStrike() {
-            if (state.strikes > 0) { state.strikes--; playSound('click'); render(); }
-        }
-        function actionFoul() {
-            if(state.strikes < 2) { state.strikes++; playSound('strike'); } 
-            else playSound('click'); 
-            render();
-        }
-        function actionOut(silent = false) {
-            state.outs++; clearCount();
-            if(!silent) playSound('out');
-            if(state.outs >= 3) setTimeout(() => switchInning(), 300);
-            render();
-        }
-        function undoOut() {
-            if (state.outs > 0) { state.outs--; playSound('click'); render(); }
-        }
-        function actionBaseHit() { playSound('hit'); advanceRunnersOnSafe(true); render(); }
-        
-        function switchInning() {
-            playSound('inning'); state.outs = 0; clearBases();
-            if(state.isTop) state.isTop = false;
-            else { state.isTop = true; state.inning++; }
-            render();
-        }
-        function toggleBase(idx) {
-            state.bases[idx] = !state.bases[idx]; playSound('click'); render();
-        }
-        function resetGame() {
-            if(confirm("Reset entire game?")) {
-                state = { balls:0, strikes:0, outs:0, inning:1, isTop:true, scoreHome:0, scoreAway:0, bases:[false,false,false], nameHome:"HOME", nameAway:"AWAY" };
-                closeModal(); render();
-            }
-        }
-        
-        function clearCount() { state.balls = 0; state.strikes = 0; render(); }
-        function clearBases() { state.bases = [false, false, false]; }
-        
-        // Simple advancement logic (can be manually overridden by tapping bases)
-        function advanceRunnersOnWalk() {
-            // Force runner on 1st. If 1st occupied, force 2nd. etc.
-            if(state.bases[0]) {
-                if(state.bases[1]) {
-                    if(state.bases[2]) {
-                        // Bases loaded walk = run
-                        addScore(1);
-                    }
-                    state.bases[2] = true;
+    function initHost() {
+        isHost = true;
+        document.getElementById('setup-screen').style.display = 'none';
+        setStatus("Waiting for Remote...", "orange");
+
+        peer = new Peer();
+        peer.on('open', (id) => {
+            const url = window.location.href.split('?')[0] + '?connect=' + id;
+            new QRCode(document.getElementById("qrcode"), { text: url, width: 200, height: 200 });
+            document.getElementById('qr-modal').style.display = 'flex';
+        });
+
+        peer.on('connection', (c) => {
+            conn = c;
+            document.getElementById('qr-modal').style.display = 'none';
+            setStatus("REMOTE CONNECTED", "green");
+
+            conn.on('data', (d) => {
+                if(d.type === 'heartbeat') return; // Ignore heartbeat
+                if(d.type === 'cmd') handleRemoteCmd(d);
+            });
+            sendState();
+        });
+    }
+
+    function initClient(id) {
+        isHost = false;
+        document.getElementById('setup-screen').style.display = 'none';
+        connectToHost(id);
+    }
+
+    function connectToHost(id) {
+        setStatus("CONNECTING...", "orange");
+        if(peer) peer.destroy();
+        peer = new Peer();
+
+        peer.on('open', () => {
+            conn = peer.connect(id);
+
+            conn.on('open', () => {
+                setStatus("CONNECTED", "green");
+                document.getElementById('reconnectBtn').classList.add('hidden');
+
+                // Heartbeat Loop
+                if(heartbeatInterval) clearInterval(heartbeatInterval);
+                heartbeatInterval = setInterval(() => {
+                    if(conn && conn.open) conn.send({type: 'heartbeat'});
+                }, 2000);
+            });
+
+            conn.on('data', (d) => {
+                if(d.type === 'state') {
+                    state = d.data;
+                    render();
                 }
-                state.bases[1] = true;
-            }
-            state.bases[0] = true;
-            playSound('click');
-        }
-        function advanceRunnersOnSafe(isHit) {
-            // Just a visual helper, clears count. User manages runners manually usually.
-            clearCount();
-        }
-
-        function addScore(amt) {
-            if(state.isTop) state.scoreAway += amt;
-            else state.scoreHome += amt;
-            render();
-        }
-        
-        // --- EDITING ---
-        function editScore(side) {
-            const newS = prompt(`Enter score for ${side === 'home' ? state.nameHome : state.nameAway}:`);
-            if(newS !== null && !isNaN(newS)) {
-                if(side === 'home') state.scoreHome = parseInt(newS);
-                else state.scoreAway = parseInt(newS);
-                render();
-            }
-        }
-        function editInning() {
-            const newI = prompt("Enter Inning Number:", state.inning);
-            if(newI) state.inning = parseInt(newI);
-            render();
-        }
-        function setTeamNames() {
-            state.nameHome = prompt("Home Team Name:", state.nameHome) || "HOME";
-            state.nameAway = prompt("Away Team Name:", state.nameAway) || "AWAY";
-            closeModal(); render();
-        }
-        
-        // --- MENUS ---
-        function openMenu() { document.getElementById('menu-modal').style.display = 'flex'; }
-        function closeModal() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
-        function toggleSound() { audioEnabled = !audioEnabled; alert("Sound: " + (audioEnabled ? "ON" : "OFF")); }
-
-        // --- P2P NETWORKING ---
-        function initHost() {
-            isHost = true;
-            document.getElementById('setup-screen').style.display = 'none';
-            
-            peer = new Peer();
-            peer.on('open', (id) => {
-                const url = window.location.href.split('?')[0] + '?connect=' + id;
-                document.getElementById('host-id-display').innerText = id;
-                new QRCode(document.getElementById("qrcode"), { text: url, width: 200, height: 200 });
-                document.getElementById('qr-modal').style.display = 'flex';
-                updateConnStatus("WAITING...");
             });
-            
-            peer.on('connection', (c) => {
-                conn = c;
-                updateConnStatus("CONNECTED");
-                document.getElementById('qr-modal').style.display = 'none';
-                
-                conn.on('data', (data) => {
-                    if (data.type === 'heartbeat') return; // Ignore heartbeats
-                    if (data.type === 'cmd') handleRemoteCmd(data);
-                });
-                
-                // Send state immediately
-                sendState();
+
+            conn.on('close', () => {
+                setStatus("DISCONNECTED", "red");
+                document.getElementById('reconnectBtn').classList.remove('hidden');
+                setTimeout(() => connectToHost(id), 1000); // Auto-retry
             });
-        }
 
-        function handleRemoteCmd(data) {
-            if(data.act === 'ball') actionBall();
-            else if(data.act === 'strike') actionStrike();
-            else if(data.act === 'foul') actionFoul();
-            else if(data.act === 'out') actionOut();
-            else if(data.act === 'hit') actionBaseHit();
-            else if(data.act === 'undoOut') undoOut();
-            else if(data.act === 'clear') clearCount();
-            else if(data.act === 'base') toggleBase(data.idx);
-        }
-
-        function sendState() {
-            if(conn && conn.open) {
-                conn.send({ type: 'state', data: state });
-            }
-        }
-
-        function initClient(id) {
-            isHost = false;
-            document.getElementById('setup-screen').style.display = 'none';
-            document.getElementById('controls-area').style.display = 'grid'; // Show controls
-            
-            // On phone, we might hide the scoreboard header to save space, or keep it.
-            // Let's keep it for feedback.
-            
-            connectToHost(id);
-        }
-
-        function connectToHost(id) {
-            updateConnStatus("CONNECTING...");
-            if(peer) peer.destroy();
-            peer = new Peer();
-            
-            peer.on('open', () => {
-                conn = peer.connect(id);
-                
-                conn.on('open', () => {
-                    updateConnStatus("CONNECTED");
-                    document.getElementById('reconnectBtn').classList.add('hidden');
-                    
-                    // Start Heartbeat
-                    if(heartbeatInterval) clearInterval(heartbeatInterval);
-                    heartbeatInterval = setInterval(() => {
-                        if(conn && conn.open) conn.send({type: 'heartbeat'});
-                    }, 2000);
-                });
-                
-                conn.on('data', (d) => {
-                    if(d.type === 'state') {
-                        state = d.data;
-                        render();
-                    }
-                });
-                
-                conn.on('close', () => {
-                    updateConnStatus("DISCONNECTED");
-                    document.getElementById('reconnectBtn').classList.remove('hidden');
-                    // Auto-retry once quickly
-                    setTimeout(() => connectToHost(id), 1000);
-                });
-                
-                conn.on('error', () => {
-                   updateConnStatus("ERR - RETRYING");
-                   setTimeout(() => connectToHost(id), 2000); 
-                });
+            conn.on('error', () => {
+                setTimeout(() => connectToHost(id), 2000);
             });
-            
-            // Override buttons to send commands instead of local action
-            overrideControls();
-        }
+        });
 
-        function overrideControls() {
-            window.actionBall = () => sendCmd('ball');
-            window.actionStrike = () => sendCmd('strike');
-            window.actionFoul = () => sendCmd('foul');
-            window.actionOut = () => sendCmd('out');
-            window.actionBaseHit = () => sendCmd('hit');
-            window.undoOut = () => sendCmd('undoOut');
-            window.clearCount = () => sendCmd('clear');
-            window.toggleBase = (i) => sendCmd('base', {idx: i});
-        }
+        // Override Local Controls to send commands instead
+        overrideControls();
+    }
 
-        function sendCmd(act, extras={}) {
-            if(conn && conn.open) {
-                conn.send({ type: 'cmd', act: act, ...extras });
-            }
-        }
+    function sendState() {
+        if(conn && conn.open) conn.send({type: 'state', data: state});
+    }
 
-        function updateConnStatus(msg) {
-            const el = document.getElementById('conn-text');
-            el.innerText = msg;
-            if(msg === 'CONNECTED') el.style.color = '#4CAF50';
-            else if(msg.includes('DISCONNECTED')) el.style.color = '#f44336';
-            else el.style.color = '#aaa';
-        }
+    function sendCmd(act, extras = {}) {
+        if(conn && conn.open) conn.send({type: 'cmd', act: act, ...extras});
+    }
 
-        // Init
-        const params = new URLSearchParams(window.location.search);
-        if(params.get('connect')) {
-            initClient(params.get('connect'));
-        } else {
-            render();
-        }
+    function handleRemoteCmd(d) {
+        if(d.act === 'ball') actionBall();
+        if(d.act === 'undoBall') undoBall();
+        if(d.act === 'strike') actionStrike();
+        if(d.act === 'undoStrike') undoStrike();
+        if(d.act === 'foul') actionFoul();
+        if(d.act === 'out') actionOut();
+        if(d.act === 'undoOut') undoOut();
+        if(d.act === 'hit') actionBaseHit();
+        if(d.act === 'toggleBase') toggleBase(d.idx);
+        if(d.act === 'score') addScore(d.team, d.val);
+        if(d.act === 'reset') resetGame();
+    }
 
-    </script>
+    function overrideControls() {
+        window.actionBall = () => sendCmd('ball');
+        window.undoBall = () => sendCmd('undoBall');
+        window.actionStrike = () => sendCmd('strike');
+        window.undoStrike = () => sendCmd('undoStrike');
+        window.actionFoul = () => sendCmd('foul');
+        window.actionOut = () => sendCmd('out');
+        window.undoOut = () => sendCmd('undoOut');
+        window.actionBaseHit = () => sendCmd('hit');
+        window.toggleBase = (i) => sendCmd('toggleBase', {idx: i});
+        window.addScore = (t, v) => sendCmd('score', {team: t, val: v});
+        window.resetGame = () => sendCmd('reset');
+    }
+
+    function setStatus(msg, color) {
+        const el = document.getElementById('status-text');
+        el.innerText = msg;
+        el.style.color = color === 'green' ? '#4CAF50' : (color === 'red' ? '#ff4444' : '#aaa');
+    }
+
+    // Init
+    const params = new URLSearchParams(window.location.search);
+    if(params.get('connect')) {
+        initClient(params.get('connect'));
+    } else {
+        render();
+    }
+
+</script>
 </body>
 </html>
