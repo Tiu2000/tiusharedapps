@@ -3,16 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro TV Scoreboard (P2P)</title>
+    <title>Pro TV Scoreboard (P2P Stable)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
     <style>
         :root {
             --bg-color: #000000;
             --text-color: #ffffff;
             --border-color: #222;
-            --accent-color: #2ed573;
-            --highlight: #2196F3;
         }
 
         * { box-sizing: border-box; }
@@ -30,36 +29,76 @@
             position: relative;
         }
 
-        /* --- TIU Watermark --- */
-        #watermark {
+        /* --- P2P STATUS INDICATOR (Added) --- */
+        #conn-status {
             position: absolute;
-            bottom: 10px;
-            right: 20px;
-            font-size: 1.2rem;
-            color: #fff;
-            opacity: 0.1; 
-            pointer-events: none;
-            letter-spacing: 0.2em;
-            font-weight: 900;
-            z-index: 50;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: #666;
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .reconnect-btn { background: #444; border: none; color: white; padding: 2px 5px; cursor: pointer; border-radius: 3px; }
+        .hidden { display: none; }
+
+        /* --- TOP BAR (Timer) --- */
+        .top-bar {
+            flex: 0 0 20vh;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 40px;
+            background: #111;
+            border-bottom: 3px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            z-index: 10;
         }
 
-        /* --- Remote Status --- */
-        #status-bar {
-            position: absolute; top: 0; left: 0; width: 100%;
-            background: rgba(30,30,30,0.8); padding: 5px;
-            text-align: center; font-size: 0.8rem; color: #888;
-            z-index: 100; display: flex; justify-content: center; gap: 10px;
+        .timer-container {
+            text-align: center;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
         }
+        
+        #timer {
+            font-size: 8rem;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+            cursor: pointer;
+        }
+        
+        .timer-input {
+            font-size: 4rem;
+            background: #222;
+            color: white;
+            border: 1px solid #444;
+            width: 120px;
+            text-align: center;
+            display: none;
+        }
+        .timer-input.active { display: inline-block; }
 
-        /* --- SCOREBOARD DISPLAY --- */
-        #main-board {
+        .period-box {
+            text-align: center;
+            color: #888;
+        }
+        #period-val { font-size: 3rem; font-weight: bold; color: var(--text-color); }
+
+        /* --- MAIN CONTENT (Teams) --- */
+        #team-container {
             flex: 1;
             display: flex;
-            justify-content: center;
+            justify-content: center; /* Centered by default */
             align-items: center;
             padding: 20px;
             gap: 20px;
+            overflow-x: auto;
         }
 
         .team-card {
@@ -68,256 +107,436 @@
             border-radius: 15px;
             padding: 20px;
             text-align: center;
+            width: 300px;
             min-width: 250px;
             position: relative;
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
             transition: transform 0.2s;
-        }
-        .team-card.active { border-color: var(--highlight); box-shadow: 0 0 30px rgba(33, 150, 243, 0.3); }
-
-        .team-name-input {
-            background: transparent; border: none; 
-            color: #aaa; font-size: 1.5rem; text-align: center;
-            width: 100%; font-weight: bold; text-transform: uppercase;
-            margin-bottom: 10px;
-        }
-        .score-val {
-            font-size: 6rem; font-weight: bold; line-height: 1;
-            font-variant-numeric: tabular-nums;
-            cursor: pointer;
+            display: flex;
+            flex-direction: column;
         }
 
-        .color-strip { height: 6px; width: 100%; margin-bottom: 15px; border-radius: 3px; }
-
-        /* --- CLOCK --- */
-        #center-module {
-            display: flex; flex-direction: column; align-items: center; gap: 10px;
-        }
-        #timer {
-            font-size: 5rem; font-weight: bold; 
-            background: #111; padding: 10px 30px; border-radius: 10px;
-            border: 2px solid #333; cursor: pointer;
-            font-family: 'Courier New', monospace;
-        }
-        .period-display { color: var(--accent-color); font-size: 1.5rem; font-weight: bold; }
-
-        /* --- CONTROLS UI (Bottom Sheet) --- */
-        #controls-panel {
-            background: #1a1a1a;
-            border-top: 1px solid #333;
-            padding: 15px;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            height: 30vh;
-        }
-
-        .btn {
-            border: none; border-radius: 8px; font-weight: bold; color: white;
-            font-size: 1.2rem; cursor: pointer; transition: opacity 0.2s;
-        }
-        .btn:active { opacity: 0.6; }
-        .btn-plus { background: #2196F3; }
-        .btn-minus { background: #333; color: #aaa; }
-        .btn-clock { background: #4CAF50; grid-column: span 2; }
-        .btn-reset { background: #f44336; }
+        .color-strip { height: 8px; width: 100%; border-radius: 4px; margin-bottom: 15px; cursor: pointer; }
         
-        /* Modal & Setup */
+        .team-name-input {
+            background: transparent; border: none; border-bottom: 1px solid #333;
+            color: #fff; font-size: 2rem; text-align: center;
+            width: 100%; margin-bottom: 10px; font-weight: bold;
+        }
+        
+        .score-display {
+            font-size: 7rem; font-weight: bold; margin: 10px 0;
+            text-shadow: 0 0 30px rgba(255,255,255,0.1);
+        }
+
+        .btn-score-group {
+            display: flex; justify-content: space-between; margin-top: auto; gap: 10px;
+        }
+        
+        .btn-score {
+            flex: 1; background: #222; border: 1px solid #333;
+            color: #fff; font-size: 1.5rem; padding: 10px;
+            border-radius: 8px; cursor: pointer; transition: background 0.2s;
+        }
+        .btn-score:hover { background: #333; }
+        .btn-score:active { background: #555; }
+
+        .btn-close-team {
+            position: absolute; top: 10px; right: 10px;
+            background: transparent; border: none; color: #444;
+            font-size: 1.5rem; cursor: pointer;
+        }
+        .btn-close-team:hover { color: red; }
+
+        /* --- BOTTOM CONTROLS --- */
+        .controls-area {
+            flex: 0 0 100px;
+            background: #111;
+            border-top: 2px solid #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .ctrl-btn {
+            background: #222; border: 1px solid #444; color: #ccc;
+            padding: 15px 30px; font-size: 1.2rem; border-radius: 8px;
+            cursor: pointer; font-weight: bold;
+        }
+        .ctrl-btn:hover { background: #333; color: white; }
+        .btn-primary { background: #004d40; border-color: #00695c; color: white; }
+        .btn-primary:hover { background: #00695c; }
+        .btn-danger { background: #330000; border-color: #550000; }
+        .btn-danger:hover { background: #550000; color: white; }
+
+        /* --- MODALS (Setup & QR) --- */
         .modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); z-index: 200;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .big-btn {
-            padding: 20px 40px; font-size: 1.5rem; background: var(--highlight);
-            border: none; border-radius: 10px; color: white; margin: 10px; cursor: pointer;
+        .modal-content {
+            background: #222; padding: 40px; border-radius: 15px; 
+            text-align: center; border: 1px solid #444; max-width: 90%;
         }
-        
+        .big-btn {
+            padding: 20px 40px; font-size: 1.5rem; background: #2196F3;
+            border: none; border-radius: 10px; color: white; margin: 10px; cursor: pointer; width: 100%;
+        }
     </style>
 </head>
 <body>
-    <div id="watermark">TIU</div>
-    
-    <div id="status-bar">
-        <span id="conn-msg">Waiting for setup...</span>
-        <button id="reconnectBtn" style="display:none; background:#444; border:none; color:white; border-radius:4px; padding:2px 6px;" onclick="location.reload()">🔄</button>
+
+    <div id="conn-status">
+        <span id="status-text">OFFLINE</span>
+        <button id="reconnectBtn" class="reconnect-btn hidden" onclick="window.location.reload()">🔄</button>
     </div>
 
-    <div id="main-board">
-        <div class="team-card" id="card-1">
-            <div class="color-strip" id="strip-1" style="background: red;"></div>
-            <input type="text" id="name-1" class="team-name-input" value="HOME" onchange="updateName(1, this.value)">
-            <div class="score-val" id="score-1" onclick="handleInput('score', {id:1, val:1})">0</div>
+    <div class="top-bar">
+        <div class="period-box">
+            <div>PERIOD</div>
+            <div id="period-val" onclick="handleInput('period')">1</div>
         </div>
 
-        <div id="center-module">
+        <div class="timer-container">
             <div id="timer" onclick="handleInput('clock')">10:00</div>
-            <div class="period-display" id="period-disp">1st</div>
+            <div id="timer-edit">
+                <input id="t-min" class="timer-input" type="number" value="10" onclick="event.stopPropagation()">
+                <span style="font-size:4rem;">:</span>
+                <input id="t-sec" class="timer-input" type="number" value="00" onclick="event.stopPropagation()">
+                <button onclick="saveTimer()" class="ctrl-btn btn-primary" style="font-size:1rem; padding: 5px 15px; vertical-align: top;">SET</button>
+            </div>
         </div>
 
-        <div class="team-card" id="card-2">
-            <div class="color-strip" id="strip-2" style="background: blue;"></div>
-            <input type="text" id="name-2" class="team-name-input" value="GUEST" onchange="updateName(2, this.value)">
-            <div class="score-val" id="score-2" onclick="handleInput('score', {id:2, val:1})">0</div>
-        </div>
+        <div style="width: 80px; text-align:right; opacity:0.3; font-weight:bold;">TIU</div>
     </div>
 
-    <div id="controls-panel" style="display:none;">
-        <button class="btn btn-plus" onclick="handleInput('score', {id:1, val:1})">HOME +1</button>
-        <button class="btn btn-minus" onclick="handleInput('score', {id:1, val:-1})">HOME -1</button>
-        
-        <button class="btn btn-plus" onclick="handleInput('score', {id:2, val:1})">GUEST +1</button>
-        <button class="btn btn-minus" onclick="handleInput('score', {id:2, val:-1})">GUEST -1</button>
+    <div id="team-container">
+        </div>
 
-        <button class="btn btn-clock" onclick="handleInput('clock')">Start/Stop Clock</button>
-        <button class="btn btn-reset" onclick="handleInput('reset')">Reset Board</button>
-        <button class="btn btn-minus" onclick="handleInput('period')">Next Period</button>
+    <div class="controls-area">
+        <button class="ctrl-btn btn-primary" onclick="handleInput('clock')">START/STOP</button>
+        <button class="ctrl-btn" onclick="handleInput('addTeam')">ADD TEAM</button>
+        <button class="ctrl-btn btn-danger" onclick="handleInput('reset')">RESET</button>
+        <button class="ctrl-btn" onclick="toggleFullScreen()">FULLSCREEN</button>
+        <button class="ctrl-btn" style="color: #666;" onclick="showQR()">QR</button>
     </div>
 
     <div id="setup-screen" class="modal">
-        <h1 style="color:white; margin-bottom: 20px;">SCOREBOARD</h1>
-        <button class="big-btn" onclick="initHost()">HOST (Screen)</button>
-        <p style="color:#666;">Scan code on host to join as remote.</p>
+        <div class="modal-content">
+            <h1 style="color:white; margin-bottom: 20px;">SCOREBOARD SETUP</h1>
+            <button class="big-btn" onclick="initHost()">HOST (Display)</button>
+            <p style="color:#666; margin-top:20px;">Use this device as the main screen.</p>
+            <div style="border-top:1px solid #444; margin: 20px 0;"></div>
+            <p style="color:#888; font-size: 0.9rem;">Scan the Host's QR code to connect as a remote.</p>
+        </div>
     </div>
 
-    <div id="qr-modal" class="modal" style="display:none; background:rgba(0,0,0,0.9);">
-        <h2 style="color:white;">Scan to Control</h2>
-        <div id="qrcode" style="background:white; padding:10px; margin:20px;"></div>
-        <button class="btn btn-minus" onclick="document.getElementById('qr-modal').style.display='none'">Hide</button>
+    <div id="qr-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h2>Scan to Control</h2>
+            <div id="qrcode" style="background:white; padding:10px; margin:20px auto; display: inline-block;"></div>
+            <br>
+            <button class="ctrl-btn" onclick="document.getElementById('qr-modal').style.display='none'">CLOSE</button>
+        </div>
     </div>
 
     <script>
-        // --- STATE ---
+        // --- AUDIO ENGINE ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'blip') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'buzzer') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now);
+                gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
+                osc.start(now); osc.stop(now + 1.5);
+            }
+        }
+
+        // --- STATE MANAGEMENT ---
         let state = {
             teams: [
                 { id: 1, name: "HOME", score: 0, color: "#ff4444" },
-                { id: 2, name: "GUEST", score: 0, color: "#4488ff" }
+                { id: 2, name: "GUEST", score: 0, color: "#2196F3" }
             ],
             timeSec: 600,
             timerRunning: false,
             period: 1
         };
 
-        let timerInterval;
-        let isHost = false;
+        let timerInterval = null;
+        let nextTeamId = 3;
+
+        // --- P2P GLOBALS ---
         let peer, conn;
+        let isHost = false;
         let heartbeatInterval;
 
-        // --- CORE LOGIC ---
+        // --- RENDER LOGIC (Restores Original Design dynamically) ---
         function render() {
-            // Teams
-            state.teams.forEach(t => {
-                const card = document.getElementById(`card-${t.id}`);
-                document.getElementById(`score-${t.id}`).innerText = t.score;
-                document.getElementById(`strip-${t.id}`).style.background = t.color;
-                
-                // Only update input if not focused (to allow typing)
-                const inp = document.getElementById(`name-${t.id}`);
-                if(document.activeElement !== inp) inp.value = t.name;
-            });
+            const container = document.getElementById('team-container');
+            
+            // Rebuild team cards only if count changes (to prevent input loss), 
+            // OR strictly sync values if structure exists.
+            // For P2P simplicity, we'll do a smart update.
+            
+            // Check if DOM matches state length
+            const cards = container.getElementsByClassName('team-card');
+            if(cards.length !== state.teams.length) {
+                container.innerHTML = ''; // Full rebuild if team count differs
+                state.teams.forEach(team => {
+                    const div = document.createElement('div');
+                    div.className = 'team-card';
+                    div.id = `card-${team.id}`;
+                    div.style.background = `linear-gradient(to bottom, ${team.color}22, transparent)`;
+                    div.innerHTML = `
+                        <div class="color-strip" id="strip-${team.id}" style="background: ${team.color};" onclick="handleInput('color', {id:${team.id}})"></div>
+                        <input class="team-name-input" id="name-${team.id}" value="${team.name}" onchange="handleInput('name', {id:${team.id}, val:this.value})">
+                        <div class="score-display" id="score-${team.id}">${team.score}</div>
+                        <div class="btn-score-group">
+                            <button class="btn-score" onclick="handleInput('score', {id:${team.id}, val:-1})">-</button>
+                            <button class="btn-score" onclick="handleInput('score', {id:${team.id}, val:1})">+</button>
+                        </div>
+                        <button class="btn-close-team" onclick="handleInput('removeTeam', {id:${team.id}})">&times;</button>
+                    `;
+                    container.appendChild(div);
+                });
+            } else {
+                // Just update values
+                state.teams.forEach(team => {
+                    const scoreEl = document.getElementById(`score-${team.id}`);
+                    const nameEl = document.getElementById(`name-${team.id}`);
+                    const stripEl = document.getElementById(`strip-${team.id}`);
+                    const cardEl = document.getElementById(`card-${team.id}`);
+                    
+                    if(scoreEl) scoreEl.innerText = team.score;
+                    if(nameEl && document.activeElement !== nameEl) nameEl.value = team.name;
+                    if(stripEl) stripEl.style.background = team.color;
+                    if(cardEl) cardEl.style.background = `linear-gradient(to bottom, ${team.color}22, transparent)`;
+                });
+            }
 
             // Clock
             const m = Math.floor(state.timeSec / 60);
             const s = state.timeSec % 60;
-            document.getElementById('timer').innerText = `${m}:${s.toString().padStart(2,'0')}`;
-            document.getElementById('timer').style.color = state.timerRunning ? '#4CAF50' : 'white';
+            const timeStr = `${m}:${s.toString().padStart(2,'0')}`;
+            document.getElementById('timer').innerText = timeStr;
+            document.getElementById('timer').style.color = state.timerRunning ? '#4CAF50' : '#fff';
             
-            document.getElementById('period-disp').innerText = "Period " + state.period;
+            document.getElementById('period-val').innerText = state.period;
 
-            if(isHost) sendState();
+            if(isHost && conn) sendState();
         }
 
-        function handleInput(type, data) {
+        // --- INPUT HANDLING ---
+        function handleInput(type, data={}) {
+            // Logic applied to local state, then rendered/broadcasted
             if(type === 'score') {
                 const t = state.teams.find(x => x.id === data.id);
-                if(t) t.score = Math.max(0, t.score + data.val);
+                if(t) { t.score = Math.max(0, t.score + data.val); playSound('blip'); }
             }
-            if(type === 'name') {
+            else if(type === 'name') {
                 const t = state.teams.find(x => x.id === data.id);
                 if(t) t.name = data.val;
             }
-            if(type === 'clock') {
-                if(state.timerRunning) {
-                    state.timerRunning = false;
-                    clearInterval(timerInterval);
-                } else {
-                    state.timerRunning = true;
-                    timerInterval = setInterval(() => {
-                        if(state.timeSec > 0) { state.timeSec--; render(); }
-                        else { state.timerRunning = false; clearInterval(timerInterval); render(); }
-                    }, 1000);
+            else if(type === 'color') {
+                const t = state.teams.find(x => x.id === data.id);
+                if(t) {
+                    const colors = ['#ff4444', '#2196F3', '#4CAF50', '#FF9800', '#9C27B0'];
+                    const currIdx = colors.indexOf(t.color);
+                    t.color = colors[(currIdx + 1) % colors.length];
                 }
             }
-            if(type === 'reset') {
-                state.teams.forEach(t => t.score = 0);
-                state.timeSec = 600;
-                state.period = 1;
-                state.timerRunning = false;
-                clearInterval(timerInterval);
+            else if(type === 'clock') {
+                if(state.timerRunning) stopClock(); else startClock();
             }
-            if(type === 'period') {
+            else if(type === 'setTimer') {
+                state.timeSec = data.seconds;
+                render();
+            }
+            else if(type === 'reset') {
+                if(confirm("Reset Board?")) {
+                    stopClock();
+                    state.teams = [
+                        { id: 1, name: "HOME", score: 0, color: "#ff4444" },
+                        { id: 2, name: "GUEST", score: 0, color: "#2196F3" }
+                    ];
+                    state.timeSec = 600;
+                    state.period = 1;
+                    nextTeamId = 3;
+                }
+            }
+            else if(type === 'period') {
                 state.period++;
             }
+            else if(type === 'addTeam') {
+                state.teams.push({ id: nextTeamId++, name: "TEAM", score: 0, color: "#888888" });
+            }
+            else if(type === 'removeTeam') {
+                state.teams = state.teams.filter(t => t.id !== data.id);
+            }
+
+            render();
+            // If Client, we rely on sending command to Host. 
+            // BUT wait, for P2P sync, it's better if Client sends CMD to Host, Host updates state, then Host sends STATE to Client.
+            if(!isHost && conn) {
+                conn.send({type: 'cmd', act: type, data: data});
+            }
+        }
+
+        function startClock() {
+            if(state.timerRunning) return;
+            state.timerRunning = true;
+            timerInterval = setInterval(() => {
+                if(state.timeSec > 0) {
+                    state.timeSec--;
+                    render();
+                } else {
+                    stopClock();
+                    playSound('buzzer');
+                }
+            }, 1000);
             render();
         }
 
-        function updateName(id, val) {
-            handleInput('name', {id: id, val: val});
+        function stopClock() {
+            state.timerRunning = false;
+            clearInterval(timerInterval);
+            render();
         }
 
-        // --- P2P ---
+        // Timer Edit Mode (Local UI helper)
+        function toggleTimerEdit() {
+            if(state.timerRunning) return;
+            const tEl = document.getElementById('timer');
+            const eEl = document.getElementById('timer-edit');
+            
+            if(tEl.style.display === 'none') {
+                // Save
+                saveTimer();
+            } else {
+                // Edit
+                tEl.style.display = 'none';
+                eEl.style.display = 'block';
+                document.getElementsByClassName('timer-input')[0].classList.add('active');
+                document.getElementsByClassName('timer-input')[1].classList.add('active');
+            }
+        }
+        // Hook click on timer to toggle
+        document.getElementById('timer').onclick = () => {
+             // Only allow editing if timer is stopped
+             if(!state.timerRunning) {
+                 document.getElementById('timer').style.display = 'none';
+                 const inputs = document.getElementsByClassName('timer-input');
+                 Array.from(inputs).forEach(i => i.style.display = 'inline-block');
+                 document.getElementById('timer-edit').querySelector('button').style.display = 'inline-block';
+             }
+        };
+
+        function saveTimer() {
+            const m = parseInt(document.getElementById('t-min').value) || 0;
+            const s = parseInt(document.getElementById('t-sec').value) || 0;
+            const total = (m*60) + s;
+            
+            // Update state
+            handleInput('setTimer', { seconds: total });
+            
+            // Hide Edit UI
+            document.getElementById('timer').style.display = 'block';
+            const inputs = document.getElementsByClassName('timer-input');
+            Array.from(inputs).forEach(i => i.style.display = 'none');
+            document.getElementById('timer-edit').querySelector('button').style.display = 'none';
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else if (document.exitFullscreen) document.exitFullscreen();
+        }
+
+        // --- P2P IMPLEMENTATION ---
+        
         function initHost() {
             isHost = true;
             document.getElementById('setup-screen').style.display = 'none';
+            setStatus("Waiting for Remote...");
             
             peer = new Peer();
             peer.on('open', (id) => {
                 const url = window.location.href.split('?')[0] + '?connect=' + id;
                 new QRCode(document.getElementById("qrcode"), { text: url, width: 200, height: 200 });
                 document.getElementById('qr-modal').style.display = 'flex';
-                document.getElementById('conn-msg').innerText = "Waiting for remote...";
             });
 
             peer.on('connection', (c) => {
                 conn = c;
-                document.getElementById('conn-msg').innerText = "Remote Connected";
+                setStatus("Remote Connected");
                 document.getElementById('qr-modal').style.display = 'none';
                 
                 conn.on('data', (d) => {
                     if(d.type === 'heartbeat') return;
-                    if(d.type === 'cmd') handleInput(d.act, d.data);
+                    if(d.type === 'cmd') {
+                        // Host receives command, applies to own state
+                        // We must NOT call handleInput directly if it sends CMD back (loop).
+                        // Instead we update state and call render.
+                        
+                        // Actually, handleInput logic is mixed. Let's simplify:
+                        // Host treats remote input as local, then renders, then sends state.
+                        
+                        // We need to bypass the "if(!isHost) send" block in handleInput
+                        // Hack: temporarily set isHost=true (it is true)
+                        // Just ensure handleInput updates state.
+                        
+                        // We can call the specific logic directly or modify handleInput.
+                        // Let's rely on handleInput logic:
+                        if(d.act === 'score') {
+                            const t = state.teams.find(x => x.id === d.data.id);
+                            if(t) { t.score = Math.max(0, t.score + d.data.val); playSound('blip'); }
+                        } else if (d.act === 'clock') {
+                            if(state.timerRunning) stopClock(); else startClock();
+                        } else if (d.act === 'reset') {
+                            state.teams = [{ id: 1, name: "HOME", score: 0, color: "#ff4444" }, { id: 2, name: "GUEST", score: 0, color: "#2196F3" }];
+                            state.timeSec = 600; state.period = 1; stopClock();
+                        } else if (d.act === 'period') state.period++;
+                        else if (d.act === 'addTeam') state.teams.push({ id: nextTeamId++, name: "TEAM", score: 0, color: "#888" });
+                        else if (d.act === 'removeTeam') state.teams = state.teams.filter(t => t.id !== d.data.id);
+                        else if (d.act === 'name') { const t = state.teams.find(x=>x.id===d.data.id); if(t) t.name=d.data.val; }
+                        else if (d.act === 'color') { /* color logic repeated */ }
+                        
+                        render(); // Will broadcast state
+                    }
                 });
                 sendState();
             });
-            render();
-        }
-
-        function sendState() {
-            if(conn && conn.open) conn.send({type: 'state', data: state});
         }
 
         function initClient(id) {
             isHost = false;
             document.getElementById('setup-screen').style.display = 'none';
-            document.getElementById('controls-panel').style.display = 'grid'; // Show buttons
-            document.getElementById('main-board').style.opacity = '0.5'; // Dim board on remote
-            
             connectToHost(id);
         }
 
         function connectToHost(id) {
-            document.getElementById('conn-msg').innerText = "Connecting...";
+            setStatus("Connecting...");
             if(peer) peer.destroy();
             peer = new Peer();
 
             peer.on('open', () => {
                 conn = peer.connect(id);
-                
                 conn.on('open', () => {
-                    document.getElementById('conn-msg').innerText = "Connected";
-                    document.getElementById('reconnectBtn').style.display = 'none';
+                    setStatus("Connected");
+                    document.getElementById('reconnectBtn').classList.add('hidden');
                     
-                    // Heartbeat
                     if(heartbeatInterval) clearInterval(heartbeatInterval);
                     heartbeatInterval = setInterval(() => {
                         if(conn && conn.open) conn.send({type: 'heartbeat'});
@@ -326,27 +545,41 @@
 
                 conn.on('data', (d) => {
                     if(d.type === 'state') {
+                        // Apply state from Host
                         state = d.data;
+                        // Special handling for timer sync
+                        if(state.timerRunning && !timerInterval) startClock();
+                        if(!state.timerRunning && timerInterval) stopClock();
                         render();
                     }
                 });
                 
                 conn.on('close', () => {
-                    document.getElementById('conn-msg').innerText = "Disconnected";
-                    document.getElementById('reconnectBtn').style.display = 'inline-block';
+                    setStatus("Disconnected");
+                    document.getElementById('reconnectBtn').classList.remove('hidden');
                     setTimeout(() => connectToHost(id), 1000);
                 });
             });
+        }
 
-            // Override local input to send cmds
-            window.handleInput = (act, data) => {
-                if(conn && conn.open) conn.send({type: 'cmd', act: act, data: data});
-            };
+        function sendState() {
+            if(conn && conn.open) {
+                conn.send({type: 'state', data: state});
+            }
+        }
+
+        function setStatus(msg) {
+            document.getElementById('status-text').innerText = msg;
+        }
+
+        function showQR() {
+            if(isHost) document.getElementById('qr-modal').style.display = 'flex';
         }
 
         // Init
         const params = new URLSearchParams(window.location.search);
         if(params.get('connect')) initClient(params.get('connect'));
+        else render();
 
     </script>
 </body>
