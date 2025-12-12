@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIU AI Jeopardy - Expanded</title>
+    <style>
+        :root {
+            --jeopardy-blue: #060CE9;
+            --jeopardy-dark: #010a3d;
+            --jeopardy-gold: #D69F4C;
+            --text-shadow: 2px 2px 0px #000;
+        }
+
+        body {
+            background-color: var(--jeopardy-dark);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- WATERMARK --- */
+        #watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            font-size: 25vw;
+            font-weight: 900;
+            color: white;
+            opacity: 0.05;
+            pointer-events: none;
+            z-index: 0;
+            user-select: none;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* --- CONFIG SCREEN --- */
+        #config-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .config-box {
+            background: var(--jeopardy-blue);
+            padding: 50px;
+            border: 4px solid var(--jeopardy-gold);
+            border-radius: 15px;
+            text-align: center;
+            max-width: 600px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+        }
+
+        .config-box h1 {
+            margin-top: 0;
+            font-size: 2.5rem;
+            color: white;
+            text-shadow: 3px 3px 0 #000;
+        }
+
+        select, button.start-btn {
+            padding: 15px 25px;
+            font-size: 1.3rem;
+            margin: 15px;
+            border-radius: 5px;
+            border: none;
+            width: 80%;
+        }
+
+        button.start-btn {
+            background-color: var(--jeopardy-gold);
+            color: var(--jeopardy-dark);
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+            border: 2px solid white;
+        }
+
+        button.start-btn:hover {
+            transform: scale(1.05);
+            background-color: white;
+            color: var(--jeopardy-blue);
+        }
+
+        /* --- GAME BOARD --- */
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            grid-template-rows: auto repeat(5, 1fr);
+            gap: 6px;
+            padding: 10px;
+            flex-grow: 1;
+            z-index: 1;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .category-header {
+            background-color: var(--jeopardy-blue);
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: uppercase;
+            padding: 5px;
+            border: 2px solid black;
+            text-shadow: var(--text-shadow);
+            font-size: clamp(0.8rem, 1.2vw, 1.3rem); /* Responsive font */
+            line-height: 1.2;
+            min-height: 60px;
+        }
+
+        .clue-card {
+            background-color: var(--jeopardy-blue);
+            color: var(--jeopardy-gold);
+            font-size: clamp(1.5rem, 3vw, 3rem);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 2px solid black;
+            text-shadow: var(--text-shadow);
+            transition: background 0.2s;
+        }
+
+        .clue-card:hover {
+            background-color: #2b32ff;
+        }
+
+        .clue-card.disabled {
+            color: transparent;
+            background-color: #030675;
+            cursor: default;
+            pointer-events: none;
+            border-color: #030675;
+        }
+
+        /* --- SCOREBOARD --- */
+        #scoreboard {
+            background: #000;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            z-index: 2;
+            border-top: 3px solid var(--jeopardy-gold);
+        }
+
+        .team {
+            text-align: center;
+            background: var(--jeopardy-dark);
+            padding: 10px;
+            border: 2px solid var(--jeopardy-blue);
+            border-radius: 8px;
+            width: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .team-name {
+            font-size: 1.1rem;
+            color: white;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #444;
+            display: inline-block;
+            cursor: text;
+            padding: 2px 5px;
+            background: transparent;
+        }
+        
+        .team-name:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .team-name:focus {
+            outline: 2px solid var(--jeopardy-gold);
+            background: black;
+        }
+
+        .score-display {
+            font-size: 1.8rem;
+            color: var(--jeopardy-gold);
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .score-controls {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .score-controls button {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 3px;
+        }
+        .score-controls button:hover { background: #555; }
+
+        /* --- QUESTION MODAL --- */
+        #question-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--jeopardy-blue);
+            z-index: 50;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 50px;
+            box-sizing: border-box;
+        }
+
+        #modal-content {
+            font-size: clamp(1.5rem, 4vw, 3.5rem);
+            font-weight: bold;
+            color: white;
+            text-shadow: var(--text-shadow);
+            max-width: 85%;
+            text-transform: uppercase;
+            line-height: 1.3;
+        }
+
+        #modal-answer {
+            font-size: clamp(1.2rem, 3vw, 2.5rem);
+            color: var(--jeopardy-gold);
+            margin-top: 40px;
+            display: none;
+            font-weight: bold;
+            border-top: 2px solid rgba(255,255,255,0.3);
+            padding-top: 20px;
+        }
+
+        .modal-controls {
+            margin-top: 50px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .modal-btn {
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            border: 3px solid white;
+            background: var(--jeopardy-dark);
+            color: white;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            border-radius: 50px;
+            box-shadow: 0 4px 0 #000;
+        }
+        
+        .modal-btn:hover {
+            background: white;
+            color: var(--jeopardy-blue);
+            transform: translateY(2px);
+        }
+
+        /* Loading Spinner */
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid var(--jeopardy-gold);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Refresh Button for Menu */
+        #menu-btn {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            z-index: 10;
+            background: #333;
+            color: #777;
+            border: none;
+            padding: 5px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="watermark">TIU</div>
+
+    <button id="menu-btn" onclick="location.reload()">New Game</button>
+
+    <div id="config-modal">
+        <div class="config-box">
+            <h1>JEOPARDY GENERATOR</h1>
+            <p style="color: #ccc;">Select your parameters to generate a board:</p>
+            
+            <label for="grade-select" style="color:white; display:block; font-weight:bold; margin-bottom:5px;">Grade Level:</label>
+            <select id="grade-select">
+                <option value="K">Kindergarten - 1st Grade</option>
+                <option value="2-3">2nd - 3rd Grade</option>
+                <option value="4-5">4th - 5th Grade</option>
+                <option value="6-8">Middle School (6th - 8th)</option>
+                <option value="HS">High School / Adult</option>
+            </select>
+
+            <div class="loader" id="ai-loader"></div>
+            <br>
+            <button class="start-btn" onclick="generateGame()">GENERATE BOARD WITH AI</button>
+        </div>
+    </div>
+
+    <div id="game-board">
+        </div>
+
+    <div id="scoreboard">
+        <div class="team">
+            <span class="team-name" contenteditable="true" spellcheck="false">Team 1</span>
+            <div class="score-display" id="score-1">0</div>
+            <div class="score-controls">
+                <button onclick="updateScore(1, 100)">+</button>
+                <button onclick="updateScore(1, -100)">-</button>
+            </div>
+        </div>
+        <div class="team">
+            <span class="team-name" contenteditable="true" spellcheck="false">Team 2</span>
+            <div class="score-display" id="score-2">0</div>
+            <div class="score-controls">
+                <button onclick="updateScore(2, 100)">+</button>
+                <button onclick="updateScore(2, -100)">-</button>
+            </div>
+        </div>
+        <div class="team">
+            <span class="team-name" contenteditable="true" spellcheck="false">Team 3</span>
+            <div class="score-display" id="score-3">0</div>
+            <div class="score-controls">
+                <button onclick="updateScore(3, 100)">+</button>
+                <button onclick="updateScore(3, -100)">-</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="question-modal">
+        <div id="modal-content">Question goes here...</div>
+        <div id="modal-answer">Answer goes here...</div>
+        
+        <div class="modal-controls">
+            <button class="modal-btn" id="show-answer-btn" onclick="revealAnswer()">Show Answer</button>
+            <button class="modal-btn" id="close-modal-btn" style="display:none;" onclick="closeModal()">Close Question</button>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let scores = { 1: 0, 2: 0, 3: 0 };
+        let currentQuestionValue = 0;
+        let currentTileId = null;
+
+        /* BIG DATABASE OF QUESTIONS 
+           Grouped by Grade Level -> Category 
+        */
+        const database = {
+            "K": {
+                "Animals": [
+                    {q: "This animal says 'Moo'.", a: "What is a Cow?"},
+                    {q: "This animal has a long trunk.", a: "What is an Elephant?"},
+                    {q: "This animal is the King of the Jungle.", a: "What is a Lion?"},
+                    {q: "This animal gives us wool.", a: "What is a Sheep?"},
+                    {q: "This animal hops and carries babies in a pouch.", a: "What is a Kangaroo?"},
+                    {q: "This bird cannot fly but loves to swim.", a: "What is a Penguin?"}
+                ],
+                "Colors": [
+                    {q: "The color of the sky.", a: "What is Blue?"},
+                    {q: "The color of grass.", a: "What is Green?"},
+                    {q: "The color of a banana.", a: "What is Yellow?"},
+                    {q: "The color of a fire truck.", a: "What is Red?"},
+                    {q: "Mix red and blue to get this color.", a: "What is Purple?"},
+                    {q: "The color of a pumpkin.", a: "What is Orange?"}
+                ],
+                "Shapes": [
+                    {q: "A shape with 3 sides.", a: "What is a Triangle?"},
+                    {q: "A shape that looks like a ball.", a: "What is a Circle?"},
+                    {q: "A shape with 4 equal sides.", a: "What is a Square?"},
+                    {q: "A shape that looks like an egg.", a: "What is an Oval?"},
+                    {q: "A stop sign has this many sides.", a: "What is 8 (Octagon)?"},
+                    {q: "A shape with 5 points, seen in the sky at night.", a: "What is a Star?"}
+                ],
+                "Counting": [
+                    {q: "How many fingers do you have on one hand?", a: "What is 5?"},
+                    {q: "What number comes after 9?", a: "What is 10?"},
+                    {q: "How many wheels are on a tricycle?", a: "What is 3?"},
+                    {q: "1 + 1 equals...", a: "What is 2?"},
+                    {q: "How many legs does a spider have?", a: "What is 8?"},
+                    {q: "If you have 2 apples and eat 1, how many are left?", a: "What is 1?"}
+                ],
+                "Body Parts": [
+                    {q: "You use these to see.", a: "What are Eyes?"},
+                    {q: "You use this to smell.", a: "What is a Nose?"},
+                    {q: "You use these to hear.", a: "What are Ears?"},
+                    {q: "You wear shoes on these.", a: "What are Feet?"},
+                    {q: "This is inside your chest and beats.", a: "What is a Heart?"},
+                    {q: "You use these to chew food.", a: "What are Teeth?"}
+                ],
+                "Community": [
+                    {q: "This person puts out fires.", a: "Who is a Firefighter?"},
+                    {q: "This person helps you when you are sick.", a: "Who is a Doctor?"},
+                    {q: "This person delivers mail.", a: "Who is a Mail Carrier?"},
+                    {q: "This person teaches you at school.", a: "Who is a Teacher?"},
+                    {q: "This person keeps us safe and wears a badge.", a: "Who is a Police Officer?"},
+                    {q: "This person grows food on a farm.", a: "Who is a Farmer?"}
+                ],
+                "Food": [
+                    {q: "Bees make this sweet sticky food.", a: "What is Honey?"},
+                    {q: "You pour this white drink on cereal.", a: "What is Milk?"},
+                    {q: "This fruit is red and crunchy.", a: "What is an Apple?"},
+                    {q: "Rabbits love to eat this orange vegetable.", a: "What is a Carrot?"},
+                    {q: "This is a cold treat you eat in a cone.", a: "What is Ice Cream?"},
+                    {q: "This yellow fruit is sour.", a: "What is a Lemon?"}
+                ]
+            },
+            "2-3": {
+                "Math": [
+                    {q: "10 + 10 =", a: "What is 20?"},
+                    {q: "5 x 5 =", a: "What is 25?"},
+                    {q: "100 - 50 =", a: "What is 50?"},
+                    {q: "Half of 10 is...", a: "What is 5?"},
+                    {q: "How many cents in a Quarter?", a: "What is 25?"},
+                    {q: "3 x 4 =", a: "What is 12?"}
+                ],
+                "Space": [
+                    {q: "The planet we live on.", a: "What is Earth?"},
+                    {q: "The star at the center of our solar system.", a: "What is the Sun?"},
+                    {q: "The planet known as the Red Planet.", a: "What is Mars?"},
+                    {q: "Earth has this many moons.", a: "What is 1?"},
+                    {q: "Astronauts wear this to breathe in space.", a: "What is a Helmet (or Space Suit)?"},
+                    {q: "The largest planet.", a: "What is Jupiter?"}
+                ],
+                "Time": [
+                    {q: "How many seconds in a minute?", a: "What is 60?"},
+                    {q: "How many days in a week?", a: "What is 7?"},
+                    {q: "How many months in a year?", a: "What is 12?"},
+                    {q: "If it is 12:00 PM, is it lunch or sleep time?", a: "What is Lunch time?"},
+                    {q: "30 minutes is half of an...", a: "What is Hour?"},
+                    {q: "How many hours in a day?", a: "What is 24?"}
+                ],
+                "Grammar": [
+                    {q: "A person, place, or thing.", a: "What is a Noun?"},
+                    {q: "An action word.", a: "What is a Verb?"},
+                    {q: "The opposite of 'Up'.", a: "What is Down?"},
+                    {q: "Which word is spelled wrong: Cat, Dog, Skool?", a: "What is Skool?"},
+                    {q: "A word that describes a noun (like 'Blue' or 'Fast').", a: "What is an Adjective?"},
+                    {q: "The punctuation mark at the end of a question.", a: "What is a Question Mark?"}
+                ],
+                "Geography": [
+                    {q: "The country we live in.", a: "What is the United States (or local country)?"},
+                    {q: "A very large body of salt water.", a: "What is an Ocean?"},
+                    {q: "The compass direction opposite of North.", a: "What is South?"},
+                    {q: "A mountain with a hole that lava comes out of.", a: "What is a Volcano?"},
+                    {q: "The coldest place on Earth.", a: "What is Antarctica?"},
+                    {q: "Land surrounded by water on all sides.", a: "What is an Island?"}
+                ],
+                "Cartoons": [
+                    {q: "He lives in a pineapple under the sea.", a: "Who is SpongeBob?"},
+                    {q: "A mouse who wears red shorts.", a: "Who is Mickey Mouse?"},
+                    {q: "This princess lost her glass slipper.", a: "Who is Cinderella?"},
+                    {q: "A dog named Scooby-...", a: "What is Doo?"},
+                    {q: "Buzz Lightyear's best friend.", a: "Who is Woody?"},
+                    {q: "He hates Mondays and loves lasagna.", a: "Who is Garfield?"}
+                ]
+            },
+            "4-5": {
+                "Science": [
+                    {q: "H2O stands for...", a: "What is Water?"},
+                    {q: "Plants need sun and this to grow.", a: "What is Water?"},
+                    {q: "The force that keeps us on the ground.", a: "What is Gravity?"},
+                    {q: "Animals that only eat meat are...", a: "What are Carnivores?"},
+                    {q: "The boiling point of water (in Celsius or F).", a: "What is 100°C (or 212°F)?"},
+                    {q: "The gas humans need to breathe.", a: "What is Oxygen?"}
+                ],
+                "US States": [
+                    {q: "The largest state by size.", a: "What is Alaska?"},
+                    {q: "The state famous for Disney World.", a: "What is Florida?"},
+                    {q: "The state nicknamed The Big Apple.", a: "What is New York?"},
+                    {q: "This state is islands in the Pacific.", a: "What is Hawaii?"},
+                    {q: "The capital of the USA is in this District.", a: "What is D.C. (District of Columbia)?"},
+                    {q: "The Lone Star State.", a: "What is Texas?"}
+                ],
+                "Multiplication": [
+                    {q: "8 x 8 =", a: "What is 64?"},
+                    {q: "9 x 3 =", a: "What is 27?"},
+                    {q: "12 x 12 =", a: "What is 144?"},
+                    {q: "5 x 20 =", a: "What is 100?"},
+                    {q: "7 x 6 =", a: "What is 42?"},
+                    {q: "11 x 5 =", a: "What is 55?"}
+                ],
+                "Books": [
+                    {q: "Author of Harry Potter.", a: "Who is J.K. Rowling?"},
+                    {q: "The pig in Charlotte's Web.", a: "Who is Wilbur?"},
+                    {q: "The Cat in the...", a: "What is Hat?"},
+                    {q: "This wooden boy's nose grew when he lied.", a: "Who is Pinocchio?"},
+                    {q: "She fell down a rabbit hole.", a: "Who is Alice?"},
+                    {q: "The Wimpy Kid's name.", a: "Who is Greg?"}
+                ],
+                "History": [
+                    {q: "The first President of the USA.", a: "Who is George Washington?"},
+                    {q: "The ship the Pilgrims sailed on.", a: "What is the Mayflower?"},
+                    {q: "He discovered electricity using a kite.", a: "Who is Ben Franklin?"},
+                    {q: "President during the Civil War.", a: "Who is Abraham Lincoln?"},
+                    {q: "The declaration signed in 1776.", a: "What is the Declaration of Independence?"},
+                    {q: "She refused to give up her bus seat.", a: "Who is Rosa Parks?"}
+                ],
+                "Pop Culture": [
+                    {q: "The game where you build with blocks and mine.", a: "What is Minecraft?"},
+                    {q: "The movie with Elsa and Anna.", a: "What is Frozen?"},
+                    {q: "The superhero who climbs walls.", a: "Who is Spider-Man?"},
+                    {q: "A yellow electric pokemon.", a: "Who is Pikachu?"},
+                    {q: "The fastest hedgehog.", a: "Who is Sonic?"},
+                    {q: "The plumber who saves Princess Peach.", a: "Who is Mario?"}
+                ]
+            },
+            "6-8": {
+                "Algebra": [
+                    {q: "Solve for x: 2x = 10", a: "What is 5?"},
+                    {q: "Solve for x: x + 15 = 30", a: "What is 15?"},
+                    {q: "Solve for x: 3x + 1 = 10", a: "What is 3?"},
+                    {q: "What is 5 squared?", a: "What is 25?"},
+                    {q: "Solve for x: x/2 = 8", a: "What is 16?"},
+                    {q: "Square root of 81", a: "What is 9?"}
+                ],
+                "Ancient History": [
+                    {q: "They built the Pyramids.", a: "Who are the Egyptians?"},
+                    {q: "Famous Roman ruler assassinated by senators.", a: "Who is Julius Caesar?"},
+                    {q: "The city-state known for democracy in Greece.", a: "What is Athens?"},
+                    {q: "The river bordering Ancient Egypt.", a: "What is the Nile?"},
+                    {q: "Ancient warriors from Scandinavia.", a: "Who are the Vikings?"},
+                    {q: "He conquered most of the known world.", a: "Who is Alexander the Great?"}
+                ],
+                "Earth Science": [
+                    {q: "Molten rock under the earth.", a: "What is Magma?"},
+                    {q: "The layer of gas surrounding Earth.", a: "What is the Atmosphere?"},
+                    {q: "The hardest mineral.", a: "What is Diamond?"},
+                    {q: "The study of weather.", a: "What is Meteorology?"},
+                    {q: "The center of the Earth.", a: "What is the Core?"},
+                    {q: "A giant wave caused by an earthquake.", a: "What is a Tsunami?"}
+                ],
+                "Literature": [
+                    {q: "Author of 'The Hobbit'.", a: "Who is J.R.R. Tolkien?"},
+                    {q: "Katniss Everdeen is in this series.", a: "What is The Hunger Games?"},
+                    {q: "A poem with 14 lines.", a: "What is a Sonnet?"},
+                    {q: "He wrote 'A Christmas Carol'.", a: "Who is Charles Dickens?"},
+                    {q: "Percy Jackson is the son of...", a: "Who is Poseidon?"},
+                    {q: "The wizard in King Arthur's court.", a: "Who is Merlin?"}
+                ],
+                "General Knowledge": [
+                    {q: "The currency of Japan.", a: "What is the Yen?"},
+                    {q: "The largest mammal in the world.", a: "What is the Blue Whale?"},
+                    {q: "The number of bones in an adult human.", a: "What is 206?"},
+                    {q: "The capital of England.", a: "What is London?"},
+                    {q: "The sport played at Wimbledon.", a: "What is Tennis?"},
+                    {q: "Spanish word for 'Hello'.", a: "What is Hola?"}
+                ],
+                "Technology": [
+                    {q: "RAM stands for...", a: "What is Random Access Memory?"},
+                    {q: "Creator of the iPhone.", a: "Who is Steve Jobs / Apple?"},
+                    {q: "The 'brain' of the computer.", a: "What is the CPU?"},
+                    {q: "www stands for...", a: "What is World Wide Web?"},
+                    {q: "Social media app with a ghost logo.", a: "What is Snapchat?"},
+                    {q: "Company that owns Windows.", a: "What is Microsoft?"}
+                ]
+            },
+            "HS": {
+                "Chemistry": [
+                    {q: "Symbol for Gold.", a: "What is Au?"},
+                    {q: "Atomic number of Carbon.", a: "What is 6?"},
+                    {q: "pH level of water (neutral).", a: "What is 7?"},
+                    {q: "Symbol for Potassium.", a: "What is K?"},
+                    {q: "He created the Periodic Table.", a: "Who is Mendeleev?"},
+                    {q: "The bond between ions.", a: "What is Ionic?"}
+                ],
+                "World History": [
+                    {q: "Start of WWI.", a: "What is 1914?"},
+                    {q: "Leader of the Soviet Union during WWII.", a: "Who is Stalin?"},
+                    {q: "The Wall that fell in 1989.", a: "What is the Berlin Wall?"},
+                    {q: "French general defeated at Waterloo.", a: "Who is Napoleon?"},
+                    {q: "Civilization of Machu Picchu.", a: "Who are the Incas?"},
+                    {q: "The year America declared independence.", a: "What is 1776?"}
+                ],
+                "Literature": [
+                    {q: "Author of '1984'.", a: "Who is George Orwell?"},
+                    {q: "Hamlet's famous question.", a: "What is 'To be or not to be'?"},
+                    {q: "Wrote 'The Great Gatsby'.", a: "Who is F. Scott Fitzgerald?"},
+                    {q: "Author of 'Pride and Prejudice'.", a: "Who is Jane Austen?"},
+                    {q: "The whale in Moby Dick.", a: "What is a White Whale?"},
+                    {q: "Epic poem by Homer.", a: "What is The Odyssey / Iliad?"}
+                ],
+                "Biology": [
+                    {q: "Powerhouse of the cell.", a: "What is the Mitochondria?"},
+                    {q: "Process plants use to make food.", a: "What is Photosynthesis?"},
+                    {q: "Deoxyribonucleic acid.", a: "What is DNA?"},
+                    {q: "Largest organ in the human body.", a: "What is Skin?"},
+                    {q: "Natural selection theorist.", a: "Who is Charles Darwin?"},
+                    {q: "Antibiotics fight these.", a: "What are Bacteria?"}
+                ],
+                "Movies": [
+                    {q: "Director of 'Titanic' and 'Avatar'.", a: "Who is James Cameron?"},
+                    {q: "Won Best Picture in 2020 (Korean film).", a: "What is Parasite?"},
+                    {q: "Played Iron Man.", a: "Who is Robert Downey Jr.?"},
+                    {q: "The villain in Star Wars.", a: "Who is Darth Vader?"},
+                    {q: "Animated movie about toys coming to life.", a: "What is Toy Story?"},
+                    {q: "City where Hollywood is located.", a: "What is Los Angeles?"}
+                ],
+                "Physics": [
+                    {q: "E = mc^2 physicist.", a: "Who is Einstein?"},
+                    {q: "Force = Mass x Acceleration.", a: "What is Newton's 2nd Law?"},
+                    {q: "Speed of light is faster than speed of...", a: "What is Sound?"},
+                    {q: "Unit of electrical resistance.", a: "What is Ohm?"},
+                    {q: "What goes up must come down.", a: "What is Gravity?"},
+                    {q: "Energy of motion.", a: "What is Kinetic Energy?"}
+                ]
+            }
+        };
+
+        // --- GENERATOR LOGIC ---
+
+        function generateGame() {
+            const grade = document.getElementById('grade-select').value;
+            const loader = document.getElementById('ai-loader');
+            const btn = document.querySelector('.start-btn');
+
+            // Simulate AI "Thinking"
+            loader.style.display = 'block';
+            btn.style.display = 'none';
+
+            // Random delay between 1s and 2s to feel like "generating"
+            setTimeout(() => {
+                buildBoard(grade);
+                document.getElementById('config-modal').style.display = 'none';
+            }, 1200); 
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function buildBoard(grade) {
+            const board = document.getElementById('game-board');
+            board.innerHTML = ''; // Clear existing
+
+            // Get the specific grade database, or fallback to HS
+            let gradeData = database[grade] || database["HS"];
+            
+            // Get all categories available for this grade
+            let allCategories = Object.keys(gradeData);
+
+            // Shuffle categories and pick 6
+            let selectedCategories = shuffleArray(allCategories).slice(0, 6);
+
+            // If we don't have enough categories (e.g. for K), just use what we have and loop
+            while(selectedCategories.length < 6) {
+                selectedCategories.push(selectedCategories[0]); 
+            }
+
+            // 1. Generate Headers
+            selectedCategories.forEach(cat => {
+                const div = document.createElement('div');
+                div.className = 'category-header';
+                div.innerText = cat;
+                board.appendChild(div);
+            });
+
+            // 2. Generate Grid (6 cols x 5 rows)
+            // We need to prepare columns first to ensure vertical consistency
+            let columns = [];
+
+            selectedCategories.forEach(cat => {
+                let questions = [...gradeData[cat]]; // Copy array
+                
+                // Shuffle questions so we get random ones if there are more than 5
+                // OR sort by length to approximate difficulty (shorter = easier, usually)
+                // Let's shuffle first, then pick 5
+                questions = shuffleArray(questions);
+                
+                // Ensure we have at least 5
+                while(questions.length < 5) {
+                    questions.push({q: "Bonus Question!", a: "Free points!"});
+                }
+                
+                // Take first 5
+                let pickedQuestions = questions.slice(0, 5);
+                
+                // Optional: Sort by answer length as a rough proxy for difficulty
+                // pickedQuestions.sort((a, b) => a.a.length - b.a.length);
+
+                columns.push(pickedQuestions);
+            });
+
+            // Now render Row by Row
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 6; col++) {
+                    const value = (row + 1) * 100;
+                    const qObj = columns[col][row];
+
+                    const tile = document.createElement('div');
+                    tile.className = 'clue-card';
+                    tile.innerText = `$${value}`;
+                    tile.id = `tile-${row}-${col}`;
+                    
+                    tile.dataset.question = qObj.q;
+                    tile.dataset.answer = qObj.a;
+                    tile.dataset.value = value;
+
+                    tile.onclick = () => openQuestion(tile);
+                    board.appendChild(tile);
+                }
+            }
+        }
+
+        // --- GAMEPLAY LOGIC ---
+
+        function openQuestion(tile) {
+            if (tile.classList.contains('disabled')) return;
+
+            currentTileId = tile.id;
+            currentQuestionValue = parseInt(tile.dataset.value);
+
+            const modal = document.getElementById('question-modal');
+            const content = document.getElementById('modal-content');
+            const answer = document.getElementById('modal-answer');
+            const showBtn = document.getElementById('show-answer-btn');
+            const closeBtn = document.getElementById('close-modal-btn');
+
+            content.innerText = tile.dataset.question;
+            answer.innerText = tile.dataset.answer;
+            answer.style.display = 'none';
+            showBtn.style.display = 'inline-block';
+            closeBtn.style.display = 'none';
+
+            modal.style.display = 'flex';
+        }
+
+        function revealAnswer() {
+            document.getElementById('modal-answer').style.display = 'block';
+            document.getElementById('show-answer-btn').style.display = 'none';
+            document.getElementById('close-modal-btn').style.display = 'inline-block';
+        }
+
+        function closeModal() {
+            document.getElementById('question-modal').style.display = 'none';
+            
+            // Disable the tile
+            const tile = document.getElementById(currentTileId);
+            tile.classList.add('disabled');
+            tile.innerText = '';
+        }
+
+        function updateScore(teamId, amount) {
+            scores[teamId] += amount;
+            document.getElementById(`score-${teamId}`).innerText = scores[teamId];
+        }
+    </script>
+</body>
+</html>
