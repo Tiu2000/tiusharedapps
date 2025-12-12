@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro TV Scoreboard (P2P)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pro TV Scoreboard (Mobile Ready)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
@@ -26,27 +26,32 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow: hidden; /* Desktop default */
             position: relative;
         }
 
-        /* --- P2P STATUS INDICATOR (Added for Stability) --- */
+        /* --- P2P STATUS INDICATOR --- */
         #conn-status {
             position: absolute;
             top: 5px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.8rem;
+            font-size: 12px;
             color: #666;
             z-index: 1000;
             display: flex;
             gap: 10px;
             align-items: center;
-            background: rgba(0,0,0,0.5);
-            padding: 2px 10px;
-            border-radius: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 4px 12px;
+            border-radius: 12px;
+            pointer-events: none; /* Let clicks pass through */
         }
-        .reconnect-btn { background: #444; border: none; color: white; padding: 2px 5px; cursor: pointer; border-radius: 3px; }
+        .reconnect-btn { 
+            background: #444; border: none; color: white; 
+            padding: 2px 6px; cursor: pointer; border-radius: 3px; 
+            pointer-events: auto; 
+        }
         .hidden { display: none; }
 
         /* --- TOP BAR --- */
@@ -60,6 +65,7 @@
             border-bottom: 3px solid #333;
             box-shadow: 0 0 20px rgba(0,0,0,0.8);
             z-index: 10;
+            position: relative;
         }
 
         .timer-container {
@@ -82,6 +88,8 @@
         .timer-edit {
             display: none;
             gap: 10px;
+            justify-content: center;
+            align-items: center;
         }
         .timer-edit.active { display: flex; }
         
@@ -101,6 +109,7 @@
             display: flex;
             width: 100%;
             height: 80vh;
+            overflow-x: auto;
         }
 
         .team-card {
@@ -113,6 +122,7 @@
             position: relative;
             padding-top: 5vh;
             transition: background 0.3s;
+            min-width: 200px; /* Prevent crushing on desktop */
         }
 
         /* Color Picker Wrapper */
@@ -141,7 +151,7 @@
             font-weight: 700;
             text-align: center;
             text-transform: uppercase;
-            width: 80%;
+            width: 90%;
             margin-bottom: 2vh;
         }
         .team-name:focus { 
@@ -166,8 +176,7 @@
             opacity: 0.1; /* Almost invisible */
             transition: opacity 0.2s;
         }
-        /* On mobile/touch, we force opacity so buttons are visible */
-        @media (hover: none) { .score-controls { opacity: 0.5; } }
+        
         .team-card:hover .score-controls { opacity: 1; }
 
         /* --- BUTTONS --- */
@@ -178,31 +187,35 @@
         }
         button:active { transform: scale(0.95); }
 
-        .btn-start { background: #2ed573; color: black; font-size: 1.2rem; }
-        .btn-stop { background: #ff4757; color: white; font-size: 1.2rem; }
+        .btn-start { background: #2ed573; color: black; font-size: 1rem; }
+        .btn-stop { background: #ff4757; color: white; font-size: 1rem; }
         .btn-std { background: #444; color: white; }
 
         .btn-score {
             width: 80px; height: 80px; border-radius: 50%;
             font-size: 3rem; display: flex; align-items: center; justify-content: center;
             background: #333; color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
         .btn-score:hover { background: white; color: black; }
+        .btn-score:active { background: #ccc; }
 
         .btn-close-team {
             position: absolute; bottom: 15px; right: 15px;
             background: transparent; color: #444; font-size: 1.5rem;
+            z-index: 10;
         }
         .btn-close-team:hover { color: red; }
 
         /* --- TIU WATERMARK --- */
         .app-signature {
             position: fixed; bottom: 5px; left: 10px;
-            font-size: 1.5vh; color: #ccc; opacity: 0.2;
+            font-size: 12px; color: #ccc; opacity: 0.2;
             z-index: 1000; font-weight: 300; text-transform: uppercase;
+            pointer-events: none;
         }
         
-        /* --- P2P MODALS (Added) --- */
+        /* --- P2P MODALS --- */
         .modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); z-index: 2000;
@@ -217,6 +230,64 @@
             border: none; border-radius: 10px; color: white; margin: 10px; cursor: pointer; width: 100%;
         }
 
+        /* --- MOBILE RESPONSIVENESS (THE FIX) --- */
+        @media (max-width: 768px) {
+            body { 
+                height: auto; 
+                min-height: 100vh; 
+                overflow-y: auto; /* Allow scrolling */
+            }
+
+            .top-bar {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 15px;
+                gap: 10px;
+                justify-content: center;
+                border-bottom: 2px solid #333;
+                flex: 0 0 auto;
+            }
+            
+            .controls-side {
+                order: 2; /* Move buttons below timer */
+                width: 100%;
+                justify-content: space-around;
+            }
+
+            .timer-container {
+                position: relative;
+                transform: none;
+                left: auto;
+                order: 1;
+                margin-bottom: 10px;
+            }
+
+            .timer-display { font-size: 4rem; }
+            
+            /* Stack Teams Vertically */
+            #teams-container {
+                flex-direction: column;
+                height: auto; /* Allow growth */
+            }
+
+            .team-card {
+                border-right: none;
+                border-bottom: 1px solid #333;
+                padding: 20px 0;
+                min-height: 250px;
+            }
+
+            .team-name { font-size: 2rem; }
+            .score-display { font-size: 6rem; margin: 10px 0; }
+            
+            /* Always show controls on mobile */
+            .score-controls { opacity: 1; }
+            .btn-score { width: 60px; height: 60px; font-size: 2rem; }
+            
+            /* Adjust inputs for touch */
+            button { padding: 12px 15px; font-size: 0.9rem; }
+        }
+
     </style>
 </head>
 <body>
@@ -229,7 +300,6 @@
     <div class="top-bar">
         <div class="controls-side">
             <button class="btn-std" onclick="handleInput('addTeam')">+ Team</button>
-            <button class="btn-std" onclick="toggleFullScreen()">[ ] Full</button>
             <button class="btn-std" onclick="showQR()">QR</button>
         </div>
 
@@ -238,7 +308,7 @@
             
             <div class="timer-edit" id="timer-edit">
                 <input type="number" id="t-min" class="timer-input" value="10">
-                <span style="font-size:2rem; padding-top:5px;">:</span>
+                <span style="font-size:2rem; padding-top:5px; color:white;">:</span>
                 <input type="number" id="t-sec" class="timer-input" value="00">
                 <button class="btn-std" onclick="saveTimer()">Set</button>
             </div>
@@ -304,8 +374,8 @@
         // --- GLOBAL STATE ---
         let state = {
             teams: [
-                { id: 1, name: "TEAM 1", score: 0, color: "#3498db" },
-                { id: 2, name: "TEAM 2", score: 0, color: "#e74c3c" }
+                { id: 1, name: "HOME", score: 0, color: "#3498db" },
+                { id: 2, name: "GUEST", score: 0, color: "#e74c3c" }
             ],
             timeSec: 600,
             isRunning: false
@@ -331,10 +401,9 @@
             else timerDisplay.style.color = "#ff3838"; // Red when stopped
 
             // 2. Teams
-            // To preserve inputs, we check if we need to rebuild or just update
             const currentCards = container.children;
             if (currentCards.length !== state.teams.length) {
-                // Full Rebuild if count differs
+                // Rebuild if count differs
                 container.innerHTML = '';
                 state.teams.forEach(team => {
                     const div = document.createElement('div');
@@ -357,18 +426,15 @@
                     container.appendChild(div);
                 });
             } else {
-                // Smart Update
+                // Update Values
                 state.teams.forEach((team, index) => {
                     const card = currentCards[index];
-                    // Update Score
                     const scoreEl = card.querySelector('.score-display');
                     if(scoreEl.innerText != team.score) scoreEl.innerText = team.score;
                     
-                    // Update Name (only if not focused)
                     const nameEl = card.querySelector('.team-name');
                     if(document.activeElement !== nameEl) nameEl.value = team.name;
 
-                    // Update Color
                     const stripEl = card.querySelector('.color-strip');
                     if(stripEl.style.background != team.color) {
                         stripEl.style.background = team.color;
@@ -377,7 +443,7 @@
                 });
             }
 
-            // Sync timer state locally
+            // Sync timer logic
             if (state.isRunning && !timerInterval) {
                 timerInterval = setInterval(tick, 1000);
             } else if (!state.isRunning && timerInterval) {
@@ -385,13 +451,13 @@
                 timerInterval = null;
             }
 
-            // Send to peers if Host
+            // Sync with Peer
             if(isHost && conn) sendState();
         }
 
         // --- INPUT HANDLER ---
         function handleInput(type, data={}) {
-            // Modify Local State
+            // Apply logic locally first
             if (type === 'score') {
                 const t = state.teams.find(x => x.id === data.id);
                 if(t) { t.score = Math.max(0, t.score + data.val); playSound('blip'); }
@@ -426,7 +492,7 @@
                 state.timeSec = data.val;
             }
             else if (type === 'sync') {
-                state = data; // Full replace from Host
+                state = data; // Client syncs entirely from host
             }
 
             render();
@@ -464,11 +530,6 @@
             document.getElementById('timer-edit').classList.remove('active');
             document.getElementById('timer').style.display = 'block';
         }
-
-        function toggleFullScreen() {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-            else if (document.exitFullscreen) document.exitFullscreen();
-        }
         
         function showQR() {
             if(isHost) document.getElementById('qr-modal').style.display = 'flex';
@@ -499,7 +560,7 @@
                 conn.on('data', (d) => {
                     if(d.type === 'heartbeat') return;
                     if(d.type === 'cmd') {
-                        // Host receives command, executes it locally (which updates state), then render() sends state back
+                        // Host receives command, applies to own state
                         handleInput(d.act, d.data); 
                     }
                 });
@@ -533,7 +594,7 @@
 
                 conn.on('data', (d) => {
                     if(d.type === 'state') {
-                        // Client trusts Host state blindly
+                        // Client trusts Host state
                         state = d.data;
                         render();
                     }
@@ -554,7 +615,7 @@
         // --- INIT ---
         const params = new URLSearchParams(window.location.search);
         if(params.get('connect')) initClient(params.get('connect'));
-        else render(); // Default view
+        else render();
 
     </script>
 </body>
