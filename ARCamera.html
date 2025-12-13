@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AR Blueprint Exporter</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background: #222; }
+        
+        /* AR Overlay */
+        #ar-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10; display: none;
+        }
+        #info-panel {
+            position: absolute; top: 20px; width: 100%; text-align: center;
+            color: white; text-shadow: 1px 1px 2px black; font-size: 18px;
+        }
+        #finish-btn {
+            position: absolute; top: 20px; right: 20px; pointer-events: auto;
+            background: #ff4444; color: white; border: none; padding: 10px 20px;
+            border-radius: 20px; font-weight: bold; display: none;
+        }
+
+        /* Results / Export Screen */
+        #result-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; z-index: 20; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        canvas { border: 2px solid #333; margin-bottom: 20px; background: #f0f0f0; }
+        .btn-group { display: flex; gap: 10px; }
+        button.export-btn {
+            padding: 15px 30px; font-size: 16px; border: none; border-radius: 8px;
+            cursor: pointer; background: #007bff; color: white;
+        }
+        h2 { color: #333; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="ar-overlay">
+        <div id="info-panel">
+            <div id="instruction">Detecting floor... move phone slowly.</div>
+            <div id="wall-count" style="font-size: 14px; margin-top: 5px;">Corners: 0</div>
+        </div>
+        <button id="finish-btn" onclick="finishSession()">Finish & Export</button>
+    </div>
+
+    <div id="result-screen">
+        <h2>Room Blueprint</h2>
+        <canvas id="blueprintCanvas" width="300" height="400"></canvas>
+        <div class="btn-group">
+            <button class="export-btn" onclick="downloadImage()">Save Image</button>
+            <button class="export-btn" onclick="downloadCSV()" style="background:#28a745;">Save CSV</button>
+        </div>
+        <button onclick="location.reload()" style="margin-top:20px; background:none; border:none; color:#666; text-decoration:underline;">Start Over</button>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { ARButton } from 'three/addons/webxr/ARButton.js';
+
+        let camera, scene, renderer;
+        let controller, reticle;
+        let hitTestSource = null;
+        let hitTestSourceRequested = false;
+        let xrSession = null;
+
+        // Data storage
+        let points = []; 
+        let lines = [];
+
+        init();
+        animate();
+
+        function init() {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
+            const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+            scene.add(light);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Add AR Button with DOM Overlay support (allows buttons to work in AR)
+            const overlay = document.getElementById('ar-overlay');
+            const arButton = ARButton.createButton(renderer, { 
+                requiredFeatures: ['hit-test'],
+                domOverlay: { root: overlay } 
+            });
+            document.body.appendChild(arButton);
+
+            // Handle Session Start
+            arButton.addEventListener('click', () => {
+                overlay.style.display = 'block';
+                document.getElementById('finish-btn').style.display = 'block';
+            });
+
+            controller = renderer.xr.getController(0);
+            controller.addEventListener('select', onSelect);
+            scene.add(controller);
+
+            reticle = new THREE.Mesh(
+                new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
+                new THREE.MeshBasicMaterial({ color: 0xffffff })
+            );
+            reticle.matrixAutoUpdate = false;
+            reticle.visible = false;
+            scene.add(reticle);
+        }
+
+        function onSelect() {
+            if (reticle.visible) {
+                const point = new THREE.Vector3();
+                point.setFromMatrixPosition(reticle.matrix);
+                
+                // Add visual marker
+                const geometry = new THREE.CylinderGeometry(0.02, 0.02, 0.5, 32);
+                const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+                const marker = new THREE.Mesh(geometry, material);
+                marker.position.copy(point);
+                marker.position.y += 0.25; 
+                scene.add(marker);
+
+                points.push(point);
+
+                // Draw line if > 1 point
+                if (points.length > 1) {
+                    const prevPoint = points[points.length - 2];
+                    const lineGeo = new THREE.BufferGeometry().setFromPoints([prevPoint, point]);
+                    const lineMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
+                    const line = new THREE.Line(lineGeo, lineMat);
+                    scene.add(line);
+                    lines.push(line);
+                }
+
+                document.getElementById('instruction').innerText = "Corner Added! Tap for next.";
+                document.getElementById('wall-count').innerText = `Corners: ${points.length}`;
+            }
+        }
+
+        window.finishSession = async function() {
+            // End AR session
+            const session = renderer.xr.getSession();
+            if (session) await session.end();
+
+            // Hide AR UI, Show Export UI
+            document.getElementById('ar-overlay').style.display = 'none';
+            document.getElementById('result-screen').style.display = 'flex';
+            
+            // Generate the blueprint
+            drawBlueprint();
+        };
+
+        function drawBlueprint() {
+            const canvas = document.getElementById('blueprintCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (points.length < 2) {
+                ctx.fillText("Not enough points scanned", 50, 50);
+                return;
+            }
+
+            // 1. Normalize Coordinates (Convert 3D World to 2D Canvas)
+            // We ignore Y (height), using only X and Z.
+            const xValues = points.map(p => p.x);
+            const zValues = points.map(p => p.z);
+            
+            const minX = Math.min(...xValues);
+            const maxX = Math.max(...xValues);
+            const minZ = Math.min(...zValues);
+            const maxZ = Math.max(...zValues);
+
+            // Add padding (meters)
+            const padding = 0.5; 
+            const widthM = (maxX - minX) + (padding * 2);
+            const heightM = (maxZ - minZ) + (padding * 2);
+
+            // Scale factor: How many pixels per meter?
+            // We want to fit the room into the 300x400 canvas
+            const scaleX = canvas.width / widthM;
+            const scaleY = canvas.height / heightM;
+            const scale = Math.min(scaleX, scaleY) * 0.9; // 0.9 for safety margin
+
+            // Draw Background
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Function to map World(x,z) to Canvas(x,y)
+            function mapPt(p) {
+                return {
+                    x: (p.x - minX + padding) * scale,
+                    y: (p.z - minZ + padding) * scale
+                };
+            }
+
+            // Draw Lines
+            ctx.beginPath();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "black";
+            
+            const start = mapPt(points[0]);
+            ctx.moveTo(start.x, start.y);
+
+            // Draw points and wall lengths
+            for (let i = 0; i < points.length; i++) {
+                const curr = mapPt(points[i]);
+                ctx.lineTo(curr.x, curr.y);
+                
+                // Draw a dot at the corner
+                ctx.fillStyle = "red";
+                ctx.fillRect(curr.x - 3, curr.y - 3, 6, 6);
+
+                // Add text measurement for the line leading to this point
+                if (i > 0) {
+                    const prev = mapPt(points[i-1]);
+                    const distM = points[i].distanceTo(points[i-1]);
+                    const midX = (prev.x + curr.x) / 2;
+                    const midY = (prev.y + curr.y) / 2;
+                    
+                    ctx.font = "12px Arial";
+                    ctx.fillStyle = "blue";
+                    ctx.fillText(distM.toFixed(2) + "m", midX, midY);
+                }
+            }
+            
+            // Close the loop if users want a closed room (optional visual aid)
+            // ctx.closePath(); 
+            ctx.stroke();
+        }
+
+        window.downloadImage = function() {
+            const canvas = document.getElementById('blueprintCanvas');
+            const link = document.createElement('a');
+            link.download = 'room-blueprint.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        window.downloadCSV = function() {
+            let csvContent = "data:text/csv;charset=utf-8,Corner ID,X (m),Z (m),Distance to Prev (m)\n";
+            
+            points.forEach((p, index) => {
+                let dist = 0;
+                if (index > 0) dist = p.distanceTo(points[index-1]);
+                csvContent += `${index + 1},${p.x.toFixed(3)},${p.z.toFixed(3)},${dist.toFixed(3)}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "room_data.csv");
+            document.body.appendChild(link);
+            link.click();
+        }
+
+        function animate() {
+            renderer.setAnimationLoop(render);
+        }
+
+        function render(timestamp, frame) {
+            if (frame) {
+                const referenceSpace = renderer.xr.getReferenceSpace();
+                const session = renderer.xr.getSession();
+
+                if (hitTestSourceRequested === false) {
+                    session.requestReferenceSpace('viewer').then(refSpace => {
+                        session.requestHitTestSource({ space: refSpace }).then(source => {
+                            hitTestSource = source;
+                        });
+                    });
+                    session.addEventListener('end', () => {
+                        hitTestSourceRequested = false;
+                        hitTestSource = null;
+                        document.getElementById('ar-overlay').style.display = 'none';
+                    });
+                    hitTestSourceRequested = true;
+                }
+
+                if (hitTestSource) {
+                    const hitTestResults = frame.getHitTestResults(hitTestSource);
+                    if (hitTestResults.length > 0) {
+                        const hit = hitTestResults[0];
+                        reticle.visible = true;
+                        reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
+                        reticle.material.color.setHex(0x00ff00); // Green
+                    } else {
+                        reticle.visible = false;
+                    }
+                }
+            }
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
