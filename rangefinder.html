@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Web Range Finder</title>
+    <style>
+        body { margin: 0; background: #000; color: #0f0; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
+        
+        /* Video Layer */
+        #camera-feed {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; z-index: 1; opacity: 0.8;
+        }
+
+        /* HUD Layer */
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+
+        /* Target Brackets */
+        .bracket {
+            width: 60%; height: 2px; background-color: #0f0;
+            box-shadow: 0 0 8px #0f0; position: absolute;
+            transition: top 0.05s ease-out;
+        }
+        #top-line { top: 40%; }
+        #btm-line { top: 60%; }
+        
+        /* Crosshair */
+        .crosshair {
+            width: 20px; height: 20px; border: 1px solid rgba(0, 255, 0, 0.5);
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .crosshair::after { content:'+'; position:absolute; top:-6px; left:4px; font-size: 20px; color:#0f0;}
+
+        /* Controls UI */
+        #controls {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            z-index: 3; text-align: center; background: rgba(0,0,0,0.85);
+            padding: 15px 0 25px 0; pointer-events: auto;
+            border-top: 1px solid #0f0;
+        }
+
+        /* Inputs */
+        input[type=range] { width: 85%; accent-color: #0f0; cursor: pointer; }
+        select { background: #000; color: #0f0; border: 1px solid #0f0; padding: 8px; font-family: monospace; font-size: 14px; max-width: 90%; }
+        button { background: #003300; border: 1px solid #0f0; color: #0f0; padding: 5px 10px; cursor: pointer; font-weight: bold; margin-top: 5px;}
+        
+        /* Display Text */
+        .readout { font-size: 32px; font-weight: bold; margin: 10px 0; text-shadow: 0 0 10px #0f0; letter-spacing: 2px; }
+        .label { font-size: 12px; opacity: 0.7; text-transform: uppercase; margin-bottom: 5px; }
+
+        /* Top Bar (Calibration & Units) */
+        #top-bar {
+            position: absolute; top: 10px; width: 95%; left: 2.5%; z-index: 3;
+            display: flex; justify-content: space-between; align-items: flex-start;
+            pointer-events: none; /* Let clicks pass through empty space */
+        }
+        .top-panel { pointer-events: auto; background: rgba(0,0,0,0.6); padding: 5px; border-radius: 4px; }
+
+        /* Toggle Switch */
+        .switch-container { display: flex; align-items: center; gap: 5px; font-size: 14px; }
+        input[type=checkbox] { accent-color: #0f0; transform: scale(1.2); }
+
+    </style>
+</head>
+<body>
+
+    <video id="camera-feed" autoplay playsinline></video>
+
+    <div id="hud">
+        <div id="top-line" class="bracket"></div>
+        <div class="crosshair"></div>
+        <div id="btm-line" class="bracket"></div>
+    </div>
+
+    <div id="top-bar">
+        <div class="top-panel">
+            <div class="switch-container">
+                <input type="checkbox" id="unit-toggle" onchange="update()">
+                <label for="unit-toggle">IMPERIAL (Ft/In)</label>
+            </div>
+            <button onclick="startCamera()" style="margin-top:5px; width:100%;">START CAM</button>
+        </div>
+
+        <div class="top-panel" style="text-align: right;">
+            <div class="label" style="font-size:10px;">Calibration Factor</div>
+            <input type="range" id="calib-slider" min="100" max="2000" value="800" style="width: 100px;">
+            <div id="calib-val" style="font-size:10px; color:#fff;">800</div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <div class="readout" id="distance-display">0.0 m</div>
+        
+        <div class="label">Select Target Object</div>
+        <select id="target-select">
+            <optgroup label="People">
+                <option value="1.75">Avg Man (1.75m / 5'9")</option>
+                <option value="1.63">Avg Woman (1.63m / 5'4")</option>
+                <option value="1.00">Small Child (1.0m / 3'3")</option>
+            </optgroup>
+            <optgroup label="Indoor / Structural">
+                <option value="2.03">Door Frame (2.03m / 6'8")</option>
+                <option value="2.44">Standard Ceiling (2.44m / 8')</option>
+                <option value="0.91">Countertop Height (0.91m / 36")</option>
+                <option value="0.30">A4 Paper Length (30cm / 11.7")</option>
+                <option value="0.12">Soda Can (12cm / 4.75")</option>
+                <option value="0.085">Credit Card Width (8.5cm)</option>
+            </optgroup>
+            <optgroup label="Outdoor / Street">
+                <option value="3.05">Basketball Rim (3.05m / 10')</option>
+                <option value="4.11">Semi-Truck Height (4.11m / 13'6")</option>
+                <option value="2.13">Golf Flagstick (2.13m / 7')</option>
+                <option value="0.75">Stop Sign (Octagon H) (75cm / 30")</option>
+                <option value="1.45">Sedan Car Height (1.45m / 4'9")</option>
+                <option value="0.71">Standard Traffic Cone (71cm / 28")</option>
+            </optgroup>
+        </select>
+        
+        <br><br>
+        <div class="label">Pinch to fit object height</div>
+        <input type="range" id="size-slider" min="10" max="800" value="150">
+    </div>
+
+    <script>
+        const video = document.getElementById('camera-feed');
+        const slider = document.getElementById('size-slider');
+        const calibSlider = document.getElementById('calib-slider');
+        const calibVal = document.getElementById('calib-val');
+        const targetSelect = document.getElementById('target-select');
+        const distDisplay = document.getElementById('distance-display');
+        const unitToggle = document.getElementById('unit-toggle');
+        const topLine = document.getElementById('top-line');
+        const btmLine = document.getElementById('btm-line');
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" } 
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                alert("Camera Error: Ensure you are on HTTPS or localhost.");
+            }
+        }
+
+        function formatDistance(meters) {
+            if (unitToggle.checked) {
+                // Imperial Calculation
+                const totalFeet = meters * 3.28084;
+                const feet = Math.floor(totalFeet);
+                const inches = Math.round((totalFeet - feet) * 12);
+                
+                // Handle case where inches rounds up to 12
+                if (inches === 12) {
+                    return (feet + 1) + "' 0\"";
+                }
+                return feet + "' " + inches + "\"";
+            } else {
+                // Metric Calculation
+                if (meters < 1) {
+                    return (meters * 100).toFixed(0) + " cm";
+                }
+                return meters.toFixed(1) + " m";
+            }
+        }
+
+        function update() {
+            const pixelGap = parseInt(slider.value);
+            const realHeight = parseFloat(targetSelect.value); // Always in Meters
+            const focalFactor = parseInt(calibSlider.value);
+            
+            // Update Calibration visual
+            calibVal.innerText = focalFactor;
+
+            // Move lines
+            const center = window.innerHeight / 2;
+            const halfGap = pixelGap / 2;
+            topLine.style.top = (center - halfGap) + "px";
+            btmLine.style.top = (center + halfGap) + "px";
+
+            // Calculate Distance (in Meters first)
+            let distanceMeters = 0;
+            if (pixelGap > 0) {
+                distanceMeters = (realHeight * focalFactor) / pixelGap;
+            }
+
+            // Display formatted string
+            distDisplay.innerText = formatDistance(distanceMeters);
+        }
+
+        // Event Listeners
+        slider.addEventListener('input', update);
+        calibSlider.addEventListener('input', update);
+        targetSelect.addEventListener('change', update);
+        window.addEventListener('resize', update);
+
+        // Run once
+        update();
+    </script>
+</body>
+</html>
