@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pool Shot AR Assistant</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #111;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden; /* Prevent scrolling */
+        }
+
+        #app-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Video and Canvas layer stack */
+        #camera-stream, #overlay-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #overlay-canvas {
+            z-index: 10;
+            cursor: crosshair;
+        }
+
+        /* UI Controls */
+        #ui-layer {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none; /* Let clicks pass through to canvas when not on buttons */
+        }
+
+        .controls {
+            pointer-events: auto;
+            display: flex;
+            gap: 15px;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.5);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        button.primary {
+            background: #00d2ff;
+            color: #000;
+            border: none;
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
+        }
+
+        #status-text {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        /* Helper to hide video when frozen */
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <video id="camera-stream" autoplay playsinline muted></video>
+    
+    <canvas id="overlay-canvas"></canvas>
+
+    <div id="ui-layer">
+        <div id="status-text">Step 1: Point camera & click "Freeze Frame"</div>
+        <div class="controls">
+            <button id="action-btn" class="primary">Freeze Frame</button>
+            <button id="reset-btn">Reset</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Configuration ---
+    const BALL_RADIUS_PX = 15; // Estimated radius of a ball on screen (adjustable)
+
+    // --- State Management ---
+    const STATE = {
+        STREAMING: 0,
+        FROZEN: 1,
+        PLACING_CUE: 2,
+        PLACING_OBJECT: 3,
+        PLACING_POCKET: 4,
+        CALCULATED: 5
+    };
+
+    let currentState = STATE.STREAMING;
+    let points = {
+        cue: null,
+        object: null,
+        pocket: null
+    };
+
+    // --- DOM Elements ---
+    const video = document.getElementById('camera-stream');
+    const canvas = document.getElementById('overlay-canvas');
+    const ctx = canvas.getContext('2d');
+    const actionBtn = document.getElementById('action-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const statusText = document.getElementById('status-text');
+
+    // --- Initialization ---
+    async function initCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' } // Prefer back camera
+            });
+            video.srcObject = stream;
+        } catch (err) {
+            alert("Camera access denied or not available. Please allow camera permissions.");
+            console.error(err);
+        }
+    }
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        // Redraw if we have data
+        draw();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    initCamera();
+
+    // --- Core Logic ---
+
+    // The Ghost Ball Math
+    // To hit the Object ball into the Pocket, the Cue ball must be aimed at a specific point
+    // exactly one ball diameter away from the Object ball, on the line opposite the pocket.
+    function calculateGhostBall(object, pocket) {
+        // Vector from Pocket to Object
+        const dx = object.x - pocket.x;
+        const dy = object.y - pocket.y;
+        
+        // Normalize vector
+        const length = Math.sqrt(dx*dx + dy*dy);
+        const unitX = dx / length;
+        const unitY = dy / length;
+
+        // Ghost ball position (2x radius away from object ball center, extending the line)
+        // We use 2.2x to add a tiny margin for visual clarity
+        const distance = BALL_RADIUS_PX * 2.2; 
+        
+        return {
+            x: object.x + (unitX * distance),
+            y: object.y + (unitY * distance)
+        };
+    }
+
+    function draw() {
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // If video is paused/frozen, we draw the video frame onto the canvas 
+        // so it stays persistent even if we hide the video element.
+        if (currentState !== STATE.STREAMING) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Darken the background slightly to make diagrams pop
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(0,0, canvas.width, canvas.height);
+        }
+
+        // Helper to draw a ball marker
+        const drawMarker = (pt, color, label) => {
+            if (!pt) return;
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, BALL_RADIUS_PX, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'white';
+            ctx.stroke();
+            
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.fillText(label, pt.x - 10, pt.y - 20);
+        };
+
+        // Draw points
+        drawMarker(points.cue, 'white', "CUE");
+        drawMarker(points.object, 'red', "OBJ");
+        
+        if (points.pocket) {
+            // Draw pocket marker (X)
+            ctx.beginPath();
+            ctx.moveTo(points.pocket.x - 10, points.pocket.y - 10);
+            ctx.lineTo(points.pocket.x + 10, points.pocket.y + 10);
+            ctx.moveTo(points.pocket.x + 10, points.pocket.y - 10);
+            ctx.lineTo(points.pocket.x - 10, points.pocket.y + 10);
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#00ff00';
+            ctx.stroke();
+        }
+
+        // Draw Solution Lines
+        if (points.cue && points.object && points.pocket) {
+            const ghost = calculateGhostBall(points.object, points.pocket);
+
+            // 1. Line from Object to Pocket (The goal path)
+            ctx.beginPath();
+            ctx.moveTo(points.object.x, points.object.y);
+            ctx.lineTo(points.pocket.x, points.pocket.y);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.setLineDash([5, 5]);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 2. The Ghost Ball (Where you need to hit)
+            ctx.beginPath();
+            ctx.arc(ghost.x, ghost.y, BALL_RADIUS_PX, 0, Math.PI * 2);
+            ctx.strokeStyle = '#00d2ff'; // Cyan
+            ctx.setLineDash([]);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(0, 210, 255, 0.3)';
+            ctx.fill();
+            ctx.fillStyle = '#00d2ff';
+            ctx.fillText("AIM HERE", ghost.x - 20, ghost.y - 20);
+
+            // 3. Aim Line (From Cue to Ghost)
+            ctx.beginPath();
+            ctx.moveTo(points.cue.x, points.cue.y);
+            ctx.lineTo(ghost.x, ghost.y);
+            ctx.strokeStyle = '#00d2ff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // Calculate Cut Angle
+            // (Simple dot product angle calculation for display)
+            const v1 = {x: ghost.x - points.cue.x, y: ghost.y - points.cue.y}; // Cue trajectory
+            const v2 = {x: points.pocket.x - points.object.x, y: points.pocket.y - points.object.y}; // Object trajectory
+            // This assumes a perfect hit. Just a visual aid.
+        }
+    }
+
+    // --- Interactions ---
+
+    actionBtn.addEventListener('click', () => {
+        if (currentState === STATE.STREAMING) {
+            // Freeze Frame
+            video.pause();
+            currentState = STATE.PLACING_CUE;
+            actionBtn.style.display = 'none'; // Hide button, switch to tap mode
+            statusText.innerText = "Tap the center of the CUE BALL (White)";
+            draw(); // Draw the frozen frame
+        }
+    });
+
+    resetBtn.addEventListener('click', () => {
+        video.play();
+        currentState = STATE.STREAMING;
+        points = { cue: null, object: null, pocket: null };
+        actionBtn.style.display = 'block';
+        actionBtn.innerText = "Freeze Frame";
+        statusText.innerText = "Step 1: Point camera & click 'Freeze Frame'";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+
+    canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        if (currentState === STATE.PLACING_CUE) {
+            points.cue = {x, y};
+            currentState = STATE.PLACING_OBJECT;
+            statusText.innerText = "Tap the OBJECT BALL you want to hit";
+            draw();
+        } else if (currentState === STATE.PLACING_OBJECT) {
+            points.object = {x, y};
+            currentState = STATE.PLACING_POCKET;
+            statusText.innerText = "Tap the TARGET POCKET";
+            draw();
+        } else if (currentState === STATE.PLACING_POCKET) {
+            points.pocket = {x, y};
+            currentState = STATE.CALCULATED;
+            statusText.innerText = "Shot Calculated! Blue circle is your aim point.";
+            draw();
+        }
+    });
+
+</script>
+
+</body>
+</html>
