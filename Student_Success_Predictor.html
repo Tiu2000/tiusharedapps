@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PathFinder: Student Success Predictive Engine</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #475569;
+            --success: #16a34a;
+            --warning: #ca8a04;
+            --danger: #dc2626;
+            --bg: #f8fafc;
+            --card: #ffffff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: #1e293b;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: var(--secondary);
+            font-size: 0.9em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 { border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 0; }
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.9em; }
+        select, input[type="number"], input[type="range"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: #1d4ed8; }
+
+        /* Results Section */
+        .result-bar {
+            background-color: #e2e8f0;
+            border-radius: 9999px;
+            height: 24px;
+            width: 100%;
+            margin: 10px 0 5px 0;
+            overflow: hidden;
+        }
+
+        .result-fill {
+            height: 100%;
+            transition: width 1s ease-out;
+            border-radius: 9999px;
+            width: 0%;
+        }
+
+        .citation-box {
+            background-color: #eff6ff;
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.85em;
+        }
+
+        .citation-title { font-weight: bold; color: var(--primary); }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .stat-label { font-weight: 600; }
+        .stat-value { font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Student Success Predictor</h1>
+        <p>A heuristic engine based on peer-reviewed academic research (Tinto, Duckworth, Georgetown CEW)</p>
+    </header>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Student Profile</h2>
+            <form id="predictionForm">
+                
+                <div class="form-group">
+                    <label>Current GPA (0.0 - 4.0)</label>
+                    <input type="number" id="gpa" step="0.1" min="0" max="4" value="3.0">
+                </div>
+
+                <div class="form-group">
+                    <label>Field of Study</label>
+                    <select id="major">
+                        <option value="stem">STEM (Engineering, CS, Math)</option>
+                        <option value="business">Business / Finance / Econ</option>
+                        <option value="medical">Health / Medicine</option>
+                        <option value="arts">Liberal Arts / Humanities</option>
+                        <option value="education">Education / Social Work</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Attendance & Engagement Rate (%)</label>
+                    <input type="number" id="attendance" min="0" max="100" value="85">
+                    <small style="color:#666">Proxy for Tinto's "Academic Integration"</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Grit & Resilience Score (1-5)</label>
+                    <input type="range" id="grit" min="1" max="5" value="3">
+                    <div style="display:flex; justify-content:space-between; font-size:0.8em; color:#666">
+                        <span>Gives up easily</span>
+                        <span>Very Persistent</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Risk Tolerance (1-5)</label>
+                    <input type="range" id="risk" min="1" max="5" value="2">
+                    <div style="display:flex; justify-content:space-between; font-size:0.8em; color:#666">
+                        <span>Risk Averse</span>
+                        <span>Risk Taker</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Family Socioeconomic Support (1-5)</label>
+                    <select id="ses">
+                        <option value="1">Low Income / First Gen</option>
+                        <option value="2">Lower Middle Class</option>
+                        <option value="3">Middle Class</option>
+                        <option value="4">Upper Middle Class</option>
+                        <option value="5">Wealthy</option>
+                    </select>
+                </div>
+
+                <button type="button" onclick="calculateSuccess()">Predict Outcomes</button>
+            </form>
+        </div>
+
+        <div class="card" id="resultsCard" style="opacity: 0.5;">
+            <h2>Prediction Dashboard</h2>
+            
+            <div class="stat-row">
+                <span class="stat-label">Dropout Probability</span>
+                <span class="stat-value" id="dropoutVal">--</span>
+            </div>
+            <div class="result-bar">
+                <div class="result-fill" id="dropoutBar" style="background-color: var(--danger);"></div>
+            </div>
+
+            <div class="stat-row" style="margin-top: 20px;">
+                <span class="stat-label">Higher Ed Potential (Masters/PhD)</span>
+                <span class="stat-value" id="degreeVal">--</span>
+            </div>
+            <div class="result-bar">
+                <div class="result-fill" id="degreeBar" style="background-color: var(--primary);"></div>
+            </div>
+
+            <div class="stat-row" style="margin-top: 20px;">
+                <span class="stat-label">Entrepreneurial Success Chance</span>
+                <span class="stat-value" id="entVal">--</span>
+            </div>
+            <div class="result-bar">
+                <div class="result-fill" id="entBar" style="background-color: var(--warning);"></div>
+            </div>
+
+            <div class="stat-row" style="margin-top: 20px;">
+                <span class="stat-label">Millionaire Potential (Top 5% Net Worth)</span>
+                <span class="stat-value" id="wealthVal">--</span>
+            </div>
+            <div class="result-bar">
+                <div class="result-fill" id="wealthBar" style="background-color: var(--success);"></div>
+            </div>
+
+            <div id="analysisText" class="citation-box" style="display:none;">
+                </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function calculateSuccess() {
+        // 1. Get Inputs
+        const gpa = parseFloat(document.getElementById('gpa').value);
+        const major = document.getElementById('major').value;
+        const attendance = parseFloat(document.getElementById('attendance').value);
+        const grit = parseFloat(document.getElementById('grit').value);
+        const risk = parseFloat(document.getElementById('risk').value);
+        const ses = parseFloat(document.getElementById('ses').value);
+
+        // 2. Algorithms based on Research
+
+        // --- DROPOUT PREDICTION ---
+        // Research: Tinto's Integration Model. Low attendance and low GPA are primary predictors.
+        // SES is a secondary weighting factor (financial stress).
+        let dropoutScore = 0;
+        if (gpa < 2.0) dropoutScore += 40;
+        if (gpa < 2.5) dropoutScore += 20;
+        if (attendance < 70) dropoutScore += 30;
+        if (ses === 1) dropoutScore += 15; // Financial stress factor
+        if (grit === 1) dropoutScore += 15; // Lack of perseverance
+        
+        // Cap at 95%, min 5%
+        let dropoutProb = Math.min(95, Math.max(5, dropoutScore));
+
+        // --- HIGHER ED (Masters/PhD) ---
+        // Research: Duckworth. Grit is a better predictor of high-level attainment than IQ alone.
+        // GPA is a gatekeeper.
+        let higherEdScore = 0;
+        higherEdScore += (gpa * 10); // Max 40
+        higherEdScore += (grit * 10); // Max 50
+        higherEdScore += (attendance * 0.2); // Max 20
+        
+        // Penalty for low SES (systemic barriers), can be mitigated by Grit
+        if (ses < 3) higherEdScore -= 10;
+        
+        // Major specific boost (Science/Arts often require higher degrees)
+        if (major === 'stem' || major === 'medical' || major === 'arts') higherEdScore += 10;
+
+        let degreeProb = Math.min(98, Math.max(0, higherEdScore));
+
+        // --- ENTREPRENEURSHIP ---
+        // Research: Risk tolerance and Self-Efficacy (Grit) are key.
+        // High GPA is actually sometimes inversely correlated with risk-taking.
+        let entScore = 0;
+        entScore += (risk * 15); // Risk is the biggest factor (Max 75)
+        entScore += (grit * 5);  // Resilience (Max 25)
+        
+        // Major boost
+        if (major === 'business') entScore += 15;
+        if (major === 'stem') entScore += 10;
+
+        let entProb = Math.min(95, Math.max(5, entScore));
+
+        // --- MILLIONAIRE / WEALTH ---
+        // Research: Field of Study is the #1 predictor of lifetime earnings (Georgetown CEW).
+        // Entrepreneurship acts as a "Wildcard" multiplier.
+        let wealthScore = 30; // Base baseline
+        
+        // Major Weighting
+        if (major === 'stem' || major === 'medical') wealthScore += 30;
+        if (major === 'business') wealthScore += 25;
+        
+        // Education Multiplier (Probabilistic)
+        if (degreeProb > 70) wealthScore += 15; // Masters/PhD boost earnings
+        
+        // The "Founder" path (High risk/High reward)
+        if (entProb > 80) wealthScore += 20;
+
+        // Grit (Deferred gratification)
+        wealthScore += (grit * 4);
+
+        let wealthProb = Math.min(99, Math.max(1, wealthScore));
+
+        // 3. Update UI
+        document.getElementById('resultsCard').style.opacity = '1';
+
+        animateBar('dropoutBar', 'dropoutVal', dropoutProb);
+        animateBar('degreeBar', 'degreeVal', degreeProb);
+        animateBar('entBar', 'entVal', entProb);
+        animateBar('wealthBar', 'wealthVal', wealthProb);
+
+        // 4. Generate Analysis / Citations
+        let analysisHTML = `<div class="citation-title">Research-Based Analysis:</div><ul>`;
+
+        if (dropoutProb > 50) {
+            analysisHTML += `<li><strong>High Dropout Risk:</strong> According to <em>Tinto’s Model of Institutional Action</em>, your combination of attendance (< ${attendance}%) and academic performance suggests low social/academic integration.</li>`;
+        }
+
+        if (degreeProb > 75) {
+            analysisHTML += `<li><strong>Doctorate Potential:</strong> Your high Grit score (${grit}/5) aligns with Angela Duckworth’s findings that perseverance is a stronger predictor of completing difficult degrees than talent alone.</li>`;
+        }
+
+        if (entProb > 70) {
+            analysisHTML += `<li><strong>Entrepreneurial Profile:</strong> You show high "Risk Tolerance," which research by the <em>Journal of Small Business Strategy</em> identifies as a prerequisite for venture creation.</li>`;
+        }
+
+        if (wealthProb < 50 && (major === 'arts' || major === 'education')) {
+            analysisHTML += `<li><strong>Wealth Projection:</strong> Data from <em>Georgetown Center on Education and the Workforce</em> indicates that while your field is socially vital, it historically yields lower lifetime financial returns compared to STEM/Finance.</li>`;
+        }
+
+        analysisHTML += `</ul>`;
+        document.getElementById('analysisText').style.display = 'block';
+        document.getElementById('analysisText').innerHTML = analysisHTML;
+    }
+
+    function animateBar(barId, textId, percent) {
+        const bar = document.getElementById(barId);
+        const text = document.getElementById(textId);
+        
+        bar.style.width = percent + '%';
+        
+        // Simple count up animation
+        let current = 0;
+        const interval = setInterval(() => {
+            current++;
+            text.innerText = current + '%';
+            if (current >= Math.floor(percent)) clearInterval(interval);
+        }, 10);
+    }
+</script>
+
+</body>
+</html>

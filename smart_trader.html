@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartTrade: AI Market Assistant</title>
+    <style>
+        :root {
+            --bg: #0b0e11;
+            --card-bg: #151a21;
+            --text: #e1e8ed;
+            --text-dim: #8899a6;
+            --accent: #2979ff;
+            --green: #00c853;
+            --red: #ff1744;
+            --gold: #ffd600;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+        body { background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; }
+
+        .app-container { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 20px; }
+
+        /* Header & Risk Slider */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .logo { font-weight: 800; font-size: 1.5rem; color: var(--accent); letter-spacing: -1px; }
+        
+        .risk-control {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .slider-label { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--text-dim); margin-bottom: 10px; }
+        
+        input[type=range] {
+            width: 100%;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        /* The Feed */
+        .feed-header { font-size: 1.1rem; font-weight: 600; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .refresh-btn { 
+            background: none; border: 1px solid var(--accent); color: var(--accent); 
+            padding: 5px 12px; border-radius: 20px; cursor: pointer; font-size: 0.8rem;
+        }
+        .refresh-btn:hover { background: rgba(41, 121, 255, 0.1); }
+
+        /* Suggestion Cards */
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            border-left: 5px solid transparent;
+            animation: slideIn 0.4s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card.bullish { border-left-color: var(--green); }
+        .card.bearish { border-left-color: var(--red); }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card-top { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .ticker { font-size: 1.4rem; font-weight: 800; }
+        .price { font-family: monospace; font-size: 1.1rem; }
+        
+        .badge { 
+            padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+        }
+        .badge-buy { background: rgba(0, 200, 83, 0.2); color: var(--green); }
+        .badge-sell { background: rgba(255, 23, 68, 0.2); color: var(--red); }
+
+        .reasoning { font-size: 0.9rem; color: var(--text-dim); line-height: 1.5; margin-bottom: 15px; }
+        
+        .confidence-meter {
+            height: 4px; background: #333; border-radius: 2px; margin-bottom: 15px; overflow: hidden;
+        }
+        .confidence-fill { height: 100%; transition: width 1s ease; }
+
+        /* Actions */
+        .action-row { display: flex; gap: 10px; }
+        
+        .btn {
+            flex: 1; padding: 10px; border: none; border-radius: 8px; 
+            font-weight: 600; cursor: pointer; font-size: 0.9rem;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-ghost { background: #252e38; color: var(--text-dim); }
+        .btn-ghost:hover { color: var(--text); background: #2f3b47; }
+
+        /* Research Drawer */
+        .research-drawer {
+            display: none;
+            background: #0f1216;
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        .paper-link { display: block; padding: 8px 0; color: var(--accent); text-decoration: none; border-bottom: 1px solid #333; }
+        .paper-link:last-child { border-bottom: none; }
+
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header">
+        <div class="logo">⚡ SmartTrade</div>
+        <div style="font-size: 0.8rem; color: var(--text-dim);">Balance: $10,000</div>
+    </div>
+
+    <div class="risk-control">
+        <div class="slider-label">
+            <span>Conservative</span>
+            <span id="riskText" style="color:var(--accent); font-weight:bold;">Balanced</span>
+            <span>Aggressive</span>
+        </div>
+        <input type="range" min="1" max="3" value="2" id="riskSlider" oninput="updateRisk()">
+        <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 10px;" id="riskDesc">
+            Targeting low volatility stocks and dividends.
+        </p>
+    </div>
+
+    <div class="feed-header">
+        <span>Suggested Moves</span>
+        <button class="refresh-btn" onclick="generateFeed()">⟳ Scan Market</button>
+    </div>
+
+    <div id="feedContainer">
+        </div>
+
+</div>
+
+<script>
+    // --- MOCK DATA ENGINE ---
+    // Simulating a backend database of market conditions
+    const assets = [
+        { ticker: "NVDA", price: 420.50, volatility: "high", sector: "Tech" },
+        { ticker: "SPY", price: 445.20, volatility: "low", sector: "Index" },
+        { ticker: "TSLA", price: 250.00, volatility: "high", sector: "Auto" },
+        { ticker: "JNJ", price: 160.00, volatility: "low", sector: "Health" },
+        { ticker: "AMD", price: 105.00, volatility: "high", sector: "Tech" },
+        { ticker: "GLD", price: 180.00, volatility: "low", sector: "Commodity" },
+        { ticker: "COIN", price: 85.00, volatility: "extreme", sector: "Crypto" },
+        { ticker: "KO", price: 58.00, volatility: "low", sector: "Consumer" }
+    ];
+
+    const signals = [
+        { type: "Bullish", name: "Golden Cross", desc: "50-day MA crossed above 200-day MA.", color: "var(--green)", bg: "badge-buy" },
+        { type: "Bullish", name: "RSI Oversold", desc: "RSI is below 30. Potential bounce imminent.", color: "var(--green)", bg: "badge-buy" },
+        { type: "Bearish", name: "Death Cross", desc: "50-day MA crossed below 200-day MA.", color: "var(--red)", bg: "badge-sell" },
+        { type: "Bearish", name: "Resistance Hit", desc: "Price rejected at key resistance level.", color: "var(--red)", bg: "badge-sell" },
+        { type: "Bullish", name: "Volume Breakout", desc: "Buying volume is 200% above average.", color: "var(--green)", bg: "badge-buy" }
+    ];
+
+    // --- LOGIC ---
+
+    function updateRisk() {
+        const val = document.getElementById('riskSlider').value;
+        const txt = document.getElementById('riskText');
+        const desc = document.getElementById('riskDesc');
+
+        if(val == 1) {
+            txt.innerText = "Conservative";
+            desc.innerText = "Targeting stable blue-chip stocks and ETFs.";
+        } else if(val == 2) {
+            txt.innerText = "Balanced";
+            desc.innerText = "Mix of growth stocks and stable indices.";
+        } else {
+            txt.innerText = "Aggressive";
+            desc.innerText = "High beta stocks, crypto, and momentum trades.";
+        }
+        generateFeed(); // Regenerate suggestions based on new risk profile
+    }
+
+    function generateFeed() {
+        const container = document.getElementById('feedContainer');
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-dim);">Scanning Market Data...</div>';
+        
+        const riskLevel = document.getElementById('riskSlider').value;
+        
+        setTimeout(() => {
+            container.innerHTML = "";
+            
+            // 1. Filter assets based on risk
+            let filteredAssets = assets.filter(a => {
+                if (riskLevel == 1) return a.volatility === "low";
+                if (riskLevel == 2) return a.volatility !== "extreme";
+                return true; // Risk 3 = Show everything
+            });
+
+            // 2. Pick 3 random assets to suggest
+            const picks = filteredAssets.sort(() => 0.5 - Math.random()).slice(0, 3);
+
+            // 3. Create Cards
+            picks.forEach(asset => {
+                // Assign a random signal
+                const signal = signals[Math.floor(Math.random() * signals.length)];
+                const confidence = Math.floor(Math.random() * (95 - 60) + 60); // Random 60-95%
+                
+                // HTML Generation
+                const card = document.createElement('div');
+                card.className = `card ${signal.type === 'Bullish' ? 'bullish' : 'bearish'}`;
+                
+                card.innerHTML = `
+                    <div class="card-top">
+                        <div>
+                            <span class="ticker">${asset.ticker}</span>
+                            <span class="badge ${signal.bg}">${signal.type}</span>
+                        </div>
+                        <div class="price">$${asset.price.toFixed(2)}</div>
+                    </div>
+                    
+                    <div class="reasoning">
+                        <strong>Signal: ${signal.name}</strong><br>
+                        ${signal.desc} <br>
+                        <em style="font-size:0.8rem; color:#666">Sector: ${asset.sector}</em>
+                    </div>
+
+                    <div style="font-size:0.8rem; margin-bottom:5px; display:flex; justify-content:space-between;">
+                        <span>AI Confidence</span>
+                        <span>${confidence}%</span>
+                    </div>
+                    <div class="confidence-meter">
+                        <div class="confidence-fill" style="width: ${confidence}%; background: ${signal.color}"></div>
+                    </div>
+
+                    <div class="action-row">
+                        <button class="btn btn-primary" onclick="alert('Trade simulated: ${signal.type === 'Bullish' ? 'Bought' : 'Sold'} ${asset.ticker}')">
+                            ${signal.type === 'Bullish' ? 'Buy' : 'Sell'}
+                        </button>
+                        <button class="btn btn-ghost" onclick="toggleResearch(this, '${asset.sector}')">
+                            🎓 Why?
+                        </button>
+                    </div>
+                    <div class="research-drawer"></div>
+                `;
+                container.appendChild(card);
+            });
+
+        }, 800); // Fake loading delay for realism
+    }
+
+    // --- RESEARCH API INTEGRATION (arXiv) ---
+    async function toggleResearch(btn, topic) {
+        const drawer = btn.parentElement.nextElementSibling;
+        
+        if (drawer.style.display === "block") {
+            drawer.style.display = "none";
+            return;
+        }
+
+        drawer.style.display = "block";
+        drawer.innerHTML = "Fetching academic papers...";
+
+        // Mapping sector to arXiv categories
+        let query = "finance";
+        if (topic === "Tech") query = "machine learning finance";
+        if (topic === "Crypto") query = "blockchain finance";
+        if (topic === "Index") query = "portfolio optimization";
+
+        try {
+            // Using a CORS proxy approach or direct if allowed. 
+            // Note: In a real production app, this fetch happens server-side.
+            const response = await fetch(`https://export.arxiv.org/api/query?search_query=all:${query}&start=0&max_results=3`);
+            const str = await response.text();
+            const xml = new DOMParser().parseFromString(str, "text/xml");
+            const entries = xml.getElementsByTagName("entry");
+
+            let html = "";
+            for (let i = 0; i < entries.length; i++) {
+                const title = entries[i].getElementsByTagName("title")[0].textContent;
+                const link = entries[i].getElementsByTagName("id")[0].textContent;
+                html += `<a href="${link}" target="_blank" class="paper-link">📄 ${title.substring(0, 60)}...</a>`;
+            }
+            drawer.innerHTML = html;
+
+        } catch (e) {
+            drawer.innerHTML = `<a href="https://arxiv.org/search/?query=${query}&searchtype=all" target="_blank" class="paper-link">See Research on arXiv ↗</a>`;
+        }
+    }
+
+    // Initial Load
+    updateRisk();
+
+</script>
+
+</body>
+</html>

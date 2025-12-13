@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Wealth Architect</title>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text-main: #334155;
+            --text-light: #64748b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            gap: 20px;
+        }
+
+        /* Tabs Navigation */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-light);
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .tab-btn.active {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.4);
+        }
+
+        /* Sections */
+        .section {
+            display: none;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        
+        .section.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Cards & Layout */
+        .card {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        h2 { margin-top: 0; color: var(--primary); font-size: 1.5rem; }
+        h3 { color: var(--text-main); font-size: 1.1rem; margin-bottom: 15px; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+
+        /* Inputs */
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; color: var(--text-main); }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        
+        button.action-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button.action-btn:hover { background: #1e293b; }
+
+        /* Visualizations */
+        .stat-box {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--accent);
+            margin-bottom: 10px;
+        }
+        .stat-value { font-size: 1.4rem; font-weight: 800; color: var(--primary); }
+        .stat-label { font-size: 0.85rem; color: var(--text-light); }
+
+        /* Debt Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { font-size: 0.85rem; color: var(--text-light); }
+        .debt-row:last-child td { border-bottom: none; }
+
+        /* Research Tooltip */
+        .research-note {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-top: 15px;
+            display: flex;
+            align-items: start;
+            gap: 10px;
+        }
+        .icon { font-size: 1.2rem; }
+
+        /* Chart Bar Wrapper */
+        .bar-chart-wrapper {
+            margin-top: 20px;
+            height: 200px;
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .bar-col {
+            flex: 1;
+            background: var(--accent);
+            border-radius: 4px 4px 0 0;
+            position: relative;
+            transition: height 0.5s ease;
+            min-height: 2px;
+        }
+        .bar-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            color: var(--text-light);
+            white-space: nowrap;
+        }
+        .bar-val {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header style="text-align: center; margin-bottom: 30px;">
+        <h1 style="margin:0; color:var(--primary);">Wealth Architect</h1>
+        <p style="color:var(--text-light);">Tools grounded in Behavioral Economics & Peer-Reviewed Finance</p>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('budget')">1. Smart Budget</button>
+        <button class="tab-btn" onclick="switchTab('debt')">2. Debt Destroyer</button>
+        <button class="tab-btn" onclick="switchTab('emergency')">3. Safety Net</button>
+        <button class="tab-btn" onclick="switchTab('growth')">4. Wealth Projection</button>
+    </div>
+
+    <div id="budget" class="section active">
+        <div class="grid-2">
+            <div class="card">
+                <h3>Monthly Inflow</h3>
+                <div class="form-group">
+                    <label>Net Monthly Income ($)</label>
+                    <input type="number" id="income" oninput="calcBudget()" placeholder="5000">
+                </div>
+                <div class="research-note">
+                    <span class="icon">🧠</span>
+                    <div>
+                        <strong>Mental Accounting:</strong> This tool automatically segments your income into "buckets" (Needs, Wants, Savings). Research shows this reduces the temptation to overspend by creating clear psychological boundaries.
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Allocation (50/30/20 Rule)</h3>
+                <div class="stat-box" style="border-left-color: var(--warning);">
+                    <div class="stat-label">Needs (50%) - Rent, Food, Utils</div>
+                    <div class="stat-value" id="res-needs">$0</div>
+                </div>
+                <div class="stat-box" style="border-left-color: #8b5cf6;">
+                    <div class="stat-label">Wants (30%) - Fun, Travel</div>
+                    <div class="stat-value" id="res-wants">$0</div>
+                </div>
+                <div class="stat-box" style="border-left-color: var(--success);">
+                    <div class="stat-label">Wealth (20%) - Save & Invest</div>
+                    <div class="stat-value" id="res-savings">$0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="debt" class="section">
+        <div class="card">
+            <div class="grid-2">
+                <div>
+                    <h3>Add Debt</h3>
+                    <div class="form-group">
+                        <label>Debt Name</label>
+                        <input type="text" id="debt-name" placeholder="Credit Card">
+                    </div>
+                    <div class="form-group">
+                        <label>Balance ($)</label>
+                        <input type="number" id="debt-bal" placeholder="2000">
+                    </div>
+                    <div class="form-group">
+                        <label>Interest Rate (%)</label>
+                        <input type="number" id="debt-rate" placeholder="19.9">
+                    </div>
+                    <div class="form-group">
+                        <label>Min Payment ($)</label>
+                        <input type="number" id="debt-min" placeholder="50">
+                    </div>
+                    <button class="action-btn" onclick="addDebt()">Add to List</button>
+                </div>
+                <div>
+                    <h3>Strategy: Snowball Method</h3>
+                    <p style="font-size: 0.9rem; color: var(--text-light);">
+                        We default to the <strong>Snowball Method</strong> (paying smallest balance first). 
+                        <em>Kellogg School of Management</em> research indicates that the "quick wins" of closing small accounts motivates people to stick with debt repayment longer than the mathematically optimal "Avalanche" method.
+                    </p>
+                    <div id="debt-list">
+                        <table id="debt-table" style="display:none;">
+                            <thead>
+                                <tr><th>Name</th><th>Balance</th><th>Rate</th><th>Min Pay</th></tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="emergency" class="section">
+        <div class="card">
+            <h3>Calculate Safety Net</h3>
+            <p style="font-size: 0.9rem;">Based on the <strong>Buffer Stock Model</strong>, your emergency fund should not be a static number, but a function of your "Burn Rate" and income stability.</p>
+            
+            <div class="grid-2">
+                <div>
+                    <div class="form-group">
+                        <label>Monthly "Must-Haves" Expenses ($)</label>
+                        <input type="number" id="burn-rate" placeholder="e.g. 3000">
+                    </div>
+                    <div class="form-group">
+                        <label>Income Stability</label>
+                        <select id="income-stability">
+                            <option value="3">High (Tenured Job)</option>
+                            <option value="6">Medium (Corporate/Hourly)</option>
+                            <option value="9">Low (Freelance/Commission)</option>
+                        </select>
+                    </div>
+                    <button class="action-btn" onclick="calcEmergency()">Calculate Target</button>
+                </div>
+                <div>
+                    <div class="stat-box" style="border-left-color: var(--danger);">
+                        <div class="stat-label">Recommended Fund Size</div>
+                        <div class="stat-value" id="ef-target">$0</div>
+                    </div>
+                    <div class="research-note">
+                        <span class="icon">🛡️</span>
+                        <div>
+                            <strong>Why this amount?</strong>
+                            Higher volatility (freelancing) requires a larger "buffer stock" to prevent liquidation of long-term investments during downturns.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="growth" class="section">
+        <div class="card">
+            <h3>The Power of Compounding</h3>
+            <div class="grid-2">
+                <div>
+                    <div class="form-group">
+                        <label>Initial Investment ($)</label>
+                        <input type="number" id="inv-init" value="1000">
+                    </div>
+                    <div class="form-group">
+                        <label>Monthly Contribution ($)</label>
+                        <input type="number" id="inv-month" value="500">
+                    </div>
+                    <div class="form-group">
+                        <label>Years to Grow</label>
+                        <input type="range" id="inv-years" min="5" max="40" value="10" oninput="this.nextElementSibling.value = this.value">
+                        <output>10</output> years
+                    </div>
+                    <button class="action-btn" onclick="calcGrowth()">Project Wealth</button>
+                </div>
+                <div>
+                     <div class="stat-box">
+                        <div class="stat-label">Projected Total</div>
+                        <div class="stat-value" id="inv-total">$0</div>
+                    </div>
+                    <div class="bar-chart-wrapper" id="chart-container">
+                        </div>
+                </div>
+            </div>
+             <div class="research-note">
+                <span class="icon">📈</span>
+                <div>
+                    <strong>Exponential Growth Bias:</strong> Humans underestimate compound interest. This visualization proves that time in the market beats timing the market.
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- UTILITIES ---
+    const formatMoney = (num) => '$' + Number(num).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    // --- 1. BUDGET LOGIC ---
+    function calcBudget() {
+        const income = document.getElementById('income').value;
+        if(income) {
+            document.getElementById('res-needs').textContent = formatMoney(income * 0.50);
+            document.getElementById('res-wants').textContent = formatMoney(income * 0.30);
+            document.getElementById('res-savings').textContent = formatMoney(income * 0.20);
+        }
+    }
+
+    // --- 2. DEBT LOGIC ---
+    let debts = [];
+
+    function addDebt() {
+        const name = document.getElementById('debt-name').value;
+        const bal = parseFloat(document.getElementById('debt-bal').value);
+        const rate = parseFloat(document.getElementById('debt-rate').value);
+        const min = parseFloat(document.getElementById('debt-min').value);
+
+        if(!name || !bal) return;
+
+        debts.push({name, bal, rate, min});
+        
+        // Sort by Balance (Snowball Method)
+        debts.sort((a,b) => a.bal - b.bal);
+
+        renderDebts();
+        
+        // Clear inputs
+        document.getElementById('debt-name').value = '';
+        document.getElementById('debt-bal').value = '';
+    }
+
+    function renderDebts() {
+        const tbody = document.querySelector('#debt-table tbody');
+        const table = document.getElementById('debt-table');
+        tbody.innerHTML = '';
+        
+        if(debts.length > 0) table.style.display = 'table';
+
+        debts.forEach(d => {
+            const row = `
+                <tr class="debt-row">
+                    <td>${d.name}</td>
+                    <td>${formatMoney(d.bal)}</td>
+                    <td>${d.rate}%</td>
+                    <td>${formatMoney(d.min)}</td>
+                </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', row);
+        });
+    }
+
+    // --- 3. EMERGENCY FUND LOGIC ---
+    function calcEmergency() {
+        const burn = parseFloat(document.getElementById('burn-rate').value);
+        const months = parseInt(document.getElementById('income-stability').value);
+        
+        if(burn && months) {
+            const target = burn * months;
+            document.getElementById('ef-target').textContent = formatMoney(target);
+        }
+    }
+
+    // --- 4. GROWTH LOGIC ---
+    function calcGrowth() {
+        const init = parseFloat(document.getElementById('inv-init').value) || 0;
+        const month = parseFloat(document.getElementById('inv-month').value) || 0;
+        const years = parseInt(document.getElementById('inv-years').value);
+        const rate = 0.07; // Assuming 7% average market return
+
+        let balance = init;
+        const dataPoints = [];
+
+        // Generate 5 data points for the chart
+        const step = years / 5;
+        
+        for(let i=1; i<=years; i++) {
+            balance = (balance + (month * 12)) * (1 + rate);
+            
+            // Capture data points for chart
+            if (i % Math.ceil(step) === 0 || i === years) {
+                if(dataPoints.length < 5) dataPoints.push({year: i, val: balance});
+            }
+        }
+
+        document.getElementById('inv-total').textContent = formatMoney(balance);
+        renderChart(dataPoints);
+    }
+
+    function renderChart(data) {
+        const container = document.getElementById('chart-container');
+        container.innerHTML = '';
+        
+        const maxVal = data[data.length-1].val;
+
+        data.forEach(d => {
+            const heightPct = (d.val / maxVal) * 100;
+            const bar = `
+                <div class="bar-col" style="height: ${heightPct}%">
+                    <span class="bar-val">${formatMoney(d.val)}</span>
+                    <span class="bar-label">Yr ${d.year}</span>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', bar);
+        });
+    }
+
+    // Init with chart demo
+    window.onload = function() {
+        calcGrowth(); 
+    }
+</script>
+
+</body>
+</html>
