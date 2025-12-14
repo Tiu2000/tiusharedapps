@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniView | TIU Ultimate</title>
+    <style>
+        :root {
+            /* CORE THEME */
+            --bg-color: #050505;
+            --panel-bg: rgba(20, 20, 25, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #e0e0e0;
+            --text-muted: #6b7280;
+            
+            /* REGIONAL COLORS */
+            --west: #3b82f6;   /* Blue */
+            --east: #ef4444;   /* Red */
+            --mena: #10b981;   /* Green */
+            --south: #f59e0b;  /* Orange */
+
+            /* SENTIMENT COLORS */
+            --sentiment-neg: rgba(239, 68, 68, 0.15); /* Faint Red */
+            --sentiment-pos: rgba(16, 185, 129, 0.15); /* Faint Green */
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+        
+        body {
+            background-color: var(--bg-color);
+            /* Subtle radial gradients to give depth */
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.05), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(239, 68, 68, 0.05), transparent 25%);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Main window fixed; panels scroll internally */
+        }
+
+        /* --- HEADER & CONTROLS --- */
+        header {
+            height: 60px;
+            padding: 0 25px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(5, 5, 5, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 50;
+        }
+
+        .logo { font-size: 1.2rem; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: #fff; }
+        .logo span { color: var(--west); }
+
+        .search-bar {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            width: 300px;
+            transition: all 0.3s ease;
+        }
+        .search-bar:focus { width: 400px; background: rgba(255, 255, 255, 0.1); border-color: #555; }
+
+        /* --- MAIN GRID --- */
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 1px;
+            flex: 1;
+            position: relative;
+            overflow: hidden; 
+        }
+
+        /* INDIVIDUAL QUADRANTS */
+        .quadrant {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255,255,255,0.02);
+            position: relative;
+            overflow-y: auto; /* Scroll enabled inside each box */
+            padding: 20px;
+            transition: background 0.3s;
+        }
+        .quadrant:hover { background: rgba(25, 25, 30, 0.85); }
+
+        /* CUSTOM SCROLLBARS */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+        /* QUADRANT HEADERS (Sticky) */
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid;
+            position: sticky;
+            top: 0;
+            background: var(--bg-color); /* Opaque to hide scrolling text */
+            z-index: 10;
+            opacity: 0.95;
+        }
+        .q-header h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+        
+        .q-west .q-header { border-color: var(--west); color: var(--west); }
+        .q-east .q-header { border-color: var(--east); color: var(--east); }
+        .q-mena .q-header { border-color: var(--mena); color: var(--mena); }
+        .q-south .q-header { border-color: var(--south); color: var(--south); }
+
+        /* --- NEWS ITEMS --- */
+        .news-item {
+            padding: 12px;
+            margin-bottom: 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+            border-left: 3px solid transparent; /* Default border */
+            transition: transform 0.2s, background 0.2s;
+        }
+        .news-item:hover { transform: translateX(5px); background: rgba(255,255,255,0.07); }
+
+        .meta { display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; }
+        .headline { font-size: 0.95rem; line-height: 1.4; color: #eee; text-decoration: none; display: block; font-weight: 500; }
+        .headline:hover { color: #fff; text-decoration: underline; }
+
+        /* SENTIMENT GLOWS (AI Feature) */
+        .sentiment-negative { 
+            border-left-color: #ef4444; 
+            background: linear-gradient(90deg, var(--sentiment-neg), transparent); 
+        }
+        .sentiment-positive { 
+            border-left-color: #10b981; 
+            background: linear-gradient(90deg, var(--sentiment-pos), transparent); 
+        }
+
+        /* --- THE CONSENSUS PULSE (Center Orb) --- */
+        .consensus-orb {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px; height: 60px;
+            z-index: 100;
+            pointer-events: none; /* Allows clicks to pass through */
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .orb-core {
+            width: 12px; height: 12px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 20px 5px rgba(255, 255, 255, 0.4);
+            z-index: 102;
+            transition: all 1s ease;
+        }
+
+        /* This triggers when data is loaded */
+        .orb-active .orb-core {
+            box-shadow: -8px -8px 20px var(--west), 
+                        8px -8px 20px var(--east), 
+                        -8px 8px 20px var(--mena), 
+                        8px 8px 20px var(--south);
+            animation: pulse-conflict 3s infinite;
+        }
+
+        @keyframes pulse-conflict {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        /* --- WATERMARK FIXED --- */
+        .tiu-watermark {
+            position: fixed;
+            bottom: 20px;       
+            right: 30px;        
+            font-family: 'Courier New', monospace;
+            font-weight: 900;
+            font-size: 8rem;   
+            
+            /* High visibility fix */
+            color: rgba(255, 255, 255, 0.08); /* Visible but subtle */
+            z-index: 9999;      /* Forces it to sit ON TOP of everything */
+            pointer-events: none; /* Clicks will pass through it */
+            
+            /* Holographic/Breathing Animation */
+            animation: breathe 6s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+            0%, 100% { opacity: 0.08; transform: scale(1); }
+            50% { opacity: 0.12; transform: scale(1.02); }
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 900px) {
+            .grid-container { 
+                grid-template-columns: 1fr; 
+                grid-template-rows: auto; 
+                display: block;
+                overflow-y: auto;
+            }
+            .quadrant { height: 400px; border-bottom: 1px solid #333; }
+            .tiu-watermark { font-size: 5rem; bottom: 10px; right: 10px; }
+            .consensus-orb { display: none; } /* Hide orb on mobile */
+            .search-bar:focus { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">OMNI<span>VIEW</span></div>
+        <input type="text" class="search-bar" id="searchInput" placeholder="Filter global feeds (e.g. 'Trade', 'War')..." onkeyup="filterNews()">
+    </header>
+
+    <div class="grid-container">
+        
+        <div class="consensus-orb" id="consensusOrb">
+            <div class="orb-core"></div>
+        </div>
+
+        <div class="quadrant q-west">
+            <div class="q-header">
+                <h2>Western Lens (BBC/CNN)</h2>
+                <span id="status-west" style="font-size:0.6rem; opacity:0.6">CONNECTING...</span>
+            </div>
+            <div id="feed-west"></div>
+        </div>
+
+        <div class="quadrant q-east">
+            <div class="q-header">
+                <h2>Eastern Lens (China Daily)</h2>
+                <span id="status-east" style="font-size:0.6rem; opacity:0.6">CONNECTING...</span>
+            </div>
+            <div id="feed-east"></div>
+        </div>
+
+        <div class="quadrant q-mena">
+            <div class="q-header">
+                <h2>MENA Lens (Al Jazeera)</h2>
+                <span id="status-mena" style="font-size:0.6rem; opacity:0.6">CONNECTING...</span>
+            </div>
+            <div id="feed-mena"></div>
+        </div>
+
+        <div class="quadrant q-south">
+            <div class="q-header">
+                <h2>Global South Lens (The Hindu)</h2>
+                <span id="status-south" style="font-size:0.6rem; opacity:0.6">CONNECTING...</span>
+            </div>
+            <div id="feed-south"></div>
+        </div>
+
+    </div>
+
+    <div class="tiu-watermark">TIU</div>
+
+    <script>
+        // RSS Bridge to bypass CORS
+        const RSS_BRIDGE = "https://api.rss2json.com/v1/api.json?rss_url=";
+        
+        // Sentiment Keywords
+        const NEG_WORDS = ['war', 'dead', 'kill', 'attack', 'crisis', 'crash', 'threat', 'missile', 'strike', 'conflict', 'die', 'disaster', 'shot', 'blast'];
+        const POS_WORDS = ['peace', 'deal', 'agreement', 'growth', 'record', 'win', 'success', 'breakthrough', 'recover', 'safe', 'cooperation', 'rescue'];
+
+        // Live Feed Sources
+        const SOURCES = {
+            west: "https://feeds.bbci.co.uk/news/world/rss.xml",
+            east: "http://www.chinadaily.com.cn/rss/world_rss.xml",
+            mena: "https://www.aljazeera.com/xml/rss/all.xml",
+            south: "https://www.thehindu.com/news/international/feeder/default.rss"
+        };
+
+        // 1. Analyze Sentiment
+        function analyzeSentiment(text) {
+            const lower = text.toLowerCase();
+            if (NEG_WORDS.some(w => lower.includes(w))) return 'sentiment-negative';
+            if (POS_WORDS.some(w => lower.includes(w))) return 'sentiment-positive';
+            return '';
+        }
+
+        // 2. Fetch Feeds
+        async function loadFeed(region, url) {
+            const container = document.getElementById(`feed-${region}`);
+            const status = document.getElementById(`status-${region}`);
+            
+            try {
+                const res = await fetch(RSS_BRIDGE + encodeURIComponent(url));
+                const data = await res.json();
+                
+                if(data.status === 'ok') {
+                    status.innerText = "LIVE";
+                    status.style.color = "#10b981"; // Green text
+                    let html = '';
+                    
+                    data.items.slice(0, 15).forEach(item => {
+                        const sentimentClass = analyzeSentiment(item.title);
+                        // Format Time
+                        const dateObj = new Date(item.pubDate);
+                        const time = isNaN(dateObj.getTime()) ? '' : dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        
+                        html += `
+                            <div class="news-item ${sentimentClass}">
+                                <div class="meta">
+                                    <span>${time}</span>
+                                    <span>${data.feed.title.split(' ')[0]}</span> 
+                                </div>
+                                <a href="${item.link}" target="_blank" class="headline">${item.title}</a>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                }
+            } catch (e) {
+                status.innerText = "OFFLINE";
+                status.style.color = "#ef4444";
+                container.innerHTML = `<div style="color:#666; padding:10px; font-size:0.8rem;">Signal Interrupted. Source may be blocking connections.</div>`;
+            }
+        }
+
+        // 3. Search Filter
+        function filterNews() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const allItems = document.querySelectorAll('.news-item');
+
+            allItems.forEach(item => {
+                const text = item.innerText.toLowerCase();
+                if(text.includes(term)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // 4. Activate Consensus Orb (Simulation)
+        function activateBrain() {
+            const orb = document.getElementById('consensusOrb');
+            // Wait 2 seconds then activate the "Conflict Mode" glow
+            setTimeout(() => {
+                orb.classList.add('orb-active');
+            }, 2000);
+        }
+
+        // Initialize App
+        window.onload = () => {
+            Object.keys(SOURCES).forEach(key => loadFeed(key, SOURCES[key]));
+            activateBrain();
+        };
+
+    </script>
+</body>
+</html>
