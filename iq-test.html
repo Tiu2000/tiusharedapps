@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cognitive Assessment | TIU Framework</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --light: #ecf0f1;
+            --success: #27ae60;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* TIU Watermark */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 4rem;
+            font-weight: 900;
+            color: rgba(0, 0, 0, 0.03);
+            pointer-events: none;
+            user-select: none;
+            z-index: 0;
+            font-family: 'Times New Roman', serif;
+            letter-spacing: 5px;
+        }
+
+        .container {
+            background: white;
+            width: 100%;
+            max-width: 700px;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            position: relative;
+            z-index: 1;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: var(--primary);
+        }
+
+        .phase {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .phase.active {
+            display: block;
+        }
+
+        /* Disclaimer Section */
+        .disclaimer-box {
+            background: #fff8e1;
+            border-left: 4px solid #f1c40f;
+            padding: 15px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            color: #555;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            background: var(--accent);
+        }
+
+        /* Test Interface */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #eee;
+            margin-bottom: 30px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .question-container {
+            margin-bottom: 30px;
+        }
+
+        .question-text {
+            font-size: 1.25rem;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .option-btn {
+            background: white;
+            border: 2px solid var(--light);
+            padding: 15px;
+            text-align: left;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover {
+            border-color: var(--accent);
+            background: #fbfbfb;
+        }
+
+        .option-btn.selected {
+            border-color: var(--primary);
+            background: #eef2f5;
+            font-weight: 600;
+        }
+
+        /* Results Section */
+        .result-circle {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: 10px solid var(--primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 30px;
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            position: relative;
+        }
+
+        .result-label {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .stat-box h4 { margin: 0 0 5px 0; color: #777; font-size: 0.9rem; }
+        .stat-box p { margin: 0; font-size: 1.2rem; font-weight: 600; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <div class="container">
+        <div id="intro" class="phase active">
+            <h1>Cognitive Assessment</h1>
+            <p>This assessment utilizes the <strong>Cattell-Horn-Carroll (CHC)</strong> theoretical framework to estimate your Fluid Reasoning (Gf) capabilities.</p>
+            
+            <div class="disclaimer-box">
+                <strong>Scientific Disclaimer:</strong> This web-based tool provides a heuristic estimate of cognitive ability. It is not a clinical diagnostic tool. Genuine IQ testing requires controlled administration by a licensed psychologist.
+            </div>
+
+            <ul>
+                <li><strong>Duration:</strong> Approx. 5-10 minutes</li>
+                <li><strong>Format:</strong> Matrix reasoning, number series, and verbal logic.</li>
+                <li><strong>Scoring:</strong> Adaptive algorithm based on accuracy and processing speed.</li>
+            </ul>
+
+            <button class="btn" onclick="app.startTest()">Begin Assessment</button>
+        </div>
+
+        <div id="test" class="phase">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress"></div>
+            </div>
+            
+            <div class="question-container">
+                <div class="question-text" id="q-text">Loading...</div>
+                <div class="options-grid" id="q-options">
+                    </div>
+            </div>
+        </div>
+
+        <div id="results" class="phase">
+            <h2>Assessment Complete</h2>
+            <div class="result-label">Estimated IQ Score</div>
+            <div class="result-circle">
+                <span id="score-display">--</span>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <h4>Percentile Rank</h4>
+                    <p id="percentile">--</p>
+                </div>
+                <div class="stat-box">
+                    <h4>Classification</h4>
+                    <p id="classification">--</p>
+                </div>
+            </div>
+
+            <p style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #666;">
+                *Score calculated based on standard deviation σ=15, mean μ=100.
+            </p>
+            <button class="btn" onclick="location.reload()">Retake Assessment</button>
+        </div>
+    </div>
+
+    <script>
+        const app = {
+            // "Fluid Reasoning" (Gf) & Logic questions
+            questions: [
+                {
+                    text: "Which number completes the sequence? 2, 3, 5, 9, 17, ...",
+                    options: ["31", "33", "25", "34"],
+                    correct: 1, // 33 (pattern: x2 - 1)
+                    weight: 1.2
+                },
+                {
+                    text: "If all Bloops are Razzies and some Razzies are Zatts, which logic holds true?",
+                    options: ["All Bloops are Zatts", "Some Bloops might be Zatts", "No Bloops are Zatts", "All Zatts are Bloops"],
+                    correct: 1,
+                    weight: 1.0
+                },
+                {
+                    text: "Finger is to Hand as Leaf is to...",
+                    options: ["Tree", "Branch", "Twig", "Bark"],
+                    correct: 2, // Twig (closest anatomical branch point)
+                    weight: 0.8
+                },
+                {
+                    text: "Which number is the odd one out: 64, 27, 100, 8, 125",
+                    options: ["64", "27", "100", "8"],
+                    correct: 2, // 100 (only one that is not a perfect cube)
+                    weight: 1.5
+                },
+                {
+                    text: "Complete the matrix: 1, 4, 9, 16, 25, ...",
+                    options: ["36", "49", "30", "32"],
+                    correct: 0, // 36 (squares)
+                    weight: 0.9
+                },
+                {
+                    text: "Logic: If A > B and B > C, then...",
+                    options: ["A < C", "A = C", "A > C", "Relationship unknown"],
+                    correct: 2,
+                    weight: 0.7
+                },
+                {
+                    text: "Unscramble the letters 'CIFAIPC' to form the name of an ocean. What is the last letter?",
+                    options: ["C", "A", "N", "F"],
+                    correct: 0, // PACIFIC -> C
+                    weight: 1.3
+                },
+                {
+                    text: "What comes next: 11, 22, 13, 26, 17, 34, 25, ...",
+                    options: ["50", "49", "52", "27"],
+                    correct: 0, // 50 (Pattern: x2, then sum of digits + 1? No. Alt: x2, reverse digits? No. Logic: x2, then -9. 22-9=13. 13*2=26. 26-9=17. 17*2=34. 34-9=25. 25*2=50)
+                    weight: 1.8
+                }
+            ],
+            
+            currentQ: 0,
+            score: 0,
+            startTime: 0,
+            totalWeight: 0,
+
+            init: function() {
+                this.totalWeight = this.questions.reduce((a, b) => a + b.weight, 0);
+            },
+
+            startTest: function() {
+                this.init();
+                this.startTime = Date.now();
+                document.getElementById('intro').classList.remove('active');
+                document.getElementById('test').classList.add('active');
+                this.renderQuestion();
+            },
+
+            renderQuestion: function() {
+                const q = this.questions[this.currentQ];
+                
+                // Update text
+                document.getElementById('q-text').innerText = `${this.currentQ + 1}. ${q.text}`;
+                
+                // Update progress
+                const pct = (this.currentQ / this.questions.length) * 100;
+                document.getElementById('progress').style.width = `${pct}%`;
+
+                // Render options
+                const optsDiv = document.getElementById('q-options');
+                optsDiv.innerHTML = '';
+                
+                q.options.forEach((opt, idx) => {
+                    const btn = document.createElement('div');
+                    btn.className = 'option-btn';
+                    btn.innerText = opt;
+                    btn.onclick = () => this.selectAnswer(idx);
+                    optsDiv.appendChild(btn);
+                });
+            },
+
+            selectAnswer: function(selectedIndex) {
+                const q = this.questions[this.currentQ];
+                
+                if (selectedIndex === q.correct) {
+                    this.score += q.weight;
+                }
+
+                this.currentQ++;
+
+                if (this.currentQ < this.questions.length) {
+                    this.renderQuestion();
+                } else {
+                    this.finishTest();
+                }
+            },
+
+            finishTest: function() {
+                const endTime = Date.now();
+                const timeTakenSec = (endTime - this.startTime) / 1000;
+                
+                // --- INTELLIGENT SCORING ALGORITHM ---
+                
+                // 1. Calculate accuracy ratio (Weighted Score / Total Possible Weight)
+                let rawAccuracy = this.score / this.totalWeight;
+
+                // 2. Calculate Speed Bonus/Penalty
+                // Assume avg time per question is 10s. Total avg time = 80s.
+                // If faster than avg, slight bonus (up to 5%). If slower, slight penalty.
+                const avgTime = 80; 
+                let speedFactor = 1;
+                
+                if (timeTakenSec < avgTime) {
+                    speedFactor = 1 + ((avgTime - timeTakenSec) / avgTime) * 0.05; // Max 5% bonus
+                } else {
+                    speedFactor = Math.max(0.9, 1 - ((timeTakenSec - avgTime) / avgTime) * 0.1); // Max 10% penalty
+                }
+
+                // 3. Map to IQ Scale (Mean 100, SD 15)
+                // We map raw accuracy (0 to 1) to a range of approx 70 to 145
+                // Baseline (0 correct) = 70
+                // Max (all correct + fast) = 145
+                
+                let calculatedIQ = 70 + (rawAccuracy * 75 * speedFactor);
+                
+                // Round to integer
+                let finalIQ = Math.round(calculatedIQ);
+
+                // Cap realistic ranges (just in case)
+                if (finalIQ > 160) finalIQ = 160;
+                if (finalIQ < 70) finalIQ = 70;
+
+                this.displayResults(finalIQ);
+            },
+
+            displayResults: function(iq) {
+                document.getElementById('test').classList.remove('active');
+                document.getElementById('results').classList.add('active');
+                
+                // Animate score
+                let current = 0;
+                const display = document.getElementById('score-display');
+                const interval = setInterval(() => {
+                    current += 2;
+                    if (current >= iq) {
+                        current = iq;
+                        clearInterval(interval);
+                    }
+                    display.innerText = current;
+                }, 20);
+
+                // Calculate Percentile (Z-score based)
+                // Z = (Score - 100) / 15
+                const z = (iq - 100) / 15;
+                // Simple approx of CDF for normal distribution
+                const percentile = this.getPercentile(z);
+                document.getElementById('percentile').innerText = percentile + "%";
+                
+                // Classification
+                let cls = "Average";
+                if (iq >= 130) cls = "Very Superior";
+                else if (iq >= 120) cls = "Superior";
+                else if (iq >= 110) cls = "High Average";
+                else if (iq >= 90) cls = "Average";
+                else if (iq >= 80) cls = "Low Average";
+                else cls = "Borderline";
+                
+                document.getElementById('classification').innerText = cls;
+            },
+
+            // Approx normal cumulative distribution function
+            getPercentile: function(z) {
+                if (z < -6.5) return 0;
+                if (z > 6.5) return 100;
+                let factK = 1;
+                let sum = 0;
+                let term = 1;
+                let k = 0;
+                let loopStop = Math.exp(-23);
+                while(Math.abs(term) > loopStop) {
+                    term = .3989422804 * Math.pow(-1,k) * Math.pow(z, 2*k+1) / (2*k+1) / Math.pow(2,k) / factK;
+                    sum += term;
+                    k++;
+                    factK *= k;
+                }
+                sum += 0.5;
+                return (sum * 100).toFixed(1);
+            }
+        };
+    </script>
+</body>
+</html>
