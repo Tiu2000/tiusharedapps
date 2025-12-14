@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Privacy Recorder Pro</title>
+    <title>TIU Safe Recorder (Fail-Safe)</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
 
     <style>
         body {
             font-family: 'Segoe UI', system-ui, sans-serif;
-            background-color: #1a1a1a;
-            color: #fff;
+            background-color: #121212;
+            color: #eee;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -19,47 +19,47 @@
             margin: 0;
         }
 
-        h2 { margin: 10px 0; font-size: 1.5rem; text-align: center; }
+        h2 { margin: 10px 0; font-size: 1.5rem; text-align: center; color: #fff; }
 
         /* Settings Bar */
         .settings-bar {
-            background: #333;
+            background: #2d2d2d;
             padding: 15px;
             border-radius: 8px;
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 20px;
             justify-content: center;
+            align-items: center;
             margin-bottom: 15px;
             width: 100%;
-            max-width: 600px;
-            box-sizing: border-box;
+            max-width: 700px;
+            border: 1px solid #444;
         }
 
-        .setting-group {
-            display: flex;
-            flex-direction: column;
-        }
-
+        .setting-group { display: flex; flex-direction: column; }
         label { font-size: 0.8rem; color: #aaa; margin-bottom: 5px; }
+        select { padding: 8px; border-radius: 4px; border: none; background: #555; color: white; }
 
-        select {
-            padding: 8px;
-            border-radius: 4px;
-            border: none;
-            background: #555;
-            color: white;
-            font-size: 1rem;
+        /* Toggle Switch */
+        .toggle-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #444;
+            padding: 8px 15px;
+            border-radius: 20px;
         }
+        .toggle-wrapper input { width: 20px; height: 20px; accent-color: #0d6efd; cursor: pointer; }
 
         /* Video Area */
         .video-wrapper {
             position: relative;
             width: 100%;
             max-width: 800px;
-            aspect-ratio: 16/9; /* Default aspect, adjusts via JS */
+            aspect-ratio: 16/9;
             background: #000;
-            border: 2px solid #444;
+            border: 2px solid #555;
             border-radius: 8px;
             overflow: hidden;
             display: flex;
@@ -67,84 +67,75 @@
             align-items: center;
         }
 
-        canvas {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
+        canvas { width: 100%; height: 100%; object-fit: contain; }
         video { display: none; }
 
+        /* Status Overlay (shows when "Safe Mode" is active) */
+        #safetyOverlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(220, 53, 69, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            display: none;
+            pointer-events: none;
+        }
+
         /* Controls */
-        .controls {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        button {
-            padding: 12px 20px;
-            font-size: 16px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            min-width: 120px;
-        }
-
+        .controls { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; justify-content: center; }
+        button { padding: 12px 24px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; min-width: 120px; transition: all 0.2s; }
         .btn-start { background-color: #0d6efd; color: white; }
         .btn-record { background-color: #dc3545; color: white; }
         .btn-stop { background-color: #6c757d; color: white; }
+        button:disabled { background-color: #444; color: #888; cursor: not-allowed; }
+        .btn-record.pulsing { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         
-        button:disabled { 
-            background-color: #444; 
-            color: #888; 
-            cursor: not-allowed; 
-        }
-
         .status { margin-top: 15px; font-family: monospace; color: #0f0; }
-        .warning { font-size: 0.8rem; color: #aaa; margin-top: 5px; text-align: center; }
     </style>
 </head>
 <body>
 
-    <h2>TIU Privacy Recorder</h2>
+    <h2>TIU Privacy Recorder (Safe-Mode)</h2>
 
     <div class="settings-bar">
         <div class="setting-group">
             <label for="camSelect">Camera Source</label>
             <select id="camSelect">
-                <option value="environment" selected>Back Camera (Room)</option>
-                <option value="user">Front Camera (Selfie)</option>
+                <option value="environment" selected>Back Camera</option>
+                <option value="user">Front Camera</option>
             </select>
         </div>
         <div class="setting-group">
-            <label for="resSelect">Resolution Quality</label>
+            <label for="resSelect">Resolution</label>
             <select id="resSelect">
-                <option value="480">480p (Fastest / Smooth)</option>
-                <option value="720" selected>720p (HD / Balanced)</option>
-                <option value="1080">1080p (Full HD / Sharp)</option>
+                <option value="480">480p (Fast)</option>
+                <option value="720" selected>720p (HD)</option>
+                <option value="1080">1080p (Full HD)</option>
             </select>
+        </div>
+        <div class="toggle-wrapper">
+            <input type="checkbox" id="voiceToggle">
+            <label for="voiceToggle" style="margin:0; color:white; cursor:pointer;">Anonymize Voice</label>
         </div>
     </div>
 
     <div class="video-wrapper" id="videoWrapper">
         <video id="video" playsinline muted></video>
         <canvas id="output"></canvas>
+        <div id="safetyOverlay">⚠ SEARCHING FOR FACE - BLUR ACTIVE</div>
     </div>
 
-    <div class="status" id="status">Loading AI Models...</div>
+    <div class="status" id="status">Loading AI...</div>
 
     <div class="controls">
         <button id="btnStartCam" class="btn-start" disabled>Start Camera</button>
         <button id="btnRecord" class="btn-record" disabled>Record</button>
         <button id="btnStop" class="btn-stop" disabled>Stop</button>
-    </div>
-    
-    <div class="warning">
-        Note: 1080p requires a newer phone. Use 480p if video lags.
     </div>
 
     <script>
@@ -153,196 +144,239 @@
         const canvas = document.getElementById('output');
         const ctx = canvas.getContext('2d');
         const status = document.getElementById('status');
+        const safetyOverlay = document.getElementById('safetyOverlay');
         const videoWrapper = document.getElementById('videoWrapper');
 
-        // Buttons & Inputs
         const btnStart = document.getElementById('btnStartCam');
         const btnRecord = document.getElementById('btnRecord');
         const btnStop = document.getElementById('btnStop');
         const camSelect = document.getElementById('camSelect');
         const resSelect = document.getElementById('resSelect');
+        const voiceToggle = document.getElementById('voiceToggle');
 
         let mediaRecorder;
         let chunks = [];
         let isRecording = false;
+        let audioCtx, audioDestination, audioSource;
 
-        // Stability / Anti-Flicker Variables
+        // --- SAFETY VARIABLES ---
         let lastFaces = [];
         let lastDetectionTime = 0;
-        const FACE_PERSISTENCE_MS = 500; 
+        
+        // Config: How paranoid should the app be?
+        const STAGE_1_MEMORY = 1000;  // 1s: Keep drawing oval at last spot
+        const STAGE_2_PANIC = 4000;   // 4s: If lost for >1s but <4s, BLUR EVERYTHING
 
         // 1. Initialize AI
         async function loadModel() {
             try {
-                model = await blazeface.load();
-                status.innerText = "System Ready. Select settings above.";
+                // 'fast: false' makes detection slightly slower but MORE accurate
+                model = await blazeface.load({ maxFaces: 10, iouThreshold: 0.3, scoreThreshold: 0.5 });
+                status.innerText = "System Ready. Please configure settings.";
                 btnStart.disabled = false;
             } catch (e) {
-                status.innerText = "Error: Could not load AI model.";
+                status.innerText = "Error: AI Model Failed.";
                 console.error(e);
             }
         }
         loadModel();
 
-        // 2. Start Camera with Selected Options
+        // 2. Start Camera
         btnStart.onclick = async () => {
-            status.innerText = "Requesting Camera...";
-            
-            // Get User Choices
+            status.innerText = "Accessing Camera...";
             const facingMode = camSelect.value; 
             const quality = resSelect.value;
-            
-            // Map quality to dimensions
-            let targetWidth, targetHeight;
-            if (quality === '1080') { targetWidth = 1920; targetHeight = 1080; }
-            else if (quality === '720') { targetWidth = 1280; targetHeight = 720; }
-            else { targetWidth = 640; targetHeight = 480; }
-
-            const constraints = {
-                video: {
-                    facingMode: facingMode, // 'environment' or 'user'
-                    width: { ideal: targetWidth },
-                    height: { ideal: targetHeight }
-                },
-                audio: false
-            };
+            let targetWidth = quality === '1080' ? 1920 : (quality === '720' ? 1280 : 640);
+            let targetHeight = quality === '1080' ? 1080 : (quality === '720' ? 720 : 480);
 
             try {
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: facingMode, width: { ideal: targetWidth }, height: { ideal: targetHeight } },
+                    audio: true
+                });
+
                 video.srcObject = stream;
                 
-                // Wait for video to actually play to get real dimensions
                 video.onloadedmetadata = async () => {
                     await video.play();
-                    
-                    // Set canvas to match the ACTUAL camera dimensions (handles portrait/landscape)
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
-                    
-                    // Adjust container aspect ratio
                     videoWrapper.style.aspectRatio = `${canvas.width}/${canvas.height}`;
 
-                    status.innerText = `Active: ${canvas.width}x${canvas.height}px`;
-                    
-                    // Lock settings while running
+                    // Setup Audio
+                    setupAudio(stream);
+
+                    // Lock UI
                     camSelect.disabled = true;
                     resSelect.disabled = true;
+                    voiceToggle.disabled = true;
                     btnStart.disabled = true;
                     btnRecord.disabled = false;
+                    status.innerText = "Camera Active. Privacy Protection ON.";
 
                     // Start Loops
                     detectFacesLoop();
                     drawLoop();
                 };
             } catch (err) {
-                console.error(err);
-                alert(`Camera Error: ${err.name}. Ensure you are on HTTPS or localhost.`);
-                status.innerText = "Camera Access Failed.";
+                alert("Camera Error: " + err.message);
             }
         };
 
-        // 3. AI Detection Loop (Asynchronous)
+        function setupAudio(stream) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            audioSource = audioCtx.createMediaStreamSource(stream);
+            audioDestination = audioCtx.createMediaStreamDestination();
+
+            if (voiceToggle.checked) {
+                // Robot Voice Effect
+                const oscillator = audioCtx.createOscillator();
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 50;
+                const modGain = audioCtx.createGain();
+                modGain.gain.value = 1.0;
+                const voiceGain = audioCtx.createGain();
+                voiceGain.gain.value = 1.0;
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 2500;
+
+                oscillator.connect(modGain);
+                modGain.connect(voiceGain.gain);
+                audioSource.connect(voiceGain);
+                voiceGain.connect(filter);
+                filter.connect(audioDestination);
+                oscillator.start();
+            } else {
+                audioSource.connect(audioDestination);
+            }
+        }
+
+        // 3. AI Detection Loop
         async function detectFacesLoop() {
             if (video.readyState === 4 && !video.paused && !video.ended) {
-                // We don't return tensors to save memory
+                // returnTensors: false
                 const predictions = await model.estimateFaces(video, false);
 
                 if (predictions.length > 0) {
                     lastFaces = predictions;
                     lastDetectionTime = Date.now();
-                } else {
-                    // Persistence logic
-                    if (Date.now() - lastDetectionTime > FACE_PERSISTENCE_MS) {
-                        lastFaces = [];
-                    }
-                }
+                } 
+                // Note: We DO NOT clear lastFaces here. We let the Draw Loop decide when to clear.
             }
             requestAnimationFrame(detectFacesLoop);
         }
 
-        // 4. Drawing Loop (Synchronous 60fps)
+        // 4. Drawing Loop (The "Fail-Safe" Logic)
         function drawLoop() {
+            const timeSinceFace = Date.now() - lastDetectionTime;
+            
+            // Draw raw video first
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            // Draw Blur Regions
+            // LOGIC TREE
             if (lastFaces.length > 0) {
-                lastFaces.forEach(face => {
-                    const start = face.topLeft;
-                    const end = face.bottomRight;
-                    const width = end[0] - start[0];
-                    const height = end[1] - start[1];
-
-                    const centerX = start[0] + width / 2;
-                    const centerY = start[1] + height / 2;
-
-                    ctx.save();
-                    ctx.beginPath();
-                    // Expand blur area slightly (1.2x) for safety
-                    ctx.ellipse(centerX, centerY, width * 0.6, height * 0.6, 0, 0, 2 * Math.PI);
-                    ctx.clip();
-                    ctx.filter = 'blur(25px)';
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    ctx.restore();
-                });
+                // Case A: We have a recent face (or a memory of one < 1s ago)
+                if (timeSinceFace < STAGE_1_MEMORY) {
+                    safetyOverlay.style.display = 'none';
+                    drawSpecificBlur(lastFaces);
+                } 
+                // Case B: Lost face between 1s and 4s ago -> PANIC MODE
+                else if (timeSinceFace < STAGE_2_PANIC) {
+                    safetyOverlay.style.display = 'block';
+                    drawTotalBlur(); // Blur EVERYTHING
+                }
+                // Case C: Lost face > 4s. Assume they left the room.
+                else {
+                    safetyOverlay.style.display = 'none';
+                    // Draw nothing (Show clear video)
+                    // But we keep lastFaces populated just in case they pop back? 
+                    // No, usually best to let it clear if we are sure they are gone.
+                }
             }
 
-            // Draw Watermark
-            // Scale font size based on resolution so it doesn't look tiny on 1080p
+            // Watermark
+            drawWatermark();
+            
+            requestAnimationFrame(drawLoop);
+        }
+
+        function drawSpecificBlur(faces) {
+            faces.forEach(face => {
+                const start = face.topLeft;
+                const end = face.bottomRight;
+                const width = end[0] - start[0];
+                const height = end[1] - start[1];
+                const centerX = start[0] + width / 2;
+                const centerY = start[1] + height / 2;
+
+                ctx.save();
+                ctx.beginPath();
+                // 1.5x scale for extra safety margin
+                ctx.ellipse(centerX, centerY, width * 0.75, height * 0.75, 0, 0, 2 * Math.PI);
+                ctx.clip();
+                ctx.filter = 'blur(30px)'; // Heavy blur
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                ctx.restore();
+            });
+        }
+
+        function drawTotalBlur() {
+            // This is the Fail-Safe Curtain
+            ctx.save();
+            ctx.filter = 'blur(50px)'; // Massive blur
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            ctx.restore();
+        }
+
+        function drawWatermark() {
             const fontSize = Math.max(20, Math.floor(canvas.width / 25));
             ctx.font = `900 ${fontSize}px Arial`;
             ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
             ctx.textAlign = "right";
             ctx.fillText("TIU", canvas.width - (fontSize/2), canvas.height - (fontSize/2));
-
-            requestAnimationFrame(drawLoop);
         }
 
         // 5. Recording Logic
         btnRecord.onclick = () => {
-            const stream = canvas.captureStream(30);
-            
-            // Try different codecs for better mobile compatibility
+            const videoStream = canvas.captureStream(30);
+            const videoTrack = videoStream.getVideoTracks()[0];
+            const audioTrack = audioDestination.stream.getAudioTracks()[0];
+            const finalStream = new MediaStream([videoTrack, audioTrack]);
+
             let options = { mimeType: 'video/webm' };
-            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-                options = { mimeType: 'video/webm;codecs=vp9' };
-            } else if (MediaRecorder.isTypeSupported('video/mp4')) {
-                options = { mimeType: 'video/mp4' }; // Safari 14.1+
-            }
+            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) options = { mimeType: 'video/webm;codecs=vp9' };
+            else if (MediaRecorder.isTypeSupported('video/mp4')) options = { mimeType: 'video/mp4' };
 
-            mediaRecorder = new MediaRecorder(stream, options);
+            mediaRecorder = new MediaRecorder(finalStream, options);
 
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) chunks.push(e.data);
-            };
+            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
 
             mediaRecorder.onstop = () => {
                 const blob = new Blob(chunks, { type: chunks[0].type });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                
-                // File extension depends on type
                 const ext = chunks[0].type.includes('mp4') ? 'mp4' : 'webm';
-                a.download = `TIU-Classroom-REC-${Date.now()}.${ext}`;
-                
+                a.download = `TIU-Safe-${Date.now()}.${ext}`;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
                 chunks = [];
-                status.innerText = "Video Saved to Photos/Downloads.";
-                
-                btnRecord.disabled = false;
-                btnStop.disabled = true;
+                status.innerText = "Video Saved.";
                 btnRecord.innerText = "Record";
                 btnRecord.classList.remove('pulsing');
+                btnRecord.disabled = false;
+                btnStop.disabled = true;
             };
 
             mediaRecorder.start();
             isRecording = true;
-            status.innerText = "recording active...";
+            status.innerText = "Recording... (Privacy Mode Active)";
+            btnRecord.innerText = "REC";
+            btnRecord.classList.add('pulsing');
             btnRecord.disabled = true;
             btnStop.disabled = false;
-            btnRecord.innerText = "REC";
         };
 
         btnStop.onclick = () => {
@@ -351,7 +385,6 @@
                 isRecording = false;
             }
         };
-
     </script>
 </body>
 </html>
