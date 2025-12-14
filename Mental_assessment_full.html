@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Mental Trait Assessment</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --bg: #f4f7f6;
+            --text: #333;
+            --card-bg: #ffffff;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* TIU Watermark */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 4rem;
+            font-weight: 900;
+            color: rgba(0, 0, 0, 0.05);
+            pointer-events: none;
+            user-select: none;
+            z-index: 9999;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .disclaimer-box {
+            background-color: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #777;
+            transition: 0.3s;
+            flex-grow: 1;
+        }
+
+        .tab-btn:hover {
+            background-color: #f1f1f1;
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom: 3px solid var(--accent);
+            margin-bottom: -2px;
+        }
+
+        .content-section {
+            display: none;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .content-section.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        /* Quiz Styles */
+        .question-block {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .question-text {
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .options {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .options label {
+            cursor: pointer;
+            padding: 8px 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .options input[type="radio"] {
+            margin-right: 8px;
+        }
+
+        .options label:hover {
+            background: #e9ecef;
+            border-color: #bbb;
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+            transition: background 0.3s;
+        }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+
+        .result-box {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e8f6f3;
+            border-radius: 5px;
+            display: none;
+            border-left: 5px solid var(--accent);
+        }
+
+        .result-box.high-risk {
+            background: #fdedec;
+            border-left-color: var(--danger);
+        }
+
+        .intro-text {
+            margin-bottom: 25px;
+            color: #555;
+            font-size: 0.95rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <div class="container">
+        <header>
+            <h1>Mental Trait Explorer</h1>
+            <p>Comprehensive Research-Based Screening Tools</p>
+        </header>
+
+        <div class="disclaimer-box">
+            <strong>⚠️ IMPORTANT:</strong> This tool is for <strong>educational and informational purposes only</strong>. It utilizes questions from peer-reviewed research scales (LSRP, PQ-16, MSI-BPD) but <strong>cannot diagnose</strong> any condition. High scores indicate a match with certain trait patterns, not a clinical pathology.
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="openTab('psychopathy')">Psychopathy (LSRP)</button>
+            <button class="tab-btn" onclick="openTab('psychosis')">Psychosis (PQ-16)</button>
+            <button class="tab-btn" onclick="openTab('instability')">Instability (MSI-BPD)</button>
+        </div>
+
+        <div id="psychopathy" class="content-section active">
+            <h2>Psychopathy Traits</h2>
+            <p class="intro-text">Based on the <strong>Levenson Self-Report Psychopathy Scale (LSRP)</strong>. This measures primary psychopathy (callousness, manipulation) and secondary psychopathy (impulsivity).</p>
+            <hr>
+            
+            <form id="lsrp-form">
+                <div class="question-block">
+                    <span class="question-text">1. Success is based on survival of the fittest; I am not concerned about the losers.</span>
+                    <div class="options">
+                        <label><input type="radio" name="lsrp_q1" value="1"> Disagree Strongly</label>
+                        <label><input type="radio" name="lsrp_q1" value="2"> Disagree</label>
+                        <label><input type="radio" name="lsrp_q1" value="3"> Neutral</label>
+                        <label><input type="radio" name="lsrp_q1" value="4"> Agree</label>
+                        <label><input type="radio" name="lsrp_q1" value="5"> Agree Strongly</label>
+                    </div>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-text">2. I find myself in the same kinds of trouble, time after time.</span>
+                    <div class="options">
+                        <label><input type="radio" name="lsrp_q2" value="1"> Disagree Strongly</label>
+                        <label><input type="radio" name="lsrp_q2" value="2"> Disagree</label>
+                        <label><input type="radio" name="lsrp_q2" value="3"> Neutral</label>
+                        <label><input type="radio" name="lsrp_q2" value="4"> Agree</label>
+                        <label><input type="radio" name="lsrp_q2" value="5"> Agree Strongly</label>
+                    </div>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-text">3. I feel no guilt when I lie to someone.</span>
+                    <div class="options">
+                        <label><input type="radio" name="lsrp_q3" value="1"> Disagree Strongly</label>
+                        <label><input type="radio" name="lsrp_q3" value="2"> Disagree</label>
+                        <label><input type="radio" name="lsrp_q3" value="3"> Neutral</label>
+                        <label><input type="radio" name="lsrp_q3" value="4"> Agree</label>
+                        <label><input type="radio" name="lsrp_q3" value="5"> Agree Strongly</label>
+                    </div>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-text">4. My main purpose in life is getting as many goodies as I can.</span>
+                    <div class="options">
+                        <label><input type="radio" name="lsrp_q4" value="1"> Disagree Strongly</label>
+                        <label><input type="radio" name="lsrp_q4" value="2"> Disagree</label>
+                        <label><input type="radio" name="lsrp_q4" value="3"> Neutral</label>
+                        <label><input type="radio" name="lsrp_q4" value="4"> Agree</label>
+                        <label><input type="radio" name="lsrp_q4" value="5"> Agree Strongly</label>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-primary" onclick="calculatePsychopathy()">Analyze LSRP Score</button>
+            </form>
+
+            <div id="lsrp-result" class="result-box">
+                <h3>Psychopathy Analysis</h3>
+                <p id="lsrp-score-text"></p>
+            </div>
+        </div>
+
+        <div id="psychosis" class="content-section">
+            <h2>Psychosis Screen (Prodromal)</h2>
+            <p class="intro-text">Adapted from the <strong>Prodromal Questionnaire (PQ-16)</strong>. These questions screen for "positive symptoms" like perceptual abnormalities and unusual thought content.</p>
+            <hr>
+            
+            <form id="pq-form">
+                <div class="question-block">
+                    <span class="question-text">1. Have you seen things that other people cannot see?</span>
+                    <div class="options">
+                        <label><input type="radio" name="pq_q1" value="1"> Yes</label>
+                        <label><input type="radio" name="pq_q1" value="0"> No</label>
+                    </div>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-text">2. Do you sometimes feel that people are talking about you or watching you?</span>
+                    <div class="options">
+                        <label><input type="radio" name="pq_q2" value="1"> Yes</label>
+                        <label><input type="radio" name="pq_q2" value="0"> No</label>
+                    </div>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-text">3. Have you heard unusual sounds like banging, clicking, or voices that others couldn't hear?</span>
+                    <div class="options">
+                        <label><input type="radio" name="pq_q3" value="1"> Yes</label>
+                        <label><input type="radio" name="pq_q3" value="0"> No</label>
+                    </div>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-text">4. Do you feel that your thoughts are being read by others or broadcast out loud?</span>
+                    <div class="options">
+                        <label><input type="radio" name="pq_q4" value="1"> Yes</label>
+                        <label><input type="radio" name="pq_q4" value="0"> No</label>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-primary" onclick="calculatePsychosis()">Analyze Psychosis Indicators</button>
+            </form>
+
+            <div id="pq-result" class="result-box">
+                <h3>Psychosis Indicator Analysis</h3>
+                <p id="pq-score-text"></p>
+            </div>
+        </div>
+
+        <div id="instability" class="content-section">
+            <h2>Emotional Instability</h2>
+            <p class="intro-text">Adapted from the <strong>McLean Screening Instrument for BPD (MSI-BPD)</strong>. This assesses traits related to affective instability and relationship volatility.</p>
+            <hr>
+            
+            <form id="msi-form">
+                <div class="question-block">
+                    <span class="question-text">1. Have your relationships been like a rollercoaster? (Lots of ups and downs)</span>
+                    <div class="options">
+                        <label><input type="radio" name="msi_q1" value="1"> Yes</label>
+                        <label><input type="radio" name="msi_q1" value="0"> No</label>
+                    </div>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-text">2. Do you often feel empty inside?</span>
+                    <div class="options">
+                        <label><input type="radio" name="msi_q2" value="1"> Yes</label>
+                        <label><input type="radio" name="msi_q2" value="0"> No</label>
+                    </div>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-text">3. Have you made desperate efforts to avoid being abandoned by someone you love?</span>
+                    <div class="options">
+                        <label><input type="radio" name="msi_q3" value="1"> Yes</label>
+                        <label><input type="radio" name="msi_q3" value="0"> No</label>
+                    </div>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-text">4. Do your moods change very quickly (e.g., depression or anger lasting a few hours)?</span>
+                    <div class="options">
+                        <label><input type="radio" name="msi_q4" value="1"> Yes</label>
+                        <label><input type="radio" name="msi_q4" value="0"> No</label>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-primary" onclick="calculateInstability()">Analyze Instability</button>
+            </form>
+
+            <div id="msi-result" class="result-box">
+                <h3>Instability Analysis</h3>
+                <p id="msi-score-text"></p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Tab Handling
+        function openTab(tabName) {
+            var i;
+            var x = document.getElementsByClassName("content-section");
+            var tabs = document.getElementsByClassName("tab-btn");
+            for (i = 0; i < x.length; i++) {
+                x[i].style.display = "none";
+                x[i].classList.remove("active");
+            }
+            for (i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove("active");
+            }
+            document.getElementById(tabName).style.display = "block";
+            document.getElementById(tabName).classList.add("active");
+            event.currentTarget.classList.add("active");
+        }
+
+        // --- Psychopathy Calculator ---
+        function calculatePsychopathy() {
+            let score = 0;
+            let answered = 0;
+            const totalQuestions = 4; // Number of questions in this demo
+
+            for(let i=1; i<=totalQuestions; i++) {
+                const radios = document.getElementsByName('lsrp_q'+i);
+                for(let radio of radios) {
+                    if(radio.checked) {
+                        score += parseInt(radio.value);
+                        answered++;
+                    }
+                }
+            }
+
+            if(answered < totalQuestions) {
+                alert("Please answer all questions.");
+                return;
+            }
+
+            const resultBox = document.getElementById('lsrp-result');
+            const resultText = document.getElementById('lsrp-score-text');
+            resultBox.style.display = "block";
+            resultBox.className = "result-box"; // Reset class
+
+            let interpretation = "";
+            let maxScore = totalQuestions * 5;
+            let percent = (score / maxScore) * 100;
+
+            if(percent < 50) {
+                interpretation = "<strong>Result: Low Alignment.</strong> Your responses do not indicate significant psychopathic traits compared to the general population.";
+            } else if (percent < 75) {
+                interpretation = "<strong>Result: Moderate Alignment.</strong> You display some traits associated with impulsivity or callousness, which is common in many people depending on the context.";
+            } else {
+                interpretation = "<strong>Result: High Alignment.</strong> Your responses correlate with traits found in primary or secondary psychopathy. This includes a focus on self-gain, lack of guilt, or impulsivity.";
+                resultBox.classList.add("high-risk");
+            }
+
+            resultText.innerHTML = `Score: ${score}/${maxScore}<br><br>${interpretation}`;
+        }
+
+        // --- Psychosis Calculator ---
+        function calculatePsychosis() {
+            let score = 0;
+            let answered = 0;
+            const totalQuestions = 4;
+
+            for(let i=1; i<=totalQuestions; i++) {
+                const radios = document.getElementsByName('pq_q'+i);
+                for(let radio of radios) {
+                    if(radio.checked) {
+                        score += parseInt(radio.value);
+                        answered++;
+                    }
+                }
+            }
+
+            if(answered < totalQuestions) {
+                alert("Please answer all questions.");
+                return;
+            }
+
+            const resultBox = document.getElementById('pq-result');
+            const resultText = document.getElementById('pq-score-text');
+            resultBox.style.display = "block";
+            resultBox.className = "result-box";
+
+            let interpretation = "";
+            
+            // In PQ-16, a score of 6+ (out of 16) is the cutoff. 
+            // Since we have 4 questions, we scale roughly: 2+ is significant for this demo.
+            if(score <= 1) {
+                interpretation = "<strong>Result: Standard Perception.</strong> Your responses do not indicate significant perceptual abnormalities or prodromal symptoms.";
+            } else {
+                interpretation = "<strong>Result: Elevated Indicators.</strong> You reported experiencing things that others do not (auditory/visual) or feelings of paranoia. <br><br><em>Note: These symptoms can be caused by stress, sleep deprivation, or medical conditions, but they are also core indicators of the psychosis spectrum.</em>";
+                resultBox.classList.add("high-risk");
+            }
+
+            resultText.innerHTML = `Positive Symptoms Reported: ${score}/${totalQuestions}<br><br>${interpretation}`;
+        }
+
+        // --- Instability Calculator ---
+        function calculateInstability() {
+            let score = 0;
+            let answered = 0;
+            const totalQuestions = 4;
+
+            for(let i=1; i<=totalQuestions; i++) {
+                const radios = document.getElementsByName('msi_q'+i);
+                for(let radio of radios) {
+                    if(radio.checked) {
+                        score += parseInt(radio.value);
+                        answered++;
+                    }
+                }
+            }
+
+            if(answered < totalQuestions) {
+                alert("Please answer all questions.");
+                return;
+            }
+
+            const resultBox = document.getElementById('msi-result');
+            const resultText = document.getElementById('msi-score-text');
+            resultBox.style.display = "block";
+            resultBox.className = "result-box";
+
+            let interpretation = "";
+
+            // MSI-BPD cutoff is usually 7 out of 10.
+            // For 4 questions, 3+ is significant.
+            if(score <= 2) {
+                interpretation = "<strong>Result: Stable Range.</strong> Your responses suggest average emotional regulation capabilities.";
+            } else {
+                interpretation = "<strong>Result: High Instability.</strong> You reported multiple indicators of affective instability (mood swings, fear of abandonment, emptiness). These are core components of Borderline Personality traits.";
+                resultBox.classList.add("high-risk");
+            }
+
+            resultText.innerHTML = `Instability Indicators: ${score}/${totalQuestions}<br><br>${interpretation}`;
+        }
+    </script>
+</body>
+</html>
