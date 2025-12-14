@@ -105,9 +105,25 @@
         .paper-link { display: block; padding: 8px 0; color: var(--accent); text-decoration: none; border-bottom: 1px solid #333; }
         .paper-link:last-child { border-bottom: none; }
 
+        /* TIU Watermark Style */
+        .tiu-watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 25px;
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--text);
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: 9999;
+            user-select: none;
+        }
+
     </style>
 </head>
 <body>
+
+<div class="tiu-watermark">TIU</div>
 
 <div class="app-container">
     <div class="header">

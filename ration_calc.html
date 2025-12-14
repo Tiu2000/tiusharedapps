@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Survival Ration Calculator</title>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --danger: #e74c3c;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #eef2f3;
+            color: var(--dark);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--dark);
+            margin-bottom: 30px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h2 { margin-top: 0; font-size: 1.2rem; border-bottom: 2px solid var(--light); padding-bottom: 10px; }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        .inventory-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .food-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .food-item label { margin: 0; }
+        .food-item input { width: 80px; }
+
+        .result-box {
+            text-align: center;
+            background: var(--dark);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .result-value {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .result-label {
+            font-size: 1rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.9rem;
+        }
+        
+        .reset-btn {
+            background-color: var(--danger);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        /* TIU Watermark Style */
+        .tiu-watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 25px;
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--dark);
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: 9999;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="tiu-watermark">TIU</div>
+
+<div class="container">
+    <h1>🥫 Emergency Ration Calculator</h1>
+
+    <div class="card" style="margin-bottom: 20px;">
+        <h2>1. Group Configuration</h2>
+        <div class="grid">
+            <div class="input-group">
+                <label>Number of People</label>
+                <input type="number" id="people" value="1" min="1" oninput="calculate()">
+            </div>
+            <div class="input-group">
+                <label>Daily Calorie Goal (Per Person)</label>
+                <input type="number" id="dailyCalories" value="2000" step="100" oninput="calculate()">
+            </div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>2. Inventory Builder</h2>
+            <p style="font-size: 0.8rem; color: #7f8c8d;">Enter quantities to auto-calculate total calories.</p>
+            
+            <div class="inventory-list">
+                <div class="food-item">
+                    <label>Rice (lbs) <small>~1600 cal/lb</small></label>
+                    <input type="number" class="calc-trigger" data-cal="1600" placeholder="0">
+                </div>
+                <div class="food-item">
+                    <label>Dried Beans (lbs) <small>~1500 cal/lb</small></label>
+                    <input type="number" class="calc-trigger" data-cal="1500" placeholder="0">
+                </div>
+                <div class="food-item">
+                    <label>Pasta (lbs) <small>~1600 cal/lb</small></label>
+                    <input type="number" class="calc-trigger" data-cal="1600" placeholder="0">
+                </div>
+                <div class="food-item">
+                    <label>Canned Meat (12oz) <small>~1000 cal</small></label>
+                    <input type="number" class="calc-trigger" data-cal="1000" placeholder="0">
+                </div>
+                <div class="food-item">
+                    <label>Canned Veg (15oz) <small>~150 cal</small></label>
+                    <input type="number" class="calc-trigger" data-cal="150" placeholder="0">
+                </div>
+                <div class="food-item">
+                    <label>Peanut Butter (16oz) <small>~2600 cal</small></label>
+                    <input type="number" class="calc-trigger" data-cal="2600" placeholder="0">
+                </div>
+                <div class="food-item">
+                    <label>MRE / Freeze Dried Meal <small>~1250 cal</small></label>
+                    <input type="number" class="calc-trigger" data-cal="1250" placeholder="0">
+                </div>
+                <div class="food-item">
+                    <label><strong>Other (Manual Calories)</strong></label>
+                    <input type="number" id="manualCalories" placeholder="0" oninput="calculate()">
+                </div>
+            </div>
+            <button class="reset-btn" onclick="resetForm()">Reset All</button>
+        </div>
+
+        <div>
+            <div class="result-box">
+                <div class="result-label">You have enough food for</div>
+                <div class="result-value" id="daysResult">0</div>
+                <div class="result-label">Days</div>
+                
+                <div class="stat-row">
+                    <span>Total Calories Available:</span>
+                    <span id="totalStockpile">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Group Daily Consumption:</span>
+                    <span id="groupConsumption">0</span>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h2>📝 Planning Note</h2>
+                <div id="adviceText" style="font-size: 0.9rem; line-height: 1.5;">
+                    Enter your inventory to see results.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Main Calculation Function
+    function calculate() {
+        const people = parseFloat(document.getElementById('people').value) || 1;
+        const dailyCalPerPerson = parseFloat(document.getElementById('dailyCalories').value) || 2000;
+        const manualCal = parseFloat(document.getElementById('manualCalories').value) || 0;
+        
+        // Calculate Inventory
+        let inventoryCal = 0;
+        const inputs = document.querySelectorAll('.calc-trigger');
+        
+        inputs.forEach(input => {
+            const quantity = parseFloat(input.value) || 0;
+            const calPerUnit = parseFloat(input.getAttribute('data-cal'));
+            inventoryCal += (quantity * calPerUnit);
+        });
+
+        // Add manual entry
+        const totalCalories = inventoryCal + manualCal;
+
+        // Calculate Consumption
+        const dailyGroupNeed = people * dailyCalPerPerson;
+        
+        // Calculate Days
+        let days = 0;
+        if (dailyGroupNeed > 0) {
+            days = totalCalories / dailyGroupNeed;
+        }
+
+        // Update UI
+        document.getElementById('daysResult').innerText = days.toFixed(1);
+        document.getElementById('totalStockpile').innerText = totalCalories.toLocaleString();
+        document.getElementById('groupConsumption').innerText = dailyGroupNeed.toLocaleString();
+
+        updateAdvice(days, people);
+    }
+
+    // Dynamic Advice Generator
+    function updateAdvice(days, people) {
+        const textElem = document.getElementById('adviceText');
+        if (days === 0) {
+            textElem.innerText = "Start adding items to your inventory to see how long they will last.";
+            textElem.style.color = "#7f8c8d";
+            return;
+        }
+
+        if (days < 3) {
+            textElem.innerHTML = "<strong>Warning:</strong> You have less than 3 days of food. Focus on high-calorie staples (Rice, Peanut Butter) to quickly boost your ration time.";
+            textElem.style.color = "#c0392b";
+        } else if (days < 14) {
+            textElem.innerHTML = "<strong>Good start:</strong> You have enough for a short-term emergency (storms, power outages). Aim for 2 weeks to be safe.";
+            textElem.style.color = "#d35400";
+        } else {
+            textElem.innerHTML = "<strong>Excellent:</strong> You are well prepared for extended emergencies.";
+            textElem.style.color = "#27ae60";
+        }
+    }
+
+    // Event Listeners for Inventory Inputs
+    document.querySelectorAll('.calc-trigger').forEach(item => {
+        item.addEventListener('input', calculate);
+    });
+
+    function resetForm() {
+        document.querySelectorAll('input').forEach(input => {
+            if(input.id !== 'people' && input.id !== 'dailyCalories') {
+                input.value = '';
+            }
+        });
+        calculate();
+    }
+
+    // Initial run
+    calculate();
+</script>
+
+</body>
+</html>

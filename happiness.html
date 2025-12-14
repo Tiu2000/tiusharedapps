@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scientific Happiness Meter (SWLS)</title>
+    <style>
+        :root {
+            --primary: #4A90E2;
+            --bg: #f4f7f6;
+            --card: #ffffff;
+            --text: #333333;
+            --subtext: #666666;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--card);
+            width: 100%;
+            max-width: 600px;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .citation {
+            text-align: center;
+            font-size: 0.85em;
+            color: var(--subtext);
+            font-style: italic;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+        }
+
+        .question-block {
+            margin-bottom: 25px;
+        }
+
+        .question-text {
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .options {
+            display: flex;
+            justify-content: space-between;
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+
+        .option-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            width: 14%;
+            text-align: center;
+        }
+
+        .option-label span {
+            margin-top: 5px;
+            font-size: 0.75em;
+            color: var(--subtext);
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background-color: #357ABD;
+        }
+
+        /* Meter Section */
+        #result-section {
+            margin-top: 40px;
+            display: none; /* Hidden by default */
+            text-align: center;
+        }
+
+        .meter-container {
+            height: 30px;
+            background-color: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .meter-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ff6b6b, #feca57, #1dd1a1);
+            transition: width 1s ease-in-out;
+        }
+
+        .score-display {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .category-display {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .analysis {
+            margin-top: 20px;
+            text-align: left;
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+
+        /* TIU Watermark Style */
+        .tiu-watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 25px;
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--text);
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: 9999;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="tiu-watermark">TIU</div>
+
+<div class="container">
+    <h1>Satisfaction With Life Scale</h1>
+    <div class="citation">
+        Based on Diener, E., Emmons, R. A., Larsen, R. J., & Griffin, S. (1985). <br>The Satisfaction with Life Scale. <em>Journal of Personality Assessment</em>.
+    </div>
+
+    <form id="happinessForm">
+        <div id="questions-container"></div>
+        <button type="button" onclick="calculateScore()">Calculate Happiness</button>
+    </form>
+
+    <div id="result-section">
+        <div class="score-display">Score: <span id="score-value">0</span>/35</div>
+        <div class="meter-container">
+            <div class="meter-fill" id="meter-fill"></div>
+        </div>
+        <div class="category-display" id="category-value"></div>
+        <div class="analysis" id="analysis-text"></div>
+    </div>
+</div>
+
+<script>
+    // The 5 Scientific Items from the SWLS
+    const questions = [
+        "In most ways my life is close to my ideal.",
+        "The conditions of my life are excellent.",
+        "I am satisfied with my life.",
+        "So far I have gotten the important things I want in life.",
+        "If I could live my life over, I would change almost nothing."
+    ];
+
+    const scale = [
+        { val: 1, text: "Strongly Disagree" },
+        { val: 2, text: "Disagree" },
+        { val: 3, text: "Slightly Disagree" },
+        { val: 4, text: "Neutral" },
+        { val: 5, text: "Slightly Agree" },
+        { val: 6, text: "Agree" },
+        { val: 7, text: "Strongly Agree" }
+    ];
+
+    const container = document.getElementById('questions-container');
+
+    // Dynamically generate questions
+    questions.forEach((q, index) => {
+        let html = `<div class="question-block">
+            <div class="question-text">${index + 1}. ${q}</div>
+            <div class="options">`;
+        
+        scale.forEach(opt => {
+            html += `<label class="option-label">
+                <input type="radio" name="q${index}" value="${opt.val}">
+                <span>${opt.val}<br>${opt.val === 1 || opt.val === 7 || opt.val === 4 ? opt.text : ''}</span>
+            </label>`;
+        });
+
+        html += `</div></div>`;
+        container.innerHTML += html;
+    });
+
+    function calculateScore() {
+        let score = 0;
+        let answeredCount = 0;
+
+        // Sum up scores
+        for(let i = 0; i < questions.length; i++) {
+            const radios = document.getElementsByName(`q${i}`);
+            let val = 0;
+            for (const radio of radios) {
+                if (radio.checked) {
+                    val = parseInt(radio.value);
+                    break;
+                }
+            }
+            if(val > 0) {
+                score += val;
+                answeredCount++;
+            }
+        }
+
+        if(answeredCount < 5) {
+            alert("Please answer all 5 questions to get an accurate scientific reading.");
+            return;
+        }
+
+        displayResult(score);
+    }
+
+    function displayResult(score) {
+        const resultSec = document.getElementById('result-section');
+        const meterFill = document.getElementById('meter-fill');
+        const scoreVal = document.getElementById('score-value');
+        const catVal = document.getElementById('category-value');
+        const analysis = document.getElementById('analysis-text');
+
+        resultSec.style.display = 'block';
+        scoreVal.innerText = score;
+        
+        // Calculate percentage for the meter (Max score is 35, Min is 5)
+        // Adjusting logic so the meter doesn't start at 0% for a score of 5
+        const percentage = ((score - 5) / 30) * 100;
+        meterFill.style.width = `${Math.max(percentage, 5)}%`;
+
+        let category = "";
+        let desc = "";
+
+        // Official Scoring Rubric (Diener et al.)
+        if (score >= 30) {
+            category = "Extremely Satisfied";
+            desc = "You feel that your life has gone very well. While not perfect, you feel your life is enjoyable and largely aligns with your ideals.";
+        } else if (score >= 25) {
+            category = "Satisfied";
+            desc = "You like your life. You may have some areas you wish to improve, but generally, you feel things are going well.";
+        } else if (score >= 20) {
+            category = "Slightly Satisfied";
+            desc = "You are generally satisfied, but there are areas you would very much like to improve. You are on the tipping point.";
+        } else if (score >= 15) {
+            category = "Slightly Dissatisfied";
+            desc = "You have small but significant problems in several areas of your life, or a major problem in one area.";
+        } else if (score >= 10) {
+            category = "Dissatisfied";
+            desc = "You are substantially unhappy with your current life situation. Changes in life choices or attitudes may be necessary.";
+        } else {
+            category = "Extremely Dissatisfied";
+            desc = "You are very unhappy with your current conditions. If this state persists, psychological or clinical intervention might be helpful.";
+        }
+
+        catVal.innerText = category;
+        analysis.innerText = desc;
+        
+        // Scroll to result
+        resultSec.scrollIntoView({ behavior: 'smooth' });
+    }
+</script>
+
+</body>
+</html>

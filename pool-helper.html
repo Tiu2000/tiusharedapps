@@ -98,9 +98,25 @@
         .hidden {
             display: none;
         }
+
+        /* TIU Watermark Style */
+        .tiu-watermark {
+            position: fixed;
+            bottom: 100px; /* Raised slightly to avoid overlap with controls */
+            right: 25px;
+            font-size: 3rem;
+            font-weight: 900;
+            color: #00d2ff;
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: 9999;
+            user-select: none;
+        }
     </style>
 </head>
 <body>
+
+<div class="tiu-watermark">TIU</div>
 
 <div id="app-container">
     <video id="camera-stream" autoplay playsinline muted></video>
