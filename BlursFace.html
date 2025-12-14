@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIU Safe Recorder (Stable)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #222;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .video-container {
+            position: relative;
+            margin: 20px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+            width: 640px;
+            height: 480px;
+            border: 2px solid #555;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        video { display: none; } /* Hidden raw video */
+
+        .controls { display: flex; gap: 15px; margin-top: 10px; }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-start { background-color: #007bff; color: white; }
+        .btn-record { background-color: #dc3545; color: white; }
+        .btn-stop { background-color: #6c757d; color: white; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #status { margin-top: 10px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+    <h2>TIU Safe Recorder (Anti-Flicker)</h2>
+
+    <div class="video-container">
+        <video id="video" playsinline muted></video>
+        <canvas id="output"></canvas>
+    </div>
+
+    <div class="controls">
+        <button id="btnStartCam" class="btn-start">1. Start Camera</button>
+        <button id="btnRecord" class="btn-record" disabled>2. Record</button>
+        <button id="btnStop" class="btn-stop" disabled>3. Stop</button>
+    </div>
+    <div id="status">Loading AI...</div>
+
+    <script>
+        let model = null;
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('output');
+        const ctx = canvas.getContext('2d');
+        const status = document.getElementById('status');
+        
+        let mediaRecorder;
+        let chunks = [];
+        let isRecording = false;
+
+        // --- STABILITY VARIABLES ---
+        let lastFaces = []; // Remembers where the faces were
+        let lastDetectionTime = 0;
+        const FACE_PERSISTENCE_MS = 500; // Keep blurring for 0.5s after face is lost
+
+        // 1. Load Model
+        async function setup() {
+            try {
+                model = await blazeface.load();
+                status.innerText = "System Ready. Click Start Camera.";
+            } catch(e) { status.innerText = "Error loading AI"; }
+        }
+        setup();
+
+        // 2. Start Camera
+        document.getElementById('btnStartCam').onclick = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: 'user' },
+                    audio: false
+                });
+                video.srcObject = stream;
+                await video.play();
+                
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                // Start the two separate loops
+                detectFacesLoop(); // Runs as fast as AI allows
+                drawLoop();        // Runs at 60 FPS for smooth video
+                
+                document.getElementById('btnStartCam').disabled = true;
+                document.getElementById('btnRecord').disabled = false;
+                status.innerText = "Camera Active. Faces blurred.";
+            } catch (e) {
+                alert("Camera access denied or failed.");
+            }
+        };
+
+        // 3. AI Detection Loop (The Brain)
+        // This runs independently. If it lags, it doesn't stop the video.
+        async function detectFacesLoop() {
+            if (video.readyState === 4) {
+                const predictions = await model.estimateFaces(video, false);
+
+                if (predictions.length > 0) {
+                    // Face found: Update our memory
+                    lastFaces = predictions;
+                    lastDetectionTime = Date.now();
+                } else {
+                    // No face found: 
+                    // Have we exceeded the persistence time?
+                    if (Date.now() - lastDetectionTime > FACE_PERSISTENCE_MS) {
+                        lastFaces = []; // Okay, face is truly gone. Clear it.
+                    }
+                    // Otherwise, we keep `lastFaces` as it is (Anti-Flicker)
+                }
+            }
+            // Request next detection immediately
+            requestAnimationFrame(detectFacesLoop);
+        }
+
+        // 4. Drawing Loop (The Painter)
+        // This runs strictly at screen refresh rate (e.g. 60fps)
+        function drawLoop() {
+            // A. Draw the raw video background
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // B. Draw the Blur on top (using Memory)
+            // We use `lastFaces`, so even if the AI is "thinking", we draw the last known spot.
+            if (lastFaces.length > 0) {
+                lastFaces.forEach(face => {
+                    const start = face.topLeft;
+                    const end = face.bottomRight;
+                    const width = end[0] - start[0];
+                    const height = end[1] - start[1];
+
+                    // Calculate center
+                    const centerX = start[0] + width / 2;
+                    const centerY = start[1] + height / 2;
+
+                    ctx.save();
+                    ctx.beginPath();
+                    // Draw a larger oval to ensure coverage during movement
+                    ctx.ellipse(centerX, centerY, width * 0.8, height * 0.8, 0, 0, 2 * Math.PI);
+                    ctx.clip();
+                    
+                    // Heavy blur
+                    ctx.filter = 'blur(25px)';
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    ctx.restore();
+                });
+            }
+
+            // C. Draw Watermark
+            ctx.font = "900 30px Arial"; // Thicker font
+            ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+            ctx.textAlign = "right";
+            ctx.fillText("TIU", canvas.width - 20, canvas.height - 20);
+
+            requestAnimationFrame(drawLoop);
+        }
+
+        // 5. Recording Controls
+        document.getElementById('btnRecord').onclick = () => {
+            const stream = canvas.captureStream(30);
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+            
+            mediaRecorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
+            
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `TIU-Classroom-${Date.now()}.webm`;
+                a.click();
+                chunks = [];
+                status.innerText = "Video Saved.";
+                document.getElementById('btnRecord').disabled = false;
+                document.getElementById('btnStop').disabled = true;
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+            status.innerText = "Recording... (Do not close tab)";
+            document.getElementById('btnRecord').disabled = true;
+            document.getElementById('btnStop').disabled = false;
+        };
+
+        document.getElementById('btnStop').onclick = () => {
+            mediaRecorder.stop();
+            isRecording = false;
+        };
+
+    </script>
+</body>
+</html>
