@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frustration & Anger Tolerance Assessment</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e74c3c;
+            --secondary-btn: #34495e;
+            --light: #ecf0f1;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #c0392b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        /* --- TIU WATERMARK (Subtle, Bottom Right) --- */
+        body::after {
+            content: "TIU";
+            position: fixed;
+            bottom: 15px;
+            right: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #bdc3c7;
+            z-index: 9999;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Progress Bar (Top of container) */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background-color: var(--light);
+            border-radius: 3px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background-color: var(--success);
+            transition: width 0.4s ease;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 2px solid var(--light);
+            padding-bottom: 20px;
+        }
+
+        h1 { color: var(--primary); margin-bottom: 10px; }
+        .subtitle { color: #7f8c8d; font-size: 0.9rem; }
+
+        .section-title {
+            background-color: var(--primary);
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-top: 30px;
+            margin-bottom: 20px;
+        }
+
+        .question-block {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #fdfdfd;
+            border-left: 4px solid var(--light);
+            transition: border-color 0.3s;
+        }
+
+        .question-block:hover { border-left-color: var(--accent); }
+        .question-text { font-weight: 600; margin-bottom: 10px; display: block; }
+
+        .options {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .options label {
+            flex: 1;
+            text-align: center;
+            background: var(--light);
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+
+        .options input { display: none; }
+        .options input:checked + span { font-weight: bold; color: var(--accent); }
+        .options label:has(input:checked) { background: #fadbd8; border: 1px solid var(--accent); }
+
+        /* Buttons */
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        
+        button {
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s;
+            padding: 12px 20px;
+            color: white;
+            flex: 1;
+        }
+
+        button#calculate {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background-color: var(--accent);
+            font-size: 1.1rem;
+            margin-top: 40px;
+        }
+        button#calculate:hover { background-color: #c0392b; }
+
+        button.btn-copy { background-color: var(--secondary-btn); }
+        button.btn-copy:hover { background-color: #2c3e50; }
+
+        button.btn-print { background-color: var(--primary); }
+        button.btn-print:hover { background-color: #1a252f; }
+
+        /* Results Section */
+        #results {
+            display: none;
+            margin-top: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .score-card {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .score-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; }
+        .score-value { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+        
+        /* Visual Score Bar */
+        .score-bar-bg {
+            width: 100%;
+            height: 12px;
+            background: #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .score-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--success);
+            transition: width 1s ease-out;
+        }
+
+        .interpretation { font-style: italic; font-size: 0.95rem; }
+
+        /* Tips Section */
+        #tips-section {
+            display: none; /* Hidden by default */
+            background-color: #e8f6f3;
+            border: 1px solid #a2d9ce;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        #tips-section h3 { margin-top: 0; color: #16a085; }
+        #tips-section ul { padding-left: 20px; }
+        #tips-section li { margin-bottom: 8px; }
+
+        .citation {
+            font-size: 0.75rem;
+            color: #95a5a6;
+            margin-top: 50px;
+            text-align: center;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+
+        /* Print Styles: Clean up for PDF */
+        @media print {
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; border: none; width: 100%; max-width: 100%; padding: 0; }
+            button, .section-title, .progress-container, p.subtitle { display: none !important; }
+            #assessmentForm { display: none; }
+            #results { display: block !important; border: none; padding: 0; margin: 0; }
+            .citation { margin-top: 20px; }
+            /* Force background graphics for colored bars */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="progress-container">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <header>
+        <h1>Tolerance & Anger Assessment</h1>
+        <p>Based on the <em>Frustration Discomfort Scale (FDS)</em> and <em>Dimensions of Anger Reactions (DAR-5)</em>.</p>
+        <p class="subtitle">Please answer all questions honestly based on how you have felt over the last 4 weeks.</p>
+    </header>
+
+    <form id="assessmentForm">
+        <div class="section-title">Part 1: Frustration Tolerance</div>
+        <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">Rate how strongly you believe these statements reflect your feelings.</p>
+        <div id="fds-questions"></div>
+
+        <div class="section-title">Part 2: Anger Reactions</div>
+        <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">Rate the frequency/intensity of these experiences.</p>
+        <div id="dar-questions"></div>
+
+        <button type="button" id="calculate" onclick="calculateScore()">Analyze Results</button>
+    </form>
+
+    <div id="results">
+        <h2 style="border-bottom: 2px solid #eee; padding-bottom: 10px;">Assessment Report</h2>
+        
+        <div class="score-card">
+            <div class="score-header">
+                <h3>Frustration Tolerance</h3>
+                <span class="score-value" id="fds-score-text">0 / 35</span>
+            </div>
+            <div class="score-bar-bg">
+                <div class="score-bar-fill" id="fds-bar"></div>
+            </div>
+            <p class="interpretation" id="fds-interp"></p>
+        </div>
+
+        <div class="score-card">
+            <div class="score-header">
+                <h3>Anger Reaction</h3>
+                <span class="score-value" id="dar-score-text">0 / 25</span>
+            </div>
+            <div class="score-bar-bg">
+                <div class="score-bar-fill" id="dar-bar"></div>
+            </div>
+            <p class="interpretation" id="dar-interp"></p>
+        </div>
+
+        <div class="score-card" style="border-bottom: none;">
+            <h3>Composite Profile</h3>
+            <p id="final-summary"></p>
+        </div>
+
+        <div id="tips-section">
+            <h3>💡 Recommended Strategies</h3>
+            <ul id="tips-list"></ul>
+        </div>
+
+        <div class="btn-group">
+            <button type="button" class="btn-copy" id="share-btn" onclick="shareResults()">Copy Summary</button>
+            <button type="button" class="btn-print" onclick="window.print()">Save as PDF / Print</button>
+        </div>
+    </div>
+
+    <div class="citation">
+        <p><strong>References:</strong></p>
+        <p>1. Harrington, N. (2005). The Frustration Discomfort Scale: Development and psychometric properties. <em>Clinical Psychology & Psychotherapy</em>.</p>
+        <p>2. Forbes, D., et al. (2004/2014). Dimensions of Anger Reactions (DAR-5).</p>
+        <p><em>Disclaimer: This application is for educational purposes only. It is not a diagnostic tool.</em></p>
+    </div>
+</div>
+
+<script>
+    // --- DATA ---
+    const fdsData = [
+        "I can't stand having to wait for things I would like now.",
+        "I can't stand it if other people act against my wishes.",
+        "I can't bear to feel that I am losing control of my feelings.",
+        "I can't stand situations where I might feel upset or uncomfortable.",
+        "I can't tolerate being taken for granted or treated unfairly.",
+        "I need the easiest way around a problem; I can't stand making a hard time of it.",
+        "I can't stand having to push myself at tasks that feel difficult."
+    ];
+
+    const darData = [
+        "I found myself getting angry at people or situations.",
+        "When I got angry, I got really mad (intensity).",
+        "When I got angry, I stayed angry (duration).",
+        "When I got angry at someone, I wanted to hit them (aggression).",
+        "My anger prevented me from getting along with people as well as I'd have liked."
+    ];
+
+    const totalQuestions = fdsData.length + darData.length;
+
+    // --- RENDER FUNCTIONS ---
+    function renderQuestions() {
+        const fdsContainer = document.getElementById('fds-questions');
+        const darContainer = document.getElementById('dar-questions');
+
+        fdsData.forEach((q, index) => {
+            fdsContainer.innerHTML += createQuestionHTML(q, index, 'fds', 
+                ['Absent', 'Mild', 'Moderate', 'Strong', 'Very Strong']);
+        });
+
+        darData.forEach((q, index) => {
+            darContainer.innerHTML += createQuestionHTML(q, index, 'dar', 
+                ['Never', 'Rarely', 'Sometimes', 'Often', 'Always']);
+        });
+
+        // Add event listeners for progress bar
+        const allInputs = document.querySelectorAll('input[type="radio"]');
+        allInputs.forEach(input => {
+            input.addEventListener('change', updateProgress);
+        });
+    }
+
+    function createQuestionHTML(text, index, type, labels) {
+        let optionsHTML = '';
+        labels.forEach((label, i) => {
+            const val = i + 1;
+            optionsHTML += `
+                <label>
+                    <input type="radio" name="${type}_${index}" value="${val}">
+                    <span>${label} (${val})</span>
+                </label>
+            `;
+        });
+        return `
+            <div class="question-block">
+                <span class="question-text">${index + 1}. ${text}</span>
+                <div class="options">${optionsHTML}</div>
+            </div>
+        `;
+    }
+
+    // --- LOGIC FUNCTIONS ---
+    function updateProgress() {
+        const answered = document.querySelectorAll('input[type="radio"]:checked').length;
+        const percent = (answered / totalQuestions) * 100;
+        document.getElementById('progressBar').style.width = percent + '%';
+    }
+
+    function calculateScore() {
+        // FDS Calc
+        let fdsScore = 0;
+        for(let i=0; i<fdsData.length; i++) {
+            const els = document.getElementsByName(`fds_${i}`);
+            let val = 0;
+            for(let el of els) if(el.checked) val = parseInt(el.value);
+            if(val === 0) { alert("Please answer all questions to get an accurate result."); return; }
+            fdsScore += val;
+        }
+
+        // DAR Calc
+        let darScore = 0;
+        for(let i=0; i<darData.length; i++) {
+            const els = document.getElementsByName(`dar_${i}`);
+            let val = 0;
+            for(let el of els) if(el.checked) val = parseInt(el.value);
+            if(val === 0) { alert("Please answer all questions to get an accurate result."); return; }
+            darScore += val;
+        }
+
+        displayResults(fdsScore, darScore);
+    }
+
+    function displayResults(fds, dar) {
+        const resultsDiv = document.getElementById('results');
+        
+        // --- 1. FDS VISUALS ---
+        const fdsMax = 35;
+        const fdsPercent = (fds / fdsMax) * 100;
+        const fdsBar = document.getElementById('fds-bar');
+        document.getElementById('fds-score-text').innerText = `${fds} / ${fdsMax}`;
+        
+        let fdsText = "";
+        if(fds <= 14) {
+            fdsText = "High Tolerance (Good emotional regulation).";
+            fdsBar.style.backgroundColor = "var(--success)";
+        } else if (fds <= 24) {
+            fdsText = "Moderate Tolerance (Some difficulty handling discomfort).";
+            fdsBar.style.backgroundColor = "var(--warning)";
+        } else {
+            fdsText = "Low Tolerance (Significant difficulty tolerating frustration).";
+            fdsBar.style.backgroundColor = "var(--danger)";
+        }
+        document.getElementById('fds-interp').innerText = fdsText;
+        fdsBar.style.width = fdsPercent + "%";
+
+        // --- 2. DAR VISUALS ---
+        const darMax = 25;
+        const darPercent = (dar / darMax) * 100;
+        const darBar = document.getElementById('dar-bar');
+        document.getElementById('dar-score-text').innerText = `${dar} / ${darMax}`;
+
+        let darText = "";
+        let highAnger = false;
+        if(dar < 12) {
+            darText = "Within Normal Limits (Unlikely to be easily angered).";
+            darBar.style.backgroundColor = "var(--success)";
+        } else {
+            darText = "Above Clinical Cut-off (Indicative of Problem Anger).";
+            darBar.style.backgroundColor = "var(--danger)";
+            highAnger = true;
+        }
+        document.getElementById('dar-interp').innerText = darText;
+        darBar.style.width = darPercent + "%";
+
+        // --- 3. SUMMARY ---
+        const summary = document.getElementById('final-summary');
+        if(fds > 24 && highAnger) {
+            summary.innerText = "Results suggest a 'High Risk' profile: Low Frustration Tolerance combined with High Anger intensity. You may experience 'explosive' reactions because you feel things intensely and struggle to tolerate the discomfort.";
+        } else if (fds > 24 && !highAnger) {
+            summary.innerText = "Results suggest Low Frustration Tolerance, but contained anger. You likely feel significant internal distress or impatience, but you manage to keep it from becoming aggressive.";
+        } else if (fds <= 24 && highAnger) {
+            summary.innerText = "Results suggest you tolerate daily frustrations reasonably well, but when you do get angry, the reaction is intense. This points to an Anger Management issue rather than a general tolerance issue.";
+        } else {
+            summary.innerText = "Your results indicate a healthy ability to tolerate frustration and regulate anger.";
+        }
+
+        // --- 4. CONDITIONAL TIPS ---
+        const tipsSection = document.getElementById('tips-section');
+        const tipsList = document.getElementById('tips-list');
+        tipsList.innerHTML = ""; // Clear previous
+
+        if(fds > 24 || highAnger) {
+            tipsSection.style.display = "block";
+            if(fds > 24) {
+                tipsList.innerHTML += "<li><strong>Practice Discomfort Tolerance:</strong> Deliberately expose yourself to minor annoyances (like a long line) and practice breathing through it without checking your phone.</li>";
+            }
+            if(highAnger) {
+                tipsList.innerHTML += "<li><strong>The 60-Second Pause:</strong> Anger hormones peak quickly. Step away from the situation for exactly 60 seconds before responding.</li>";
+            }
+            tipsList.innerHTML += "<li><strong>Cognitive Reframing:</strong> Ask yourself, 'Is this situation actually catastrophic, or just unpleasant?'</li>";
+        } else {
+            tipsSection.style.display = "none";
+        }
+
+        // Reveal Section
+        resultsDiv.style.display = "block";
+        window.scrollTo({ top: resultsDiv.offsetTop - 20, behavior: 'smooth' });
+    }
+
+    function shareResults() {
+        const summary = document.getElementById('final-summary').innerText;
+        const fdsScore = document.getElementById('fds-score-text').innerText;
+        const darScore = document.getElementById('dar-score-text').innerText;
+
+        const textToCopy = `TOLERANCE ASSESSMENT RESULTS:\nFrustration Score: ${fdsScore}\nAnger Score: ${darScore}\n\nSummary: ${summary}`;
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            const btn = document.getElementById('share-btn');
+            const originalText = btn.innerText;
+            btn.innerText = "Copied! ✓";
+            btn.style.backgroundColor = "#27ae60";
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.style.backgroundColor = "#34495e";
+            }, 3000);
+        });
+    }
+
+    renderQuestions();
+</script>
+
+</body>
+</html>
