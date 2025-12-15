@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Web Conference</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            /* Changed from 'hidden' to 'auto' so you can scroll if the screen is small */
+            overflow-y: auto; 
+        }
+
+        /* Header */
+        header {
+            padding: 15px 20px;
+            background-color: #252525;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0; /* Prevents header from squishing */
+        }
+
+        h1 { margin: 0; font-size: 1.2rem; }
+
+        /* Video Grid */
+        .video-container {
+            flex: 1; /* Takes up remaining space */
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            padding: 20px;
+            min-height: 300px; /* Ensures videos don't get too small */
+        }
+
+        @media (max-width: 600px) {
+            .video-container {
+                grid-template-columns: 1fr; /* Stack videos on mobile */
+            }
+        }
+
+        .vid-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            border-radius: 8px;
+            border: 1px solid #333;
+            overflow: hidden;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .label {
+            position: absolute; 
+            bottom: 10px; 
+            left: 10px; 
+            background: rgba(0,0,0,0.6); 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 0.8rem;
+            pointer-events: none;
+        }
+
+        /* Controls Area */
+        .controls {
+            background-color: #252525;
+            padding: 20px;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap; /* Allows wrapping on small screens */
+            flex-shrink: 0; /* Prevents controls from being cut off */
+            padding-bottom: 40px; /* Extra space at bottom */
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 300px;
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .control-group h3 {
+            margin: 0 0 5px 0;
+            font-size: 1rem;
+            color: #ccc;
+        }
+
+        textarea {
+            background-color: #222;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            resize: none;
+            height: 60px;
+            word-break: break-all;
+        }
+
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+
+        .btn-primary { background-color: #3b82f6; }
+        .btn-success { background-color: #10b981; }
+
+        /* The Watermark */
+        .watermark {
+            position: fixed;
+            bottom: 15px;
+            right: 20px;
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.03); /* Extremely subtle */
+            pointer-events: none;
+            z-index: 9999;
+            font-family: 'Courier New', Courier, monospace;
+            user-select: none;
+        }
+
+        /* Status indicators */
+        .status-badge {
+            background-color: #444;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <header>
+        <h1>Secure P2P Conference</h1>
+        <span id="status" class="status-badge">Ready</span>
+    </header>
+
+    <div class="video-container">
+        <div class="vid-wrapper">
+            <video id="localVideo" autoplay playsinline muted></video>
+            <div class="label">You</div>
+        </div>
+        <div class="vid-wrapper">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <div class="label">Peer</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <h3>1. Initiator (User A)</h3>
+            <button class="btn-primary" onclick="createOffer()">Create Offer</button>
+            <textarea id="localOffer" placeholder="Wait for code..." readonly onclick="this.select()"></textarea>
+            <small style="color:#888; font-size: 0.7rem;">Copy this & send to Peer</small>
+        </div>
+
+        <div class="control-group">
+            <h3>2. Responder (User B)</h3>
+            <textarea id="remoteOffer" placeholder="Paste User A's code here..."></textarea>
+            <button class="btn-success" onclick="createAnswer()">Create Answer</button>
+            <textarea id="localAnswer" placeholder="Wait for code..." readonly onclick="this.select()"></textarea>
+            <small style="color:#888; font-size: 0.7rem;">Copy this & send back to A</small>
+        </div>
+
+        <div class="control-group">
+            <h3>3. Connect (User A)</h3>
+            <textarea id="remoteAnswer" placeholder="Paste User B's answer here..."></textarea>
+            <button class="btn-primary" onclick="addAnswer()">Verify & Connect</button>
+        </div>
+    </div>
+
+    <script>
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const statusSpan = document.getElementById('status');
+        
+        const servers = {
+            iceServers: [
+                { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }
+            ]
+        };
+
+        let localStream;
+        let peerConnection;
+
+        async function init() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
+            } catch (err) {
+                console.error(err);
+                alert("Please allow camera access.");
+            }
+        }
+        init();
+
+        function createPeerConnection() {
+            peerConnection = new RTCPeerConnection(servers);
+
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            peerConnection.ontrack = (event) => {
+                remoteVideo.srcObject = event.streams[0];
+                statusSpan.textContent = "Connected Securely";
+                statusSpan.style.backgroundColor = "#10b981";
+            };
+
+            peerConnection.onicecandidate = (event) => {
+                if (!event.candidate) {
+                    if (peerConnection.localDescription.type === 'offer') {
+                        document.getElementById('localOffer').value = JSON.stringify(peerConnection.localDescription);
+                        statusSpan.textContent = "Offer Ready to Copy";
+                    } else if (peerConnection.localDescription.type === 'answer') {
+                        document.getElementById('localAnswer').value = JSON.stringify(peerConnection.localDescription);
+                        statusSpan.textContent = "Answer Ready to Copy";
+                    }
+                }
+            };
+        }
+
+        async function createOffer() {
+            createPeerConnection();
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            statusSpan.textContent = "Generating Offer...";
+        }
+
+        async function createAnswer() {
+            createPeerConnection();
+            const offerStr = document.getElementById('remoteOffer').value;
+            if (!offerStr) return alert("Paste User A's offer first");
+
+            const offer = JSON.parse(offerStr);
+            await peerConnection.setRemoteDescription(offer);
+
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            statusSpan.textContent = "Generating Answer...";
+        }
+
+        async function addAnswer() {
+            const answerStr = document.getElementById('remoteAnswer').value;
+            if (!answerStr) return alert("Paste User B's answer first");
+
+            const answer = JSON.parse(answerStr);
+            if (!peerConnection.currentRemoteDescription) {
+                await peerConnection.setRemoteDescription(answer);
+                statusSpan.textContent = "Connecting...";
+            }
+        }
+    </script>
+</body>
+</html>
