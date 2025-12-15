@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>TIU Art Studio</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
@@ -12,7 +12,7 @@
             --text-color: #e0e0e0;
             --accent: #4a90e2;
             --toolbar-desktop: 60px;
-            --toolbar-mobile: 70px;
+            --toolbar-mobile: 80px; /* Increased for touch targets */
             --header-height: 50px;
         }
 
@@ -20,16 +20,20 @@
 
         body {
             margin: 0;
-            overflow: hidden; /* No scrolling allowed */
             background-color: var(--bg-color);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             color: var(--text-color);
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            
+            /* CRITICAL FIX FOR MOBILE: Use dynamic viewport height */
+            height: 100vh; 
+            height: 100dvh; 
+            
             width: 100vw;
-            overscroll-behavior: none; /* Prevents pull-to-refresh on mobile */
-            touch-action: none; /* Disables browser gestures */
+            overscroll-behavior: none;
+            touch-action: none;
+            overflow: hidden;
         }
 
         /* --- Header (Properties) --- */
@@ -42,8 +46,12 @@
             border-bottom: 1px solid #444;
             gap: 10px;
             z-index: 20;
-            overflow-x: auto; /* Horizontal scroll for small screens */
+            overflow-x: auto;
             white-space: nowrap;
+            flex-shrink: 0; /* Never shrink the header */
+            
+            /* Safe area for notch phones */
+            padding-top: env(safe-area-inset-top); 
         }
         #header::-webkit-scrollbar { display: none; }
 
@@ -79,6 +87,7 @@
             flex-grow: 1;
             position: relative;
             overflow: hidden;
+            width: 100%;
         }
 
         /* --- Toolbar --- */
@@ -86,38 +95,47 @@
             background-color: var(--panel-bg);
             display: flex;
             align-items: center;
-            z-index: 20;
+            z-index: 50; /* Ensure it sits on top */
             gap: 12px;
             padding: 10px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
         }
 
-        /* Desktop: Sidebar */
+        /* Desktop Layout */
         @media (min-width: 601px) {
             #toolbar {
                 width: var(--toolbar-desktop);
                 flex-direction: column;
                 border-right: 1px solid #444;
                 padding-top: 20px;
+                height: 100%;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.3);
             }
         }
 
-        /* Mobile: Bottom Bar */
+        /* Mobile Layout */
         @media (max-width: 600px) {
-            #workspace { flex-direction: column-reverse; } /* Canvas on top, tools on bottom */
+            #workspace { 
+                flex-direction: column-reverse; /* Canvas top, Toolbar bottom */
+            } 
+            
             #toolbar {
-                height: var(--toolbar-mobile);
                 width: 100%;
                 flex-direction: row;
                 justify-content: space-around;
                 border-top: 1px solid #444;
-                padding-bottom: 20px; /* Safe area for modern phones */
+                
+                /* CRITICAL FIX: Add padding for the "Home Swipe Bar" on iPhone/Android */
+                padding-bottom: calc(15px + env(safe-area-inset-bottom));
+                min-height: var(--toolbar-mobile);
             }
+            
             #header { gap: 15px; }
-            .prop-group label { display: none; } /* Save space */
+            .prop-group label { display: none; }
         }
 
         .tool-btn {
-            width: 44px; /* Finger-friendly size */
+            width: 44px;
             height: 44px;
             background-color: #3a3a3a;
             border: 1px solid #555;
@@ -130,7 +148,7 @@
             transition: all 0.2s;
             position: relative;
         }
-        .tool-btn.active { background-color: var(--accent); border-color: var(--accent); color: white; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3); }
+        .tool-btn.active { background-color: var(--accent); border-color: var(--accent); color: white; transform: translateY(-2px); }
 
         /* --- Canvas --- */
         #canvas-wrap {
@@ -142,17 +160,19 @@
             justify-content: center;
             align-items: center;
             touch-action: none;
+            width: 100%;
         }
         canvas {
             background-color: white;
             box-shadow: 0 0 30px rgba(0,0,0,0.2);
+            touch-action: none;
         }
 
         /* --- P2P Modal --- */
         #modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.7); z-index: 99; display: none;
-            backdrop-filter: blur(2px);
+            background: rgba(0,0,0,0.8); z-index: 99; display: none;
+            backdrop-filter: blur(4px);
         }
         #modal-overlay.active { display: block; }
         
@@ -284,24 +304,24 @@
             tool: 'pencil',
             color: '#000000',
             size: 5,
-            opacity: 1.0,
-            history: [] // For Undo logic later if needed
+            opacity: 1.0
         };
 
         let p2p = { peer: null, conn: null, connected: false };
 
         // --- RESIZE LOGIC ---
         function fitCanvas() {
-            // Backup
+            // Backup content
             const temp = document.createElement('canvas');
             temp.width = canvas.width; temp.height = canvas.height;
             temp.getContext('2d').drawImage(canvas, 0,0);
 
-            // Resize
-            canvas.width = wrap.clientWidth;
-            canvas.height = wrap.clientHeight;
+            // Resize based on wrapper dimensions
+            const rect = wrap.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
 
-            // Restore
+            // Restore content
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(temp, 0, 0);
@@ -313,8 +333,11 @@
         // --- DRAWING ENGINE ---
         function getCoords(e) {
             const r = canvas.getBoundingClientRect();
-            const t = e.touches ? e.touches[0] : e;
-            return { x: t.clientX - r.left, y: t.clientY - r.top };
+            // Handle both touch and mouse
+            if (e.touches && e.touches.length > 0) {
+                return { x: e.touches[0].clientX - r.left, y: e.touches[0].clientY - r.top };
+            }
+            return { x: e.clientX - r.left, y: e.clientY - r.top };
         }
 
         function render(d) {
@@ -346,7 +369,7 @@
             }
             ctx.stroke();
             
-            // Reset
+            // Reset context
             ctx.globalCompositeOperation = 'source-over';
             ctx.shadowBlur = 0;
             ctx.globalAlpha = 1.0;
@@ -354,7 +377,9 @@
 
         function start(e) {
             if(e.target !== canvas) return;
-            e.preventDefault();
+            // Prevent default to stop scrolling, but allow multi-touch gestures elsewhere if needed
+            if(e.cancelable) e.preventDefault(); 
+            
             state.isDrawing = true;
             const p = getCoords(e);
             state.lx = p.x; state.ly = p.y;
@@ -363,7 +388,7 @@
 
         function move(e) {
             if(!state.isDrawing) return;
-            if(e.cancelable) e.preventDefault(); // Stop mobile scroll
+            if(e.cancelable) e.preventDefault(); 
 
             const p = getCoords(e);
             const packet = {
@@ -408,9 +433,11 @@
         // Buttons
         document.getElementById('btn-import').onclick = () => document.getElementById('file-input').click();
         document.getElementById('file-input').onchange = e => {
-            const img = new Image();
-            img.onload = () => ctx.drawImage(img,0,0, canvas.width, canvas.height);
-            img.src = URL.createObjectURL(e.target.files[0]);
+            if(e.target.files && e.target.files[0]) {
+                const img = new Image();
+                img.onload = () => ctx.drawImage(img,0,0, canvas.width, canvas.height);
+                img.src = URL.createObjectURL(e.target.files[0]);
+            }
         };
         document.getElementById('btn-export').onclick = () => {
             const a = document.createElement('a');
