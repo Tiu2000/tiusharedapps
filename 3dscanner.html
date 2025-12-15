@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TIU Capture Station</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --primary: #00d2ff;
+            --bg: #111;
+            --overlay: rgba(0, 0, 0, 0.6);
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: white;
+            font-family: 'Courier New', monospace; /* TIU Technical look */
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* --- Viewport --- */
+        #viewport {
+            position: relative;
+            flex-grow: 1;
+            overflow: hidden;
+            background: black;
+        }
+
+        video, #ghost-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* The Ghost Image (Previous shot) */
+        #ghost-image {
+            opacity: 0.3; /* The key to alignment */
+            pointer-events: none;
+            display: none;
+            filter: grayscale(100%);
+            z-index: 10;
+        }
+
+        /* Guides */
+        .guide-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            box-sizing: border-box;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+        }
+        .guide-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 1px solid var(--primary);
+            border-radius: 50%;
+        }
+
+        /* --- UI Controls --- */
+        #controls {
+            height: 140px;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 0 20px;
+            z-index: 20;
+            border-top: 1px solid #333;
+        }
+
+        /* Shutter Button */
+        #shutter-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: transparent;
+            border: 4px solid white;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        #shutter-btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 50%;
+        }
+        #shutter-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Ghost Toggle */
+        .toggle-btn {
+            color: var(--primary);
+            background: transparent;
+            border: 1px solid var(--primary);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .toggle-btn.active {
+            background: var(--primary);
+            color: black;
+        }
+
+        /* Stats */
+        #stats {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 4px;
+            border-left: 3px solid var(--primary);
+        }
+
+        /* Download Button */
+        #download-btn {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            opacity: 0.5;
+            pointer-events: none;
+            cursor: pointer;
+        }
+        #download-btn.ready {
+            background: var(--primary);
+            color: black;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Flash Animation */
+        #flash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 50;
+            transition: opacity 0.1s;
+        }
+
+        /* Watermark */
+        .tiu-mark {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            font-weight: 900;
+            color: rgba(255,255,255,0.1);
+            z-index: 15;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="viewport">
+        <video id="camera-feed" autoplay playsinline muted></video>
+        <img id="ghost-image" src="" alt="Ghost">
+        
+        <div class="guide-grid">
+            <div class="guide-center"></div>
+        </div>
+        
+        <div id="stats">
+            <div>SHOTS: <span id="count">0</span></div>
+            <div style="font-size: 10px; opacity: 0.7;">MIN REQ: 20</div>
+        </div>
+
+        <div class="tiu-mark">TIU</div>
+        <div id="flash"></div>
+    </div>
+
+    <div id="controls">
+        <button id="ghost-toggle" class="toggle-btn active" onclick="toggleGhost()">GHOST: ON</button>
+        
+        <button id="shutter-btn" onclick="takePhoto()"></button>
+        
+        <button id="download-btn" onclick="downloadDataset()">FINISH & ZIP</button>
+    </div>
+
+    <script>
+        let stream;
+        let imageCapture;
+        const video = document.getElementById('camera-feed');
+        const ghostImage = document.getElementById('ghost-image');
+        const countDisplay = document.getElementById('count');
+        const downloadBtn = document.getElementById('download-btn');
+        const flash = document.getElementById('flash');
+        
+        // Store images in memory (Base64 strings)
+        let capturedImages = [];
+        let ghostEnabled = true;
+
+        // 1. Initialize Camera
+        async function startCamera() {
+            try {
+                // Try to get the back camera (environment) with high resolution
+                const constraints = { 
+                    video: { 
+                        facingMode: { ideal: "environment" },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    } 
+                };
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+            } catch (err) {
+                alert("Error accessing camera. Please ensure you are on HTTPS or localhost.");
+                console.error(err);
+            }
+        }
+
+        // 2. Take Photo Logic
+        function takePhoto() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw current video frame to canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to data URL (JPEG)
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+            
+            // Save to array
+            capturedImages.push(dataUrl);
+            
+            // Update UI
+            updateStats();
+            triggerFlash();
+            
+            // Set as Ghost Image for the next shot
+            if (ghostEnabled) {
+                ghostImage.src = dataUrl;
+                ghostImage.style.display = "block";
+            }
+        }
+
+        // 3. UI Helpers
+        function triggerFlash() {
+            flash.style.opacity = 1;
+            setTimeout(() => flash.style.opacity = 0, 100);
+        }
+
+        function updateStats() {
+            const count = capturedImages.length;
+            countDisplay.innerText = count;
+            
+            if (count >= 3) { // Enable download after 3 shots for testing
+                downloadBtn.classList.add('ready');
+            }
+        }
+
+        function toggleGhost() {
+            ghostEnabled = !ghostEnabled;
+            const btn = document.getElementById('ghost-toggle');
+            if (ghostEnabled) {
+                btn.classList.add('active');
+                btn.innerText = "GHOST: ON";
+                if(capturedImages.length > 0) ghostImage.style.display = "block";
+            } else {
+                btn.classList.remove('active');
+                btn.innerText = "GHOST: OFF";
+                ghostImage.style.display = "none";
+            }
+        }
+
+        // 4. Export to ZIP (The Magic)
+        function downloadDataset() {
+            if (capturedImages.length === 0) return;
+            
+            downloadBtn.innerText = "ZIPPING...";
+            
+            const zip = new JSZip();
+            const folder = zip.folder("TIU_Scan_Dataset");
+            
+            // Add images to zip
+            capturedImages.forEach((imgData, index) => {
+                // Remove the "data:image/jpeg;base64," header
+                const data = imgData.split(',')[1];
+                folder.file(`scan_${index.toString().padStart(3, '0')}.jpg`, data, {base64: true});
+            });
+
+            // Generate and download
+            zip.generateAsync({type:"blob"}).then(function(content) {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = "TIU_Scan_Dataset.zip";
+                link.click();
+                
+                downloadBtn.innerText = "DONE!";
+                setTimeout(() => downloadBtn.innerText = "FINISH & ZIP", 2000);
+            });
+        }
+
+        // Boot
+        startCamera();
+
+    </script>
+</body>
+</html>
