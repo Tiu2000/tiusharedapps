@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy P2P Video</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: white;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        /* Header */
+        header {
+            padding: 20px;
+            background-color: #1f1f1f;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+
+        h1 { margin: 0; font-size: 1.1rem; color: #ddd; }
+
+        /* Video Area */
+        .video-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        @media (max-width: 700px) {
+            .video-grid { grid-template-columns: 1fr; }
+        }
+
+        .video-card {
+            position: relative;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #333;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            aspect-ratio: 16/9;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .label {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(0,0,0,0.6);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            backdrop-filter: blur(4px);
+        }
+
+        /* Connection Bar */
+        .connection-bar {
+            background-color: #1f1f1f;
+            padding: 20px;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            background: #2d2d2d;
+            padding: 10px;
+            border-radius: 8px;
+            align-items: center;
+        }
+
+        input {
+            background: transparent;
+            border: none;
+            color: white;
+            font-family: monospace;
+            font-size: 1rem;
+            width: 150px;
+            outline: none;
+        }
+
+        button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-copy { background: #444; color: #fff; }
+        .btn-copy:hover { background: #555; }
+
+        .btn-call { background: #3b82f6; color: white; }
+        .btn-call:hover { background: #2563eb; }
+
+        .status-dot {
+            height: 10px;
+            width: 10px;
+            background-color: #ef4444; /* Red initially */
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        /* Watermark */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 25px;
+            font-size: 4rem;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.04);
+            pointer-events: none;
+            z-index: 9999;
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <header>
+        <h1>Video Sync</h1>
+        <div style="font-size: 0.9rem; color: #aaa;">
+            <span id="status-dot" class="status-dot"></span>
+            <span id="status-text">Initializing...</span>
+        </div>
+    </header>
+
+    <div class="video-grid">
+        <div class="video-card">
+            <video id="localVideo" autoplay muted playsinline></video>
+            <div class="label">You</div>
+        </div>
+        <div class="video-card">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <div class="label">Remote Peer</div>
+        </div>
+    </div>
+
+    <div class="connection-bar">
+        <div class="input-group">
+            <span style="color:#888; font-size: 0.8rem; margin-right:5px;">MY ID:</span>
+            <input type="text" id="my-id" readonly value="...">
+            <button class="btn-copy" onclick="copyId()">Copy</button>
+        </div>
+
+        <div class="input-group" style="border: 1px solid #3b82f6;">
+            <input type="text" id="remote-id" placeholder="Enter Friend's ID">
+            <button class="btn-call" onclick="startCall()">Connect</button>
+        </div>
+    </div>
+
+    <script>
+        // 1. Setup variables
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const statusText = document.getElementById('status-text');
+        const statusDot = document.getElementById('status-dot');
+        const myIdInput = document.getElementById('my-id');
+
+        let localStream = null;
+        let peer = null;
+
+        // 2. Initialize Video & PeerJS
+        async function init() {
+            try {
+                // Get Camera/Mic
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
+
+                // Create Peer (Automatic ID generation)
+                peer = new Peer();
+
+                // When we get our ID from the cloud
+                peer.on('open', (id) => {
+                    myIdInput.value = id;
+                    setStatus("Online - Share your ID", "green");
+                });
+
+                // When someone calls us
+                peer.on('call', (call) => {
+                    setStatus("Incoming Call...", "orange");
+                    // Answer the call automatically with our stream
+                    call.answer(localStream);
+                    handleStream(call);
+                });
+
+                peer.on('error', (err) => {
+                    console.error(err);
+                    setStatus("Connection Error", "red");
+                });
+
+            } catch (err) {
+                console.error("Camera failed", err);
+                alert("Could not access camera. Make sure you are on HTTPS.");
+            }
+        }
+
+        // 3. Make a Call
+        function startCall() {
+            const remoteId = document.getElementById('remote-id').value.trim();
+            if (!remoteId) return alert("Please enter a Friend's ID first.");
+
+            setStatus("Calling...", "orange");
+            const call = peer.call(remoteId, localStream);
+            handleStream(call);
+        }
+
+        // 4. Handle the Video Stream
+        function handleStream(call) {
+            call.on('stream', (remoteStream) => {
+                remoteVideo.srcObject = remoteStream;
+                setStatus("Connected", "#10b981");
+            });
+            
+            call.on('close', () => {
+                setStatus("Call Ended", "red");
+            });
+        }
+
+        // Helper: Status Updates
+        function setStatus(msg, color) {
+            statusText.textContent = msg;
+            if(color === 'green') statusDot.style.backgroundColor = '#10b981';
+            else if(color === 'orange') statusDot.style.backgroundColor = '#f59e0b';
+            else if(color === 'red') statusDot.style.backgroundColor = '#ef4444';
+            else statusDot.style.backgroundColor = color;
+        }
+
+        // Helper: Copy ID
+        function copyId() {
+            const idBox = document.getElementById('my-id');
+            idBox.select();
+            navigator.clipboard.writeText(idBox.value);
+            alert("ID Copied: " + idBox.value);
+        }
+
+        // Start everything
+        init();
+    </script>
+</body>
+</html>
