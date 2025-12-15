@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Collaborative Art Studio</title>
+    <title>TIU Art Studio</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -11,27 +11,30 @@
             --panel-bg: #2d2d2d;
             --text-color: #e0e0e0;
             --accent: #4a90e2;
-            --toolbar-size: 60px;
-            --prop-bar-height: 50px;
+            --toolbar-desktop: 60px;
+            --toolbar-mobile: 70px;
+            --header-height: 50px;
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
 
         body {
             margin: 0;
-            overflow: hidden;
+            overflow: hidden; /* No scrolling allowed */
             background-color: var(--bg-color);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             color: var(--text-color);
             display: flex;
             flex-direction: column;
             height: 100vh;
             width: 100vw;
+            overscroll-behavior: none; /* Prevents pull-to-refresh on mobile */
+            touch-action: none; /* Disables browser gestures */
         }
 
-        /* --- Top Properties Panel --- */
-        #properties {
-            height: var(--prop-bar-height);
+        /* --- Header (Properties) --- */
+        #header {
+            height: var(--header-height);
             background-color: var(--panel-bg);
             display: flex;
             align-items: center;
@@ -39,543 +42,483 @@
             border-bottom: 1px solid #444;
             gap: 10px;
             z-index: 20;
-            overflow-x: auto;
+            overflow-x: auto; /* Horizontal scroll for small screens */
             white-space: nowrap;
-            flex-shrink: 0;
         }
-        
-        #properties::-webkit-scrollbar { display: none; }
+        #header::-webkit-scrollbar { display: none; }
 
         .prop-group {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
             background: #3a3a3a;
-            padding: 4px 8px;
-            border-radius: 6px;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
         }
 
         input[type="range"] { width: 80px; accent-color: var(--accent); cursor: pointer; }
-        input[type="color"] { border: none; width: 30px; height: 30px; cursor: pointer; background: none; padding: 0; }
-        label { font-size: 10px; font-weight: bold; color: #aaa; text-transform: uppercase; }
+        input[type="color"] { border: none; width: 28px; height: 28px; border-radius: 50%; overflow: hidden; cursor: pointer; background: none; padding: 0; }
+        label { font-weight: bold; color: #aaa; text-transform: uppercase; font-size: 10px; }
 
-        .btn-action {
+        .btn-text {
             padding: 8px 12px;
             background-color: #444;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 12px;
-            flex-shrink: 0;
+            font-weight: 500;
         }
-        .btn-action:active { transform: scale(0.96); }
+        .btn-text:active { transform: scale(0.95); background-color: #555; }
 
-        /* --- Main Layout --- */
-        #main-area {
+        /* --- Main Workspace --- */
+        #workspace {
             display: flex;
             flex-grow: 1;
             position: relative;
             overflow: hidden;
         }
 
-        /* --- Toolbar (Left on Desktop, Bottom on Mobile) --- */
+        /* --- Toolbar --- */
         #toolbar {
-            width: var(--toolbar-size);
             background-color: var(--panel-bg);
             display: flex;
-            flex-direction: column;
             align-items: center;
-            padding: 10px 0;
-            border-right: 1px solid #444;
             z-index: 20;
-            gap: 10px;
+            gap: 12px;
+            padding: 10px;
+        }
+
+        /* Desktop: Sidebar */
+        @media (min-width: 601px) {
+            #toolbar {
+                width: var(--toolbar-desktop);
+                flex-direction: column;
+                border-right: 1px solid #444;
+                padding-top: 20px;
+            }
+        }
+
+        /* Mobile: Bottom Bar */
+        @media (max-width: 600px) {
+            #workspace { flex-direction: column-reverse; } /* Canvas on top, tools on bottom */
+            #toolbar {
+                height: var(--toolbar-mobile);
+                width: 100%;
+                flex-direction: row;
+                justify-content: space-around;
+                border-top: 1px solid #444;
+                padding-bottom: 20px; /* Safe area for modern phones */
+            }
+            #header { gap: 15px; }
+            .prop-group label { display: none; } /* Save space */
         }
 
         .tool-btn {
-            width: 40px;
-            height: 40px;
+            width: 44px; /* Finger-friendly size */
+            height: 44px;
             background-color: #3a3a3a;
             border: 1px solid #555;
-            border-radius: 8px;
+            border-radius: 12px;
             cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 20px;
-            transition: background 0.2s;
+            font-size: 22px;
+            transition: all 0.2s;
+            position: relative;
         }
+        .tool-btn.active { background-color: var(--accent); border-color: var(--accent); color: white; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3); }
 
-        .tool-btn:hover { background-color: #4a4a4a; }
-        .tool-btn.active { background-color: var(--accent); border-color: var(--accent); color: white; }
-
-        /* --- Canvas Area --- */
-        #canvas-container {
+        /* --- Canvas --- */
+        #canvas-wrap {
             flex-grow: 1;
             position: relative;
-            background-color: #cfcfcf;
+            background-color: #ccc;
             overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
             touch-action: none;
         }
-
         canvas {
             background-color: white;
-            box-shadow: 0 0 20px rgba(0,0,0,0.3);
-            touch-action: none;
+            box-shadow: 0 0 30px rgba(0,0,0,0.2);
         }
 
-        /* --- Collaboration Modal --- */
-        #p2p-panel {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90%;
-            max-width: 320px;
-            background-color: var(--panel-bg);
-            border: 1px solid #555;
-            border-radius: 12px;
+        /* --- P2P Modal --- */
+        #modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); z-index: 99; display: none;
+            backdrop-filter: blur(2px);
+        }
+        #modal-overlay.active { display: block; }
+        
+        #p2p-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 90%; max-width: 320px;
+            background-color: #252525;
+            border: 1px solid #444;
+            border-radius: 16px;
             padding: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
             z-index: 100;
             display: none;
         }
+        #p2p-modal.active { display: block; }
 
-        #p2p-panel.active { display: block; }
-        #p2p-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.6); z-index: 99;
-            display: none;
+        .modal-row { margin-bottom: 15px; }
+        .p2p-input { 
+            width: 100%; background: #151515; border: 1px solid #444; 
+            color: var(--accent); padding: 12px; border-radius: 8px; 
+            font-family: monospace; font-size: 14px; margin-top: 5px;
         }
-        #p2p-overlay.active { display: block; }
+        
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 12px; color: #888; background: #333;
+            padding: 4px 10px; border-radius: 20px;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+        .dot.green { background: #4cd964; box-shadow: 0 0 8px #4cd964; }
 
-        #p2p-panel h3 { margin-top: 0; color: var(--accent); font-size: 16px; }
-        .p2p-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
-        .p2p-input { background: #111; border: 1px solid #444; color: white; padding: 10px; border-radius: 6px; font-family: monospace; }
-        .close-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #888; font-size: 20px; cursor: pointer; }
-
-        .status-dot { height: 10px; width: 10px; background-color: #ff4444; border-radius: 50%; display: inline-block; margin-right: 5px; }
-        .status-dot.connected { background-color: #00ff00; }
-        .status-dot.connecting { background-color: #ffaa00; }
-
-        /* --- Watermark --- */
         #watermark {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 24px;
-            font-weight: bold;
-            color: rgba(0, 0, 0, 0.08);
-            pointer-events: none;
-            user-select: none;
-            z-index: 10;
-        }
-
-        /* --- Mobile Responsive Rules --- */
-        @media (max-width: 600px) {
-            #main-area { flex-direction: column-reverse; } /* Toolbar at bottom */
-            
-            #toolbar {
-                width: 100%;
-                height: var(--toolbar-size);
-                flex-direction: row;
-                justify-content: space-around;
-                border-right: none;
-                border-top: 1px solid #444;
-                padding: 0 10px;
-            }
-
-            #canvas-container {
-                height: calc(100vh - var(--prop-bar-height) - var(--toolbar-size));
-            }
-
-            .prop-group label { display: none; }
-            #watermark { display: none; }
+            position: absolute; bottom: 20px; right: 20px;
+            font-family: monospace; font-weight: 900; font-size: 24px;
+            color: rgba(0,0,0,0.06); pointer-events: none;
         }
 
         @media print {
-            #toolbar, #properties, #p2p-panel, #p2p-overlay { display: none !important; }
-            #canvas-container { background: white; margin: 0; height: 100%; width: 100%; display: block; }
-            canvas { box-shadow: none; width: 100%; height: auto; }
-            #watermark { color: rgba(0, 0, 0, 0.1); bottom: 10px; left: 10px; display: block; }
+            #toolbar, #header, #watermark, #modal-overlay { display: none !important; }
+            #workspace { display: block; height: auto; }
+            #canvas-wrap { background: none; }
+            canvas { box-shadow: none; width: 100%; }
         }
     </style>
 </head>
 <body>
 
-    <div id="watermark">TIU</div>
-
-    <div id="properties">
+    <div id="header">
         <div class="prop-group">
             <input type="color" id="color-picker" value="#000000">
         </div>
         <div class="prop-group">
             <label>Size</label>
-            <input type="range" id="size-slider" min="1" max="50" value="5">
+            <input type="range" id="size-slider" min="1" max="60" value="5">
         </div>
         <div class="prop-group">
-            <label>Opac</label>
+            <label>Opacity</label>
             <input type="range" id="opacity-slider" min="1" max="100" value="100">
         </div>
-
         <div style="flex-grow: 1;"></div>
-
-        <input type="file" id="file-input" accept="image/*" style="display: none;">
-        <button class="btn-action" onclick="document.getElementById('file-input').click()">Import</button>
-        <button class="btn-action" id="btn-export">Export</button>
-        <button class="btn-action" onclick="window.print()">Print</button>
-        <button class="btn-action" id="btn-clear" style="background-color: #d64545;">Clear</button>
+        <button class="btn-text" id="btn-import">Img</button>
+        <button class="btn-text" id="btn-export">Save</button>
+        <button class="btn-text" onclick="window.print()">Print</button>
+        <button class="btn-text" id="btn-clear" style="color:#ff6b6b;">Clear</button>
+        <input type="file" id="file-input" hidden accept="image/*">
     </div>
 
-    <div id="main-area">
+    <div id="workspace">
         <div id="toolbar">
-            <div class="tool-btn active" id="tool-pencil" title="Pencil">✏️</div>
-            <div class="tool-btn" id="tool-brush" title="Brush">🖌️</div>
+            <div class="tool-btn active" id="tool-pencil" title="Pencil (P)">✏️</div>
+            <div class="tool-btn" id="tool-brush" title="Brush (B)">🖌️</div>
             <div class="tool-btn" id="tool-soft" title="Airbrush">☁️</div>
-            <div class="tool-btn" id="tool-eraser" title="Eraser">🧹</div>
-            <div style="flex-grow: 1; display: none;"></div>
-            <div class="tool-btn" id="btn-collab-toggle" title="Collaboration" style="color: var(--accent);">🤝</div>
+            <div class="tool-btn" id="tool-eraser" title="Eraser (E)">🧹</div>
+            
+            <div style="flex-grow:1" class="spacer"></div>
+            
+            <div class="tool-btn" id="btn-collab" style="color: var(--accent);">🤝</div>
         </div>
 
-        <div id="canvas-container">
+        <div id="canvas-wrap">
+            <div id="watermark">TIU</div>
             <canvas id="art-canvas"></canvas>
         </div>
     </div>
 
-    <div id="p2p-overlay"></div>
-    <div id="p2p-panel">
-        <button class="close-btn" id="close-p2p">×</button>
-        <h3>TIU Collaboration</h3>
-        
-        <div class="p2p-row">
-            <label>Your ID:</label>
-            <div style="display:flex; gap:5px;">
-                <input type="text" id="my-peer-id" class="p2p-input" readonly value="Connecting..." style="flex-grow:1;">
-                <button class="btn-action" id="btn-copy-id">Copy</button>
+    <div id="modal-overlay"></div>
+    <div id="p2p-modal">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0; color:white;">Collaborate</h3>
+            <button id="close-modal" style="background:none; border:none; color:#888; font-size:24px; cursor:pointer;">&times;</button>
+        </div>
+
+        <div class="modal-row">
+            <label>MY ID</label>
+            <div style="display:flex; gap:8px;">
+                <input id="my-id" class="p2p-input" readonly value="Connecting...">
+                <button class="btn-text" id="copy-btn" style="margin-top:5px;">Copy</button>
             </div>
-            <button class="btn-action" id="btn-retry-id" style="display:none; width: 100%; margin-top:5px; background-color: #d64545;">Retry Connection</button>
+            <button class="btn-text" id="retry-btn" style="width:100%; margin-top:8px; background:#444; display:none;">Retry Connection</button>
         </div>
-        
-        <hr style="border: 0; border-top: 1px solid #444; margin: 15px 0;">
-        
-        <div class="p2p-row">
-            <label>Friend's ID:</label>
-            <input type="text" id="remote-peer-id" class="p2p-input" placeholder="Paste their ID here">
-            <button class="btn-action" id="btn-connect" style="background-color: var(--accent); margin-top: 5px;">Connect to Friend</button>
+
+        <hr style="border:0; border-top:1px solid #444; margin:20px 0;">
+
+        <div class="modal-row">
+            <label>FRIEND'S ID</label>
+            <div style="display:flex; gap:8px;">
+                <input id="remote-id" class="p2p-input" placeholder="Paste ID here...">
+                <button class="btn-text" id="connect-btn" style="margin-top:5px; background:var(--accent);">Join</button>
+            </div>
         </div>
-        
-        <div style="margin-top: 15px; font-size: 12px; color: #888;">
-            <span class="status-dot" id="connection-status"></span>
-            <span id="status-text">Not Connected</span>
+
+        <div style="text-align:center; margin-top:20px;">
+            <div class="status-badge">
+                <div class="dot" id="status-dot"></div>
+                <span id="status-text">Offline</span>
+            </div>
         </div>
     </div>
 
     <script>
-        /**
-         * SETUP & RESPONSIVENESS
-         */
+        // --- CONFIG ---
         const canvas = document.getElementById('art-canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        const container = document.getElementById('canvas-container');
-
-        // State
+        const wrap = document.getElementById('canvas-wrap');
+        
         let state = {
             isDrawing: false,
-            lastX: 0, lastY: 0,
+            lx: 0, ly: 0,
             tool: 'pencil',
             color: '#000000',
             size: 5,
-            opacity: 1.0
+            opacity: 1.0,
+            history: [] // For Undo logic later if needed
         };
 
-        // P2P State
-        let p2p = {
-            peer: null,
-            conn: null,
-            isConnected: false
-        };
+        let p2p = { peer: null, conn: null, connected: false };
 
-        function resizeCanvas() {
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(canvas, 0, 0);
+        // --- RESIZE LOGIC ---
+        function fitCanvas() {
+            // Backup
+            const temp = document.createElement('canvas');
+            temp.width = canvas.width; temp.height = canvas.height;
+            temp.getContext('2d').drawImage(canvas, 0,0);
 
-            const rect = container.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = rect.height;
+            // Resize
+            canvas.width = wrap.clientWidth;
+            canvas.height = wrap.clientHeight;
 
+            // Restore
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(tempCanvas, 0, 0);
-        }
-
-        window.addEventListener('load', resizeCanvas);
-        window.addEventListener('resize', () => {
-            clearTimeout(window.resizeTimer);
-            window.resizeTimer = setTimeout(resizeCanvas, 100);
-        });
-
-        /**
-         * UI EVENTS
-         */
-        ['pencil', 'brush', 'soft', 'eraser'].forEach(t => {
-            document.getElementById(`tool-${t}`).addEventListener('click', (e) => {
-                state.tool = t;
-                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-                e.currentTarget.classList.add('active');
-            });
-        });
-
-        document.getElementById('color-picker').addEventListener('input', e => state.color = e.target.value);
-        document.getElementById('size-slider').addEventListener('input', e => state.size = parseInt(e.target.value));
-        document.getElementById('opacity-slider').addEventListener('input', e => state.opacity = parseInt(e.target.value) / 100);
-
-        const modal = document.getElementById('p2p-panel');
-        const overlay = document.getElementById('p2p-overlay');
-        
-        function toggleModal(show) {
-            modal.classList.toggle('active', show);
-            overlay.classList.toggle('active', show);
+            ctx.drawImage(temp, 0, 0);
         }
         
-        document.getElementById('btn-collab-toggle').addEventListener('click', () => toggleModal(true));
-        document.getElementById('close-p2p').addEventListener('click', () => toggleModal(false));
-        document.getElementById('p2p-overlay').addEventListener('click', () => toggleModal(false));
+        window.addEventListener('load', fitCanvas);
+        window.addEventListener('resize', () => setTimeout(fitCanvas, 100)); // Debounce
 
-        /**
-         * DRAWING ENGINE
-         */
-        function getPos(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return {
-                x: clientX - rect.left,
-                y: clientY - rect.top
-            };
+        // --- DRAWING ENGINE ---
+        function getCoords(e) {
+            const r = canvas.getBoundingClientRect();
+            const t = e.touches ? e.touches[0] : e;
+            return { x: t.clientX - r.left, y: t.clientY - r.top };
         }
 
-        function startDraw(e) {
-            if (e.target !== canvas) return;
-            e.preventDefault();
-            state.isDrawing = true;
-            const pos = getPos(e);
-            state.lastX = pos.x;
-            state.lastY = pos.y;
-            draw(e);
-        }
-
-        function draw(e) {
-            if (!state.isDrawing) return;
-            if(e.cancelable) e.preventDefault();
-
-            const pos = getPos(e);
-            const drawData = {
-                x: pos.x, y: pos.y,
-                lx: state.lastX, ly: state.lastY,
-                color: state.color,
-                size: state.size,
-                tool: state.tool,
-                opacity: state.opacity
-            };
-
-            renderStroke(drawData);
-
-            if (p2p.isConnected && p2p.conn) {
-                p2p.conn.send(drawData);
-            }
-
-            state.lastX = pos.x;
-            state.lastY = pos.y;
-        }
-
-        function endDraw() {
-            state.isDrawing = false;
-            ctx.beginPath();
-        }
-
-        function renderStroke(d) {
+        function render(d) {
             ctx.lineWidth = d.size;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.globalAlpha = d.opacity;
 
-            if (d.tool === 'eraser') {
+            ctx.beginPath();
+            ctx.moveTo(d.lx, d.ly);
+            ctx.lineTo(d.x, d.y);
+
+            if(d.tool === 'eraser') {
                 ctx.globalCompositeOperation = 'destination-out';
-                ctx.strokeStyle = "rgba(0,0,0,1)";
+                ctx.strokeStyle = 'rgba(0,0,0,1)';
                 ctx.shadowBlur = 0;
             } else {
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.strokeStyle = d.color;
-                
-                if (d.tool === 'soft') {
+                if(d.tool === 'soft') {
                     ctx.shadowBlur = d.size;
                     ctx.shadowColor = d.color;
-                } else if (d.tool === 'brush') {
+                } else if(d.tool === 'brush') {
                     ctx.shadowBlur = 2;
                     ctx.shadowColor = d.color;
                 } else {
                     ctx.shadowBlur = 0;
                 }
             }
-
-            ctx.beginPath();
-            ctx.moveTo(d.lx, d.ly);
-            ctx.lineTo(d.x, d.y);
             ctx.stroke();
-
-            ctx.globalAlpha = 1.0;
+            
+            // Reset
             ctx.globalCompositeOperation = 'source-over';
             ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1.0;
         }
 
-        canvas.addEventListener('mousedown', startDraw);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', endDraw);
-        canvas.addEventListener('mouseout', endDraw);
-        canvas.addEventListener('touchstart', startDraw, {passive: false});
-        canvas.addEventListener('touchmove', draw, {passive: false});
-        canvas.addEventListener('touchend', endDraw);
-
-        /**
-         * P2P LOGIC (UPDATED & ROBUST)
-         */
-        function initPeer() {
-            const statusText = document.getElementById('status-text');
-            const retryBtn = document.getElementById('btn-retry-id');
-            const idInput = document.getElementById('my-peer-id');
-            
-            idInput.value = "Generating ID...";
-            retryBtn.style.display = 'none';
-
-            // Generate ID manually to prevent server timeouts
-            const customId = "tiu-art-" + Math.floor(Math.random() * 100000);
-
-            // Connect with specific Google STUN servers for local NAT traversal
-            p2p.peer = new Peer(customId, {
-                debug: 2,
-                config: {
-                    'iceServers': [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' }
-                    ]
-                }
-            });
-
-            p2p.peer.on('open', (id) => {
-                idInput.value = id;
-                console.log('My ID:', id);
-                retryBtn.style.display = 'none';
-                updateStatusDot('ready');
-            });
-
-            p2p.peer.on('connection', (connection) => {
-                handleConn(connection);
-            });
-
-            p2p.peer.on('error', (err) => {
-                console.error(err);
-                idInput.value = "Connection Error";
-                retryBtn.style.display = 'block';
-                statusText.innerText = "Blocked by Browser Security? Try Firefox.";
-            });
-            
-            p2p.peer.on('disconnected', () => {
-                idInput.value = "Disconnected";
-                retryBtn.style.display = 'block';
-            });
+        function start(e) {
+            if(e.target !== canvas) return;
+            e.preventDefault();
+            state.isDrawing = true;
+            const p = getCoords(e);
+            state.lx = p.x; state.ly = p.y;
+            move(e);
         }
 
-        function handleConn(connection) {
-            p2p.conn = connection;
-            const txt = document.getElementById('status-text');
+        function move(e) {
+            if(!state.isDrawing) return;
+            if(e.cancelable) e.preventDefault(); // Stop mobile scroll
+
+            const p = getCoords(e);
+            const packet = {
+                x: p.x, y: p.y, lx: state.lx, ly: state.ly,
+                color: state.color, size: state.size, tool: state.tool, opacity: state.opacity
+            };
+
+            render(packet);
             
-            updateStatusDot('connecting');
-            txt.innerText = "Negotiating...";
+            // Send to friend
+            if(p2p.connected && p2p.conn) p2p.conn.send(packet);
 
-            p2p.conn.on('open', () => {
-                p2p.isConnected = true;
-                updateStatusDot('connected');
-                txt.innerText = "Connected!";
-                toggleModal(false);
-            });
-
-            p2p.conn.on('data', (data) => {
-                renderStroke(data);
-            });
-
-            p2p.conn.on('close', () => {
-                p2p.isConnected = false;
-                updateStatusDot('ready');
-                txt.innerText = "Friend Disconnected";
-            });
+            state.lx = p.x; state.ly = p.y;
         }
 
-        function updateStatusDot(state) {
-            const dot = document.getElementById('connection-status');
-            dot.className = 'status-dot'; // reset
-            if(state === 'connected') dot.classList.add('connected');
-            else if(state === 'connecting') dot.classList.add('connecting');
-        }
+        function end() { state.isDrawing = false; }
 
-        // Connect Button
-        document.getElementById('btn-connect').addEventListener('click', () => {
-            const remoteId = document.getElementById('remote-peer-id').value.trim();
-            if (!remoteId) return alert("Enter an ID first");
-            if (!p2p.peer || p2p.peer.disconnected) return alert("You are not connected to the server yet.");
-            
-            const conn = p2p.peer.connect(remoteId);
-            handleConn(conn);
+        // Input Listeners
+        canvas.addEventListener('mousedown', start);
+        canvas.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', end);
+        
+        canvas.addEventListener('touchstart', start, {passive: false});
+        canvas.addEventListener('touchmove', move, {passive: false});
+        window.addEventListener('touchend', end);
+
+        // --- UI LOGIC ---
+        // Tools
+        ['pencil','brush','soft','eraser'].forEach(t => {
+            document.getElementById('tool-'+t).addEventListener('click', e => {
+                state.tool = t;
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+            });
         });
 
-        // Retry Button
-        document.getElementById('btn-retry-id').addEventListener('click', () => {
-            if(p2p.peer) p2p.peer.destroy();
-            initPeer();
-        });
-
-        // Copy ID
-        document.getElementById('btn-copy-id').addEventListener('click', () => {
-            const copyText = document.getElementById("my-peer-id");
-            copyText.select();
-            copyText.setSelectionRange(0, 99999); 
-            navigator.clipboard.writeText(copyText.value);
-            alert("ID Copied: " + copyText.value);
-        });
-
-        // Import/Export
-        document.getElementById('file-input').addEventListener('change', (e) => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                img.src = event.target.result;
-            }
-            reader.readAsDataURL(e.target.files[0]);
-        });
-
-        document.getElementById('btn-export').addEventListener('click', () => {
-            const link = document.createElement('a');
-            link.download = 'tiu-art.png';
-            link.href = canvas.toDataURL();
-            link.click();
-        });
-
-        document.getElementById('btn-clear').addEventListener('click', () => {
+        // Props
+        document.getElementById('color-picker').addEventListener('input', e => state.color = e.target.value);
+        document.getElementById('size-slider').addEventListener('input', e => state.size = parseInt(e.target.value));
+        document.getElementById('opacity-slider').addEventListener('input', e => state.opacity = e.target.value/100);
+        
+        // Buttons
+        document.getElementById('btn-import').onclick = () => document.getElementById('file-input').click();
+        document.getElementById('file-input').onchange = e => {
+            const img = new Image();
+            img.onload = () => ctx.drawImage(img,0,0, canvas.width, canvas.height);
+            img.src = URL.createObjectURL(e.target.files[0]);
+        };
+        document.getElementById('btn-export').onclick = () => {
+            const a = document.createElement('a');
+            a.download = 'tiu-art.png';
+            a.href = canvas.toDataURL();
+            a.click();
+        };
+        document.getElementById('btn-clear').onclick = () => {
             if(confirm("Clear canvas?")) {
-                ctx.fillStyle = "#ffffff";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle="#fff"; ctx.fillRect(0,0,canvas.width,canvas.height);
             }
+        };
+
+        // Keyboard Shortcuts
+        window.addEventListener('keydown', e => {
+            if(e.key === 'b') document.getElementById('tool-brush').click();
+            if(e.key === 'p') document.getElementById('tool-pencil').click();
+            if(e.key === 'e') document.getElementById('tool-eraser').click();
         });
 
-        // Initialize
-        initPeer();
+        // --- P2P NETWORK (PeerJS) ---
+        const modal = document.getElementById('p2p-modal');
+        const overlay = document.getElementById('modal-overlay');
+        const idBox = document.getElementById('my-id');
+        const dot = document.getElementById('status-dot');
+        const statusTxt = document.getElementById('status-text');
+
+        function toggleP2P(show) {
+            modal.classList.toggle('active', show);
+            overlay.classList.toggle('active', show);
+        }
+        document.getElementById('btn-collab').onclick = () => toggleP2P(true);
+        document.getElementById('close-modal').onclick = () => toggleP2P(false);
+        overlay.onclick = () => toggleP2P(false);
+
+        function initNetwork() {
+            idBox.value = "Generating...";
+            document.getElementById('retry-btn').style.display = 'none';
+
+            // Generate Random ID to avoid server collisions
+            const uid = "tiu-" + Math.floor(Math.random()*999999);
+            
+            // Connect to cloud with debug config
+            p2p.peer = new Peer(uid, {
+                debug: 1,
+                config: {'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ]}
+            });
+
+            p2p.peer.on('open', id => {
+                idBox.value = id;
+                setStatus(false, "Ready to Connect");
+            });
+
+            p2p.peer.on('connection', conn => {
+                setupConn(conn);
+            });
+
+            p2p.peer.on('error', err => {
+                console.error(err);
+                idBox.value = "Connection Failed";
+                document.getElementById('retry-btn').style.display = 'block';
+                setStatus(false, "Server Error (Use Firefox or Localhost)");
+            });
+        }
+
+        function setupConn(conn) {
+            p2p.conn = conn;
+            setStatus(true, "Connecting...");
+            
+            conn.on('open', () => {
+                p2p.connected = true;
+                setStatus(true, "Connected!");
+                toggleP2P(false); // Close modal on success
+            });
+            conn.on('data', data => render(data));
+            conn.on('close', () => {
+                p2p.connected = false;
+                setStatus(false, "Friend Left");
+            });
+        }
+
+        function setStatus(active, text) {
+            statusTxt.innerText = text;
+            dot.className = active ? "dot green" : "dot";
+        }
+
+        document.getElementById('connect-btn').onclick = () => {
+            const fid = document.getElementById('remote-id').value;
+            if(!fid) return alert("Enter Friend ID");
+            if(p2p.peer) setupConn(p2p.peer.connect(fid));
+        };
+        
+        document.getElementById('copy-btn').onclick = () => {
+            idBox.select();
+            document.execCommand('copy');
+            alert("ID Copied");
+        };
+
+        document.getElementById('retry-btn').onclick = () => {
+            if(p2p.peer) p2p.peer.destroy();
+            initNetwork();
+        };
+
+        // Start
+        initNetwork();
 
     </script>
 </body>
