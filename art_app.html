@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TIU Collaborative Art Studio</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --panel-bg: #2d2d2d;
+            --text-color: #e0e0e0;
+            --accent: #4a90e2;
+            --toolbar-size: 60px;
+            --prop-bar-height: 50px;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* --- Top Properties Panel --- */
+        #properties {
+            height: var(--prop-bar-height);
+            background-color: var(--panel-bg);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            border-bottom: 1px solid #444;
+            gap: 10px;
+            z-index: 20;
+            overflow-x: auto;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        #properties::-webkit-scrollbar { display: none; }
+
+        .prop-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: #3a3a3a;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        input[type="range"] { width: 80px; accent-color: var(--accent); cursor: pointer; }
+        input[type="color"] { border: none; width: 30px; height: 30px; cursor: pointer; background: none; padding: 0; }
+        label { font-size: 10px; font-weight: bold; color: #aaa; text-transform: uppercase; }
+
+        .btn-action {
+            padding: 8px 12px;
+            background-color: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        .btn-action:active { transform: scale(0.96); }
+
+        /* --- Main Layout --- */
+        #main-area {
+            display: flex;
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* --- Toolbar (Left on Desktop, Bottom on Mobile) --- */
+        #toolbar {
+            width: var(--toolbar-size);
+            background-color: var(--panel-bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0;
+            border-right: 1px solid #444;
+            z-index: 20;
+            gap: 10px;
+        }
+
+        .tool-btn {
+            width: 40px;
+            height: 40px;
+            background-color: #3a3a3a;
+            border: 1px solid #555;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            transition: background 0.2s;
+        }
+
+        .tool-btn:hover { background-color: #4a4a4a; }
+        .tool-btn.active { background-color: var(--accent); border-color: var(--accent); color: white; }
+
+        /* --- Canvas Area --- */
+        #canvas-container {
+            flex-grow: 1;
+            position: relative;
+            background-color: #cfcfcf;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+        }
+
+        canvas {
+            background-color: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            touch-action: none;
+        }
+
+        /* --- Collaboration Modal --- */
+        #p2p-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 320px;
+            background-color: var(--panel-bg);
+            border: 1px solid #555;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            z-index: 100;
+            display: none;
+        }
+
+        #p2p-panel.active { display: block; }
+        #p2p-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6); z-index: 99;
+            display: none;
+        }
+        #p2p-overlay.active { display: block; }
+
+        #p2p-panel h3 { margin-top: 0; color: var(--accent); font-size: 16px; }
+        .p2p-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
+        .p2p-input { background: #111; border: 1px solid #444; color: white; padding: 10px; border-radius: 6px; font-family: monospace; }
+        .close-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #888; font-size: 20px; cursor: pointer; }
+
+        .status-dot { height: 10px; width: 10px; background-color: #ff4444; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .status-dot.connected { background-color: #00ff00; }
+        .status-dot.connecting { background-color: #ffaa00; }
+
+        /* --- Watermark --- */
+        #watermark {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 24px;
+            font-weight: bold;
+            color: rgba(0, 0, 0, 0.08);
+            pointer-events: none;
+            user-select: none;
+            z-index: 10;
+        }
+
+        /* --- Mobile Responsive Rules --- */
+        @media (max-width: 600px) {
+            #main-area { flex-direction: column-reverse; } /* Toolbar at bottom */
+            
+            #toolbar {
+                width: 100%;
+                height: var(--toolbar-size);
+                flex-direction: row;
+                justify-content: space-around;
+                border-right: none;
+                border-top: 1px solid #444;
+                padding: 0 10px;
+            }
+
+            #canvas-container {
+                height: calc(100vh - var(--prop-bar-height) - var(--toolbar-size));
+            }
+
+            .prop-group label { display: none; }
+            #watermark { display: none; }
+        }
+
+        @media print {
+            #toolbar, #properties, #p2p-panel, #p2p-overlay { display: none !important; }
+            #canvas-container { background: white; margin: 0; height: 100%; width: 100%; display: block; }
+            canvas { box-shadow: none; width: 100%; height: auto; }
+            #watermark { color: rgba(0, 0, 0, 0.1); bottom: 10px; left: 10px; display: block; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="watermark">TIU</div>
+
+    <div id="properties">
+        <div class="prop-group">
+            <input type="color" id="color-picker" value="#000000">
+        </div>
+        <div class="prop-group">
+            <label>Size</label>
+            <input type="range" id="size-slider" min="1" max="50" value="5">
+        </div>
+        <div class="prop-group">
+            <label>Opac</label>
+            <input type="range" id="opacity-slider" min="1" max="100" value="100">
+        </div>
+
+        <div style="flex-grow: 1;"></div>
+
+        <input type="file" id="file-input" accept="image/*" style="display: none;">
+        <button class="btn-action" onclick="document.getElementById('file-input').click()">Import</button>
+        <button class="btn-action" id="btn-export">Export</button>
+        <button class="btn-action" onclick="window.print()">Print</button>
+        <button class="btn-action" id="btn-clear" style="background-color: #d64545;">Clear</button>
+    </div>
+
+    <div id="main-area">
+        <div id="toolbar">
+            <div class="tool-btn active" id="tool-pencil" title="Pencil">✏️</div>
+            <div class="tool-btn" id="tool-brush" title="Brush">🖌️</div>
+            <div class="tool-btn" id="tool-soft" title="Airbrush">☁️</div>
+            <div class="tool-btn" id="tool-eraser" title="Eraser">🧹</div>
+            <div style="flex-grow: 1; display: none;"></div>
+            <div class="tool-btn" id="btn-collab-toggle" title="Collaboration" style="color: var(--accent);">🤝</div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="art-canvas"></canvas>
+        </div>
+    </div>
+
+    <div id="p2p-overlay"></div>
+    <div id="p2p-panel">
+        <button class="close-btn" id="close-p2p">×</button>
+        <h3>TIU Collaboration</h3>
+        
+        <div class="p2p-row">
+            <label>Your ID:</label>
+            <div style="display:flex; gap:5px;">
+                <input type="text" id="my-peer-id" class="p2p-input" readonly value="Connecting..." style="flex-grow:1;">
+                <button class="btn-action" id="btn-copy-id">Copy</button>
+            </div>
+            <button class="btn-action" id="btn-retry-id" style="display:none; width: 100%; margin-top:5px; background-color: #d64545;">Retry Connection</button>
+        </div>
+        
+        <hr style="border: 0; border-top: 1px solid #444; margin: 15px 0;">
+        
+        <div class="p2p-row">
+            <label>Friend's ID:</label>
+            <input type="text" id="remote-peer-id" class="p2p-input" placeholder="Paste their ID here">
+            <button class="btn-action" id="btn-connect" style="background-color: var(--accent); margin-top: 5px;">Connect to Friend</button>
+        </div>
+        
+        <div style="margin-top: 15px; font-size: 12px; color: #888;">
+            <span class="status-dot" id="connection-status"></span>
+            <span id="status-text">Not Connected</span>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * SETUP & RESPONSIVENESS
+         */
+        const canvas = document.getElementById('art-canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const container = document.getElementById('canvas-container');
+
+        // State
+        let state = {
+            isDrawing: false,
+            lastX: 0, lastY: 0,
+            tool: 'pencil',
+            color: '#000000',
+            size: 5,
+            opacity: 1.0
+        };
+
+        // P2P State
+        let p2p = {
+            peer: null,
+            conn: null,
+            isConnected: false
+        };
+
+        function resizeCanvas() {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(canvas, 0, 0);
+
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(tempCanvas, 0, 0);
+        }
+
+        window.addEventListener('load', resizeCanvas);
+        window.addEventListener('resize', () => {
+            clearTimeout(window.resizeTimer);
+            window.resizeTimer = setTimeout(resizeCanvas, 100);
+        });
+
+        /**
+         * UI EVENTS
+         */
+        ['pencil', 'brush', 'soft', 'eraser'].forEach(t => {
+            document.getElementById(`tool-${t}`).addEventListener('click', (e) => {
+                state.tool = t;
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+            });
+        });
+
+        document.getElementById('color-picker').addEventListener('input', e => state.color = e.target.value);
+        document.getElementById('size-slider').addEventListener('input', e => state.size = parseInt(e.target.value));
+        document.getElementById('opacity-slider').addEventListener('input', e => state.opacity = parseInt(e.target.value) / 100);
+
+        const modal = document.getElementById('p2p-panel');
+        const overlay = document.getElementById('p2p-overlay');
+        
+        function toggleModal(show) {
+            modal.classList.toggle('active', show);
+            overlay.classList.toggle('active', show);
+        }
+        
+        document.getElementById('btn-collab-toggle').addEventListener('click', () => toggleModal(true));
+        document.getElementById('close-p2p').addEventListener('click', () => toggleModal(false));
+        document.getElementById('p2p-overlay').addEventListener('click', () => toggleModal(false));
+
+        /**
+         * DRAWING ENGINE
+         */
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function startDraw(e) {
+            if (e.target !== canvas) return;
+            e.preventDefault();
+            state.isDrawing = true;
+            const pos = getPos(e);
+            state.lastX = pos.x;
+            state.lastY = pos.y;
+            draw(e);
+        }
+
+        function draw(e) {
+            if (!state.isDrawing) return;
+            if(e.cancelable) e.preventDefault();
+
+            const pos = getPos(e);
+            const drawData = {
+                x: pos.x, y: pos.y,
+                lx: state.lastX, ly: state.lastY,
+                color: state.color,
+                size: state.size,
+                tool: state.tool,
+                opacity: state.opacity
+            };
+
+            renderStroke(drawData);
+
+            if (p2p.isConnected && p2p.conn) {
+                p2p.conn.send(drawData);
+            }
+
+            state.lastX = pos.x;
+            state.lastY = pos.y;
+        }
+
+        function endDraw() {
+            state.isDrawing = false;
+            ctx.beginPath();
+        }
+
+        function renderStroke(d) {
+            ctx.lineWidth = d.size;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.globalAlpha = d.opacity;
+
+            if (d.tool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.strokeStyle = "rgba(0,0,0,1)";
+                ctx.shadowBlur = 0;
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = d.color;
+                
+                if (d.tool === 'soft') {
+                    ctx.shadowBlur = d.size;
+                    ctx.shadowColor = d.color;
+                } else if (d.tool === 'brush') {
+                    ctx.shadowBlur = 2;
+                    ctx.shadowColor = d.color;
+                } else {
+                    ctx.shadowBlur = 0;
+                }
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(d.lx, d.ly);
+            ctx.lineTo(d.x, d.y);
+            ctx.stroke();
+
+            ctx.globalAlpha = 1.0;
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.shadowBlur = 0;
+        }
+
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', endDraw);
+        canvas.addEventListener('mouseout', endDraw);
+        canvas.addEventListener('touchstart', startDraw, {passive: false});
+        canvas.addEventListener('touchmove', draw, {passive: false});
+        canvas.addEventListener('touchend', endDraw);
+
+        /**
+         * P2P LOGIC (UPDATED & ROBUST)
+         */
+        function initPeer() {
+            const statusText = document.getElementById('status-text');
+            const retryBtn = document.getElementById('btn-retry-id');
+            const idInput = document.getElementById('my-peer-id');
+            
+            idInput.value = "Generating ID...";
+            retryBtn.style.display = 'none';
+
+            // Generate ID manually to prevent server timeouts
+            const customId = "tiu-art-" + Math.floor(Math.random() * 100000);
+
+            // Connect with specific Google STUN servers for local NAT traversal
+            p2p.peer = new Peer(customId, {
+                debug: 2,
+                config: {
+                    'iceServers': [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                }
+            });
+
+            p2p.peer.on('open', (id) => {
+                idInput.value = id;
+                console.log('My ID:', id);
+                retryBtn.style.display = 'none';
+                updateStatusDot('ready');
+            });
+
+            p2p.peer.on('connection', (connection) => {
+                handleConn(connection);
+            });
+
+            p2p.peer.on('error', (err) => {
+                console.error(err);
+                idInput.value = "Connection Error";
+                retryBtn.style.display = 'block';
+                statusText.innerText = "Blocked by Browser Security? Try Firefox.";
+            });
+            
+            p2p.peer.on('disconnected', () => {
+                idInput.value = "Disconnected";
+                retryBtn.style.display = 'block';
+            });
+        }
+
+        function handleConn(connection) {
+            p2p.conn = connection;
+            const txt = document.getElementById('status-text');
+            
+            updateStatusDot('connecting');
+            txt.innerText = "Negotiating...";
+
+            p2p.conn.on('open', () => {
+                p2p.isConnected = true;
+                updateStatusDot('connected');
+                txt.innerText = "Connected!";
+                toggleModal(false);
+            });
+
+            p2p.conn.on('data', (data) => {
+                renderStroke(data);
+            });
+
+            p2p.conn.on('close', () => {
+                p2p.isConnected = false;
+                updateStatusDot('ready');
+                txt.innerText = "Friend Disconnected";
+            });
+        }
+
+        function updateStatusDot(state) {
+            const dot = document.getElementById('connection-status');
+            dot.className = 'status-dot'; // reset
+            if(state === 'connected') dot.classList.add('connected');
+            else if(state === 'connecting') dot.classList.add('connecting');
+        }
+
+        // Connect Button
+        document.getElementById('btn-connect').addEventListener('click', () => {
+            const remoteId = document.getElementById('remote-peer-id').value.trim();
+            if (!remoteId) return alert("Enter an ID first");
+            if (!p2p.peer || p2p.peer.disconnected) return alert("You are not connected to the server yet.");
+            
+            const conn = p2p.peer.connect(remoteId);
+            handleConn(conn);
+        });
+
+        // Retry Button
+        document.getElementById('btn-retry-id').addEventListener('click', () => {
+            if(p2p.peer) p2p.peer.destroy();
+            initPeer();
+        });
+
+        // Copy ID
+        document.getElementById('btn-copy-id').addEventListener('click', () => {
+            const copyText = document.getElementById("my-peer-id");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); 
+            navigator.clipboard.writeText(copyText.value);
+            alert("ID Copied: " + copyText.value);
+        });
+
+        // Import/Export
+        document.getElementById('file-input').addEventListener('change', (e) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(e.target.files[0]);
+        });
+
+        document.getElementById('btn-export').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'tiu-art.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            if(confirm("Clear canvas?")) {
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        });
+
+        // Initialize
+        initPeer();
+
+    </script>
+</body>
+</html>
