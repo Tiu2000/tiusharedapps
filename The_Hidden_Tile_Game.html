@@ -104,7 +104,7 @@
         #game-container {
             position: relative;
             width: 80vmin;
-            height: 55vmin; /* Slightly smaller to fit scoreboard */
+            height: 55vmin;
             margin: 20px auto;
             border: 5px solid white;
             background-size: cover;
@@ -244,6 +244,21 @@
         
         .hidden { display: none !important; }
 
+        /* Helpers for image input */
+        .input-group {
+            margin-bottom: 10px;
+            background: #222;
+            padding: 10px;
+            border-radius: 6px;
+        }
+        .or-divider {
+            text-align: center;
+            color: #666;
+            margin: 5px 0;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
     </style>
 </head>
 <body>
@@ -321,28 +336,40 @@
 
         <div class="remote-section">
             <h3>Settings</h3>
+            
             <div style="display:flex; gap:5px; margin-bottom:10px;">
                 <input type="text" id="input-team1" placeholder="Team 1 Name" style="flex:1; font-size:1rem; padding:8px;">
                 <input type="text" id="input-team2" placeholder="Team 2 Name" style="flex:1; font-size:1rem; padding:8px;">
             </div>
-            <button onclick="sendNames()" style="width:100%; margin-bottom:10px; padding:10px; font-size:1rem;">Update Names</button>
+            <button onclick="sendNames()" style="width:100%; margin-bottom:20px; padding:10px; font-size:1rem;">Update Names</button>
             
-            <input type="file" id="image-upload" accept="image/*" style="width:100%; color:white; background: #444; padding: 10px; border-radius: 5px; margin-bottom:10px;">
-            <button onclick="uploadImage()" style="width:100%; margin-bottom:10px; background:#8e44ad; padding:10px; font-size:1rem;">Send Image</button>
+            <div class="input-group">
+                <div style="font-size:0.8rem; color:#aaa; margin-bottom:5px;">Option A: Upload File</div>
+                <input type="file" id="image-upload" accept="image/*" style="width:100%; color:white; font-size: 0.9rem;">
+                <button onclick="uploadImageFile()" style="width:100%; margin-top:5px; background:#8e44ad; padding:8px; font-size:0.9rem;">Send File</button>
+            </div>
+
+            <div class="or-divider">- OR -</div>
+
+            <div class="input-group">
+                <div style="font-size:0.8rem; color:#aaa; margin-bottom:5px;">Option B: Paste Image Link</div>
+                <input type="text" id="image-url-input" placeholder="https://example.com/image.jpg" style="width:90%; padding:8px; font-size: 0.9rem;">
+                <button onclick="uploadImageLink()" style="width:100%; margin-top:5px; background:#8e44ad; padding:8px; font-size:0.9rem;">Send Link</button>
+            </div>
             
-            <button onclick="sendReset()" style="width:100%; background:var(--danger); padding:10px; font-size:1rem;">Reset Everything</button>
+            <button onclick="sendReset()" style="width:100%; background:var(--danger); padding:10px; font-size:1rem; margin-top:10px;">Reset Everything</button>
         </div>
     </div>
 
     <script>
         // --- CONFIGURATION ---
         const TILE_COUNT = 20; 
-        const ID_PREFIX = "tiu-game-v2-"; 
+        const ID_PREFIX = "tiu-game-v3-"; 
 
         // --- GLOBAL VARIABLES ---
         let peer = null;
         let conn = null;
-        let scores = { 1: 0, 2: 0 }; // Track scores on Host
+        let scores = { 1: 0, 2: 0 }; 
 
         // --- INITIALIZATION ---
         
@@ -401,37 +428,30 @@
         }
 
         function handleData(data) {
-            // Reveal Tile
             if (data.type === 'reveal') {
                 const tile = document.getElementById(`tile-${data.id}`);
                 if (tile) tile.classList.add('removed');
             }
             
-            // Score Update
             if (data.type === 'score') {
                 scores[data.team] += data.delta;
-                // Prevent negative scores? Optional. keeping it simple.
                 if(scores[data.team] < 0) scores[data.team] = 0;
-                
                 document.getElementById(`host-score${data.team}`).textContent = scores[data.team];
             }
 
-            // Names Update
             if (data.type === 'names') {
                 if(data.team1) document.getElementById('host-team1-name').textContent = data.team1;
                 if(data.team2) document.getElementById('host-team2-name').textContent = data.team2;
             }
 
-            // Image Update
             if (data.type === 'image') {
+                // Works for both base64 (files) and HTTP URLs (links)
                 document.getElementById('game-container').style.backgroundImage = `url(${data.src})`;
             }
 
-            // Reset
             if (data.type === 'reset') {
                 const tiles = document.querySelectorAll('.tile');
                 tiles.forEach(t => t.classList.remove('removed'));
-                // Reset scores too? Let's say yes for "Reset Everything"
                 scores = { 1: 0, 2: 0 };
                 document.getElementById('host-score1').textContent = 0;
                 document.getElementById('host-score2').textContent = 0;
@@ -481,7 +501,6 @@
             const t2 = document.getElementById('input-team2').value;
             if (conn && conn.open) {
                 conn.send({ type: 'names', team1: t1, team2: t2 });
-                // Update local labels too
                 if(t1) document.getElementById('remote-team1-label').textContent = t1;
                 if(t2) document.getElementById('remote-team2-label').textContent = t2;
                 alert("Names updated!");
@@ -497,17 +516,33 @@
             }
         }
 
-        function uploadImage() {
+        // Handle File Upload
+        function uploadImageFile() {
             const input = document.getElementById('image-upload');
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     if (conn && conn.open) {
                         conn.send({ type: 'image', src: e.target.result });
-                        alert("Image updated!");
+                        alert("File sent!");
                     }
                 }
                 reader.readAsDataURL(input.files[0]);
+            } else {
+                alert("Please select a file first.");
+            }
+        }
+
+        // Handle Link Upload
+        function uploadImageLink() {
+            const url = document.getElementById('image-url-input').value.trim();
+            if (url) {
+                if (conn && conn.open) {
+                    conn.send({ type: 'image', src: url });
+                    alert("Link sent!");
+                }
+            } else {
+                alert("Please paste a URL first.");
             }
         }
     </script>
