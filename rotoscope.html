@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Rotoscope Custom BG</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TIU Rotoscope Mobile</title>
     <style>
         body {
             font-family: 'Courier New', Courier, monospace;
@@ -14,22 +14,31 @@
             align-items: center;
             padding: 10px;
             margin: 0;
-            overflow-x: hidden;
+            min-height: 100vh;
+            touch-action: manipulation; /* Improves touch response */
         }
 
-        h1 { margin: 10px 0; font-size: 1.5rem; text-transform: uppercase; letter-spacing: 3px; border-bottom: 2px solid #0f0; text-align: center; }
+        h1 { 
+            margin: 10px 0; 
+            font-size: 1.2rem; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            border-bottom: 2px solid #0f0; 
+            text-align: center;
+        }
 
         /* Viewport */
         .viewport {
             position: relative;
             width: 100%;
-            max-width: 800px;
-            aspect-ratio: 4/3;
+            max-width: 600px;
+            /* Aspect ratio is handled by JS now for mobile */
             border: 2px solid #fff;
             box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
             display: flex; justify-content: center; align-items: center;
-            overflow: hidden; border-radius: 4px; cursor: crosshair;
+            overflow: hidden; border-radius: 4px;
             background: #222;
+            touch-action: none; /* Prevent scrolling while picking color */
         }
 
         canvas { width: 100%; height: 100%; image-rendering: pixelated; }
@@ -37,46 +46,67 @@
 
         /* Controls */
         .controls {
-            width: 100%; max-width: 800px; background: #222; padding: 15px;
+            width: 100%; max-width: 600px; background: #222; padding: 15px;
             margin-top: 15px; border-radius: 8px; display: flex; flex-direction: column;
-            gap: 12px; box-sizing: border-box; border: 1px solid #444;
+            gap: 15px; box-sizing: border-box; border: 1px solid #444;
         }
 
         .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-        label { color: #fff; font-size: 0.9rem; font-weight: bold; white-space: nowrap;}
-        select { background: #333; color: #fff; border: 1px solid #0f0; padding: 5px; flex-grow: 1;}
-        input[type=range] { flex-grow: 1; accent-color: #0f0; }
+        
+        label { color: #fff; font-size: 0.85rem; font-weight: bold; white-space: nowrap;}
+        
+        select { 
+            background: #333; color: #fff; border: 1px solid #0f0; 
+            padding: 10px; flex-grow: 1; font-size: 1rem; border-radius: 4px;
+        }
+        
+        /* Bigger sliders for thumbs */
+        input[type=range] { 
+            flex-grow: 1; accent-color: #0f0; height: 25px; 
+        }
 
-        /* Custom File Upload Styling */
-        .upload-container { flex-grow: 2; display: flex; align-items: center; gap: 10px; }
+        /* Upload Button */
+        .upload-container { flex-grow: 2; display: flex; align-items: center; gap: 10px; width: 100%; }
         .upload-btn {
-            cursor: pointer; background: #333; border: 1px solid #0f0; padding: 6px 12px;
+            cursor: pointer; background: #333; border: 1px solid #0f0; padding: 10px;
             border-radius: 4px; white-space: nowrap; font-size: 0.9rem; font-weight: bold;
-            transition: 0.2s;
+            transition: 0.2s; text-align: center; flex-grow: 1; display: block;
         }
-        .upload-btn:hover { background: #0f0; color: #000; }
-        #bgFileName { font-size: 0.8rem; color: #aaa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+        .upload-btn:active { background: #0f0; color: #000; }
+        #bgFileName { font-size: 0.8rem; color: #aaa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; }
 
-        .fx-group { display: flex; gap: 10px; background: #333; padding: 10px; border-radius: 4px; justify-content: space-around; flex-wrap: wrap;}
-        .fx-option { display: flex; align-items: center; gap: 5px; color: #fff; font-size: 0.8rem; white-space: nowrap;}
-        .fx-option input { width: 16px; height: 16px; accent-color: #0f0; }
+        /* FX Grid */
+        .fx-group { 
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+            background: #333; padding: 10px; border-radius: 4px;
+        }
+        .fx-option { 
+            display: flex; align-items: center; justify-content: center; 
+            gap: 5px; color: #fff; font-size: 0.75rem; 
+            background: #444; padding: 8px; border-radius: 4px;
+        }
+        .fx-option input { width: 20px; height: 20px; accent-color: #0f0; margin: 0; }
 
+        /* Buttons */
         button {
-            padding: 10px 20px; font-size: 14px; border: 2px solid #0f0; background: transparent;
+            padding: 15px 10px; /* Larger touch target */
+            font-size: 14px; border: 2px solid #0f0; background: transparent;
             color: #0f0; cursor: pointer; font-family: inherit; font-weight: bold; text-transform: uppercase;
-            border-radius: 4px; flex: 1; min-width: 100px; transition: 0.2s;
+            border-radius: 4px; flex: 1; min-width: 120px; transition: 0.2s;
         }
-        button:hover { background: #0f0; color: #000; }
+        button:active { background: #0f0; color: #000; } /* Mobile tap feedback */
         button:disabled { border-color: #555; color: #555; cursor: not-allowed; background: transparent; }
+        
         button.record.active { background: #f00; border-color: #f00; color: #fff; animation: pulse 1s infinite; }
         button.neon-active { background: #00ffff; border-color: #00ffff; color: #000; box-shadow: 0 0 10px #00ffff; }
+        
         @keyframes pulse { 50% { opacity: 0.5; } }
-        .status { text-align: center; color: #888; font-size: 0.8rem; margin-top: 5px; }
+        .status { text-align: center; color: #888; font-size: 0.8rem; margin-top: 5px; min-height: 1.2em;}
     </style>
 </head>
 <body>
 
-    <h1>TIU Rotoscope Custom BG</h1>
+    <h1>TIU Rotoscope Mobile</h1>
 
     <div class="viewport" id="viewport">
         <video id="rawVideo" playsinline muted autoplay></video>
@@ -85,41 +115,43 @@
 
     <div class="controls">
         <div class="row">
-            <label>Cam:</label>
-            <select id="camSelect" style="flex-grow: 1;">
-                <option value="user">Front</option>
-                <option value="environment">Back</option>
+            <select id="camSelect">
+                <option value="user">Front Cam</option>
+                <option value="environment">Back Cam</option>
             </select>
-            
-            <div class="upload-container">
-                 <label for="bgUpload" class="upload-btn">⬆ Upload BG Image</label>
+        </div>
+        <div class="row">
+             <div class="upload-container">
+                 <label for="bgUpload" class="upload-btn">⬆ Upload BG</label>
                  <input type="file" id="bgUpload" accept="image/*" style="display: none;">
-                 <span id="bgFileName">(No file selected)</span>
+                 <span id="bgFileName"></span>
             </div>
         </div>
 
         <div class="row">
             <label>Color</label>
             <input type="range" id="posterizeInput" min="2" max="16" value="5">
+        </div>
+        <div class="row">
             <label>Edge</label>
             <input type="range" id="edgeInput" min="10" max="100" value="30">
         </div>
 
         <div class="fx-group">
-            <div class="fx-option"><input type="checkbox" id="chkGhost"> <label for="chkGhost">Ghost Trails</label></div>
-            <div class="fx-option"><input type="checkbox" id="chkDots"> <label for="chkDots">Comic Dots</label></div>
-            <div class="fx-option"><input type="checkbox" id="chkChroma"> <label for="chkChroma">Green Screen</label></div>
+            <label class="fx-option"><input type="checkbox" id="chkGhost"> Ghost</label>
+            <label class="fx-option"><input type="checkbox" id="chkDots"> Dots</label>
+            <label class="fx-option"><input type="checkbox" id="chkChroma"> GreenScrn</label>
         </div>
 
         <div class="row">
-            <button id="btnNeon">Neon Mode</button>
-            <button id="btnStart">Start Cam</button>
+            <button id="btnNeon">Neon</button>
+            <button id="btnStart">Start</button>
         </div>
         <div class="row">
             <button id="btnRecord" disabled>Record</button>
             <button id="btnStop" disabled>Stop</button>
         </div>
-        <div class="status" id="status">Select Camera & Press Start</div>
+        <div class="status" id="status">Tap Start</div>
     </div>
 
     <script>
@@ -127,23 +159,31 @@
         const video = document.getElementById('rawVideo');
         const displayCanvas = document.getElementById('displayCanvas');
         const displayCtx = displayCanvas.getContext('2d', { alpha: true });
+        const viewport = document.getElementById('viewport');
+        
+        // Dynamic Processing resolution
+        let PROC_WIDTH = 320; 
+        let PROC_HEIGHT = 240;
+        
         const procCanvas = document.createElement('canvas');
         const procCtx = procCanvas.getContext('2d', { willReadFrequently: true });
+        
         const dotCanvas = document.createElement('canvas');
         const dotCtx = dotCanvas.getContext('2d');
         let dotPattern = null;
 
         // UI Elements
         const camSelect = document.getElementById('camSelect');
-        // New Upload elements
         const bgUpload = document.getElementById('bgUpload');
         const bgFileName = document.getElementById('bgFileName');
         
         const posterizeInput = document.getElementById('posterizeInput');
         const edgeInput = document.getElementById('edgeInput');
+        
         const chkGhost = document.getElementById('chkGhost');
         const chkDots = document.getElementById('chkDots');
         const chkChroma = document.getElementById('chkChroma');
+        
         const btnNeon = document.getElementById('btnNeon');
         const btnStart = document.getElementById('btnStart');
         const btnRecord = document.getElementById('btnRecord');
@@ -153,16 +193,14 @@
         // State Variables
         let isRunning = false;
         let isNeon = false;
-        const PROC_WIDTH = 320; 
-        const PROC_HEIGHT = 240;
         
         let chromaColor = { r: 0, g: 255, b: 0 }; 
         let chromaThreshold = 60;
-        let currentBgImage = null; // Holds the uploaded image object
+        let currentBgImage = null;
 
         let mediaRecorder; let chunks = []; let audioCtx, audioDest, audioSource;
 
-        // --- INIT HELPERS ---
+        // --- INIT PATTERN ---
         function createHalftonePattern() {
             dotCanvas.width = 4; dotCanvas.height = 4;
             dotCtx.fillStyle = 'rgba(0,0,0,0.4)';
@@ -171,67 +209,106 @@
         }
         createHalftonePattern();
 
-        // --- UI INTERACTIONS ---
+        // --- INTERACTIONS ---
         btnNeon.onclick = () => { isNeon = !isNeon; btnNeon.classList.toggle('neon-active'); };
 
-        // New Background Upload Logic
         bgUpload.onchange = (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            bgFileName.innerText = file.name.substring(0, 15) + "...";
-            status.innerText = "Loading background image...";
+            bgFileName.innerText = "Loaded";
             
             const reader = new FileReader();
             reader.onload = (event) => {
                 const img = new Image();
-                img.onload = () => {
-                    currentBgImage = img;
-                    status.innerText = "Custom BG Loaded. Enable Green Screen to view.";
-                };
+                img.onload = () => { currentBgImage = img; status.innerText = "BG Loaded. Tap 'GreenScrn' to use."; };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         };
 
-        // Chroma Key Color Picker
-        displayCanvas.onclick = (e) => {
+        // Handle Touch and Click for Color Picking
+        function handleInput(xClient, yClient) {
             if (!chkChroma.checked) return;
             const rect = displayCanvas.getBoundingClientRect();
-            const x = Math.floor((e.clientX - rect.left) / rect.width * PROC_WIDTH);
-            const y = Math.floor((e.clientY - rect.top) / rect.height * PROC_HEIGHT);
+            
+            // Map screen tap coordinates to internal canvas resolution
+            const x = Math.floor((xClient - rect.left) / rect.width * PROC_WIDTH);
+            const y = Math.floor((yClient - rect.top) / rect.height * PROC_HEIGHT);
+            
+            // Safety check
+            if (x < 0 || x >= PROC_WIDTH || y < 0 || y >= PROC_HEIGHT) return;
+
             const p = procCtx.getImageData(x, y, 1, 1).data;
             chromaColor = { r: p[0], g: p[1], b: p[2] };
-            status.innerText = `Green Screen Color Set: R${p[0]} G${p[1]} B${p[2]}`;
-            displayCanvas.style.border = "2px solid red";
-            setTimeout(() => displayCanvas.style.border = "none", 200);
-        };
+            status.innerText = `Color Set: ${p[0]},${p[1]},${p[2]}`;
+            
+            displayCanvas.style.borderColor = "red";
+            setTimeout(() => displayCanvas.style.borderColor = "white", 200);
+        }
 
-        // --- START CAMERA ---
+        displayCanvas.addEventListener('mousedown', (e) => handleInput(e.clientX, e.clientY));
+        displayCanvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Stop scrolling
+            const touch = e.touches[0];
+            handleInput(touch.clientX, touch.clientY);
+        }, { passive: false });
+
+
+        // --- START SYSTEM ---
         btnStart.onclick = async () => {
-            camSelect.disabled = true; btnStart.disabled = true;
-            status.innerText = "Initializing...";
+            btnStart.disabled = true;
+            status.innerText = "Opening Camera...";
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: camSelect.value },
+                    video: { 
+                        facingMode: camSelect.value,
+                        width: { ideal: 1280 }, 
+                        height: { ideal: 720 } 
+                    },
                     audio: true
                 });
                 video.srcObject = stream;
+                
                 video.onloadedmetadata = () => {
                     video.play();
+                    
+                    // --- DYNAMIC ASPECT RATIO FIX ---
+                    // Detect if portrait or landscape and adjust processing size
+                    const videoRatio = video.videoWidth / video.videoHeight;
+                    
+                    // We want to keep pixel count roughly ~76800 (320x240) for performance
+                    // If video is vertical (ratio < 1), we flip dimensions roughly
+                    if (videoRatio < 1) {
+                        PROC_WIDTH = 240;
+                        PROC_HEIGHT = Math.floor(240 / videoRatio);
+                    } else {
+                        PROC_WIDTH = 320;
+                        PROC_HEIGHT = Math.floor(320 / videoRatio);
+                    }
+
+                    // Apply sizes
                     displayCanvas.width = PROC_WIDTH; displayCanvas.height = PROC_HEIGHT;
                     procCanvas.width = PROC_WIDTH; procCanvas.height = PROC_HEIGHT;
+                    
+                    // Adjust viewport container style to match aspect ratio
+                    viewport.style.aspectRatio = `${PROC_WIDTH}/${PROC_HEIGHT}`;
+
+                    // Audio
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                     audioSource = audioCtx.createMediaStreamSource(stream);
                     audioDest = audioCtx.createMediaStreamDestination();
                     audioSource.connect(audioDest);
+
                     startRenderLoop();
-                    status.innerText = "Active. Upload a BG image and set Green Screen color.";
+                    
+                    status.innerText = "Running. Tap screen to set Key Color.";
                     btnRecord.disabled = false;
+                    camSelect.disabled = true;
                 };
-            } catch (err) { alert("Error: " + err.message); btnStart.disabled = false; camSelect.disabled = false; }
+            } catch (err) { alert("Error: " + err.message); btnStart.disabled = false; }
         };
 
-        // --- MAIN RENDER LOOP ---
+        // --- RENDER LOOP ---
         function startRenderLoop() {
             if (isRunning) return;
             isRunning = true;
@@ -239,12 +316,14 @@
             const draw = () => {
                 if (video.paused || video.ended) return;
 
-                // 1. Process Video Frame
+                // 1. Process
                 procCtx.drawImage(video, 0, 0, PROC_WIDTH, PROC_HEIGHT);
                 const frame = procCtx.getImageData(0, 0, PROC_WIDTH, PROC_HEIGHT);
                 const data = frame.data;
                 const len = data.length;
-                const levels = parseInt(posterizeInput.value); const binSize = 255 / levels; const edgeThresh = parseInt(edgeInput.value);
+                const levels = parseInt(posterizeInput.value); 
+                const binSize = 255 / levels; 
+                const edgeThresh = parseInt(edgeInput.value);
                 const isChroma = chkChroma.checked;
 
                 for (let i = 0; i < len; i += 4) {
@@ -263,31 +342,35 @@
                 }
                 procCtx.putImageData(frame, 0, 0);
 
-                // 2. Draw to Display Canvas
+                // 2. Draw
+                // Clear or Ghost Fade
                 if (chkGhost.checked) {
                     displayCtx.globalCompositeOperation = 'source-over';
-                    displayCtx.fillStyle = 'rgba(0, 0, 0, 0.15)'; 
+                    displayCtx.fillStyle = 'rgba(0, 0, 0, 0.2)'; 
                     displayCtx.fillRect(0, 0, PROC_WIDTH, PROC_HEIGHT);
                 } else {
                     displayCtx.clearRect(0, 0, PROC_WIDTH, PROC_HEIGHT);
                 }
 
-                // Draw Custom Background Image (if loaded, chroma active, ghosting off)
+                // Background Image
                 if (isChroma && currentBgImage && !chkGhost.checked) {
+                     // Scale BG image to fill canvas (cover)
                      displayCtx.drawImage(currentBgImage, 0, 0, PROC_WIDTH, PROC_HEIGHT);
                 }
 
-                if (chkGhost.checked) {
-                    displayCtx.globalAlpha = 0.9; displayCtx.drawImage(procCanvas, 0, 0); displayCtx.globalAlpha = 1.0;
-                } else {
-                    displayCtx.drawImage(procCanvas, 0, 0);
-                }
+                if (chkGhost.checked) displayCtx.globalAlpha = 0.9;
+                displayCtx.drawImage(procCanvas, 0, 0);
+                displayCtx.globalAlpha = 1.0;
 
                 if (chkDots.checked) {
                     displayCtx.fillStyle = dotPattern; displayCtx.fillRect(0, 0, PROC_WIDTH, PROC_HEIGHT);
                 }
-                displayCtx.font = "bold 16px Courier New"; displayCtx.fillStyle = "rgba(255, 255, 255, 0.7)";
-                displayCtx.textAlign = "right"; displayCtx.fillText("TIU", PROC_WIDTH - 10, PROC_HEIGHT - 10);
+                
+                // Watermark
+                displayCtx.font = "bold 14px Courier New"; 
+                displayCtx.fillStyle = "rgba(255, 255, 255, 0.7)";
+                displayCtx.textAlign = "right"; 
+                displayCtx.fillText("TIU", PROC_WIDTH - 8, PROC_HEIGHT - 8);
 
                 requestAnimationFrame(draw);
             };
@@ -298,11 +381,19 @@
         btnRecord.onclick = () => {
             const videoStream = displayCanvas.captureStream(30);
             const combinedStream = new MediaStream([...videoStream.getVideoTracks(), ...audioDest.stream.getAudioTracks()]);
-            mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+            
+            // Prefer MP4 for mobile compatibility, fallback to WebM
+            let opts = { mimeType: 'video/webm' };
+            if (MediaRecorder.isTypeSupported('video/mp4')) opts = { mimeType: 'video/mp4' };
+            
+            mediaRecorder = new MediaRecorder(combinedStream, opts);
             mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
             mediaRecorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'video/webm' }); const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = `TIU-Roto-Custom-${Date.now()}.webm`;
+                const blob = new Blob(chunks, { type: chunks[0].type }); 
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; 
+                const ext = chunks[0].type.includes('mp4') ? 'mp4' : 'webm';
+                a.download = `TIU-Mobile-${Date.now()}.${ext}`;
                 document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url);
                 chunks = []; status.innerText = "Saved!"; btnRecord.classList.remove('active'); btnRecord.disabled = false; btnStop.disabled = true;
             };
