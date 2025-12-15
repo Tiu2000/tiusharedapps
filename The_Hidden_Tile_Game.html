@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Hidden Tile Game</title>
+    <title>TIU Hidden Tile & Scoreboard</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
             --primary: #2c3e50;
             --accent: #3498db;
+            --danger: #c0392b;
+            --success: #27ae60;
             --text: #ecf0f1;
             --tile: #f1c40f;
-            --tile-hover: #f39c12;
         }
 
         body {
@@ -37,15 +38,14 @@
         }
 
         button {
-            padding: 15px 30px;
-            margin: 10px;
-            font-size: 1.2rem;
+            padding: 15px 25px;
+            font-size: 1.1rem;
             cursor: pointer;
             border: none;
             border-radius: 8px;
             background-color: var(--accent);
             color: white;
-            transition: transform 0.2s;
+            transition: transform 0.1s;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
 
@@ -53,14 +53,12 @@
         
         input {
             padding: 15px;
-            font-size: 1.5rem; /* Larger font for PIN entry */
+            font-size: 1.2rem;
             border-radius: 8px;
             border: 2px solid #ccc;
             margin: 5px;
             color: #333;
             text-align: center;
-            letter-spacing: 5px;
-            width: 200px;
         }
 
         /* --- Host View --- */
@@ -71,10 +69,42 @@
             height: 100vh;
         }
 
+        /* Scoreboard Host Display */
+        #scoreboard-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background: rgba(0,0,0,0.4);
+            gap: 50px;
+        }
+
+        .team-display {
+            text-align: center;
+        }
+
+        .team-name-display {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        .team-score-display {
+            font-size: 4rem;
+            font-weight: 900;
+            background: #fff;
+            color: #333;
+            padding: 5px 30px;
+            border-radius: 10px;
+            min-width: 80px;
+            box-shadow: 0 0 15px rgba(255,255,255,0.2);
+        }
+
         #game-container {
             position: relative;
             width: 80vmin;
-            height: 60vmin;
+            height: 55vmin; /* Slightly smaller to fit scoreboard */
             margin: 20px auto;
             border: 5px solid white;
             background-size: cover;
@@ -104,7 +134,7 @@
             font-size: 2.5rem;
             font-weight: bold;
             cursor: pointer;
-            transition: opacity 0.5s ease, transform 0.3s;
+            transition: opacity 0.5s ease;
             user-select: none;
             border: 1px solid rgba(255,255,255,0.1);
         }
@@ -126,16 +156,6 @@
             font-family: 'Courier New', Courier, monospace;
         }
 
-        #scoreboard {
-            display: flex;
-            justify-content: space-around;
-            padding: 20px;
-            font-size: 2rem;
-            background: rgba(0,0,0,0.3);
-            font-weight: bold;
-            text-shadow: 1px 1px 2px black;
-        }
-
         /* Connection Badge */
         #connection-badge {
             position: absolute;
@@ -146,11 +166,12 @@
             border-radius: 50px;
             border: 1px solid #555;
             text-align: left;
+            z-index: 200;
         }
 
         .pin-display {
-            font-size: 2.5rem;
-            color: #f1c40f;
+            font-size: 2rem;
+            color: var(--tile);
             font-weight: bold;
             font-family: monospace;
             letter-spacing: 2px;
@@ -170,33 +191,26 @@
             background: #333;
             padding: 15px;
             border-radius: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         .remote-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 8px;
+            gap: 5px;
             margin-top: 10px;
         }
 
         .remote-btn {
             background: var(--tile);
             color: #333;
-            padding: 15px 0;
+            padding: 12px 0;
             font-weight: bold;
-            font-size: 1.2rem;
-            border-radius: 6px;
-            border: none;
-            box-shadow: 0 2px 0 #d35400;
+            font-size: 1.1rem;
+            border-radius: 4px;
         }
         
-        .remote-btn:active {
-            transform: translateY(2px);
-            box-shadow: none;
-        }
-
         .remote-btn.active {
             background: #444;
             color: #666;
@@ -204,45 +218,67 @@
             transform: translateY(2px);
         }
 
-        h3 { margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 10px; color: #ccc;}
-
-        /* Utilities */
-        .hidden { display: none !important; }
-        .blink { animation: blinker 1s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0.5; } }
+        /* Score Controls on Remote */
+        .score-control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            background: #222;
+            padding: 10px;
+            border-radius: 8px;
+        }
         
-        .status-connected { color: #2ecc71; font-weight: bold; }
-        .status-connecting { color: #e67e22; }
+        .score-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h3 { margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 10px; color: #ccc; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px;}
+        
+        .hidden { display: none !important; }
 
     </style>
 </head>
 <body>
 
     <div id="setup-screen">
-        <h1 style="font-size: 3rem; margin-bottom: 0.5rem;">TIU Hidden Tile</h1>
-        <div style="margin-bottom: 40px; color: #aaa;">Interactive Classroom Review</div>
+        <h1 style="font-size: 3rem; margin-bottom: 0.5rem;">TIU Game</h1>
+        <div style="margin-bottom: 40px; color: #aaa;">Review & Scoreboard System</div>
         
         <button onclick="startHost()">Create Game (Host)</button>
         
         <div style="margin-top: 50px; background: rgba(255,255,255,0.05); padding: 30px; border-radius: 15px;">
             <div style="margin-bottom: 10px;">Join Game</div>
-            <input type="tel" id="remote-id-input" placeholder="0000" maxlength="4">
+            <input type="tel" id="remote-id-input" placeholder="0000" maxlength="4" style="letter-spacing: 5px; width: 150px;">
             <br>
-            <button onclick="startRemote()" style="background-color: #27ae60; width: 230px;">Connect Remote</button>
+            <button onclick="startRemote()" style="background-color: var(--success); width: 100%;">Connect Remote</button>
         </div>
     </div>
 
     <div id="host-view">
         <div id="connection-badge">
-            <div style="font-size: 0.8rem; color:#aaa; text-transform: uppercase; letter-spacing: 1px;">Join Code</div>
+            <div style="font-size: 0.7rem; color:#aaa; text-transform: uppercase;">Join Code</div>
             <div id="host-pin-display" class="pin-display">....</div>
             <div id="connection-status" style="font-size: 0.8rem; margin-top:5px; color:#aaa;">Waiting...</div>
         </div>
         
-        <div id="scoreboard">
-            <span id="host-team1" style="color:#3498db">Team A</span>
-            <span style="font-size:1.5rem; opacity: 0.5; align-self: center;">VS</span>
-            <span id="host-team2" style="color:#e74c3c">Team B</span>
+        <div id="scoreboard-container">
+            <div class="team-display">
+                <div class="team-name-display" id="host-team1-name" style="color: #3498db;">Team 1</div>
+                <div class="team-score-display" id="host-score1">0</div>
+            </div>
+            <div style="font-size: 3rem; color: #555;">VS</div>
+            <div class="team-display">
+                <div class="team-name-display" id="host-team2-name" style="color: #e74c3c;">Team 2</div>
+                <div class="team-score-display" id="host-score2">0</div>
+            </div>
         </div>
 
         <div id="game-container">
@@ -253,39 +289,60 @@
     </div>
 
     <div id="remote-view">
-        <div style="text-align: center; margin-bottom: 10px;">
-            Status: <span id="remote-status" class="status-connecting blink">Connecting...</span>
+        <div style="text-align: center; margin-bottom: 10px; color: var(--success); font-weight: bold;">
+            <span id="remote-status">Connecting...</span>
         </div>
 
         <div class="remote-section">
-            <h3>Reveal Tiles</h3>
+            <h3>Scoreboard</h3>
+            
+            <div class="score-control-row" style="border-left: 5px solid #3498db;">
+                <span id="remote-team1-label" style="font-weight:bold;">Team 1</span>
+                <div>
+                    <button class="score-btn" onclick="sendScore(1, -1)" style="background: #444; display:inline-flex;">-</button>
+                    <button class="score-btn" onclick="sendScore(1, 1)" style="background: var(--success); display:inline-flex;">+</button>
+                </div>
+            </div>
+
+            <div class="score-control-row" style="border-left: 5px solid #e74c3c;">
+                <span id="remote-team2-label" style="font-weight:bold;">Team 2</span>
+                <div>
+                    <button class="score-btn" onclick="sendScore(2, -1)" style="background: #444; display:inline-flex;">-</button>
+                    <button class="score-btn" onclick="sendScore(2, 1)" style="background: var(--success); display:inline-flex;">+</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="remote-section">
+            <h3>Hidden Tiles</h3>
             <div class="remote-grid" id="remote-grid-buttons">
                 </div>
-            <button onclick="sendReset()" style="width:100%; background:#c0392b; margin:15px 0 0 0; padding: 12px;">Reset Grid</button>
         </div>
 
         <div class="remote-section">
-            <h3>Team Names</h3>
-            <input type="text" id="input-team1" placeholder="Team Blue Name" style="width:90%; margin-bottom: 10px; border-left: 5px solid #3498db;">
-            <input type="text" id="input-team2" placeholder="Team Red Name" style="width:90%; border-left: 5px solid #e74c3c;">
-            <button onclick="sendNames()" style="width:100%; margin:15px 0 0 0; padding: 12px;">Update Names</button>
-        </div>
-
-        <div class="remote-section">
-            <h3>Change Hidden Image</h3>
-            <input type="file" id="image-upload" accept="image/*" style="width:90%; color:white; background: #444; padding: 10px; border-radius: 5px;">
-            <button onclick="uploadImage()" style="width:100%; margin:15px 0 0 0; background:#8e44ad; padding: 12px;">Send Image to Screen</button>
+            <h3>Settings</h3>
+            <div style="display:flex; gap:5px; margin-bottom:10px;">
+                <input type="text" id="input-team1" placeholder="Team 1 Name" style="flex:1; font-size:1rem; padding:8px;">
+                <input type="text" id="input-team2" placeholder="Team 2 Name" style="flex:1; font-size:1rem; padding:8px;">
+            </div>
+            <button onclick="sendNames()" style="width:100%; margin-bottom:10px; padding:10px; font-size:1rem;">Update Names</button>
+            
+            <input type="file" id="image-upload" accept="image/*" style="width:100%; color:white; background: #444; padding: 10px; border-radius: 5px; margin-bottom:10px;">
+            <button onclick="uploadImage()" style="width:100%; margin-bottom:10px; background:#8e44ad; padding:10px; font-size:1rem;">Send Image</button>
+            
+            <button onclick="sendReset()" style="width:100%; background:var(--danger); padding:10px; font-size:1rem;">Reset Everything</button>
         </div>
     </div>
 
     <script>
         // --- CONFIGURATION ---
-        const TILE_COUNT = 20; // 5x4 grid
-        const ID_PREFIX = "tiu-game-verify-"; // Makes the ID unique on global server
+        const TILE_COUNT = 20; 
+        const ID_PREFIX = "tiu-game-v2-"; 
 
         // --- GLOBAL VARIABLES ---
         let peer = null;
         let conn = null;
+        let scores = { 1: 0, 2: 0 }; // Track scores on Host
 
         // --- INITIALIZATION ---
         
@@ -321,40 +378,22 @@
             document.getElementById('host-view').style.display = 'block';
             createGrids();
 
-            // 1. Generate a random 4-digit PIN (1000 to 9999)
             const pin = Math.floor(1000 + Math.random() * 9000);
-            
-            // 2. Display the PIN to the user
             document.getElementById('host-pin-display').textContent = pin;
-
-            // 3. Create Peer with the PREFIX + PIN
             const fullId = ID_PREFIX + pin;
 
             peer = new Peer(fullId); 
 
-            peer.on('open', (id) => {
-                console.log('My peer ID is: ' + id);
-            });
-
             peer.on('error', (err) => {
-                // If ID is taken (rare with random 4 digits, but possible), refresh page
-                if(err.type === 'unavailable-id') {
-                    alert("ID Collision. Refreshing...");
-                    location.reload();
-                } else {
-                    alert("Error: " + err.type);
-                }
+                if(err.type === 'unavailable-id') { location.reload(); } 
+                else { alert("Error: " + err.type); }
             });
 
             peer.on('connection', (c) => {
                 conn = c;
-                console.log("Remote connected");
-                const status = document.getElementById('connection-status');
-                status.innerHTML = "Remote Connected!";
-                status.style.color = "#2ecc71";
-                status.style.fontWeight = "bold";
+                document.getElementById('connection-status').textContent = "Remote Connected!";
+                document.getElementById('connection-status').style.color = "#2ecc71";
                 
-                // Handle incoming data
                 conn.on('data', (data) => {
                     handleData(data);
                 });
@@ -362,23 +401,40 @@
         }
 
         function handleData(data) {
+            // Reveal Tile
             if (data.type === 'reveal') {
                 const tile = document.getElementById(`tile-${data.id}`);
                 if (tile) tile.classList.add('removed');
             }
             
-            if (data.type === 'names') {
-                if(data.team1) document.getElementById('host-team1').textContent = data.team1;
-                if(data.team2) document.getElementById('host-team2').textContent = data.team2;
+            // Score Update
+            if (data.type === 'score') {
+                scores[data.team] += data.delta;
+                // Prevent negative scores? Optional. keeping it simple.
+                if(scores[data.team] < 0) scores[data.team] = 0;
+                
+                document.getElementById(`host-score${data.team}`).textContent = scores[data.team];
             }
 
+            // Names Update
+            if (data.type === 'names') {
+                if(data.team1) document.getElementById('host-team1-name').textContent = data.team1;
+                if(data.team2) document.getElementById('host-team2-name').textContent = data.team2;
+            }
+
+            // Image Update
             if (data.type === 'image') {
                 document.getElementById('game-container').style.backgroundImage = `url(${data.src})`;
             }
 
+            // Reset
             if (data.type === 'reset') {
                 const tiles = document.querySelectorAll('.tile');
                 tiles.forEach(t => t.classList.remove('removed'));
+                // Reset scores too? Let's say yes for "Reset Everything"
+                scores = { 1: 0, 2: 0 };
+                document.getElementById('host-score1').textContent = 0;
+                document.getElementById('host-score2').textContent = 0;
             }
         }
 
@@ -386,44 +442,22 @@
 
         function startRemote() {
             const pinInput = document.getElementById('remote-id-input').value.trim();
-            
-            if (pinInput.length !== 4) {
-                return alert("Please enter the 4-digit code shown on the screen.");
-            }
+            if (pinInput.length !== 4) return alert("Enter the 4-digit code.");
 
-            // Construct the full ID
             const hostId = ID_PREFIX + pinInput;
 
             document.getElementById('setup-screen').classList.add('hidden');
             document.getElementById('remote-view').style.display = 'flex';
             createGrids();
 
-            peer = new Peer(); // Remote gets a random ID, doesn't matter
+            peer = new Peer(); 
 
             peer.on('open', (id) => {
                 conn = peer.connect(hostId);
-
                 conn.on('open', () => {
-                    const status = document.getElementById('remote-status');
-                    status.textContent = "Connected";
-                    status.className = "status-connected";
+                    document.getElementById('remote-status').textContent = "Connected";
                 });
-
-                conn.on('error', (err) => {
-                    alert("Connection Error. Check the PIN and try again.");
-                    location.reload();
-                });
-                
-                // If connection closes immediately (wrong ID)
-                conn.on('close', () => {
-                    // alert("Connection closed. Did you enter the right PIN?");
-                });
-            });
-            
-            // Generic Peer Error
-            peer.on('error', (err) => {
-                console.log(err);
-                alert("Could not connect. Ensure Host is running and PIN is correct.");
+                conn.on('error', () => { alert("Connection Error"); location.reload(); });
             });
         }
 
@@ -432,9 +466,13 @@
         function sendReveal(id) {
             if (conn && conn.open) {
                 conn.send({ type: 'reveal', id: id });
-                // Visual feedback on phone
-                const btn = document.getElementById(`btn-${id}`);
-                btn.classList.add('active');
+                document.getElementById(`btn-${id}`).classList.add('active');
+            }
+        }
+
+        function sendScore(team, delta) {
+            if (conn && conn.open) {
+                conn.send({ type: 'score', team: team, delta: delta });
             }
         }
 
@@ -443,15 +481,17 @@
             const t2 = document.getElementById('input-team2').value;
             if (conn && conn.open) {
                 conn.send({ type: 'names', team1: t1, team2: t2 });
-                alert("Names updated on screen!");
+                // Update local labels too
+                if(t1) document.getElementById('remote-team1-label').textContent = t1;
+                if(t2) document.getElementById('remote-team2-label').textContent = t2;
+                alert("Names updated!");
             }
         }
 
         function sendReset() {
-            if (confirm("Reset the game board?")) {
+            if (confirm("Reset Board AND Scores?")) {
                 if (conn && conn.open) {
                     conn.send({ type: 'reset' });
-                    // Reset buttons locally
                     document.querySelectorAll('.remote-btn').forEach(b => b.classList.remove('active'));
                 }
             }
