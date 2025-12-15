@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIU Hidden Tile Game</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --text: #ecf0f1;
+            --tile: #f1c40f;
+            --tile-hover: #f39c12;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: #1a1a1a;
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Landing Screen --- */
+        #setup-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            background: radial-gradient(circle, #2c3e50 0%, #000000 100%);
+        }
+
+        button {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--accent);
+            color: white;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        button:active { transform: scale(0.95); }
+        
+        input {
+            padding: 15px;
+            font-size: 1.5rem; /* Larger font for PIN entry */
+            border-radius: 8px;
+            border: 2px solid #ccc;
+            margin: 5px;
+            color: #333;
+            text-align: center;
+            letter-spacing: 5px;
+            width: 200px;
+        }
+
+        /* --- Host View --- */
+        #host-view {
+            display: none;
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            width: 80vmin;
+            height: 60vmin;
+            margin: 20px auto;
+            border: 5px solid white;
+            background-size: cover;
+            background-position: center;
+            background-image: url('https://placehold.co/800x600?text=Hidden+Image');
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 2px;
+        }
+
+        .tile {
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.5s ease, transform 0.3s;
+            user-select: none;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .tile.removed {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #watermark {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 4rem;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+            z-index: 100;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #scoreboard {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            font-size: 2rem;
+            background: rgba(0,0,0,0.3);
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        /* Connection Badge */
+        #connection-badge {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: 1px solid #555;
+            text-align: left;
+        }
+
+        .pin-display {
+            font-size: 2.5rem;
+            color: #f1c40f;
+            font-weight: bold;
+            font-family: monospace;
+            letter-spacing: 2px;
+        }
+
+        /* --- Remote View (Phone) --- */
+        #remote-view {
+            display: none;
+            flex-direction: column;
+            padding: 15px;
+            height: 100vh;
+            overflow-y: auto;
+            background: #222;
+        }
+
+        .remote-section {
+            background: #333;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .remote-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .remote-btn {
+            background: var(--tile);
+            color: #333;
+            padding: 15px 0;
+            font-weight: bold;
+            font-size: 1.2rem;
+            border-radius: 6px;
+            border: none;
+            box-shadow: 0 2px 0 #d35400;
+        }
+        
+        .remote-btn:active {
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+
+        .remote-btn.active {
+            background: #444;
+            color: #666;
+            box-shadow: none;
+            transform: translateY(2px);
+        }
+
+        h3 { margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 10px; color: #ccc;}
+
+        /* Utilities */
+        .hidden { display: none !important; }
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.5; } }
+        
+        .status-connected { color: #2ecc71; font-weight: bold; }
+        .status-connecting { color: #e67e22; }
+
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <h1 style="font-size: 3rem; margin-bottom: 0.5rem;">TIU Hidden Tile</h1>
+        <div style="margin-bottom: 40px; color: #aaa;">Interactive Classroom Review</div>
+        
+        <button onclick="startHost()">Create Game (Host)</button>
+        
+        <div style="margin-top: 50px; background: rgba(255,255,255,0.05); padding: 30px; border-radius: 15px;">
+            <div style="margin-bottom: 10px;">Join Game</div>
+            <input type="tel" id="remote-id-input" placeholder="0000" maxlength="4">
+            <br>
+            <button onclick="startRemote()" style="background-color: #27ae60; width: 230px;">Connect Remote</button>
+        </div>
+    </div>
+
+    <div id="host-view">
+        <div id="connection-badge">
+            <div style="font-size: 0.8rem; color:#aaa; text-transform: uppercase; letter-spacing: 1px;">Join Code</div>
+            <div id="host-pin-display" class="pin-display">....</div>
+            <div id="connection-status" style="font-size: 0.8rem; margin-top:5px; color:#aaa;">Waiting...</div>
+        </div>
+        
+        <div id="scoreboard">
+            <span id="host-team1" style="color:#3498db">Team A</span>
+            <span style="font-size:1.5rem; opacity: 0.5; align-self: center;">VS</span>
+            <span id="host-team2" style="color:#e74c3c">Team B</span>
+        </div>
+
+        <div id="game-container">
+            <div class="grid-overlay" id="tile-grid">
+                </div>
+            <div id="watermark">TIU</div>
+        </div>
+    </div>
+
+    <div id="remote-view">
+        <div style="text-align: center; margin-bottom: 10px;">
+            Status: <span id="remote-status" class="status-connecting blink">Connecting...</span>
+        </div>
+
+        <div class="remote-section">
+            <h3>Reveal Tiles</h3>
+            <div class="remote-grid" id="remote-grid-buttons">
+                </div>
+            <button onclick="sendReset()" style="width:100%; background:#c0392b; margin:15px 0 0 0; padding: 12px;">Reset Grid</button>
+        </div>
+
+        <div class="remote-section">
+            <h3>Team Names</h3>
+            <input type="text" id="input-team1" placeholder="Team Blue Name" style="width:90%; margin-bottom: 10px; border-left: 5px solid #3498db;">
+            <input type="text" id="input-team2" placeholder="Team Red Name" style="width:90%; border-left: 5px solid #e74c3c;">
+            <button onclick="sendNames()" style="width:100%; margin:15px 0 0 0; padding: 12px;">Update Names</button>
+        </div>
+
+        <div class="remote-section">
+            <h3>Change Hidden Image</h3>
+            <input type="file" id="image-upload" accept="image/*" style="width:90%; color:white; background: #444; padding: 10px; border-radius: 5px;">
+            <button onclick="uploadImage()" style="width:100%; margin:15px 0 0 0; background:#8e44ad; padding: 12px;">Send Image to Screen</button>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const TILE_COUNT = 20; // 5x4 grid
+        const ID_PREFIX = "tiu-game-verify-"; // Makes the ID unique on global server
+
+        // --- GLOBAL VARIABLES ---
+        let peer = null;
+        let conn = null;
+
+        // --- INITIALIZATION ---
+        
+        function createGrids() {
+            const hostGrid = document.getElementById('tile-grid');
+            const remoteGrid = document.getElementById('remote-grid-buttons');
+            
+            hostGrid.innerHTML = '';
+            remoteGrid.innerHTML = '';
+
+            for (let i = 1; i <= TILE_COUNT; i++) {
+                // Host Tile
+                const tile = document.createElement('div');
+                tile.className = 'tile';
+                tile.id = `tile-${i}`;
+                tile.textContent = i;
+                hostGrid.appendChild(tile);
+
+                // Remote Button
+                const btn = document.createElement('button');
+                btn.className = 'remote-btn';
+                btn.id = `btn-${i}`;
+                btn.textContent = i;
+                btn.onclick = () => sendReveal(i);
+                remoteGrid.appendChild(btn);
+            }
+        }
+
+        // --- HOST LOGIC ---
+
+        function startHost() {
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('host-view').style.display = 'block';
+            createGrids();
+
+            // 1. Generate a random 4-digit PIN (1000 to 9999)
+            const pin = Math.floor(1000 + Math.random() * 9000);
+            
+            // 2. Display the PIN to the user
+            document.getElementById('host-pin-display').textContent = pin;
+
+            // 3. Create Peer with the PREFIX + PIN
+            const fullId = ID_PREFIX + pin;
+
+            peer = new Peer(fullId); 
+
+            peer.on('open', (id) => {
+                console.log('My peer ID is: ' + id);
+            });
+
+            peer.on('error', (err) => {
+                // If ID is taken (rare with random 4 digits, but possible), refresh page
+                if(err.type === 'unavailable-id') {
+                    alert("ID Collision. Refreshing...");
+                    location.reload();
+                } else {
+                    alert("Error: " + err.type);
+                }
+            });
+
+            peer.on('connection', (c) => {
+                conn = c;
+                console.log("Remote connected");
+                const status = document.getElementById('connection-status');
+                status.innerHTML = "Remote Connected!";
+                status.style.color = "#2ecc71";
+                status.style.fontWeight = "bold";
+                
+                // Handle incoming data
+                conn.on('data', (data) => {
+                    handleData(data);
+                });
+            });
+        }
+
+        function handleData(data) {
+            if (data.type === 'reveal') {
+                const tile = document.getElementById(`tile-${data.id}`);
+                if (tile) tile.classList.add('removed');
+            }
+            
+            if (data.type === 'names') {
+                if(data.team1) document.getElementById('host-team1').textContent = data.team1;
+                if(data.team2) document.getElementById('host-team2').textContent = data.team2;
+            }
+
+            if (data.type === 'image') {
+                document.getElementById('game-container').style.backgroundImage = `url(${data.src})`;
+            }
+
+            if (data.type === 'reset') {
+                const tiles = document.querySelectorAll('.tile');
+                tiles.forEach(t => t.classList.remove('removed'));
+            }
+        }
+
+        // --- REMOTE LOGIC ---
+
+        function startRemote() {
+            const pinInput = document.getElementById('remote-id-input').value.trim();
+            
+            if (pinInput.length !== 4) {
+                return alert("Please enter the 4-digit code shown on the screen.");
+            }
+
+            // Construct the full ID
+            const hostId = ID_PREFIX + pinInput;
+
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('remote-view').style.display = 'flex';
+            createGrids();
+
+            peer = new Peer(); // Remote gets a random ID, doesn't matter
+
+            peer.on('open', (id) => {
+                conn = peer.connect(hostId);
+
+                conn.on('open', () => {
+                    const status = document.getElementById('remote-status');
+                    status.textContent = "Connected";
+                    status.className = "status-connected";
+                });
+
+                conn.on('error', (err) => {
+                    alert("Connection Error. Check the PIN and try again.");
+                    location.reload();
+                });
+                
+                // If connection closes immediately (wrong ID)
+                conn.on('close', () => {
+                    // alert("Connection closed. Did you enter the right PIN?");
+                });
+            });
+            
+            // Generic Peer Error
+            peer.on('error', (err) => {
+                console.log(err);
+                alert("Could not connect. Ensure Host is running and PIN is correct.");
+            });
+        }
+
+        // --- REMOTE ACTIONS ---
+
+        function sendReveal(id) {
+            if (conn && conn.open) {
+                conn.send({ type: 'reveal', id: id });
+                // Visual feedback on phone
+                const btn = document.getElementById(`btn-${id}`);
+                btn.classList.add('active');
+            }
+        }
+
+        function sendNames() {
+            const t1 = document.getElementById('input-team1').value;
+            const t2 = document.getElementById('input-team2').value;
+            if (conn && conn.open) {
+                conn.send({ type: 'names', team1: t1, team2: t2 });
+                alert("Names updated on screen!");
+            }
+        }
+
+        function sendReset() {
+            if (confirm("Reset the game board?")) {
+                if (conn && conn.open) {
+                    conn.send({ type: 'reset' });
+                    // Reset buttons locally
+                    document.querySelectorAll('.remote-btn').forEach(b => b.classList.remove('active'));
+                }
+            }
+        }
+
+        function uploadImage() {
+            const input = document.getElementById('image-upload');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (conn && conn.open) {
+                        conn.send({ type: 'image', src: e.target.result });
+                        alert("Image updated!");
+                    }
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    </script>
+</body>
+</html>
