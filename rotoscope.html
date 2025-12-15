@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Rotoscope Immersive</title>
+    <title>TIU Rotoscope (Landscape Ready)</title>
     <style>
         body {
             font-family: 'Courier New', Courier, monospace;
@@ -11,9 +11,9 @@
             color: #0f0;
             margin: 0;
             padding: 0;
-            overflow: hidden; /* No scrollbars on PC */
-            height: 100vh;
+            overflow: hidden;
             width: 100vw;
+            height: 100vh;
         }
 
         /* --- FULL SCREEN VIEWPORT --- */
@@ -28,19 +28,19 @@
             align-items: center;
             background: #111;
             z-index: 1;
-            touch-action: none; /* Crucial for touch dragging */
+            touch-action: none;
         }
 
         canvas {
             width: 100%;
             height: 100%;
-            object-fit: contain; /* Ensures no stretching, adds black bars if needed */
+            object-fit: contain; /* Keeps aspect ratio correct in any orientation */
             image-rendering: pixelated; 
         }
 
         video { display: none; }
 
-        /* --- FLOATING CONTROLS (HUD) --- */
+        /* --- HUD CONTROLS --- */
         .controls {
             position: absolute;
             z-index: 10;
@@ -49,75 +49,55 @@
             backdrop-filter: blur(5px);
             padding: 15px;
             box-sizing: border-box;
-            transition: all 0.3s ease;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto; /* Scroll if needed */
         }
 
-        /* PC LAYOUT: Floating Panel on Right */
-        @media (min-width: 769px) {
+        /* PORTRAIT MODE (Phone Vertical) -> Dock Bottom */
+        @media (orientation: portrait) {
             .controls {
-                top: 20px;
-                right: 20px;
-                width: 300px;
-                border-radius: 8px;
-                box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
-                max-height: 90vh;
-                overflow-y: auto;
-            }
-        }
-
-        /* MOBILE LAYOUT: Docked at Bottom */
-        @media (max-width: 768px) {
-            .controls {
-                bottom: 0;
-                left: 0;
-                width: 100%;
-                border-top: 2px solid #0f0;
-                border-left: none;
-                border-right: none;
-                border-bottom: none;
+                bottom: 0; left: 0; width: 100%;
+                max-height: 50vh;
                 border-radius: 20px 20px 0 0;
-                padding: 15px;
-                max-height: 50vh; /* Scrollable if too small */
-                overflow-y: auto;
+                border-bottom: none; border-left: none; border-right: none;
+                transform: translateY(0);
             }
-            
-            /* Compact rows for mobile */
-            .row { margin-bottom: 8px; }
+            .controls.hidden { transform: translateY(100%); }
         }
 
-        h1 { 
-            margin: 0 0 15px 0; 
-            font-size: 1.1rem; 
-            text-transform: uppercase; 
-            border-bottom: 1px solid #0f0; 
-            text-align: center;
-            padding-bottom: 5px;
+        /* LANDSCAPE MODE (Phone Horizontal + PC) -> Dock Right */
+        @media (orientation: landscape) {
+            .controls {
+                top: 0; right: 0; height: 100%;
+                width: 280px;
+                border-left: 2px solid #0f0;
+                border-top: none; border-bottom: none; border-right: none;
+                transform: translateX(0);
+            }
+            .controls.hidden { transform: translateX(100%); }
         }
+
+        h1 { margin: 0 0 10px 0; font-size: 1rem; text-transform: uppercase; border-bottom: 1px solid #0f0; text-align: center; }
 
         /* UI Elements */
-        .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
-        label { color: #fff; font-size: 0.8rem; font-weight: bold; white-space: nowrap; min-width: 40px;}
-        
-        select { 
-            background: #333; color: #fff; border: 1px solid #0f0; 
-            padding: 5px; flex-grow: 1; border-radius: 4px;
-        }
-
+        .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        label { color: #fff; font-size: 0.75rem; font-weight: bold; white-space: nowrap; }
+        select { background: #333; color: #fff; border: 1px solid #0f0; padding: 5px; flex-grow: 1; border-radius: 4px; }
         input[type=range] { flex-grow: 1; accent-color: #0f0; height: 5px; cursor: pointer; }
 
-        /* Upload Button */
+        /* Upload Btn */
         .upload-btn {
             background: #222; border: 1px solid #0f0; color: #0f0;
-            padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; 
+            padding: 8px; border-radius: 4px; font-size: 0.75rem; 
             cursor: pointer; text-align: center; flex-grow: 1; display: block;
         }
-        .upload-btn:hover { background: #0f0; color: #000; }
-        #bgFileName { font-size: 0.7rem; color: #aaa; margin-left: 5px; max-width: 80px; overflow: hidden; white-space: nowrap; display: inline-block;}
+        #bgFileName { font-size: 0.7rem; color: #aaa; margin-left: 5px; max-width: 60px; overflow: hidden; white-space: nowrap; display: inline-block;}
 
         /* FX Grid */
-        .fx-group { 
-            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 12px;
-        }
+        .fx-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
         .fx-option { 
             display: flex; align-items: center; justify-content: center; 
             font-size: 0.7rem; background: #333; padding: 8px 2px; border-radius: 4px;
@@ -125,35 +105,33 @@
         }
         .fx-option input { margin-right: 5px; accent-color: #0f0; }
 
-        /* Main Buttons */
-        .btn-row { display: flex; gap: 8px; }
+        /* Buttons */
         button {
             padding: 12px; font-size: 14px; border: 2px solid #0f0; background: transparent;
             color: #0f0; cursor: pointer; font-family: inherit; font-weight: bold; text-transform: uppercase;
             border-radius: 4px; flex: 1; transition: 0.2s;
         }
-        button:hover { background: rgba(0, 255, 0, 0.1); }
         button:active { background: #0f0; color: #000; }
-        button:disabled { border-color: #444; color: #555; cursor: not-allowed; }
-        
+        button:disabled { border-color: #444; color: #555; }
         button.record.active { background: #d00; border-color: #f00; color: #fff; animation: pulse 1.5s infinite; }
         button.neon-active { border-color: #0ff; color: #0ff; box-shadow: 0 0 8px #0ff inset; }
 
         @keyframes pulse { 50% { opacity: 0.5; } }
-        .status { text-align: center; color: #888; font-size: 0.75rem; margin-top: 10px; }
-        
-        /* Toggle Controls Button */
+        .status { text-align: center; color: #888; font-size: 0.7rem; margin-top: 5px; }
+
+        /* Floating Toggle Button (Hamburger) */
         #toggleControls {
-            position: absolute; top: 10px; left: 10px; z-index: 20;
-            background: rgba(0,0,0,0.5); border: 1px solid #0f0; color: #0f0;
-            width: 40px; height: 40px; border-radius: 50%; font-size: 20px;
+            position: absolute; top: 15px; left: 15px; z-index: 20;
+            background: rgba(0,0,0,0.6); border: 2px solid #0f0; color: #0f0;
+            width: 45px; height: 45px; border-radius: 50%; font-size: 24px;
             display: flex; align-items: center; justify-content: center; cursor: pointer;
+            user-select: none;
         }
     </style>
 </head>
 <body>
 
-    <div id="toggleControls" title="Toggle Menu">≡</div>
+    <div id="toggleControls">≡</div>
 
     <div class="viewport">
         <video id="rawVideo" playsinline muted autoplay></video>
@@ -162,15 +140,15 @@
 
     <div class="controls" id="controlsPanel">
         <h1>TIU Rotoscope</h1>
-
+        
         <div class="row">
             <select id="camSelect">
-                <option value="user">Front Camera</option>
-                <option value="environment" selected>Back Camera</option>
+                <option value="user">Front Cam</option>
+                <option value="environment" selected>Back Cam</option>
             </select>
         </div>
         
-        <div class="row" style="justify-content: flex-start;">
+        <div class="row">
              <label for="bgUpload" class="upload-btn">⬆ Upload BG</label>
              <input type="file" id="bgUpload" accept="image/*" style="display: none;">
              <span id="bgFileName">None</span>
@@ -188,14 +166,14 @@
         <div class="fx-group">
             <label class="fx-option"><input type="checkbox" id="chkGhost"> Ghost</label>
             <label class="fx-option"><input type="checkbox" id="chkDots"> Dots</label>
-            <label class="fx-option"><input type="checkbox" id="chkChroma"> GreenScrn</label>
+            <label class="fx-option"><input type="checkbox" id="chkChroma"> Key</label>
         </div>
 
-        <div class="btn-row" style="margin-bottom: 8px;">
+        <div class="row">
             <button id="btnNeon">Neon</button>
             <button id="btnStart">Start</button>
         </div>
-        <div class="btn-row">
+        <div class="row">
             <button id="btnRecord" disabled>Record</button>
             <button id="btnStop" disabled>Stop</button>
         </div>
@@ -203,18 +181,17 @@
     </div>
 
     <script>
-        // --- SETUP ---
+        // Setup
         const video = document.getElementById('rawVideo');
         const displayCanvas = document.getElementById('displayCanvas');
         const displayCtx = displayCanvas.getContext('2d', { alpha: true });
         
-        // Processing Canvas (Low Res for Effect)
+        // Internal Processing Resolution (Low res for effect)
         let PROC_WIDTH = 320; 
         let PROC_HEIGHT = 240;
         
         const procCanvas = document.createElement('canvas');
         const procCtx = procCanvas.getContext('2d', { willReadFrequently: true });
-        
         const dotCanvas = document.createElement('canvas');
         const dotCtx = dotCanvas.getContext('2d');
         let dotPattern = null;
@@ -233,7 +210,6 @@
         let currentBgImage = null;
         let mediaRecorder; let chunks = []; let audioCtx, audioDest;
 
-        // --- INIT PATTERNS ---
         function createHalftonePattern() {
             dotCanvas.width = 4; dotCanvas.height = 4;
             dotCtx.fillStyle = 'rgba(0,0,0,0.4)';
@@ -242,13 +218,12 @@
         }
         createHalftonePattern();
 
-        // --- UI LOGIC ---
+        // --- TOGGLE MENU (Slide Animation) ---
         toggleControls.onclick = () => {
-            const isHidden = controlsPanel.style.display === 'none';
-            controlsPanel.style.display = isHidden ? 'block' : 'none';
-            toggleControls.style.opacity = isHidden ? '1' : '0.3';
+            controlsPanel.classList.toggle('hidden');
         };
 
+        // --- BUTTON HANDLERS ---
         document.getElementById('btnNeon').onclick = function() {
             isNeon = !isNeon; this.classList.toggle('neon-active');
         };
@@ -260,98 +235,99 @@
             const reader = new FileReader();
             reader.onload = (evt) => {
                 const img = new Image();
-                img.onload = () => { currentBgImage = img; status.innerText = "BG Loaded. Enable GreenScrn."; };
+                img.onload = () => { currentBgImage = img; status.innerText = "BG Ready. Enable Key."; };
                 img.src = evt.target.result;
             };
             reader.readAsDataURL(file);
         };
 
-        // --- INPUT HANDLING (Coordinate Mapping) ---
+        // --- INPUT HANDLING ---
         function handleInput(clientX, clientY) {
             if (!document.getElementById('chkChroma').checked) return;
-            
             const rect = displayCanvas.getBoundingClientRect();
-            
-            // 1. Calculate relative position (0.0 to 1.0) inside the element
-            const relX = (clientX - rect.left) / rect.width;
-            const relY = (clientY - rect.top) / rect.height;
-
-            // 2. Map to internal processing resolution
-            const x = Math.floor(relX * PROC_WIDTH);
-            const y = Math.floor(relY * PROC_HEIGHT);
-
-            // Safety check
+            const x = Math.floor(((clientX - rect.left) / rect.width) * PROC_WIDTH);
+            const y = Math.floor(((clientY - rect.top) / rect.height) * PROC_HEIGHT);
             if (x < 0 || x >= PROC_WIDTH || y < 0 || y >= PROC_HEIGHT) return;
 
             const p = procCtx.getImageData(x, y, 1, 1).data;
             chromaColor = { r: p[0], g: p[1], b: p[2] };
-            status.innerText = `Key Color: ${p[0]},${p[1]},${p[2]}`;
-            
-            // Visual feedback
-            displayCanvas.style.boxShadow = `0 0 20px rgb(${p[0]},${p[1]},${p[2]})`;
+            status.innerText = `Key: ${p[0]},${p[1]},${p[2]}`;
+            displayCanvas.style.boxShadow = `inset 0 0 0 5px rgb(${p[0]},${p[1]},${p[2]})`;
             setTimeout(() => displayCanvas.style.boxShadow = "none", 300);
         }
-
         displayCanvas.addEventListener('mousedown', (e) => handleInput(e.clientX, e.clientY));
         displayCanvas.addEventListener('touchstart', (e) => {
-            e.preventDefault(); // Prevent scrolling
+            e.preventDefault();
             handleInput(e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: false });
 
-        // --- CAMERA START ---
+        // --- ORIENTATION & RESIZE HANDLER ---
+        function updateDimensions() {
+            if (!video.videoWidth) return;
+            
+            // Determine video aspect ratio
+            const ratio = video.videoWidth / video.videoHeight;
+            
+            // Set internal resolution based on ratio to keep pixels square
+            // We lock the smaller dimension to 240px for consistency
+            if (ratio > 1) {
+                // Landscape
+                PROC_HEIGHT = 240;
+                PROC_WIDTH = Math.floor(PROC_HEIGHT * ratio);
+            } else {
+                // Portrait
+                PROC_WIDTH = 240;
+                PROC_HEIGHT = Math.floor(PROC_WIDTH / ratio);
+            }
+            
+            displayCanvas.width = PROC_WIDTH;
+            displayCanvas.height = PROC_HEIGHT;
+            procCanvas.width = PROC_WIDTH;
+            procCanvas.height = PROC_HEIGHT;
+        }
+        
+        // Recalculate if user rotates phone
+        window.addEventListener('resize', updateDimensions);
+
+        // --- START CAM ---
         document.getElementById('btnStart').onclick = async function() {
             this.disabled = true;
-            status.innerText = "Starting Camera...";
-            
+            status.innerText = "Starting...";
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                         facingMode: document.getElementById('camSelect').value,
-                        width: { ideal: 1920 }, // Try for high res on PC
-                        height: { ideal: 1080 } 
+                        width: { ideal: 1280 }, 
+                        height: { ideal: 720 } 
                     },
                     audio: true
                 });
                 video.srcObject = stream;
-                
                 video.onloadedmetadata = () => {
                     video.play();
+                    updateDimensions(); // Set initial size
                     
-                    // --- ASPECT RATIO LOGIC ---
-                    const ratio = video.videoWidth / video.videoHeight;
-                    // Maintain "Pixel Art" density regardless of screen size
-                    // Base height 240p
-                    PROC_HEIGHT = 240;
-                    PROC_WIDTH = Math.floor(PROC_HEIGHT * ratio);
-
-                    displayCanvas.width = PROC_WIDTH;
-                    displayCanvas.height = PROC_HEIGHT;
-                    procCanvas.width = PROC_WIDTH;
-                    procCanvas.height = PROC_HEIGHT;
-
-                    // Audio
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                     const source = audioCtx.createMediaStreamSource(stream);
                     audioDest = audioCtx.createMediaStreamDestination();
                     source.connect(audioDest);
 
                     startLoop();
-                    status.innerText = "Active. Tap to set Key Color.";
+                    status.innerText = "Running. Tap screen for Chroma.";
                     document.getElementById('btnRecord').disabled = false;
                     document.getElementById('camSelect').disabled = true;
                 };
-            } catch (err) { alert("Cam Error: " + err.message); this.disabled = false; }
+            } catch (err) { alert("Error: " + err.message); this.disabled = false; }
         };
 
         // --- RENDER LOOP ---
         function startLoop() {
             if (isRunning) return;
             isRunning = true;
-
             const draw = () => {
                 if (video.paused || video.ended) return;
-
-                // 1. Process
+                
+                // Draw Video -> Proc Canvas
                 procCtx.drawImage(video, 0, 0, PROC_WIDTH, PROC_HEIGHT);
                 const frame = procCtx.getImageData(0, 0, PROC_WIDTH, PROC_HEIGHT);
                 const data = frame.data;
@@ -363,34 +339,23 @@
                 const doChroma = document.getElementById('chkChroma').checked;
 
                 for (let i = 0; i < len; i += 4) {
-                    // Chroma
                     if (doChroma) {
-                        if (Math.abs(data[i]-chromaColor.r) + Math.abs(data[i+1]-chromaColor.g) + Math.abs(data[i+2]-chromaColor.b) < chromaThreshold) {
+                        if (Math.abs(data[i]-chromaColor.r)+Math.abs(data[i+1]-chromaColor.g)+Math.abs(data[i+2]-chromaColor.b) < chromaThreshold) {
                             data[i+3] = 0; continue;
                         }
                     }
-                    // Edge
                     if (i < len - 4) {
-                        if (Math.abs(data[i]-data[i+4]) + Math.abs(data[i+1]-data[i+5]) + Math.abs(data[i+2]-data[i+6]) > thresh) {
-                            data[i] = isNeon ? 0 : 0; 
-                            data[i+1] = isNeon ? 255 : 0; 
-                            data[i+2] = isNeon ? 255 : 0; 
-                            continue;
+                        if (Math.abs(data[i]-data[i+4])+Math.abs(data[i+1]-data[i+5])+Math.abs(data[i+2]-data[i+6]) > thresh) {
+                            data[i] = isNeon?0:0; data[i+1]=isNeon?255:0; data[i+2]=isNeon?255:0; continue;
                         }
                     }
-                    // Color
-                    let r = Math.floor(data[i]/bin)*bin;
-                    let g = Math.floor(data[i+1]/bin)*bin;
-                    let b = Math.floor(data[i+2]/bin)*bin;
-                    
-                    if (isNeon) { data[i]=255-r; data[i+1]=255-g; data[i+2]=255-b; }
-                    else { data[i]=r; data[i+1]=g; data[i+2]=b; }
+                    let r=Math.floor(data[i]/bin)*bin; let g=Math.floor(data[i+1]/bin)*bin; let b=Math.floor(data[i+2]/bin)*bin;
+                    if (isNeon){data[i]=255-r;data[i+1]=255-g;data[i+2]=255-b;} else {data[i]=r;data[i+1]=g;data[i+2]=b;}
                 }
                 procCtx.putImageData(frame, 0, 0);
 
-                // 2. Draw to Screen
+                // Draw Proc -> Display
                 const doGhost = document.getElementById('chkGhost').checked;
-                
                 if (doGhost) {
                     displayCtx.globalCompositeOperation = 'source-over';
                     displayCtx.fillStyle = 'rgba(0,0,0,0.15)'; 
@@ -408,15 +373,11 @@
                 displayCtx.globalAlpha = 1.0;
 
                 if (document.getElementById('chkDots').checked) {
-                    displayCtx.fillStyle = dotPattern; 
-                    displayCtx.fillRect(0, 0, PROC_WIDTH, PROC_HEIGHT);
+                    displayCtx.fillStyle = dotPattern; displayCtx.fillRect(0, 0, PROC_WIDTH, PROC_HEIGHT);
                 }
                 
-                // Watermark
-                displayCtx.font = "bold 14px Courier New"; 
-                displayCtx.fillStyle = "rgba(255, 255, 255, 0.7)";
-                displayCtx.textAlign = "right"; 
-                displayCtx.fillText("TIU", PROC_WIDTH - 5, PROC_HEIGHT - 5);
+                displayCtx.font = "bold 14px Courier New"; displayCtx.fillStyle = "rgba(255, 255, 255, 0.7)";
+                displayCtx.textAlign = "right"; displayCtx.fillText("TIU", PROC_WIDTH-5, PROC_HEIGHT-5);
 
                 requestAnimationFrame(draw);
             };
@@ -428,10 +389,7 @@
             const btn = this;
             const stream = displayCanvas.captureStream(30);
             const combined = new MediaStream([...stream.getVideoTracks(), ...audioDest.stream.getAudioTracks()]);
-            
-            // Format Support Check
-            let type = 'video/webm';
-            if (MediaRecorder.isTypeSupported('video/mp4')) type = 'video/mp4';
+            let type = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
             
             mediaRecorder = new MediaRecorder(combined, { mimeType: type });
             mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
@@ -442,16 +400,12 @@
                 a.download = `TIU-Roto-${Date.now()}.${type.includes('mp4')?'mp4':'webm'}`;
                 a.click(); chunks = [];
                 status.innerText = "Saved!"; 
-                btn.classList.remove('active'); btn.disabled = false; 
-                document.getElementById('btnStop').disabled = true;
+                btn.classList.remove('active'); btn.disabled = false; document.getElementById('btnStop').disabled = true;
             };
-            
             mediaRecorder.start();
-            btn.classList.add('active'); btn.disabled = true;
-            document.getElementById('btnStop').disabled = false;
+            btn.classList.add('active'); btn.disabled = true; document.getElementById('btnStop').disabled = false;
             status.innerText = "Recording...";
         };
-
         document.getElementById('btnStop').onclick = () => { if(mediaRecorder) mediaRecorder.stop(); };
 
     </script>
