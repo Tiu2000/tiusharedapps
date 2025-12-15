@@ -370,6 +370,7 @@
         let currentPuzzle = { category: "", word: "", revealed: [], guessedLetters: new Set() };
         let currentSpinValue = 0;
         const VOWELS = ['A', 'E', 'I', 'O', 'U'];
+        const CONSONANTS = "BCDFGHJKLMNPQRSTVWXYZ".split('');
         
         // --- PEERJS / P2P SETUP ---
         let peer = null;
@@ -629,7 +630,8 @@
             ctx.clearRect(0,0, canvas.width, canvas.height);
 
             WOF_WEDGES.forEach((wedge, i) => {
-                const start = i * sliceAngle;
+                // FIXED: Offset start angle by -90deg (Pi/2) so Index 0 is at Top (12 o'clock)
+                const start = (i * sliceAngle) - (Math.PI / 2);
                 const end = start + sliceAngle;
 
                 ctx.beginPath();
@@ -700,12 +702,22 @@
                     notify("LOSE A TURN", "error");
                     nextTurn();
                 } else {
-                    playSuccess();
-                    notify(`SPIN: $${result.value}`, "success");
-                    document.getElementById('guessInputContainer').classList.remove('hidden');
-                    document.getElementById('guessPrompt').innerText = `Value $${result.value}: Guess a Consonant`;
-                    document.getElementById('letterInput').focus();
-                    syncRemoteState(`Spin: $${result.value} - Pick Consonant`);
+                    // FIXED: Check if there are any consonants left to guess
+                    const availableConsonants = CONSONANTS.filter(c => !currentPuzzle.guessedLetters.has(c));
+                    
+                    if(availableConsonants.length === 0) {
+                        notify(`SPIN: $${result.value} (No consonants left!)`, "neutral");
+                        playSuccess();
+                        // Do not show guess input, just let them buy vowel or solve
+                        syncRemoteState(`Value $${result.value} - No Consonants!`);
+                    } else {
+                        playSuccess();
+                        notify(`SPIN: $${result.value}`, "success");
+                        document.getElementById('guessInputContainer').classList.remove('hidden');
+                        document.getElementById('guessPrompt').innerText = `Value $${result.value}: Guess a Consonant`;
+                        document.getElementById('letterInput').focus();
+                        syncRemoteState(`Spin: $${result.value} - Pick Consonant`);
+                    }
                 }
                 renderTeams();
             }, spinDuration);
