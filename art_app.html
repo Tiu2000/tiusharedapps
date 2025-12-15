@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TIU Art Studio (Fast P2P)</title>
+    <title>TIU Art Studio (Solid Lines)</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -273,13 +273,12 @@
             opacity: 1.0
         };
 
-        // --- LAG FIX CONFIGURATION ---
+        // --- BATCHING SYSTEM ---
         let p2p = { 
             peer: null, 
             conn: null, 
             connected: false,
-            lastSent: 0,
-            throttleLimit: 25 // Ms between packets (approx 40fps)
+            batch: [] // Store drawing movements here
         };
 
         function fitCanvas() {
@@ -354,22 +353,19 @@
             if(e.cancelable) e.preventDefault(); 
 
             const p = getCoords(e);
+            
+            // Create data packet
             const packet = {
                 x: p.x, y: p.y, lx: state.lx, ly: state.ly,
                 color: state.color, size: state.size, tool: state.tool, opacity: state.opacity
             };
 
-            // Always render locally instantly
+            // 1. Draw locally immediately (0 latency for you)
             render(packet);
             
-            // --- ANTI-LAG SENDING LOGIC ---
-            // Only send if connected AND enough time has passed
-            const now = Date.now();
-            if(p2p.connected && p2p.conn) {
-                if(now - p2p.lastSent > p2p.throttleLimit) {
-                    p2p.conn.send(packet);
-                    p2p.lastSent = now;
-                }
+            // 2. Add to batch (for friend)
+            if(p2p.connected) {
+                p2p.batch.push(packet);
             }
 
             state.lx = p.x; state.ly = p.y;
@@ -380,10 +376,18 @@
         canvas.addEventListener('mousedown', start);
         canvas.addEventListener('mousemove', move);
         window.addEventListener('mouseup', end);
-        
         canvas.addEventListener('touchstart', start, {passive: false});
         canvas.addEventListener('touchmove', move, {passive: false});
         window.addEventListener('touchend', end);
+
+        // --- NETWORK LOOP (The Fix) ---
+        // Sends all collected strokes every 30ms
+        setInterval(() => {
+            if(p2p.connected && p2p.conn && p2p.batch.length > 0) {
+                p2p.conn.send(p2p.batch); // Send the whole list
+                p2p.batch = []; // Clear list
+            }
+        }, 30);
 
         // UI Logic
         ['pencil','brush','soft','eraser'].forEach(t => {
@@ -471,7 +475,18 @@
                 setStatus(true, "Connected!");
                 toggleP2P(false);
             });
-            conn.on('data', data => render(data));
+            
+            // RECEIVER LOGIC: Unpack the batch
+            conn.on('data', data => {
+                // If it's an array (batch), loop through it
+                if(Array.isArray(data)) {
+                    data.forEach(packet => render(packet));
+                } else {
+                    // Backwards compatibility for single packets
+                    render(data);
+                }
+            });
+            
             conn.on('close', () => {
                 p2p.connected = false;
                 setStatus(false, "Friend Left");
