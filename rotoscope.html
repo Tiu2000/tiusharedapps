@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Rotoscope (Landscape Ready)</title>
+    <title>TIU Rotoscope Final</title>
     <style>
         body {
             font-family: 'Courier New', Courier, monospace;
@@ -16,66 +16,49 @@
             height: 100vh;
         }
 
-        /* --- FULL SCREEN VIEWPORT --- */
+        /* Full Screen Viewport */
         .viewport {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #111;
-            z-index: 1;
-            touch-action: none;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background: #111; z-index: 1; touch-action: none;
         }
 
+        /* Canvas fits inside without stretching pixels */
         canvas {
-            width: 100%;
-            height: 100%;
-            object-fit: contain; /* Keeps aspect ratio correct in any orientation */
+            width: 100%; height: 100%;
+            object-fit: contain; 
             image-rendering: pixelated; 
         }
 
         video { display: none; }
 
-        /* --- HUD CONTROLS --- */
+        /* HUD Controls - Smart Docking */
         .controls {
-            position: absolute;
-            z-index: 10;
+            position: absolute; z-index: 10;
             background: rgba(0, 0, 0, 0.85);
             border: 1px solid #0f0;
             backdrop-filter: blur(5px);
-            padding: 15px;
-            box-sizing: border-box;
-            transition: transform 0.3s ease, opacity 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            overflow-y: auto; /* Scroll if needed */
+            padding: 15px; box-sizing: border-box;
+            transition: transform 0.3s ease;
+            display: flex; flex-direction: column; gap: 10px;
+            overflow-y: auto;
         }
 
-        /* PORTRAIT MODE (Phone Vertical) -> Dock Bottom */
+        /* PORTRAIT: Dock Bottom */
         @media (orientation: portrait) {
             .controls {
-                bottom: 0; left: 0; width: 100%;
-                max-height: 50vh;
-                border-radius: 20px 20px 0 0;
-                border-bottom: none; border-left: none; border-right: none;
-                transform: translateY(0);
+                bottom: 0; left: 0; width: 100%; max-height: 50vh;
+                border-radius: 20px 20px 0 0; border-bottom: none;
             }
             .controls.hidden { transform: translateY(100%); }
         }
 
-        /* LANDSCAPE MODE (Phone Horizontal + PC) -> Dock Right */
+        /* LANDSCAPE: Dock Right */
         @media (orientation: landscape) {
             .controls {
-                top: 0; right: 0; height: 100%;
-                width: 280px;
-                border-left: 2px solid #0f0;
-                border-top: none; border-bottom: none; border-right: none;
-                transform: translateX(0);
+                top: 0; right: 0; height: 100%; width: 280px;
+                border-left: 2px solid #0f0; border-top: none;
             }
             .controls.hidden { transform: translateX(100%); }
         }
@@ -119,7 +102,6 @@
         @keyframes pulse { 50% { opacity: 0.5; } }
         .status { text-align: center; color: #888; font-size: 0.7rem; margin-top: 5px; }
 
-        /* Floating Toggle Button (Hamburger) */
         #toggleControls {
             position: absolute; top: 15px; left: 15px; z-index: 20;
             background: rgba(0,0,0,0.6); border: 2px solid #0f0; color: #0f0;
@@ -186,9 +168,11 @@
         const displayCanvas = document.getElementById('displayCanvas');
         const displayCtx = displayCanvas.getContext('2d', { alpha: true });
         
-        // Internal Processing Resolution (Low res for effect)
+        // We will update these dynamically
         let PROC_WIDTH = 320; 
         let PROC_HEIGHT = 240;
+        let lastVideoW = 0;
+        let lastVideoH = 0;
         
         const procCanvas = document.createElement('canvas');
         const procCtx = procCanvas.getContext('2d', { willReadFrequently: true });
@@ -218,12 +202,10 @@
         }
         createHalftonePattern();
 
-        // --- TOGGLE MENU (Slide Animation) ---
-        toggleControls.onclick = () => {
-            controlsPanel.classList.toggle('hidden');
-        };
+        // --- TOGGLE MENU ---
+        toggleControls.onclick = () => { controlsPanel.classList.toggle('hidden'); };
 
-        // --- BUTTON HANDLERS ---
+        // --- BUTTONS ---
         document.getElementById('btnNeon').onclick = function() {
             isNeon = !isNeon; this.classList.toggle('neon-active');
         };
@@ -241,7 +223,7 @@
             reader.readAsDataURL(file);
         };
 
-        // --- INPUT HANDLING ---
+        // --- INPUT (Tap to Chroma) ---
         function handleInput(clientX, clientY) {
             if (!document.getElementById('chkChroma').checked) return;
             const rect = displayCanvas.getBoundingClientRect();
@@ -261,33 +243,31 @@
             handleInput(e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: false });
 
-        // --- ORIENTATION & RESIZE HANDLER ---
-        function updateDimensions() {
-            if (!video.videoWidth) return;
-            
-            // Determine video aspect ratio
-            const ratio = video.videoWidth / video.videoHeight;
-            
-            // Set internal resolution based on ratio to keep pixels square
-            // We lock the smaller dimension to 240px for consistency
-            if (ratio > 1) {
-                // Landscape
-                PROC_HEIGHT = 240;
-                PROC_WIDTH = Math.floor(PROC_HEIGHT * ratio);
-            } else {
-                // Portrait
-                PROC_WIDTH = 240;
-                PROC_HEIGHT = Math.floor(PROC_WIDTH / ratio);
+        // --- RESIZE LOGIC (AUTO-FIX) ---
+        function checkDimensions() {
+            // If video dimensions changed since last frame, re-init canvas
+            if (video.videoWidth !== lastVideoW || video.videoHeight !== lastVideoH) {
+                if (video.videoWidth === 0) return; // Not ready
+
+                lastVideoW = video.videoWidth;
+                lastVideoH = video.videoHeight;
+                const ratio = lastVideoW / lastVideoH;
+
+                // Adjust internal low-res buffer to match video aspect ratio
+                if (ratio > 1) { // Landscape
+                    PROC_HEIGHT = 240;
+                    PROC_WIDTH = Math.floor(PROC_HEIGHT * ratio);
+                } else { // Portrait
+                    PROC_WIDTH = 240;
+                    PROC_HEIGHT = Math.floor(PROC_WIDTH / ratio);
+                }
+
+                displayCanvas.width = PROC_WIDTH;
+                displayCanvas.height = PROC_HEIGHT;
+                procCanvas.width = PROC_WIDTH;
+                procCanvas.height = PROC_HEIGHT;
             }
-            
-            displayCanvas.width = PROC_WIDTH;
-            displayCanvas.height = PROC_HEIGHT;
-            procCanvas.width = PROC_WIDTH;
-            procCanvas.height = PROC_HEIGHT;
         }
-        
-        // Recalculate if user rotates phone
-        window.addEventListener('resize', updateDimensions);
 
         // --- START CAM ---
         document.getElementById('btnStart').onclick = async function() {
@@ -305,7 +285,6 @@
                 video.srcObject = stream;
                 video.onloadedmetadata = () => {
                     video.play();
-                    updateDimensions(); // Set initial size
                     
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                     const source = audioCtx.createMediaStreamSource(stream);
@@ -326,6 +305,9 @@
             isRunning = true;
             const draw = () => {
                 if (video.paused || video.ended) return;
+                
+                // FIX: Check for rotation/resize on every frame
+                checkDimensions();
                 
                 // Draw Video -> Proc Canvas
                 procCtx.drawImage(video, 0, 0, PROC_WIDTH, PROC_HEIGHT);
