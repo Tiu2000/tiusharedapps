@@ -13,7 +13,7 @@
             font-family: 'Inter', sans-serif;
             background-color: #0f172a;
             color: white;
-            overflow: hidden; /* Prevent body scroll, handle internally */
+            overflow: hidden;
             touch-action: manipulation;
         }
 
@@ -25,9 +25,9 @@
             font-size: 3rem;
             font-weight: 900;
             color: white;
-            opacity: 0.15; /* Increased slightly for visibility */
+            opacity: 0.15;
             pointer-events: none;
-            z-index: 30; /* FIXED: Raised z-index to sit above game board (z-10) and header (z-20) */
+            z-index: 30;
             user-select: none;
             font-family: 'Courier New', Courier, monospace;
         }
@@ -104,12 +104,14 @@
         .btn-action { @apply bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-xl transition transform hover:scale-105; }
         
         .team-card { @apply p-3 rounded-lg bg-slate-700 border border-slate-600 text-center transition-all duration-300; }
+        
+        /* UPDATED: High visibility active state */
         .active-team {
-            @apply bg-gradient-to-br from-amber-900 to-amber-800 border-amber-400 transform scale-105;
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+            @apply bg-gradient-to-br from-green-600 to-green-800 border-green-400 transform scale-110 ring-4 ring-green-400/50;
+            box-shadow: 0 0 25px rgba(34, 197, 94, 0.6);
+            z-index: 10;
         }
 
-        /* Custom Input for Team Names */
         .team-name-input {
             background: transparent;
             border: 1px dashed #475569;
@@ -166,6 +168,12 @@
             </div>
 
             <div class="lg:w-7/12 w-full bg-slate-900 flex flex-col p-4 overflow-y-auto relative">
+                
+                <div id="turnBanner" class="bg-green-900/50 border-b border-green-500 mb-2 text-center py-1 hidden">
+                    <span class="text-green-300 text-xs font-bold uppercase tracking-widest">CURRENT TURN:</span>
+                    <span id="turnBannerName" class="text-white font-black ml-2 uppercase">TEAM 1</span>
+                </div>
+
                 <div class="bg-gradient-to-r from-blue-900 to-slate-900 p-3 rounded-xl border-l-4 border-amber-400 mb-4 shadow-lg flex justify-between items-center">
                     <div>
                         <span class="text-blue-300 text-xs font-bold tracking-widest uppercase">Category</span>
@@ -339,8 +347,13 @@
     <script>
         // --- AUDIO ENGINE ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function resumeAudio() {
+             if(audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
         function playTone(freq, dur, type='sine') {
-            if(audioCtx.state === 'suspended') audioCtx.resume();
+            resumeAudio();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = type;
@@ -353,8 +366,32 @@
             osc.stop(audioCtx.currentTime + dur);
         }
         function playTick() { playTone(600, 0.05, 'triangle'); }
+        function playClick() { playTone(1200, 0.03, 'square'); }
         function playSuccess() { playTone(880, 0.1, 'sine'); setTimeout(()=>playTone(1760, 0.2, 'sine'), 100); }
         function playFail() { playTone(200, 0.3, 'sawtooth'); setTimeout(()=>playTone(150, 0.4, 'sawtooth'), 250); }
+        function playSolveFanfare() {
+             resumeAudio();
+             const now = audioCtx.currentTime;
+             const notes = [523.25, 659.25, 783.99, 1046.50];
+             notes.forEach((freq, i) => {
+                 setTimeout(() => playTone(freq, 0.4, 'triangle'), i * 150);
+             });
+        }
+        
+        // Simulates ticking sound during CSS transition
+        function playWheelSound(duration) {
+            resumeAudio();
+            let count = 0;
+            // Play faster ticks at start, slower at end
+            const totalTicks = 25; 
+            const interval = duration / totalTicks;
+            
+            const ticker = setInterval(() => {
+                playTick();
+                count++;
+                if(count >= totalTicks) clearInterval(ticker);
+            }, interval);
+        }
 
         // --- GLOBAL STATE ---
         let teams = [{name: "Team 1", score: 0}, {name: "Team 2", score: 0}];
@@ -565,6 +602,7 @@
                 btn.innerText = l;
                 btn.onclick = () => {
                     if(btn.classList.contains('disabled')) return;
+                    playClick(); // Local sound for feedback
                     if(conn && conn.open) conn.send({ action: 'guess', letter: l });
                 };
                 kb.appendChild(btn);
@@ -630,7 +668,6 @@
             ctx.clearRect(0,0, canvas.width, canvas.height);
 
             WOF_WEDGES.forEach((wedge, i) => {
-                // FIXED: Offset start angle by -90deg (Pi/2) so Index 0 is at Top (12 o'clock)
                 const start = (i * sliceAngle) - (Math.PI / 2);
                 const end = start + sliceAngle;
 
@@ -677,7 +714,7 @@
             canvas.style.transition = `transform ${spinDuration}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
             canvas.style.transform = `rotate(-${finalAngle}deg)`;
             
-            playTone(400, 0.1, 'square'); // start sound
+            playWheelSound(spinDuration); // Added sound
 
             setTimeout(() => {
                 isSpinning = false;
@@ -702,7 +739,7 @@
                     notify("LOSE A TURN", "error");
                     nextTurn();
                 } else {
-                    // FIXED: Check if there are any consonants left to guess
+                    // Check if there are any consonants left to guess
                     const availableConsonants = CONSONANTS.filter(c => !currentPuzzle.guessedLetters.has(c));
                     
                     if(availableConsonants.length === 0) {
@@ -844,6 +881,7 @@
                     btn.className = "bg-slate-700 text-slate-500 py-3 px-6 rounded text-xl";
                 } else {
                     btn.onclick = () => {
+                        playClick();
                         modal.classList.add('hidden');
                         teams[currentTeamIndex].score -= 250;
                         renderTeams();
@@ -867,13 +905,22 @@
             document.getElementById('solveInputContainer').classList.add('hidden');
         }
 
+        // FIXED: Helper to normalize string for comparison
+        function normalizeText(str) {
+            return str.toUpperCase().trim().replace(/\s+/g, ' ');
+        }
+
         function checkSolve(phrase) {
-            if(phrase.toUpperCase().trim() === currentPuzzle.word) {
+            // FIXED: Compare normalized strings to avoid whitespace errors
+            const attempt = normalizeText(phrase);
+            const actual = normalizeText(currentPuzzle.word);
+
+            if(attempt === actual) {
                 // Reveal all
                 for(let i=0; i<currentPuzzle.word.length; i++) currentPuzzle.revealed[i] = true;
                 renderPuzzle();
                 notify(`${teams[currentTeamIndex].name} WINS!`, "success");
-                playSuccess();
+                playSolveFanfare(); // Added Fanfare
                 // Bonus
                 if(teams[currentTeamIndex].score < 1000) teams[currentTeamIndex].score = 1000;
                 renderTeams();
@@ -923,6 +970,18 @@
         function renderTeams() {
             const container = document.getElementById('teamsContainer');
             container.innerHTML = '';
+            
+            // NEW: Update top banner
+            const banner = document.getElementById('turnBanner');
+            const bannerName = document.getElementById('turnBannerName');
+            
+            if(teams.length > 0) {
+                 banner.classList.remove('hidden');
+                 bannerName.innerText = teams[currentTeamIndex].name;
+            } else {
+                 banner.classList.add('hidden');
+            }
+
             teams.forEach((t, i) => {
                 const div = document.createElement('div');
                 div.className = `team-card ${i === currentTeamIndex ? 'active-team' : ''}`;
