@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIU Trivia Peer Connect</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --light: #ecf0f1;
+            --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            font-family: var(--font);
+            background-color: var(--light);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+        }
+
+        /* TIU Watermark */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 4rem;
+            font-weight: 900;
+            color: rgba(0, 0, 0, 0.05);
+            pointer-events: none;
+            z-index: 0;
+            user-select: none;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            background: white;
+            padding: 2rem;
+            margin-top: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 1;
+            text-align: center;
+        }
+
+        h1, h2 { margin-bottom: 1rem; color: var(--primary); }
+        
+        button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            margin: 5px;
+        }
+
+        button:hover { background-color: #2980b9; }
+        button:active { transform: scale(0.98); }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+
+        .btn-large {
+            font-size: 1.5rem;
+            padding: 15px 30px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: #a93226; }
+        
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover { background-color: #219150; }
+
+        input, select {
+            padding: 10px;
+            font-size: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            margin: 5px;
+            width: 80%;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Game Specific Styles */
+        #buzzer-btn {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background-color: var(--danger);
+            border: 8px solid #c0392b;
+            font-size: 2rem;
+            font-weight: bold;
+            box-shadow: 0 10px 0 #962d22;
+            margin: 20px auto;
+            display: block;
+        }
+        
+        #buzzer-btn:active:not(:disabled) {
+            transform: translateY(10px);
+            box-shadow: none;
+        }
+
+        #buzzer-btn:disabled {
+            background-color: #95a5a6;
+            border-color: #7f8c8d;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: translateY(10px);
+        }
+
+        .score-board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+        }
+
+        .player-card {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .player-card.active-buzzer {
+            background-color: #ffeaa7;
+            border-color: #fdcb6e;
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(253, 203, 110, 0.4);
+        }
+
+        .question-box {
+            background-color: #e8f6f3;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 5px solid var(--accent);
+            text-align: left;
+        }
+
+        .question-text { font-size: 1.2rem; font-weight: bold; margin-bottom: 10px; }
+        .answer-text { color: var(--success); font-weight: bold; display: none; }
+        
+        .filters {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <div id="landing-screen" class="container">
+        <h1>TIU Trivia System</h1>
+        <p>Connect Chromebooks to a main Laptop.</p>
+        <button class="btn-large" onclick="app.initHost()">Host a Game</button>
+        <button class="btn-large" onclick="app.initClientSetup()">Join a Game</button>
+    </div>
+
+    <div id="host-screen" class="container hidden">
+        <h2>Host Panel</h2>
+        <div style="background: #eee; padding: 10px; border-radius: 4px; margin-bottom: 20px;">
+            Room Code: <strong id="host-room-id" style="font-size: 1.5em; letter-spacing: 2px;">...</strong>
+        </div>
+
+        <div class="filters">
+            <select id="grade-select">
+                <option value="all">All Grades (K-8)</option>
+                <option value="k-2">Grades K-2</option>
+                <option value="3-5">Grades 3-5</option>
+                <option value="6-8">Grades 6-8</option>
+            </select>
+            <button onclick="game.nextQuestion()">New Question</button>
+        </div>
+
+        <div class="question-box">
+            <div id="host-question" class="question-text">Click "New Question" to start.</div>
+            <div id="host-answer" class="answer-text">Answer will appear here.</div>
+            <button onclick="document.getElementById('host-answer').style.display='block'" style="font-size:0.8rem; margin-top:10px;">Reveal Answer</button>
+        </div>
+
+        <div id="buzzer-status" style="height: 50px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; color: var(--danger);">
+            Waiting for buzzers...
+        </div>
+
+        <div style="margin: 10px 0;">
+            <button class="btn-success" onclick="game.handleCorrect()">Correct (+10)</button>
+            <button class="btn-danger" onclick="game.handleIncorrect()">Wrong (-5)</button>
+            <button onclick="game.resetBuzzers()">Reset Buzzers</button>
+        </div>
+
+        <h3>Scoreboard</h3>
+        <div id="host-scoreboard" class="score-board">
+            </div>
+    </div>
+
+    <div id="client-setup" class="container hidden">
+        <h2>Join Game</h2>
+        <input type="text" id="join-room-id" placeholder="Enter Room Code (e.g. ABCD)">
+        <input type="text" id="player-name" placeholder="Your Name">
+        <br>
+        <button class="btn-large" onclick="app.joinGame()">Connect</button>
+        <p id="client-status" style="color:red"></p>
+    </div>
+
+    <div id="client-game" class="container hidden">
+        <h2 id="client-player-name-display">Player</h2>
+        <div style="margin-bottom: 20px; font-style: italic; color: #7f8c8d;">
+            Watch the main screen for the question!
+        </div>
+        <button id="buzzer-btn" onclick="client.buzz()">BUZZ!</button>
+        <p id="client-feedback">Ready</p>
+    </div>
+
+<script>
+/**
+ * AUDIO SYSTEM (Synthesized sounds to avoid external files)
+ */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+const sounds = {
+    buzz: () => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.value = 150;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+        osc.stop(audioCtx.currentTime + 0.5);
+    },
+    ding: () => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 1);
+        osc.stop(audioCtx.currentTime + 1);
+    },
+    wrong: () => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = 100;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+        gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.4);
+        osc.stop(audioCtx.currentTime + 0.4);
+    }
+};
+
+/**
+ * QUESTION BANK (Embedded K-8 Cross-Curricular)
+ */
+const questionBank = [
+    // K-2
+    { q: "What is the result of 5 + 3?", a: "8", grade: "k-2", subject: "Math" },
+    { q: "What color do you get if you mix Red and Blue?", a: "Purple", grade: "k-2", subject: "Art" },
+    { q: "How many legs does a spider have?", a: "8", grade: "k-2", subject: "Science" },
+    { q: "What is the opposite of 'Hot'?", a: "Cold", grade: "k-2", subject: "ELA" },
+    { q: "Which planet do we live on?", a: "Earth", grade: "k-2", subject: "Science" },
+    { q: "How many letters are in the alphabet?", a: "26", grade: "k-2", subject: "ELA" },
+    // 3-5
+    { q: "What is the capital of the United States?", a: "Washington D.C.", grade: "3-5", subject: "Social Studies" },
+    { q: "What is 12 x 12?", a: "144", grade: "3-5", subject: "Math" },
+    { q: "What state of matter is water when it freezes?", a: "Solid", grade: "3-5", subject: "Science" },
+    { q: "Who was the first President of the USA?", a: "George Washington", grade: "3-5", subject: "Social Studies" },
+    { q: "In a book, what do you call the person who writes the story?", a: "Author", grade: "3-5", subject: "ELA" },
+    { q: "How many continents are there?", a: "7", grade: "3-5", subject: "Geography" },
+    // 6-8
+    { q: "What is the chemical symbol for Gold?", a: "Au", grade: "6-8", subject: "Science" },
+    { q: "Solve for x: 2x + 4 = 10", a: "x = 3", grade: "6-8", subject: "Math" },
+    { q: "Who wrote 'Romeo and Juliet'?", a: "William Shakespeare", grade: "6-8", subject: "ELA" },
+    { q: "What is the powerhouse of the cell?", a: "Mitochondria", grade: "6-8", subject: "Science" },
+    { q: "In which year did World War II end?", a: "1945", grade: "6-8", subject: "History" },
+    { q: "What represents the ratio of a circle's circumference to its diameter?", a: "Pi", grade: "6-8", subject: "Math" },
+    // General
+    { q: "Which ocean is the largest?", a: "Pacific Ocean", grade: "all", subject: "Geography" },
+    { q: "How many sides does a hexagon have?", a: "6", grade: "all", subject: "Math" },
+    { q: "What do plants need to make food using sunlight?", a: "Photosynthesis", grade: "all", subject: "Science" },
+    { q: "What is the noun in this sentence: 'The cat runs.'", a: "Cat", grade: "all", subject: "ELA" }
+];
+
+/**
+ * APP LOGIC
+ */
+const app = {
+    peer: null,
+    conn: null,
+    isHost: false,
+    
+    initHost: () => {
+        app.isHost = true;
+        document.getElementById('landing-screen').classList.add('hidden');
+        document.getElementById('host-screen').classList.remove('hidden');
+        
+        // Generate a random 4 char ID for simplicity
+        const randomID = "TIU-" + Math.floor(1000 + Math.random() * 9000);
+        
+        app.peer = new Peer(randomID);
+        
+        app.peer.on('open', (id) => {
+            document.getElementById('host-room-id').innerText = id;
+        });
+
+        app.peer.on('connection', (conn) => {
+            game.handleConnection(conn);
+        });
+    },
+
+    initClientSetup: () => {
+        document.getElementById('landing-screen').classList.add('hidden');
+        document.getElementById('client-setup').classList.remove('hidden');
+    },
+
+    joinGame: () => {
+        const roomId = document.getElementById('join-room-id').value.trim().toUpperCase();
+        const name = document.getElementById('player-name').value.trim();
+        
+        if (!roomId || !name) {
+            alert("Please enter both Room ID and Name.");
+            return;
+        }
+
+        app.peer = new Peer(); // Let PeerJS assign a random ID for client
+        
+        app.peer.on('open', (id) => {
+            app.conn = app.peer.connect(roomId);
+            
+            app.conn.on('open', () => {
+                // Send registration info
+                app.conn.send({ type: 'REGISTER', name: name });
+                
+                document.getElementById('client-setup').classList.add('hidden');
+                document.getElementById('client-game').classList.remove('hidden');
+                document.getElementById('client-player-name-display').innerText = name;
+            });
+
+            app.conn.on('data', (data) => {
+                client.handleData(data);
+            });
+
+            app.conn.on('error', (err) => {
+                document.getElementById('client-status').innerText = "Connection Failed. Check Room ID.";
+            });
+        });
+    }
+};
+
+/**
+ * HOST GAME LOGIC
+ */
+const game = {
+    players: {}, // id: { conn, name, score }
+    buzzerLocked: false,
+    currentBuzzerId: null,
+
+    handleConnection: (conn) => {
+        conn.on('data', (data) => {
+            if (data.type === 'REGISTER') {
+                game.addPlayer(conn, data.name);
+            } else if (data.type === 'BUZZ') {
+                game.handleBuzz(conn.peer);
+            }
+        });
+        
+        conn.on('close', () => {
+            if (game.players[conn.peer]) {
+                delete game.players[conn.peer];
+                game.updateScoreboard();
+            }
+        });
+    },
+
+    addPlayer: (conn, name) => {
+        game.players[conn.peer] = {
+            conn: conn,
+            name: name,
+            score: 0
+        };
+        game.updateScoreboard();
+        // Send current state
+        conn.send({ type: 'RESET' });
+    },
+
+    handleBuzz: (playerId) => {
+        if (game.buzzerLocked) return;
+        
+        game.buzzerLocked = true;
+        game.currentBuzzerId = playerId;
+        
+        const player = game.players[playerId];
+        document.getElementById('buzzer-status').innerText = `${player.name} BUZZED!`;
+        sounds.buzz();
+
+        // Update Host UI
+        game.updateScoreboard();
+
+        // Notify all clients
+        Object.values(game.players).forEach(p => {
+            if (p.conn.peer === playerId) {
+                p.conn.send({ type: 'YOU_BUZZED' });
+            } else {
+                p.conn.send({ type: 'LOCKED', who: player.name });
+            }
+        });
+    },
+
+    handleCorrect: () => {
+        if (!game.currentBuzzerId) return;
+        game.players[game.currentBuzzerId].score += 10;
+        sounds.ding();
+        game.resetBuzzers();
+        game.updateScoreboard();
+    },
+
+    handleIncorrect: () => {
+        if (!game.currentBuzzerId) return;
+        game.players[game.currentBuzzerId].score -= 5;
+        sounds.wrong();
+        game.resetBuzzers();
+        game.updateScoreboard();
+    },
+
+    resetBuzzers: () => {
+        game.buzzerLocked = false;
+        game.currentBuzzerId = null;
+        document.getElementById('buzzer-status').innerText = "Waiting for buzzers...";
+        game.updateScoreboard(); // Remove highlight
+        
+        // Unlock all clients
+        Object.values(game.players).forEach(p => {
+            p.conn.send({ type: 'RESET' });
+        });
+    },
+
+    updateScoreboard: () => {
+        const board = document.getElementById('host-scoreboard');
+        board.innerHTML = '';
+        
+        Object.keys(game.players).forEach(id => {
+            const p = game.players[id];
+            const div = document.createElement('div');
+            div.className = 'player-card';
+            if (id === game.currentBuzzerId) div.classList.add('active-buzzer');
+            
+            // Allow name editing
+            div.innerHTML = `
+                <div contenteditable="true" onblur="game.updateName('${id}', this.innerText)" style="font-weight:bold">${p.name}</div>
+                <div style="font-size: 1.5rem; color: var(--accent);">${p.score}</div>
+            `;
+            board.appendChild(div);
+        });
+    },
+
+    updateName: (id, newName) => {
+        if(game.players[id]) game.players[id].name = newName;
+    },
+
+    nextQuestion: () => {
+        const gradeFilter = document.getElementById('grade-select').value;
+        
+        // Filter questions
+        const filtered = questionBank.filter(q => 
+            gradeFilter === 'all' || q.grade === gradeFilter || q.grade === 'all'
+        );
+
+        if (filtered.length === 0) return;
+
+        const randomQ = filtered[Math.floor(Math.random() * filtered.length)];
+        
+        document.getElementById('host-question').innerHTML = `
+            <span style="color:#7f8c8d; font-size:0.8em">[${randomQ.subject}]</span><br>
+            ${randomQ.q}
+        `;
+        document.getElementById('host-answer').innerText = randomQ.a;
+        document.getElementById('host-answer').style.display = 'none';
+        
+        game.resetBuzzers();
+    }
+};
+
+/**
+ * CLIENT LOGIC
+ */
+const client = {
+    buzz: () => {
+        const btn = document.getElementById('buzzer-btn');
+        if (btn.disabled) return;
+        app.conn.send({ type: 'BUZZ' });
+    },
+
+    handleData: (data) => {
+        const btn = document.getElementById('buzzer-btn');
+        const feedback = document.getElementById('client-feedback');
+
+        if (data.type === 'YOU_BUZZED') {
+            btn.disabled = true;
+            btn.style.backgroundColor = '#f1c40f'; // Yellow
+            feedback.innerText = "You buzzed in!";
+            feedback.style.color = "orange";
+        } 
+        else if (data.type === 'LOCKED') {
+            btn.disabled = true;
+            feedback.innerText = `${data.who} buzzed!`;
+            feedback.style.color = "red";
+        } 
+        else if (data.type === 'RESET') {
+            btn.disabled = false;
+            btn.style.backgroundColor = ''; // Reset color
+            feedback.innerText = "Ready";
+            feedback.style.color = "green";
+        }
+    }
+};
+</script>
+</body>
+</html>
