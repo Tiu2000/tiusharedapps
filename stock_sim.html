@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TIU Stock Simulator (Adjustable AI)</title>
+    <title>TIU Stock Simulator (Dynamic Data)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -13,7 +13,7 @@
             --green: #10b981;
             --red: #ef4444;
             --blue: #3b82f6;
-            --purple: #8b5cf6;
+            --purple: #c084fc;
             --orange: #f59e0b;
             --border: #334155;
         }
@@ -74,16 +74,14 @@
         .btn-call { background: var(--green); border: 1px solid #ffffff40; }
         .btn-put { background: var(--red); border: 1px solid #ffffff40; }
         .btn-reset { background: var(--border); }
-        .btn-ai { background: var(--purple); }
+        .btn-ai { background: var(--purple); color: #1e293b; }
         .btn-sm { font-size: 0.7rem; padding: 2px 6px; background: var(--border); }
+        .btn-range { font-size: 0.7rem; padding: 2px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+        .btn-range.active { background: var(--blue); color: white; border-color: var(--blue); }
 
-        /* Toggle Switch */
-        .mode-switch {
-            display: flex; background: var(--bg); border-radius: 4px; padding: 2px;
-        }
-        .mode-opt {
-            padding: 4px 12px; cursor: pointer; border-radius: 3px; font-size: 0.8rem;
-        }
+        /* Mode Switch */
+        .mode-switch { display: flex; background: var(--bg); border-radius: 4px; padding: 2px; }
+        .mode-opt { padding: 4px 12px; cursor: pointer; border-radius: 3px; font-size: 0.8rem; }
         .mode-opt.active { background: var(--blue); color: white; font-weight: bold; }
 
         .price-up { color: var(--green); }
@@ -96,8 +94,7 @@
         .log-item { font-size: 0.85rem; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid #ffffff10; }
         .log-ml { border-left: 2px solid var(--purple); padding-left: 5px; color: #d8b4fe; }
         .log-opt { border-left: 2px solid var(--orange); padding-left: 5px; }
-        .log-err { color: #fca5a5; background: #450a0a; padding: 2px 5px; border-radius: 4px; }
-        
+
         /* Tabs */
         .tabs { display: flex; gap: 10px; margin-bottom: 10px; }
         .tab { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 5px 15px; cursor: pointer; }
@@ -121,11 +118,7 @@
         .chart-toggle:hover { background: #ffffff10; }
         .chart-toggle input { margin-right: 5px; }
 
-        /* Range Slider */
-        input[type=range] {
-            accent-color: var(--purple);
-            cursor: pointer;
-        }
+        input[type=range] { accent-color: var(--purple); cursor: pointer; }
     </style>
 </head>
 <body>
@@ -134,7 +127,7 @@
 
 <div class="top-bar">
     <div>
-        <h1 style="margin:0; font-size:1.4rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.8rem; opacity:0.5; color:var(--text-dim)">v6</span></h1>
+        <h1 style="margin:0; font-size:1.4rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.8rem; opacity:0.5; color:var(--text-dim)">v11</span></h1>
         <small style="color:var(--text-dim)">Fee: $5.00 • Status: <span id="marketStatus" style="color:var(--green)">LIVE</span></small>
     </div>
     
@@ -173,6 +166,7 @@
                             <tr>
                                 <th>Symbol</th>
                                 <th>Price</th>
+                                <th>SMA(20)</th>
                                 <th>Trend</th>
                                 <th>Action</th>
                             </tr>
@@ -242,12 +236,19 @@
     <div class="panel" style="height:100%">
         <div class="panel-head" style="flex-wrap:wrap; gap:10px;">
             <span>Market Analysis</span>
+            <div style="display:flex; gap:5px; border-left:1px solid var(--border); padding-left:10px;">
+                <button class="btn btn-range active" id="range-50" onclick="setChartRange(50)">50</button>
+                <button class="btn btn-range" id="range-100" onclick="setChartRange(100)">100</button>
+                <button class="btn btn-range" id="range-200" onclick="setChartRange(200)">200</button>
+                <button class="btn btn-range" id="range-0" onclick="setChartRange(0)">Max</button>
+            </div>
+            <div style="flex:1"></div>
             <div style="display:flex; gap:5px;">
                 <button class="btn btn-sm" onclick="toggleAllCharts(true)">All</button>
                 <button class="btn btn-sm" onclick="toggleAllCharts(false)">None</button>
             </div>
-            <div id="chartControls"></div>
         </div>
+        <div id="chartControls" style="display:flex; gap:10px; margin-bottom:5px; flex-wrap:wrap;"></div>
         <div style="flex:1; position:relative">
             <canvas id="mainChart"></canvas>
         </div>
@@ -260,9 +261,9 @@
         fee: 5.00,
         initialCash: 10000,
         updateSpeed: 1000,
-        chartWindow: 50,
         optionCost: 100, 
-        optionDuration: 30 
+        optionDuration: 30,
+        initialHistorySteps: 50 // How many data points to generate on load
     };
 
     // --- Simple ML Brain ---
@@ -275,81 +276,77 @@
             this.correctPredictions = 0;
             this.lastError = 0;
         }
-
         sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
-
         predict(inputs) {
             let sum = this.bias;
             for(let i=0; i<this.weights.length; i++) sum += inputs[i] * this.weights[i];
             return this.sigmoid(sum);
         }
-
         train(inputs, target) {
             const guess = this.predict(inputs);
             const error = target - guess;
-            for(let i=0; i<this.weights.length; i++) {
-                this.weights[i] += error * inputs[i] * this.learningRate;
-            }
+            for(let i=0; i<this.weights.length; i++) this.weights[i] += error * inputs[i] * this.learningRate;
             this.bias += error * this.learningRate;
-            
             this.totalPredictions++;
-            if((guess > 0.5 && target === 1) || (guess <= 0.5 && target === 0)) {
-                this.correctPredictions++;
-            }
+            if((guess > 0.5 && target === 1) || (guess <= 0.5 && target === 0)) this.correctPredictions++;
             this.lastError = Math.abs(error);
         }
-        
         getAccuracy() {
             if(this.totalPredictions === 0) return 0;
             return ((this.correctPredictions / this.totalPredictions) * 100).toFixed(1);
         }
     }
 
-    const STOCKS = [
-        { sym: "AAPL", price: 225.00, vol: 1.5, data: [], history: [] },
-        { sym: "NVDA", price: 135.50, vol: 3.0, data: [], history: [] },
-        { sym: "TSLA", price: 240.80, vol: 3.5, data: [], history: [] },
-        { sym: "AMZN", price: 195.00, vol: 1.8, data: [], history: [] },
-        { sym: "GOOG", price: 175.00, vol: 1.6, data: [], history: [] }
+    // Define Base Stocks (Starting Parameters)
+    const STOCK_DEFS = [
+        { sym: "AAPL", basePrice: 225, vol: 1.5 },
+        { sym: "NVDA", basePrice: 135, vol: 3.0 },
+        { sym: "TSLA", basePrice: 240, vol: 3.5 },
+        { sym: "AMZN", basePrice: 195, vol: 1.8 },
+        { sym: "GOOG", basePrice: 175, vol: 1.6 }
     ];
 
     const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4'];
 
-    // --- State ---
+    let STOCKS = []; // Populated dynamically
     let state = {
         cash: CONFIG.initialCash,
         holdings: {}, 
         options: [], 
         aiActive: false,
-        aiThreshold: 0.70, // Default 70%
+        aiThreshold: 0.70,
         tradeMode: 'stocks', 
+        chartRange: 50,
         stats: { wins: 0, losses: 0, grossProfit: 0, grossLoss: 0, totalTrades: 0 }
     };
 
     let globalTick = 0;
     let chartObj = null;
     let tradeMarkers = []; 
+    let predictionPoints = []; 
     let brain = new SimpleBrain(); 
     let predictions = {}; 
 
-    // --- Init ---
     function init() {
-        const saved = localStorage.getItem('tiu_fix_v6');
+        const saved = localStorage.getItem('tiu_fix_v11');
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
                 if (!isNaN(parsed.cash)) {
                     state = parsed;
                     state.tradeMode = 'stocks';
-                    // Ensure threshold exists if loading old save
+                    if(!state.chartRange) state.chartRange = 50;
                     if(!state.aiThreshold) state.aiThreshold = 0.70;
                 }
             } catch(e) { console.log("Save corrupted"); }
         }
 
-        // Init UI elements
         document.querySelector('input[type=range]').value = (state.aiThreshold * 100);
         document.getElementById('aiThreshDisplay').innerText = (state.aiThreshold * 100).toFixed(0) + "%";
+        setChartRange(state.chartRange); 
+
+        // Generate Dynamic Market Data
+        generateFreshMarket();
 
         buildMarketTable();
         buildChart();
@@ -357,10 +354,50 @@
         updateStats();
 
         setInterval(tick, CONFIG.updateSpeed);
-        log("System Ready. Options Trading Available.");
+        log("System Ready. Market Generated.");
     }
 
-    // --- Core Logic ---
+    function generateFreshMarket() {
+        STOCKS = STOCK_DEFS.map(def => {
+            // Apply a random starting variance so it's not always the exact base price
+            let currentPrice = def.basePrice + (Math.random() * 20 - 10);
+            
+            // Generate History
+            const data = [];
+            const history = [];
+            const sma = [];
+            
+            for(let i=0; i<CONFIG.initialHistorySteps; i++) {
+                // Random Walk
+                const move = (Math.random() - 0.5) * def.vol;
+                currentPrice = Math.max(1, currentPrice + move);
+                
+                // Store
+                data.push({ x: i - CONFIG.initialHistorySteps, y: currentPrice });
+                history.push(currentPrice);
+                if(history.length > 20) history.shift();
+
+                // Calculate SMA
+                let avg = currentPrice;
+                if(history.length > 0) {
+                    const sum = history.reduce((a, b) => a + b, 0);
+                    avg = sum / history.length;
+                }
+                sma.push({ x: i - CONFIG.initialHistorySteps, y: avg });
+            }
+
+            return {
+                sym: def.sym,
+                price: currentPrice,
+                vol: def.vol,
+                data: data,
+                sma: sma,
+                history: history,
+                trend: "-"
+            };
+        });
+    }
+
     function tick() {
         globalTick++;
 
@@ -371,23 +408,33 @@
             if (predictions[s.sym]) brain.train(predictions[s.sym].inputs, target);
         });
 
-        // 2. Update Prices & Options
+        // 2. Update Prices (Random Walk)
         STOCKS.forEach(s => {
             s.history.push(s.price);
-            if(s.history.length > 5) s.history.shift();
+            if(s.history.length > 20) s.history.shift();
 
             const move = (Math.random() - 0.5) * s.vol;
             s.price = Math.max(1, s.price + move);
-            s.trend = move > 0 ? "▲" : "▼";
             
+            // SMA Calculation (20 ticks)
+            let avg = s.price;
+            if(s.history.length > 0) {
+                const sum = s.history.reduce((a, b) => a + b, 0) + s.price;
+                avg = sum / (s.history.length + 1);
+            }
+            s.sma.push({x: globalTick, y: avg});
+            if(s.sma.length > 300) s.sma.shift();
+
+            s.trend = (s.price > s.history[s.history.length-1]) ? "▲" : "▼";
             s.data.push({x: globalTick, y: s.price});
-            if(s.data.length > 100) s.data.shift();
+            if(s.data.length > 300) s.data.shift();
         });
 
-        // 3. Process Options Expiration
+        // 3. Process Options
         processOptions();
 
-        // 4. ML Inference & Trading
+        // 4. ML Inference
+        predictionPoints = []; 
         STOCKS.forEach(s => {
             if(s.history.length >= 3) {
                 const i1 = (s.history[s.history.length-1] - s.history[s.history.length-2]);
@@ -397,6 +444,9 @@
                 
                 predictions[s.sym] = { inputs: inputs, conf: confidence };
                 
+                const direction = confidence > 0.5 ? 1 : -1;
+                predictionPoints.push({ x: globalTick + 1, y: s.price + (s.vol * direction * 1.5), sym: s.sym });
+
                 if(state.aiActive) runMLTrading(s, confidence);
             }
         });
@@ -405,24 +455,18 @@
         updateMarketTableValues();
         updateUI();
         updateChart();
-        localStorage.setItem('tiu_fix_v6', JSON.stringify(state));
+        localStorage.setItem('tiu_fix_v11', JSON.stringify(state));
     }
 
     function runMLTrading(stock, confidence) {
         const thresh = state.aiThreshold;
         const sellThresh = 1 - thresh; 
 
-        // BUY Signal: Confidence > Threshold
         if (confidence > thresh && state.cash > (stock.price + 200)) {
             trade(stock.sym, 'buy'); 
-            log(`🤖 AI BUY ${stock.sym} (${(confidence*100).toFixed(0)}%)`, "log-ml");
         }
-        
-        // SELL Signal: Confidence < (1 - Threshold)
-        // e.g. if Threshold is 0.70, Sell when confidence < 0.30
         if (confidence < sellThresh && state.holdings[stock.sym]) {
             trade(stock.sym, 'sell');
-            log(`🤖 AI SELL ${stock.sym} (${(confidence*100).toFixed(0)}%)`, "log-ml");
         }
     }
 
@@ -435,87 +479,61 @@
         for (let i = state.options.length - 1; i >= 0; i--) {
             const opt = state.options[i];
             opt.ticksLeft--;
-            
             if (opt.ticksLeft <= 0) {
                 const stock = STOCKS.find(s => s.sym === opt.sym);
                 let profit = 0;
-
-                if (opt.type === 'call') {
-                    if (stock.price > opt.strike) profit = (stock.price - opt.strike) * 10; 
-                } else {
-                    if (stock.price < opt.strike) profit = (opt.strike - stock.price) * 10;
-                }
+                if (opt.type === 'call' && stock.price > opt.strike) profit = (stock.price - opt.strike) * 10;
+                if (opt.type === 'put' && stock.price < opt.strike) profit = (opt.strike - stock.price) * 10;
 
                 state.cash += profit;
                 const net = profit - opt.cost;
-                
                 state.stats.totalTrades++;
                 if(net > 0) { state.stats.wins++; state.stats.grossProfit += net; }
                 else { state.stats.losses++; state.stats.grossLoss += Math.abs(net); }
-
-                log(`⌛ ${opt.sym} ${opt.type.toUpperCase()} Expired. Net: $${net.toFixed(2)}`, "log-opt");
-
+                
                 state.options.splice(i, 1);
+                log(`⌛ ${opt.sym} Expired. Net: $${net.toFixed(2)}`, "log-opt");
             }
         }
     }
 
-    // --- Trading Logic ---
     function trade(sym, action) {
         const stock = STOCKS.find(s => s.sym === sym);
-        
-        // --- STOCK TRADING ---
         if (action === 'buy' || action === 'sell') {
             const fee = CONFIG.fee;
-            
             if (action === 'buy') {
                 const total = stock.price + fee;
-                if (state.cash < total) { log("❌ Insufficient Funds"); return; }
-                
+                if (state.cash < total) { return; }
                 state.cash -= total;
                 if (!state.holdings[sym]) state.holdings[sym] = { qty: 0, avg: 0 };
                 const h = state.holdings[sym];
                 h.avg = ((h.qty * h.avg) + stock.price) / (h.qty + 1);
                 h.qty++;
-                
-                if(!state.aiActive) log(`✅ Bought 1 ${sym} @ $${stock.price.toFixed(2)}`);
                 addChartMarker(globalTick, stock.price, 'buy');
-
+                log(`✅ Bought 1 ${sym}`, "log-item");
             } else {
                 if (!state.holdings[sym] || state.holdings[sym].qty <= 0) return;
-                
                 const revenue = stock.price - fee;
                 state.cash += revenue;
                 const h = state.holdings[sym];
                 const profit = (stock.price - h.avg) - fee;
-                
                 h.qty--;
                 if(h.qty === 0) delete state.holdings[sym];
-                
                 recordTradeStats(profit);
-                if(!state.aiActive) log(`🔻 Sold 1 ${sym}. P/L: $${profit.toFixed(2)}`, profit>0?"price-up":"price-down");
                 addChartMarker(globalTick, stock.price, 'sell');
+                log(`🔻 Sold 1 ${sym}. P/L: $${profit.toFixed(2)}`, profit > 0 ? "price-up" : "price-down");
             }
         }
-        
-        // --- OPTION TRADING ---
         if (action === 'call' || action === 'put') {
             const cost = CONFIG.optionCost;
-            if (state.cash < cost) { log("❌ Need $100 for Option"); return; }
-            
+            if (state.cash < cost) { return; }
             state.cash -= cost;
             state.options.push({
                 id: Date.now() + Math.random(),
-                sym: sym,
-                type: action,
-                strike: stock.price,
-                cost: cost,
-                ticksLeft: CONFIG.optionDuration
+                sym: sym, type: action, strike: stock.price, cost: cost, ticksLeft: CONFIG.optionDuration
             });
-            
-            log(`🎫 Bought ${sym} ${action.toUpperCase()} (Strike: ${stock.price.toFixed(2)})`, "log-opt");
+            log(`🎫 ${action.toUpperCase()} ${sym}`, "log-opt");
         }
-
         updateUI();
         updateStats();
     }
@@ -531,12 +549,11 @@
         if(tradeMarkers.length > 50) tradeMarkers.shift();
     }
 
-    // --- UI Logic ---
     function setMode(mode) {
         state.tradeMode = mode;
         document.getElementById('mode-stocks').className = `mode-opt ${mode==='stocks'?'active':''}`;
         document.getElementById('mode-options').className = `mode-opt ${mode==='options'?'active':''}`;
-        buildMarketTable(); // Rebuild buttons
+        buildMarketTable(); 
     }
 
     function buildMarketTable() {
@@ -545,23 +562,14 @@
         STOCKS.forEach(s => {
             const tr = document.createElement('tr');
             tr.id = `row-${s.sym}`;
+            let buttons = state.tradeMode === 'stocks' 
+                ? `<button class="btn btn-buy" id="btn-buy-${s.sym}" onclick="trade('${s.sym}', 'buy')">Buy</button> <button class="btn btn-sell" onclick="trade('${s.sym}', 'sell')">Sell</button>`
+                : `<button class="btn btn-call" onclick="trade('${s.sym}', 'call')">Call</button> <button class="btn btn-put" onclick="trade('${s.sym}', 'put')">Put</button>`;
             
-            let buttons = '';
-            if (state.tradeMode === 'stocks') {
-                buttons = `
-                    <button class="btn btn-buy" id="btn-buy-${s.sym}" onclick="trade('${s.sym}', 'buy')">Buy</button>
-                    <button class="btn btn-sell" onclick="trade('${s.sym}', 'sell')">Sell</button>
-                `;
-            } else {
-                buttons = `
-                    <button class="btn btn-call" onclick="trade('${s.sym}', 'call')">Call ($100)</button>
-                    <button class="btn btn-put" onclick="trade('${s.sym}', 'put')">Put ($100)</button>
-                `;
-            }
-
             tr.innerHTML = `
                 <td style="font-weight:bold">${s.sym}</td>
                 <td id="price-${s.sym}">...</td>
+                <td id="sma-${s.sym}" style="color:var(--text-dim); font-size:0.8rem">...</td>
                 <td id="trend-${s.sym}">-</td>
                 <td>${buttons}</td>
             `;
@@ -575,8 +583,11 @@
             if(priceEl) {
                 priceEl.innerText = `$${s.price.toFixed(2)}`;
                 priceEl.className = s.trend === "▲" ? "price-up" : "price-down";
-                document.getElementById(`trend-${s.sym}`).innerText = s.trend;
                 
+                const lastSma = s.sma.length > 0 ? s.sma[s.sma.length-1].y : 0;
+                document.getElementById(`sma-${s.sym}`).innerText = lastSma.toFixed(2);
+                
+                document.getElementById(`trend-${s.sym}`).innerText = s.trend;
                 const buyBtn = document.getElementById(`btn-buy-${s.sym}`);
                 if(buyBtn) buyBtn.disabled = (state.cash < (s.price + CONFIG.fee));
             }
@@ -584,51 +595,25 @@
     }
 
     function updateUI() {
-        // Wallet
         document.getElementById('cashDisplay').innerText = `$${state.cash.toFixed(2)}`;
-        
-        // Holdings Table
         const tbody = document.getElementById('holdingsBody');
         tbody.innerHTML = "";
-        
         let stockVal = 0;
-
-        // 1. List Shares
         Object.keys(state.holdings).forEach(sym => {
             const h = state.holdings[sym];
             const stock = STOCKS.find(s => s.sym === sym);
-            const currentVal = h.qty * stock.price;
-            stockVal += currentVal;
+            stockVal += h.qty * stock.price;
             const totalPL = (stock.price - h.avg) * h.qty;
             const color = totalPL >= 0 ? "var(--green)" : "var(--red)";
-
-            tbody.innerHTML += `
-                <tr>
-                    <td>${sym}</td>
-                    <td>${h.qty} <small class="text-dim">Shares</small></td>
-                    <td style="color:${color}">$${totalPL.toFixed(2)}</td>
-                </tr>
-            `;
+            tbody.innerHTML += `<tr><td>${sym}</td><td>${h.qty}</td><td style="color:${color}">$${totalPL.toFixed(2)}</td></tr>`;
         });
-
-        // 2. List Options
         state.options.forEach(opt => {
             const stock = STOCKS.find(s => s.sym === opt.sym);
-            let currentProfit = 0;
-            if (opt.type === 'call') currentProfit = Math.max(0, (stock.price - opt.strike) * 10);
-            if (opt.type === 'put') currentProfit = Math.max(0, (opt.strike - stock.price) * 10);
-            
-            const badgeClass = opt.type === 'call' ? 'bg-call' : 'bg-put';
-            
-            tbody.innerHTML += `
-                <tr>
-                    <td><span class="opt-label ${badgeClass}">${opt.type.toUpperCase()}</span> ${opt.sym}</td>
-                    <td>${opt.ticksLeft}s</td>
-                    <td>$${currentProfit.toFixed(2)}</td>
-                </tr>
-            `;
+            let p = 0;
+            if (opt.type === 'call') p = Math.max(0, (stock.price - opt.strike) * 10);
+            if (opt.type === 'put') p = Math.max(0, (opt.strike - stock.price) * 10);
+            tbody.innerHTML += `<tr><td>${opt.sym} ${opt.type.toUpperCase()}</td><td>${opt.ticksLeft}s</td><td>$${p.toFixed(2)}</td></tr>`;
         });
-
         document.getElementById('netWorthDisplay').innerText = `$${(state.cash + stockVal).toFixed(2)}`;
         document.getElementById('activeOptCount').innerText = state.options.length;
     }
@@ -637,18 +622,10 @@
         const s = state.stats;
         const winRate = s.totalTrades > 0 ? (s.wins / s.totalTrades * 100) : 0;
         const profitFactor = s.grossLoss > 0 ? (s.grossProfit / s.grossLoss) : s.grossProfit;
-
         document.getElementById('statWinRate').innerText = winRate.toFixed(1) + "%";
         document.getElementById('statWinRate').style.color = winRate >= 50 ? "var(--green)" : "var(--red)";
         document.getElementById('statPF').innerText = profitFactor.toFixed(2);
         document.getElementById('mlAccuracy').innerText = brain.getAccuracy() + "%";
-    }
-
-    function toggleAI() {
-        state.aiActive = !state.aiActive;
-        const btn = document.getElementById('aiBtn');
-        btn.innerText = state.aiActive ? "ML: Active" : "Start ML Agent";
-        btn.style.background = state.aiActive ? "#10b981" : "#8b5cf6";
     }
 
     function log(msg, cls="") {
@@ -667,29 +644,48 @@
     }
 
     function resetGame() {
-        if(confirm("Reset everything?")) {
-            localStorage.removeItem('tiu_fix_v6');
-            location.reload();
-        }
+        if(confirm("Reset?")) { localStorage.removeItem('tiu_fix_v11'); location.reload(); }
     }
 
-    // --- Charting ---
+    function toggleAI() { state.aiActive = !state.aiActive; }
+
+    function setChartRange(range) {
+        state.chartRange = range;
+        document.querySelectorAll('.btn-range').forEach(b => b.classList.remove('active'));
+        document.getElementById(`range-${range}`).classList.add('active');
+        if(chartObj) updateChart();
+    }
+
     function buildChart() {
         const ctx = document.getElementById('mainChart').getContext('2d');
         const controls = document.getElementById('chartControls');
         controls.innerHTML = '';
         
-        const datasets = STOCKS.map((s, i) => ({
-            label: s.sym,
-            borderColor: COLORS[i % COLORS.length],
-            backgroundColor: COLORS[i % COLORS.length],
-            data: s.data,
-            tension: 0.1,
-            pointRadius: 0,
-            borderWidth: 2,
-            type: 'line',
-            order: 2
-        }));
+        const datasets = [];
+        
+        STOCKS.forEach((s, i) => {
+            const color = COLORS[i % COLORS.length];
+            datasets.push({
+                label: s.sym,
+                borderColor: color,
+                backgroundColor: color,
+                data: s.data,
+                tension: 0.1,
+                pointRadius: 0,
+                borderWidth: 2,
+                order: 3
+            });
+            datasets.push({
+                label: `${s.sym} SMA`,
+                borderColor: color,
+                data: s.sma,
+                borderDash: [5, 5],
+                borderWidth: 1,
+                pointRadius: 0,
+                hidden: true,
+                order: 2
+            });
+        });
 
         datasets.push({
             label: 'Trades',
@@ -702,7 +698,18 @@
             order: 1
         });
 
+        datasets.push({
+            label: 'AI Predict',
+            data: predictionPoints,
+            type: 'scatter',
+            backgroundColor: '#c084fc',
+            pointStyle: 'circle',
+            pointRadius: 4,
+            order: 0 
+        });
+
         chartObj = new Chart(ctx, {
+            type: 'line',
             data: { datasets: datasets },
             options: {
                 responsive: true,
@@ -710,7 +717,7 @@
                 animation: false,
                 interaction: { mode: 'nearest', axis: 'x', intersect: false },
                 scales: { 
-                    x: { type: 'linear', display: false, min: 0, max: CONFIG.chartWindow }, 
+                    x: { type: 'linear', display: false, min: -CONFIG.initialHistorySteps }, 
                     y: { grid: { color: '#33415550' }, ticks: { color: '#94a3b8' } } 
                 },
                 plugins: { legend: { display: false } }
@@ -720,8 +727,14 @@
         STOCKS.forEach((s, i) => {
             const label = document.createElement('label');
             label.className = "chart-toggle";
-            label.innerHTML = `<input type="checkbox" checked onchange="toggleDataset(${i})"><span style="color:${COLORS[i]}">${s.sym}</span>`;
+            label.innerHTML = `<input type="checkbox" checked onchange="toggleDataset(${i*2})"><span style="color:${COLORS[i]}">${s.sym}</span>`;
             controls.appendChild(label);
+            
+            const smaLabel = document.createElement('label');
+            smaLabel.className = "chart-toggle";
+            smaLabel.style.opacity = "0.7";
+            smaLabel.innerHTML = `<input type="checkbox" onchange="toggleDataset(${i*2+1})"><span style="color:${COLORS[i]}">SMA</span>`;
+            controls.appendChild(smaLabel);
         });
     }
 
@@ -731,16 +744,17 @@
     }
     
     function toggleAllCharts(show) {
-        STOCKS.forEach((_, i) => show ? chartObj.show(i) : chartObj.hide(i));
-        const boxes = document.querySelectorAll('#chartControls input');
-        boxes.forEach(b => b.checked = show);
+        for(let i=0; i<STOCKS.length; i++) {
+            show ? chartObj.show(i*2) : chartObj.hide(i*2);
+        }
     }
 
     function updateChart() {
         if (!chartObj) return;
-        const minX = Math.max(0, globalTick - CONFIG.chartWindow);
+        let minX = state.chartRange > 0 ? Math.max(-CONFIG.initialHistorySteps, globalTick - state.chartRange) : Math.max(-CONFIG.initialHistorySteps, globalTick - 300);
         chartObj.options.scales.x.min = minX;
-        chartObj.options.scales.x.max = globalTick;
+        chartObj.options.scales.x.max = globalTick + 5;
+        chartObj.data.datasets[chartObj.data.datasets.length-1].data = predictionPoints; 
         chartObj.update('none');
     }
 
