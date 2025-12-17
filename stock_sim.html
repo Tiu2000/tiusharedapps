@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TIU Stock Simulator (Dynamic Data)</title>
+    <title>TIU Stock Simulator (Hive Mind AI)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -16,6 +16,7 @@
             --purple: #c084fc;
             --orange: #f59e0b;
             --border: #334155;
+            --yellow: #facc15;
         }
         body {
             font-family: 'Segoe UI', sans-serif;
@@ -75,6 +76,8 @@
         .btn-put { background: var(--red); border: 1px solid #ffffff40; }
         .btn-reset { background: var(--border); }
         .btn-ai { background: var(--purple); color: #1e293b; }
+        .btn-export { background: var(--blue); }
+        .btn-import { background: var(--orange); color: #1e293b; }
         .btn-sm { font-size: 0.7rem; padding: 2px 6px; background: var(--border); }
         .btn-range { font-size: 0.7rem; padding: 2px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
         .btn-range.active { background: var(--blue); color: white; border-color: var(--blue); }
@@ -90,10 +93,19 @@
         .bg-call { background: #064e3b; color: #6ee7b7; }
         .bg-put { background: #450a0a; color: #fca5a5; }
 
-        /* Logs */
+        .sentiment-badge { 
+            padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; display: flex; gap: 5px; align-items: center;
+        }
+        .sent-bull { background: #064e3b; color: #6ee7b7; border: 1px solid #10b981; }
+        .sent-bear { background: #450a0a; color: #fca5a5; border: 1px solid #ef4444; }
+        .sent-neutral { background: #334155; color: #94a3b8; }
+
         .log-item { font-size: 0.85rem; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid #ffffff10; }
-        .log-ml { border-left: 2px solid var(--purple); padding-left: 5px; color: #d8b4fe; }
-        .log-opt { border-left: 2px solid var(--orange); padding-left: 5px; }
+        .log-ml { border-left: 3px solid var(--purple); padding-left: 8px; color: #e9d5ff; background: #581c8720; }
+        .log-sys { border-left: 3px solid var(--text-dim); padding-left: 8px; color: var(--text-dim); }
+        .log-opt { border-left: 3px solid var(--orange); padding-left: 8px; }
+
+        select { background: var(--panel); color: white; border: 1px solid var(--border); padding: 4px; border-radius: 4px; }
 
         /* Tabs */
         .tabs { display: flex; gap: 10px; margin-bottom: 10px; }
@@ -103,13 +115,11 @@
         .view { display: none; height: 100%; }
         .view.active { display: block; }
 
-        /* Stats Grid */
         .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
         .stat-box { background: #0f172a; padding: 8px; border-radius: 4px; text-align: center; }
         .stat-label { font-size: 0.75rem; color: var(--text-dim); }
         .stat-val { font-size: 1rem; font-weight: bold; }
         
-        /* Chart Controls */
         #chartControls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;}
         .chart-toggle { 
             cursor: pointer; user-select: none; font-size: 0.8rem; 
@@ -127,19 +137,31 @@
 
 <div class="top-bar">
     <div>
-        <h1 style="margin:0; font-size:1.4rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.8rem; opacity:0.5; color:var(--text-dim)">v11</span></h1>
-        <small style="color:var(--text-dim)">Fee: $5.00 • Status: <span id="marketStatus" style="color:var(--green)">LIVE</span></small>
+        <h1 style="margin:0; font-size:1.4rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.8rem; opacity:0.5; color:var(--text-dim)">v15</span></h1>
+        <div style="display:flex; gap:10px; align-items:center; margin-top:5px;">
+            <small style="color:var(--text-dim)">Fee: $5.00</small>
+            <div id="marketSentiment" class="sentiment-badge sent-neutral">
+                <span>⚖️ NEUTRAL</span>
+            </div>
+        </div>
     </div>
     
     <div style="display:flex; gap:15px; align-items:center;">
         <div style="display:flex; flex-direction:column; align-items:end; min-width:120px;">
             <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:2px;">
-                AI Confidence: <span id="aiThreshDisplay" style="color:var(--purple); font-weight:bold;">70%</span>
+                AI Confidence: <span id="aiThreshDisplay" style="color:var(--purple); font-weight:bold;">60%</span>
             </div>
-            <input type="range" min="50" max="95" value="70" step="5" style="width:100%" oninput="updateAiThreshold(this.value)">
+            <input type="range" min="50" max="95" value="60" step="5" style="width:100%" oninput="updateAiThreshold(this.value)">
         </div>
 
-        <button class="btn btn-ai" id="aiBtn" onclick="toggleAI()">Start ML Agent</button>
+        <button class="btn btn-ai" id="aiBtn" onclick="toggleAI()">Start ML</button>
+        
+        <div style="display:flex; gap:5px;">
+            <button class="btn btn-import" onclick="document.getElementById('importFile').click()" title="Merge training data">Import</button>
+            <button class="btn btn-export" onclick="exportBrain()" title="Save training data">Export</button>
+        </div>
+        <input type="file" id="importFile" style="display:none" accept=".json" onchange="importBrain(this)">
+
         <button class="btn btn-reset" onclick="resetGame()">Reset</button>
     </div>
 </div>
@@ -198,7 +220,15 @@
             </div>
 
             <div class="panel">
-                <div class="panel-head">Stats & ML</div>
+                <div class="panel-head">AI Strategy</div>
+                <div style="margin-bottom:10px; font-size:0.85rem; color:var(--text-dim);">
+                    Market Condition Strategy:
+                    <select id="strategySelect" onchange="updateStrategy()" style="width:100%; margin-top:5px;">
+                        <option value="auto">🤖 Auto-Detect (Adaptive)</option>
+                        <option value="bull">🐂 Always Bullish (Aggressive)</option>
+                        <option value="bear">🐻 Always Bearish (Defensive)</option>
+                    </select>
+                </div>
                 <div class="stat-grid">
                     <div class="stat-box">
                         <div class="stat-label">Win Rate</div>
@@ -263,10 +293,10 @@
         updateSpeed: 1000,
         optionCost: 100, 
         optionDuration: 30,
-        initialHistorySteps: 50 // How many data points to generate on load
+        initialHistorySteps: 50
     };
 
-    // --- Simple ML Brain ---
+    // --- Simple ML Brain with Merge Cap ---
     class SimpleBrain {
         constructor() {
             this.weights = [0.5, 0.2, 0.1]; 
@@ -295,9 +325,56 @@
             if(this.totalPredictions === 0) return 0;
             return ((this.correctPredictions / this.totalPredictions) * 100).toFixed(1);
         }
+        toJSON() {
+            return {
+                weights: this.weights,
+                bias: this.bias,
+                totalPredictions: this.totalPredictions,
+                correctPredictions: this.correctPredictions
+            };
+        }
+        fromJSON(data) {
+            if(!data) return;
+            this.weights = data.weights || [0.5, 0.2, 0.1];
+            this.bias = data.bias || 0;
+            this.totalPredictions = data.totalPredictions || 0;
+            this.correctPredictions = data.correctPredictions || 0;
+        }
+        
+        // --- THE HIVE MIND LOGIC ---
+        merge(data) {
+            if (!data || !data.weights) return;
+            
+            // If current brain is fresh, just overwrite
+            if (this.totalPredictions === 0) {
+                this.fromJSON(data);
+                return;
+            }
+
+            // Weighted Merge based on Experience
+            const incomingTotal = data.totalPredictions || 0;
+            const currentTotal = this.totalPredictions;
+            const combinedTotal = currentTotal + incomingTotal;
+            
+            if (combinedTotal === 0) return;
+
+            const myRatio = currentTotal / combinedTotal;
+            const theirRatio = incomingTotal / combinedTotal;
+
+            // Merge Weights
+            for(let i=0; i<this.weights.length; i++) {
+                this.weights[i] = (this.weights[i] * myRatio) + ((data.weights[i] || 0) * theirRatio);
+            }
+            
+            // Merge Bias
+            this.bias = (this.bias * myRatio) + ((data.bias || 0) * theirRatio);
+            
+            // Add experience stats
+            this.totalPredictions += incomingTotal;
+            this.correctPredictions += (data.correctPredictions || 0);
+        }
     }
 
-    // Define Base Stocks (Starting Parameters)
     const STOCK_DEFS = [
         { sym: "AAPL", basePrice: 225, vol: 1.5 },
         { sym: "NVDA", basePrice: 135, vol: 3.0 },
@@ -308,16 +385,19 @@
 
     const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4'];
 
-    let STOCKS = []; // Populated dynamically
+    let STOCKS = []; 
     let state = {
         cash: CONFIG.initialCash,
         holdings: {}, 
         options: [], 
         aiActive: false,
-        aiThreshold: 0.70,
+        aiThreshold: 0.60, 
         tradeMode: 'stocks', 
         chartRange: 50,
-        stats: { wins: 0, losses: 0, grossProfit: 0, grossLoss: 0, totalTrades: 0 }
+        strategyMode: 'auto', 
+        marketSentiment: 0,
+        stats: { wins: 0, losses: 0, grossProfit: 0, grossLoss: 0, totalTrades: 0 },
+        brainData: null
     };
 
     let globalTick = 0;
@@ -328,56 +408,56 @@
     let predictions = {}; 
 
     function init() {
-        const saved = localStorage.getItem('tiu_fix_v11');
+        const saved = localStorage.getItem('tiu_fix_v15');
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
                 if (!isNaN(parsed.cash)) {
                     state = parsed;
+                    if(state.brainData) { brain.fromJSON(state.brainData); log("🧠 AI Memory Restored.", "log-ml"); }
                     state.tradeMode = 'stocks';
                     if(!state.chartRange) state.chartRange = 50;
-                    if(!state.aiThreshold) state.aiThreshold = 0.70;
+                    if(!state.aiThreshold) state.aiThreshold = 0.60;
+                    if(!state.strategyMode) state.strategyMode = 'auto';
                 }
             } catch(e) { console.log("Save corrupted"); }
         }
 
         document.querySelector('input[type=range]').value = (state.aiThreshold * 100);
         document.getElementById('aiThreshDisplay').innerText = (state.aiThreshold * 100).toFixed(0) + "%";
+        document.getElementById('strategySelect').value = state.strategyMode;
         setChartRange(state.chartRange); 
 
-        // Generate Dynamic Market Data
         generateFreshMarket();
-
         buildMarketTable();
         buildChart();
         updateUI();
         updateStats();
 
+        const aiBtn = document.getElementById('aiBtn');
+        if(state.aiActive) {
+            aiBtn.innerText = "ML: Active";
+            aiBtn.style.background = "#10b981";
+        }
+
         setInterval(tick, CONFIG.updateSpeed);
-        log("System Ready. Market Generated.");
+        log("System Ready. Market Generated.", "log-sys");
     }
 
     function generateFreshMarket() {
         STOCKS = STOCK_DEFS.map(def => {
-            // Apply a random starting variance so it's not always the exact base price
             let currentPrice = def.basePrice + (Math.random() * 20 - 10);
-            
-            // Generate History
             const data = [];
             const history = [];
             const sma = [];
             
             for(let i=0; i<CONFIG.initialHistorySteps; i++) {
-                // Random Walk
                 const move = (Math.random() - 0.5) * def.vol;
                 currentPrice = Math.max(1, currentPrice + move);
-                
-                // Store
                 data.push({ x: i - CONFIG.initialHistorySteps, y: currentPrice });
                 history.push(currentPrice);
                 if(history.length > 20) history.shift();
-
-                // Calculate SMA
+                
                 let avg = currentPrice;
                 if(history.length > 0) {
                     const sum = history.reduce((a, b) => a + b, 0);
@@ -408,7 +488,8 @@
             if (predictions[s.sym]) brain.train(predictions[s.sym].inputs, target);
         });
 
-        // 2. Update Prices (Random Walk)
+        // 2. Update Prices & Calculate Global Sentiment
+        let totalChange = 0;
         STOCKS.forEach(s => {
             s.history.push(s.price);
             if(s.history.length > 20) s.history.shift();
@@ -416,7 +497,6 @@
             const move = (Math.random() - 0.5) * s.vol;
             s.price = Math.max(1, s.price + move);
             
-            // SMA Calculation (20 ticks)
             let avg = s.price;
             if(s.history.length > 0) {
                 const sum = s.history.reduce((a, b) => a + b, 0) + s.price;
@@ -425,10 +505,17 @@
             s.sma.push({x: globalTick, y: avg});
             if(s.sma.length > 300) s.sma.shift();
 
-            s.trend = (s.price > s.history[s.history.length-1]) ? "▲" : "▼";
+            const prev = s.history[s.history.length-1];
+            s.trend = (s.price > prev) ? "▲" : "▼";
+            totalChange += (s.price - prev) / prev; 
+
             s.data.push({x: globalTick, y: s.price});
             if(s.data.length > 300) s.data.shift();
         });
+
+        const rawSentiment = totalChange * 10; 
+        state.marketSentiment = (state.marketSentiment * 0.9) + (rawSentiment * 0.1); 
+        updateSentimentDisplay();
 
         // 3. Process Options
         processOptions();
@@ -447,32 +534,96 @@
                 const direction = confidence > 0.5 ? 1 : -1;
                 predictionPoints.push({ x: globalTick + 1, y: s.price + (s.vol * direction * 1.5), sym: s.sym });
 
-                if(state.aiActive) runMLTrading(s, confidence);
+                if(state.aiActive) runAdaptiveAI(s, confidence);
             }
         });
 
-        // 5. Update UI
+        // 5. Update UI & Save
         updateMarketTableValues();
         updateUI();
         updateChart();
-        localStorage.setItem('tiu_fix_v11', JSON.stringify(state));
+        state.brainData = brain.toJSON();
+        localStorage.setItem('tiu_fix_v15', JSON.stringify(state));
     }
 
-    function runMLTrading(stock, confidence) {
-        const thresh = state.aiThreshold;
-        const sellThresh = 1 - thresh; 
+    function updateSentimentDisplay() {
+        const el = document.getElementById('marketSentiment');
+        let text = "⚖️ NEUTRAL";
+        let cls = "sent-neutral";
+        const val = state.marketSentiment;
+        if (val > 0.1) { text = `🐂 BULLISH (+${(val*10).toFixed(1)}%)`; cls = "sent-bull"; }
+        else if (val < -0.1) { text = `🐻 BEARISH (${(val*10).toFixed(1)}%)`; cls = "sent-bear"; }
+        el.className = `sentiment-badge ${cls}`;
+        el.innerHTML = `<span>${text}</span>`;
+    }
 
-        if (confidence > thresh && state.cash > (stock.price + 200)) {
-            trade(stock.sym, 'buy'); 
-        }
-        if (confidence < sellThresh && state.holdings[stock.sym]) {
-            trade(stock.sym, 'sell');
+    function updateStrategy() {
+        state.strategyMode = document.getElementById('strategySelect').value;
+        log(`🔄 Strategy: ${state.strategyMode.toUpperCase()}`, "log-ml");
+    }
+
+    function runAdaptiveAI(stock, confidence) {
+        let isBull = false;
+        if (state.strategyMode === 'auto') isBull = state.marketSentiment > 0;
+        else isBull = (state.strategyMode === 'bull');
+
+        const baseThresh = state.aiThreshold;
+        
+        if (isBull) {
+            if ((confidence > baseThresh) && state.cash > (stock.price + 200)) {
+                if(state.tradeMode === 'options') trade(stock.sym, 'call', true);
+                else trade(stock.sym, 'buy', true);
+            }
+            if (confidence < (1 - baseThresh - 0.1) && state.holdings[stock.sym]) {
+                trade(stock.sym, 'sell', true);
+            }
+        } else {
+            if ((confidence > baseThresh + 0.1) && state.cash > (stock.price + 200)) {
+                if(state.tradeMode === 'options') trade(stock.sym, 'put', true);
+                else trade(stock.sym, 'buy', true);
+            }
+            if (confidence < (1 - baseThresh + 0.1) && state.holdings[stock.sym]) {
+                trade(stock.sym, 'sell', true);
+            }
         }
     }
 
     function updateAiThreshold(val) {
         state.aiThreshold = val / 100;
         document.getElementById('aiThreshDisplay').innerText = val + "%";
+    }
+
+    function exportBrain() {
+        const data = JSON.stringify(brain.toJSON(), null, 2);
+        const blob = new Blob([data], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'tiu_brain_training_data.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        log("🧠 Training Data Exported!", "log-sys");
+    }
+
+    function importBrain(input) {
+        const file = input.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                brain.merge(data);
+                log("🧠 Brain Data Imported & Merged!", "log-sys");
+                updateStats();
+            } catch(err) {
+                log("❌ Import Failed: Invalid File", "log-err");
+            }
+        };
+        reader.readAsText(file);
+        // Reset input
+        input.value = '';
     }
 
     function processOptions() {
@@ -497,8 +648,11 @@
         }
     }
 
-    function trade(sym, action) {
+    function trade(sym, action, isAuto = false) {
         const stock = STOCKS.find(s => s.sym === sym);
+        const prefix = isAuto ? "🤖 AI" : "👤";
+        const logClass = isAuto ? "log-ml" : "log-item";
+
         if (action === 'buy' || action === 'sell') {
             const fee = CONFIG.fee;
             if (action === 'buy') {
@@ -510,7 +664,7 @@
                 h.avg = ((h.qty * h.avg) + stock.price) / (h.qty + 1);
                 h.qty++;
                 addChartMarker(globalTick, stock.price, 'buy');
-                log(`✅ Bought 1 ${sym}`, "log-item");
+                log(`${prefix} Bought 1 ${sym}`, logClass);
             } else {
                 if (!state.holdings[sym] || state.holdings[sym].qty <= 0) return;
                 const revenue = stock.price - fee;
@@ -521,7 +675,7 @@
                 if(h.qty === 0) delete state.holdings[sym];
                 recordTradeStats(profit);
                 addChartMarker(globalTick, stock.price, 'sell');
-                log(`🔻 Sold 1 ${sym}. P/L: $${profit.toFixed(2)}`, profit > 0 ? "price-up" : "price-down");
+                log(`${prefix} Sold 1 ${sym}. P/L: $${profit.toFixed(2)}`, logClass);
             }
         }
         if (action === 'call' || action === 'put') {
@@ -532,7 +686,7 @@
                 id: Date.now() + Math.random(),
                 sym: sym, type: action, strike: stock.price, cost: cost, ticksLeft: CONFIG.optionDuration
             });
-            log(`🎫 ${action.toUpperCase()} ${sym}`, "log-opt");
+            log(`${prefix} ${action.toUpperCase()} ${sym}`, "log-opt");
         }
         updateUI();
         updateStats();
@@ -644,10 +798,15 @@
     }
 
     function resetGame() {
-        if(confirm("Reset?")) { localStorage.removeItem('tiu_fix_v11'); location.reload(); }
+        if(confirm("Reset?")) { localStorage.removeItem('tiu_fix_v15'); location.reload(); }
     }
 
-    function toggleAI() { state.aiActive = !state.aiActive; }
+    function toggleAI() { 
+        state.aiActive = !state.aiActive; 
+        const btn = document.getElementById('aiBtn');
+        btn.innerText = state.aiActive ? "ML: Active" : "Start ML Agent";
+        btn.style.background = state.aiActive ? "#10b981" : "#8b5cf6";
+    }
 
     function setChartRange(range) {
         state.chartRange = range;
