@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TIU AI Jeopardy - P2P</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
@@ -24,6 +24,8 @@
             height: 100vh;
             overflow: hidden;
             user-select: none;
+            /* Prevent bounce on mobile */
+            overscroll-behavior: none;
         }
 
         /* --- TIU WATERMARK --- */
@@ -34,7 +36,7 @@
             font-family: 'Impact', 'Arial Black', sans-serif;
             font-size: 5rem;
             color: white;
-            opacity: 0.08; /* Subtle */
+            opacity: 0.08; 
             pointer-events: none;
             z-index: 0;
             transform: rotate(-10deg);
@@ -133,7 +135,6 @@
         }
         .config-section h3 { margin: 0 0 10px 0; color: var(--jeopardy-gold); }
 
-        /* Mode Switcher */
         .mode-switch {
             display: flex; gap: 10px; margin-bottom: 10px;
             justify-content: center;
@@ -170,7 +171,6 @@
         .btn-add { background: #4caf50; color: white; margin-top: 5px;}
         .btn-del { background: #f44336; color: white; }
 
-
         button.start-btn {
             padding: 15px 40px; font-size: 1.5rem; margin-top: 10px;
             border-radius: 50px; border: 3px solid white;
@@ -190,6 +190,7 @@
             max-width: 1600px;
             margin: 0 auto;
             width: 100%;
+            transition: opacity 0.3s;
         }
 
         .category-header {
@@ -221,35 +222,50 @@
 
         /* --- SCOREBOARD --- */
         #scoreboard {
-            background: #000; padding: 10px; display: flex;
-            justify-content: center; gap: 10px; z-index: 2;
+            background: #000; padding: 15px; display: flex;
+            justify-content: center; gap: 15px; z-index: 2;
             border-top: 3px solid var(--jeopardy-gold);
             overflow-x: auto;
+            
+            /* Safe area for mobile home bars */
+            padding-bottom: max(20px, env(safe-area-inset-bottom)); 
         }
+
         .team {
             text-align: center; background: var(--jeopardy-dark);
-            padding: 5px; border: 2px solid var(--jeopardy-blue);
+            padding: 8px; border: 2px solid var(--jeopardy-blue);
             border-radius: 8px; 
-            flex: 1; /* Dynamic width */
-            min-width: 120px;
-            max-width: 250px;
+            flex: 1; 
+            min-width: 130px;
+            max-width: 300px;
             display: flex; flex-direction: column; justify-content: space-between;
         }
+
         .team-name { 
             color: white; border-bottom: 1px solid #444; 
-            display: block; padding-bottom: 3px; 
-            min-height: 20px;
+            display: block; padding-bottom: 5px; 
+            min-height: 24px; font-weight: bold;
         }
+
         .score-display {
-            font-size: 1.5rem; color: var(--jeopardy-gold); font-family: monospace; font-weight: bold; margin: 5px 0;
+            font-size: 1.8rem; color: var(--jeopardy-gold); font-family: monospace; font-weight: bold; margin: 5px 0;
         }
-        /* Controls are hidden on display, visible on controller */
-        .score-controls { display: none; justify-content: center; gap: 5px; }
+
+        /* Controls: Hidden on Display, Big on Controller */
+        .score-controls { display: none; justify-content: center; gap: 15px; margin-top: 5px; }
+        
         .score-controls button {
-            background: #333; color: white; width: 30px; height: 30px; font-weight: bold; cursor: pointer; border: 1px solid #555;
+            background: #333; color: white; 
+            width: 50px; height: 50px; /* Big touch target */
+            font-weight: bold; font-size: 1.5rem;
+            cursor: pointer; border: 2px solid #555;
+            border-radius: 8px;
+            touch-action: manipulation; /* Improves touch response */
         }
-        .score-controls button.plus:hover { background: #4caf50; }
-        .score-controls button.minus:hover { background: #f44336; }
+        .score-controls button.plus { background: #2e5c31; border-color: #4caf50; }
+        .score-controls button.minus { background: #5c2e2e; border-color: #f44336; }
+        
+        .score-controls button:active { transform: scale(0.95); }
 
         /* --- MODAL --- */
         #question-modal {
@@ -268,11 +284,13 @@
             margin-top: 30px; display: none; font-weight: bold;
             border-top: 2px solid rgba(255,255,255,0.3); padding-top: 20px;
         }
-        .modal-controls { margin-top: 40px; display: none; gap: 15px; flex-wrap: wrap; justify-content: center;}
+        .modal-controls { margin-top: 40px; display: none; gap: 20px; flex-wrap: wrap; justify-content: center;}
+        
         .modal-btn {
-            padding: 15px 30px; font-size: 1.2rem; border: 3px solid white;
+            padding: 20px 40px; font-size: 1.2rem; border: 3px solid white;
             background: var(--jeopardy-dark); color: white; cursor: pointer;
             text-transform: uppercase; font-weight: bold; border-radius: 50px;
+            min-width: 200px;
         }
         .modal-btn.reveal { background: var(--jeopardy-gold); color: black; }
         .modal-btn.close { background: #b00; }
@@ -280,10 +298,16 @@
         /* --- CONTROLLER SPECIFIC STYLES --- */
         body.is-controller .score-controls { display: flex; }
         body.is-controller .modal-controls { display: flex; }
-        body.is-controller #game-board { opacity: 0.8; }
-        body.is-controller #question-modal { background: rgba(0,0,0,0.9); }
-        body.is-controller #modal-answer { display: block; color: #888; font-size: 1rem; } /* Preview answer */
+        body.is-controller #game-board { opacity: 0.6; pointer-events: auto; } /* Allow clicking board */
+        body.is-controller #question-modal { background: rgba(0,0,0,0.95); }
+        body.is-controller #modal-answer { display: block; color: #888; font-size: 1.2rem; } 
         body.is-controller #modal-answer.revealed { color: var(--jeopardy-gold); font-size: 2rem; }
+        
+        /* Controller Scoreboard tweak: ensure it stays visible above fold if possible, or scrollable */
+        body.is-controller #scoreboard {
+            flex-shrink: 0;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+        }
 
         .role-badge {
             position: fixed; top: 10px; right: 10px;
