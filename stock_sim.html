@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TIU Stock Simulator (Hive Mind AI)</title>
+    <title>TIU Trader Pro (v21 Stable)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -18,53 +18,58 @@
             --border: #334155;
             --yellow: #facc15;
         }
+        * { box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', sans-serif;
             background: var(--bg);
             color: var(--text);
-            margin: 0; padding: 20px;
+            margin: 0; padding: 15px;
             height: 100vh;
             display: flex; flex-direction: column;
             overflow: hidden;
         }
         .watermark {
-            position: fixed; bottom: 20px; right: 20px;
-            font-size: 4rem; opacity: 0.05; pointer-events: none;
+            position: fixed; bottom: 10px; right: 15px;
+            font-size: 3rem; opacity: 0.05; pointer-events: none;
             font-weight: 900; font-family: monospace;
+            z-index: 0;
         }
         
         /* Layout */
         .top-bar {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 15px;
+            flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; z-index: 10;
         }
-        .grid {
-            display: grid; grid-template-columns: 2fr 1fr; gap: 20px;
-            height: 100%; overflow: hidden;
-        }
-        .col { display: flex; flex-direction: column; gap: 20px; overflow: hidden; }
+        .tabs { flex: 0 0 auto; display: flex; gap: 10px; margin-bottom: 10px; z-index: 10; }
+        .main-content { flex: 1; min-height: 0; position: relative; z-index: 1; }
+        
+        .view { display: none; height: 100%; }
+        .view.active { display: block; }
+
+        .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 15px; height: 100%; }
+        .col { display: flex; flex-direction: column; gap: 15px; height: 100%; overflow: hidden; }
 
         /* Panels */
         .panel {
             background: var(--panel); border: 1px solid var(--border);
-            border-radius: 8px; padding: 15px; display: flex; flex-direction: column;
+            border-radius: 8px; padding: 10px; display: flex; flex-direction: column;
             position: relative;
         }
         .panel-head { 
-            font-weight: 600; color: var(--text-dim); margin-bottom: 10px; 
-            display: flex; justify-content: space-between; align-items: center;
+            font-weight: 600; color: var(--text-dim); margin-bottom: 8px; 
+            display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem;
         }
 
         /* Tables */
-        .scroll-wrap { overflow-y: auto; flex: 1; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .scroll-wrap { overflow-y: auto; flex: 1; min-height: 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         th { text-align: left; color: var(--text-dim); position: sticky; top: 0; background: var(--panel); padding: 5px; z-index: 10;}
-        td { padding: 8px 5px; border-bottom: 1px solid #33415540; }
+        td { padding: 6px 5px; border-bottom: 1px solid #33415540; }
         
-        /* Interactive Elements */
+        /* Buttons */
         .btn {
-            border: none; padding: 5px 10px; border-radius: 4px;
-            cursor: pointer; color: white; font-weight: 600; font-size: 0.8rem;
+            border: none; padding: 4px 10px; border-radius: 4px;
+            cursor: pointer; color: white; font-weight: 600; font-size: 0.75rem;
             transition: all 0.1s;
         }
         .btn:active { transform: scale(0.95); }
@@ -72,63 +77,56 @@
         
         .btn-buy { background: var(--green); }
         .btn-sell { background: var(--red); }
+        .btn-short { background: var(--orange); color: #000; }
+        .btn-cover { background: var(--blue); }
         .btn-call { background: var(--green); border: 1px solid #ffffff40; }
         .btn-put { background: var(--red); border: 1px solid #ffffff40; }
         .btn-reset { background: var(--border); }
         .btn-ai { background: var(--purple); color: #1e293b; }
+        .btn-turbo { background: var(--yellow); color: #000; font-weight: 800; }
         .btn-export { background: var(--blue); }
-        .btn-import { background: var(--orange); color: #1e293b; }
-        .btn-sm { font-size: 0.7rem; padding: 2px 6px; background: var(--border); }
-        .btn-range { font-size: 0.7rem; padding: 2px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+        .btn-import { background: var(--text-dim); color: #1e293b; }
+        .btn-range { padding: 2px 8px; background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
         .btn-range.active { background: var(--blue); color: white; border-color: var(--blue); }
 
-        /* Mode Switch */
+        /* Sentiment & UI */
         .mode-switch { display: flex; background: var(--bg); border-radius: 4px; padding: 2px; }
-        .mode-opt { padding: 4px 12px; cursor: pointer; border-radius: 3px; font-size: 0.8rem; }
+        .mode-opt { padding: 2px 10px; cursor: pointer; border-radius: 3px; font-size: 0.75rem; }
         .mode-opt.active { background: var(--blue); color: white; font-weight: bold; }
 
         .price-up { color: var(--green); }
         .price-down { color: var(--red); }
-        .opt-label { font-size: 0.7rem; padding: 1px 4px; border-radius: 3px; margin-right: 4px; }
-        .bg-call { background: #064e3b; color: #6ee7b7; }
-        .bg-put { background: #450a0a; color: #fca5a5; }
-
-        .sentiment-badge { 
-            padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; display: flex; gap: 5px; align-items: center;
-        }
+        .sentiment-badge { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
         .sent-bull { background: #064e3b; color: #6ee7b7; border: 1px solid #10b981; }
         .sent-bear { background: #450a0a; color: #fca5a5; border: 1px solid #ef4444; }
         .sent-neutral { background: #334155; color: #94a3b8; }
 
-        .log-item { font-size: 0.85rem; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid #ffffff10; }
-        .log-ml { border-left: 3px solid var(--purple); padding-left: 8px; color: #e9d5ff; background: #581c8720; }
-        .log-sys { border-left: 3px solid var(--text-dim); padding-left: 8px; color: var(--text-dim); }
-        .log-opt { border-left: 3px solid var(--orange); padding-left: 8px; }
+        .log-item { font-size: 0.8rem; margin-bottom: 2px; padding-bottom: 2px; border-bottom: 1px solid #ffffff10; }
+        .log-ml { border-left: 3px solid var(--purple); padding-left: 6px; color: #e9d5ff; background: #581c8720; }
+        .log-sys { border-left: 3px solid var(--text-dim); padding-left: 6px; color: var(--text-dim); }
+        .log-opt { border-left: 3px solid var(--orange); padding-left: 6px; }
+        .log-risk { border-left: 3px solid var(--red); padding-left: 6px; background: #450a0a; color: #fca5a5; }
 
-        select { background: var(--panel); color: white; border: 1px solid var(--border); padding: 4px; border-radius: 4px; }
+        /* Form Inputs */
+        select, input[type=number] { 
+            background: var(--bg); color: white; border: 1px solid var(--border); 
+            padding: 3px; border-radius: 4px; font-size: 0.8rem; 
+        }
+        input[type=range] { accent-color: var(--purple); cursor: pointer; }
+        .chk-wrap { font-size: 0.75rem; color: var(--text-dim); display: flex; align-items: center; gap: 5px; cursor: pointer; }
 
-        /* Tabs */
-        .tabs { display: flex; gap: 10px; margin-bottom: 10px; }
-        .tab { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 5px 15px; cursor: pointer; }
+        .tab { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 5px 15px; cursor: pointer; font-size:0.9rem; }
         .tab.active { background: var(--blue); color: white; border-color: var(--blue); }
 
-        .view { display: none; height: 100%; }
-        .view.active { display: block; }
-
-        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .stat-box { background: #0f172a; padding: 8px; border-radius: 4px; text-align: center; }
-        .stat-label { font-size: 0.75rem; color: var(--text-dim); }
-        .stat-val { font-size: 1rem; font-weight: bold; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-top: 5px; }
+        .stat-box { background: #0f172a; padding: 5px; border-radius: 4px; text-align: center; }
+        .stat-label { font-size: 0.7rem; color: var(--text-dim); }
+        .stat-val { font-size: 0.9rem; font-weight: bold; }
         
         #chartControls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;}
-        .chart-toggle { 
-            cursor: pointer; user-select: none; font-size: 0.8rem; 
-            padding: 2px 6px; border-radius: 4px; border: 1px solid transparent;
-        }
+        .chart-toggle { cursor: pointer; user-select: none; font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; border: 1px solid transparent; }
         .chart-toggle:hover { background: #ffffff10; }
         .chart-toggle input { margin-right: 5px; }
-
-        input[type=range] { accent-color: var(--purple); cursor: pointer; }
     </style>
 </head>
 <body>
@@ -137,32 +135,34 @@
 
 <div class="top-bar">
     <div>
-        <h1 style="margin:0; font-size:1.4rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.8rem; opacity:0.5; color:var(--text-dim)">v15</span></h1>
-        <div style="display:flex; gap:10px; align-items:center; margin-top:5px;">
-            <small style="color:var(--text-dim)">Fee: $5.00</small>
-            <div id="marketSentiment" class="sentiment-badge sent-neutral">
-                <span>⚖️ NEUTRAL</span>
+        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v21 Stable</span></h1>
+        <div style="display:flex; gap:10px; align-items:center; margin-top:2px;">
+            <div id="marketSentiment" class="sentiment-badge sent-neutral">⚖️ NEUTRAL</div>
+            <div class="chk-wrap" style="border-left:1px solid var(--border); padding-left:10px;">
+                <label><input type="checkbox" id="chartTypeToggle" onchange="toggleChartType()"> 🕯️ Candles</label>
             </div>
         </div>
     </div>
     
-    <div style="display:flex; gap:15px; align-items:center;">
-        <div style="display:flex; flex-direction:column; align-items:end; min-width:120px;">
-            <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:2px;">
-                AI Confidence: <span id="aiThreshDisplay" style="color:var(--purple); font-weight:bold;">60%</span>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <div style="display:flex; flex-direction:column; align-items:end; min-width:130px;">
+            <div style="font-size:0.7rem; color:var(--text-dim); margin-bottom:2px; display:flex; gap:10px;">
+                <label class="chk-wrap"><input type="checkbox" id="aiOptToggle" onchange="toggleAiOptions()" style="accent-color:var(--orange)"> AI Opts</label>
+                <span>Conf: <span id="aiThreshDisplay" style="color:var(--purple); font-weight:bold;">60%</span></span>
             </div>
-            <input type="range" min="50" max="95" value="60" step="5" style="width:100%" oninput="updateAiThreshold(this.value)">
+            <input type="range" id="aiConfidenceSlider" min="50" max="95" value="60" step="5" style="width:100%">
         </div>
 
+        <button class="btn btn-turbo" onclick="turboTrain()" title="Simulate 500 ticks instantly">⚡ Turbo</button>
         <button class="btn btn-ai" id="aiBtn" onclick="toggleAI()">Start ML</button>
         
-        <div style="display:flex; gap:5px;">
-            <button class="btn btn-import" onclick="document.getElementById('importFile').click()" title="Merge training data">Import</button>
-            <button class="btn btn-export" onclick="exportBrain()" title="Save training data">Export</button>
+        <div style="display:flex; gap:2px;">
+            <button class="btn btn-import btn-sm" onclick="document.getElementById('importFile').click()">Imp</button>
+            <button class="btn btn-export btn-sm" onclick="exportBrain()">Exp</button>
         </div>
         <input type="file" id="importFile" style="display:none" accept=".json" onchange="importBrain(this)">
 
-        <button class="btn btn-reset" onclick="resetGame()">Reset</button>
+        <button class="btn btn-reset btn-sm" onclick="resetGame()">Reset</button>
     </div>
 </div>
 
@@ -171,502 +171,423 @@
     <button class="tab" onclick="setTab('chart')">Charts</button>
 </div>
 
-<div id="view-market" class="view active" style="height: 100%;">
-    <div class="grid">
-        <div class="col">
-            <div class="panel" style="flex: 2;">
-                <div class="panel-head">
-                    <span>Live Market Prices</span>
-                    <div class="mode-switch">
-                        <div class="mode-opt active" id="mode-stocks" onclick="setMode('stocks')">Stocks</div>
-                        <div class="mode-opt" id="mode-options" onclick="setMode('options')">Options</div>
+<div class="main-content">
+    
+    <div id="view-market" class="view active">
+        <div class="grid">
+            <div class="col">
+                <div class="panel" style="flex: 2;">
+                    <div class="panel-head">
+                        <span>Live Market Prices</span>
+                        <div class="mode-switch">
+                            <div class="mode-opt active" id="mode-stocks" onclick="setMode('stocks')">Stocks</div>
+                            <div class="mode-opt" id="mode-options" onclick="setMode('options')">Options</div>
+                        </div>
+                    </div>
+                    <div class="scroll-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Sym</th>
+                                    <th>Price</th>
+                                    <th>Trend</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="marketBody"></tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="scroll-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Symbol</th>
-                                <th>Price</th>
-                                <th>SMA(20)</th>
-                                <th>Trend</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="marketBody"></tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <div class="panel" style="flex: 1;">
-                <div class="panel-head">
-                    <span>Activity Log</span>
-                </div>
-                <div class="scroll-wrap" id="logs"></div>
-            </div>
-        </div>
-
-        <div class="col">
-            <div class="panel">
-                <div class="panel-head">Wallet</div>
-                <div style="text-align:center; margin-bottom:10px;">
-                    <div style="font-size:2rem; font-weight:bold;" id="cashDisplay">$10,000.00</div>
-                    <div style="font-size:0.9rem; color:var(--text-dim)">Available Cash</div>
-                </div>
-                <div style="text-align:center;">
-                    <div style="font-size:1.2rem; font-weight:bold;" id="netWorthDisplay">$10,000.00</div>
-                    <div style="font-size:0.8rem; color:var(--text-dim)">Total Net Worth</div>
+                
+                <div class="panel" style="flex: 1;">
+                    <div class="panel-head">Activity Log</div>
+                    <div class="scroll-wrap" id="logs"></div>
                 </div>
             </div>
 
-            <div class="panel">
-                <div class="panel-head">AI Strategy</div>
-                <div style="margin-bottom:10px; font-size:0.85rem; color:var(--text-dim);">
-                    Market Condition Strategy:
-                    <select id="strategySelect" onchange="updateStrategy()" style="width:100%; margin-top:5px;">
+            <div class="col">
+                <div class="panel">
+                    <div class="panel-head">Wallet</div>
+                    <div style="text-align:center; margin-bottom:5px;">
+                        <div style="font-size:1.5rem; font-weight:bold;" id="cashDisplay">$10,000.00</div>
+                        <div style="font-size:0.75rem; color:var(--text-dim)">Available Cash</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:0.9rem; font-weight:bold;" id="netWorthDisplay">$10,000.00</div>
+                        <div style="font-size:0.7rem; color:var(--text-dim)">Total Net Worth</div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-head">Risk Management</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; margin-bottom:10px;">
+                        <div>
+                            <label style="font-size:0.7rem; color:var(--red)">Stop Loss %</label>
+                            <input type="number" id="slInput" value="10" style="width:100%">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; color:var(--green)">Take Profit %</label>
+                            <input type="number" id="tpInput" value="20" style="width:100%">
+                        </div>
+                    </div>
+                    
+                    <div class="panel-head" style="margin-top:5px;">AI Strategy</div>
+                    <select id="strategySelect" onchange="updateStrategy()" style="width:100%; margin-bottom:5px;">
                         <option value="auto">🤖 Auto-Detect (Adaptive)</option>
-                        <option value="bull">🐂 Always Bullish (Aggressive)</option>
-                        <option value="bear">🐻 Always Bearish (Defensive)</option>
+                        <option value="bull">🐂 Always Bullish</option>
+                        <option value="bear">🐻 Always Bearish</option>
                     </select>
-                </div>
-                <div class="stat-grid">
-                    <div class="stat-box">
-                        <div class="stat-label">Win Rate</div>
-                        <div class="stat-val" id="statWinRate">0%</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Profit Factor</div>
-                        <div class="stat-val" id="statPF">0.00</div>
-                    </div>
-                    <div class="stat-box" style="border:1px solid var(--purple)">
-                        <div class="stat-label" style="color:var(--purple)">ML Accuracy</div>
-                        <div class="stat-val" id="mlAccuracy">--%</div>
-                    </div>
-                    <div class="stat-box" style="border:1px solid var(--orange)">
-                        <div class="stat-label" style="color:var(--orange)">Active Options</div>
-                        <div class="stat-val" id="activeOptCount">0</div>
+                    
+                    <div class="stat-grid">
+                        <div class="stat-box"><div class="stat-label">Win Rate</div><div class="stat-val" id="statWinRate">0%</div></div>
+                        <div class="stat-box"><div class="stat-label">P. Factor</div><div class="stat-val" id="statPF">0.00</div></div>
+                        <div class="stat-box" style="border:1px solid var(--purple)"><div class="stat-label" style="color:var(--purple)">Accuracy</div><div class="stat-val" id="mlAccuracy">--%</div></div>
                     </div>
                 </div>
-            </div>
 
-            <div class="panel" style="flex: 1;">
-                <div class="panel-head">Your Holdings</div>
-                <div class="scroll-wrap">
-                    <table id="holdingsTable">
-                        <thead><tr><th>Asset</th><th>Qty/Exp</th><th>P/L</th></tr></thead>
-                        <tbody id="holdingsBody"></tbody>
-                    </table>
+                <div class="panel" style="flex: 1;">
+                    <div class="panel-head">Holdings (Long/Short)</div>
+                    <div class="scroll-wrap">
+                        <table id="holdingsTable">
+                            <thead><tr><th>Asset</th><th>Qty</th><th>P/L</th></tr></thead>
+                            <tbody id="holdingsBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<div id="view-chart" class="view">
-    <div class="panel" style="height:100%">
-        <div class="panel-head" style="flex-wrap:wrap; gap:10px;">
-            <span>Market Analysis</span>
-            <div style="display:flex; gap:5px; border-left:1px solid var(--border); padding-left:10px;">
-                <button class="btn btn-range active" id="range-50" onclick="setChartRange(50)">50</button>
-                <button class="btn btn-range" id="range-100" onclick="setChartRange(100)">100</button>
-                <button class="btn btn-range" id="range-200" onclick="setChartRange(200)">200</button>
-                <button class="btn btn-range" id="range-0" onclick="setChartRange(0)">Max</button>
+    <div id="view-chart" class="view">
+        <div class="panel" style="height:100%">
+            <div class="panel-head" style="flex-wrap:wrap; gap:10px;">
+                <span>Analysis</span>
+                <div style="display:flex; gap:5px; border-left:1px solid var(--border); padding-left:10px;">
+                    <button class="btn btn-range active" id="range-50" onclick="setChartRange(50)">50</button>
+                    <button class="btn btn-range" id="range-100" onclick="setChartRange(100)">100</button>
+                    <button class="btn btn-range" id="range-200" onclick="setChartRange(200)">200</button>
+                    <button class="btn btn-range" id="range-0" onclick="setChartRange(0)">Max</button>
+                </div>
+                <div style="flex:1"></div>
+                <div style="display:flex; gap:5px;">
+                    <button class="btn btn-sm" onclick="toggleAllCharts(true)">All</button>
+                    <button class="btn btn-sm" onclick="toggleAllCharts(false)">None</button>
+                </div>
             </div>
-            <div style="flex:1"></div>
-            <div style="display:flex; gap:5px;">
-                <button class="btn btn-sm" onclick="toggleAllCharts(true)">All</button>
-                <button class="btn btn-sm" onclick="toggleAllCharts(false)">None</button>
+            <div id="chartControls" style="display:flex; gap:10px; margin-bottom:5px; flex-wrap:wrap;"></div>
+            <div style="flex:1; position:relative; min-height:0;">
+                <canvas id="mainChart"></canvas>
             </div>
-        </div>
-        <div id="chartControls" style="display:flex; gap:10px; margin-bottom:5px; flex-wrap:wrap;"></div>
-        <div style="flex:1; position:relative">
-            <canvas id="mainChart"></canvas>
         </div>
     </div>
+
 </div>
 
 <script>
-    // --- Configuration ---
-    const CONFIG = {
-        fee: 5.00,
-        initialCash: 10000,
-        updateSpeed: 1000,
-        optionCost: 100, 
-        optionDuration: 30,
-        initialHistorySteps: 50
-    };
+    const CONFIG = { fee: 5.00, initialCash: 10000, updateSpeed: 1000, optionCost: 100, optionDuration: 30, initialHistorySteps: 50 };
 
-    // --- Simple ML Brain with Merge Cap ---
     class SimpleBrain {
-        constructor() {
-            this.weights = [0.5, 0.2, 0.1]; 
-            this.bias = 0;
-            this.learningRate = 0.05;
-            this.totalPredictions = 0;
-            this.correctPredictions = 0;
-            this.lastError = 0;
-        }
+        constructor() { this.weights = [0.5, 0.2, 0.1]; this.bias = 0; this.learningRate = 0.05; this.totalPredictions = 0; this.correctPredictions = 0; }
         sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
-        predict(inputs) {
-            let sum = this.bias;
-            for(let i=0; i<this.weights.length; i++) sum += inputs[i] * this.weights[i];
-            return this.sigmoid(sum);
-        }
+        predict(inputs) { let sum = this.bias; for(let i=0; i<this.weights.length; i++) sum += inputs[i] * this.weights[i]; return this.sigmoid(sum); }
         train(inputs, target) {
-            const guess = this.predict(inputs);
-            const error = target - guess;
+            const guess = this.predict(inputs); const error = target - guess;
             for(let i=0; i<this.weights.length; i++) this.weights[i] += error * inputs[i] * this.learningRate;
-            this.bias += error * this.learningRate;
-            this.totalPredictions++;
+            this.bias += error * this.learningRate; this.totalPredictions++;
             if((guess > 0.5 && target === 1) || (guess <= 0.5 && target === 0)) this.correctPredictions++;
-            this.lastError = Math.abs(error);
         }
-        getAccuracy() {
-            if(this.totalPredictions === 0) return 0;
-            return ((this.correctPredictions / this.totalPredictions) * 100).toFixed(1);
-        }
-        toJSON() {
-            return {
-                weights: this.weights,
-                bias: this.bias,
-                totalPredictions: this.totalPredictions,
-                correctPredictions: this.correctPredictions
-            };
-        }
-        fromJSON(data) {
-            if(!data) return;
-            this.weights = data.weights || [0.5, 0.2, 0.1];
-            this.bias = data.bias || 0;
-            this.totalPredictions = data.totalPredictions || 0;
-            this.correctPredictions = data.correctPredictions || 0;
-        }
-        
-        // --- THE HIVE MIND LOGIC ---
+        getAccuracy() { return this.totalPredictions === 0 ? 0 : ((this.correctPredictions / this.totalPredictions) * 100).toFixed(1); }
+        toJSON() { return { weights: this.weights, bias: this.bias, totalPredictions: this.totalPredictions, correctPredictions: this.correctPredictions }; }
+        fromJSON(data) { if(!data) return; this.weights = data.weights || [0.5,0.2,0.1]; this.bias = data.bias||0; this.totalPredictions = data.totalPredictions||0; this.correctPredictions = data.correctPredictions||0; }
         merge(data) {
             if (!data || !data.weights) return;
-            
-            // If current brain is fresh, just overwrite
-            if (this.totalPredictions === 0) {
-                this.fromJSON(data);
-                return;
-            }
-
-            // Weighted Merge based on Experience
-            const incomingTotal = data.totalPredictions || 0;
-            const currentTotal = this.totalPredictions;
-            const combinedTotal = currentTotal + incomingTotal;
-            
-            if (combinedTotal === 0) return;
-
-            const myRatio = currentTotal / combinedTotal;
-            const theirRatio = incomingTotal / combinedTotal;
-
-            // Merge Weights
-            for(let i=0; i<this.weights.length; i++) {
-                this.weights[i] = (this.weights[i] * myRatio) + ((data.weights[i] || 0) * theirRatio);
-            }
-            
-            // Merge Bias
-            this.bias = (this.bias * myRatio) + ((data.bias || 0) * theirRatio);
-            
-            // Add experience stats
-            this.totalPredictions += incomingTotal;
-            this.correctPredictions += (data.correctPredictions || 0);
+            if (this.totalPredictions === 0) { this.fromJSON(data); return; }
+            const total = this.totalPredictions + (data.totalPredictions||0);
+            if (total === 0) return;
+            const r1 = this.totalPredictions / total; const r2 = (data.totalPredictions||0) / total;
+            for(let i=0; i<this.weights.length; i++) this.weights[i] = (this.weights[i] * r1) + ((data.weights[i]||0) * r2);
+            this.bias = (this.bias * r1) + ((data.bias||0) * r2);
+            this.totalPredictions = total; this.correctPredictions += (data.correctPredictions||0);
         }
     }
 
     const STOCK_DEFS = [
-        { sym: "AAPL", basePrice: 225, vol: 1.5 },
-        { sym: "NVDA", basePrice: 135, vol: 3.0 },
-        { sym: "TSLA", basePrice: 240, vol: 3.5 },
-        { sym: "AMZN", basePrice: 195, vol: 1.8 },
+        { sym: "AAPL", basePrice: 225, vol: 1.5 }, { sym: "NVDA", basePrice: 135, vol: 3.0 },
+        { sym: "TSLA", basePrice: 240, vol: 3.5 }, { sym: "AMZN", basePrice: 195, vol: 1.8 },
         { sym: "GOOG", basePrice: 175, vol: 1.6 }
     ];
-
     const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4'];
 
-    let STOCKS = []; 
+    let STOCKS = [];
     let state = {
-        cash: CONFIG.initialCash,
-        holdings: {}, 
-        options: [], 
-        aiActive: false,
-        aiThreshold: 0.60, 
-        tradeMode: 'stocks', 
-        chartRange: 50,
-        strategyMode: 'auto', 
-        marketSentiment: 0,
-        stats: { wins: 0, losses: 0, grossProfit: 0, grossLoss: 0, totalTrades: 0 },
-        brainData: null
+        cash: CONFIG.initialCash, holdings: {}, options: [], aiActive: false, aiThreshold: 0.60, aiTradeOptions: false,
+        tradeMode: 'stocks', chartRange: 50, strategyMode: 'auto', marketSentiment: 0, chartType: 'line',
+        stats: { wins: 0, losses: 0, grossProfit: 0, grossLoss: 0, totalTrades: 0 }, brainData: null
     };
 
-    let globalTick = 0;
-    let chartObj = null;
-    let tradeMarkers = []; 
-    let predictionPoints = []; 
-    let brain = new SimpleBrain(); 
-    let predictions = {}; 
+    let globalTick = 0, chartObj = null, tradeMarkers = [], predictionPoints = [], brain = new SimpleBrain(), predictions = {}; 
 
     function init() {
-        const saved = localStorage.getItem('tiu_fix_v15');
+        // Changed key to v21 to force clean start if needed
+        const saved = localStorage.getItem('tiu_v21'); 
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
                 if (!isNaN(parsed.cash)) {
                     state = parsed;
-                    if(state.brainData) { brain.fromJSON(state.brainData); log("🧠 AI Memory Restored.", "log-ml"); }
-                    state.tradeMode = 'stocks';
-                    if(!state.chartRange) state.chartRange = 50;
-                    if(!state.aiThreshold) state.aiThreshold = 0.60;
-                    if(!state.strategyMode) state.strategyMode = 'auto';
+                    if(state.brainData) brain.fromJSON(state.brainData);
+                    if(!state.chartType) state.chartType = 'line';
+                    if(!state.stats) state.stats = { wins: 0, losses: 0, grossProfit: 0, grossLoss: 0, totalTrades: 0 };
                 }
-            } catch(e) { console.log("Save corrupted"); }
+            } catch(e) { console.error("Load error:", e); }
         }
 
-        document.querySelector('input[type=range]').value = (state.aiThreshold * 100);
-        document.getElementById('aiThreshDisplay').innerText = (state.aiThreshold * 100).toFixed(0) + "%";
+        const slider = document.getElementById('aiConfidenceSlider');
+        if(!state.aiThreshold) state.aiThreshold = 0.60;
+        slider.value = (state.aiThreshold * 100);
+        document.getElementById('aiThreshDisplay').innerText = slider.value + "%";
+        
+        slider.addEventListener('input', function(e) {
+            const val = e.target.value;
+            state.aiThreshold = val / 100;
+            document.getElementById('aiThreshDisplay').innerText = val + "%";
+        });
+
         document.getElementById('strategySelect').value = state.strategyMode;
-        setChartRange(state.chartRange); 
+        document.getElementById('aiOptToggle').checked = state.aiTradeOptions;
+        document.getElementById('chartTypeToggle').checked = (state.chartType === 'candle');
+        
+        if(STOCKS.length === 0) generateFreshMarket();
+        
+        buildMarketTable(); 
+        buildChart(); 
+        updateUI(); 
 
-        generateFreshMarket();
-        buildMarketTable();
-        buildChart();
-        updateUI();
-        updateStats();
-
-        const aiBtn = document.getElementById('aiBtn');
         if(state.aiActive) {
-            aiBtn.innerText = "ML: Active";
-            aiBtn.style.background = "#10b981";
+            document.getElementById('aiBtn').innerText = "ML: Active";
+            document.getElementById('aiBtn').style.background = "#10b981";
         }
 
-        setInterval(tick, CONFIG.updateSpeed);
-        log("System Ready. Market Generated.", "log-sys");
+        setInterval(tickSafe, CONFIG.updateSpeed);
+        log("System Ready. Version 21 (Stable).", "log-sys");
+    }
+
+    function buildMarketTable() {
+        const tbody = document.getElementById('marketBody');
+        tbody.innerHTML = "";
+        const list = state.tradeMode === 'stocks' ? STOCKS : STOCKS; 
+        
+        list.forEach(s => {
+            const tr = document.createElement('tr');
+            if(state.tradeMode === 'stocks') {
+                tr.innerHTML = `
+                    <td style="font-weight:bold">${s.sym}</td>
+                    <td id="price-${s.sym}" class="${s.trend === '▲' ? 'price-up' : 'price-down'}">$${s.price.toFixed(2)}</td>
+                    <td id="trend-${s.sym}" class="${s.trend === '▲' ? 'price-up' : 'price-down'}">${s.trend}</td>
+                    <td style="display:flex; gap:5px;">
+                        <button class="btn btn-buy" id="btn-buy-${s.sym}" onclick="trade('${s.sym}', 'buy')">Buy</button>
+                        <button class="btn btn-sell" id="btn-sell-${s.sym}" onclick="trade('${s.sym}', 'sell')">Sell</button>
+                    </td>
+                `;
+            } else {
+                 tr.innerHTML = `
+                    <td style="font-weight:bold">${s.sym}</td>
+                    <td class="${s.trend === '▲' ? 'price-up' : 'price-down'}">$${s.price.toFixed(2)}</td>
+                    <td>${s.trend}</td>
+                    <td style="display:flex; gap:5px;">
+                        <button class="btn btn-call" onclick="trade('${s.sym}', 'call')">Call</button>
+                        <button class="btn btn-put" onclick="trade('${s.sym}', 'put')">Put</button>
+                    </td>
+                `;
+            }
+            tbody.appendChild(tr);
+        });
     }
 
     function generateFreshMarket() {
         STOCKS = STOCK_DEFS.map(def => {
-            let currentPrice = def.basePrice + (Math.random() * 20 - 10);
-            const data = [];
-            const history = [];
-            const sma = [];
-            
+            let price = def.basePrice + (Math.random() * 20 - 10);
+            const data = [], history = [], sma = [], candles = [];
             for(let i=0; i<CONFIG.initialHistorySteps; i++) {
-                const move = (Math.random() - 0.5) * def.vol;
-                currentPrice = Math.max(1, currentPrice + move);
-                data.push({ x: i - CONFIG.initialHistorySteps, y: currentPrice });
-                history.push(currentPrice);
+                let open = price;
+                let moves = [open];
+                for(let j=0; j<4; j++) moves.push(moves[moves.length-1] + (Math.random()-0.5)*def.vol);
+                let high = Math.max(...moves); let low = Math.min(...moves); let close = moves[moves.length-1];
+                price = close; 
+                data.push({ x: i - CONFIG.initialHistorySteps, y: close });
+                history.push(close);
+                candles.push({ x: i - CONFIG.initialHistorySteps, o: open, h: high, l: low, c: close });
                 if(history.length > 20) history.shift();
-                
-                let avg = currentPrice;
-                if(history.length > 0) {
-                    const sum = history.reduce((a, b) => a + b, 0);
-                    avg = sum / history.length;
-                }
+                let avg = history.reduce((a,b)=>a+b,0) / history.length;
                 sma.push({ x: i - CONFIG.initialHistorySteps, y: avg });
             }
-
-            return {
-                sym: def.sym,
-                price: currentPrice,
-                vol: def.vol,
-                data: data,
-                sma: sma,
-                history: history,
-                trend: "-"
-            };
+            return { sym: def.sym, price: price, vol: def.vol, data: data, sma: sma, history: history, candles: candles, trend: "-" };
         });
     }
 
-    function tick() {
+    function turboTrain() {
+        log("⚡ Turbo Mode: Simulating 500 ticks...", "log-sys");
+        const steps = 500;
+        for(let i=0; i<steps; i++) { tickSafe(true); }
+        updateChart();
+        log("⚡ Turbo Complete.", "log-sys");
+    }
+
+    function tickSafe(silent = false) {
+        try {
+            tick(silent);
+        } catch(e) {
+            console.error(e);
+            if(!silent) log("⚠️ System Error in Tick: " + e.message, "log-risk");
+        }
+    }
+
+    function tick(silent = false) {
         globalTick++;
 
-        // 1. Train Brain
         STOCKS.forEach(s => {
-            const currentMove = s.history.length > 0 ? (s.price - s.history[s.history.length-1]) : 0;
-            const target = currentMove > 0 ? 1 : 0;
+            const move = s.history.length > 0 ? (s.price - s.history[s.history.length-1]) : 0;
+            const target = move > 0 ? 1 : 0;
             if (predictions[s.sym]) brain.train(predictions[s.sym].inputs, target);
         });
 
-        // 2. Update Prices & Calculate Global Sentiment
         let totalChange = 0;
+        
         STOCKS.forEach(s => {
-            s.history.push(s.price);
-            if(s.history.length > 20) s.history.shift();
+            let open = s.price;
+            let moves = [open];
+            for(let j=0; j<4; j++) moves.push(moves[moves.length-1] + (Math.random()-0.5)*s.vol);
+            let high = Math.max(...moves); let low = Math.min(...moves); let close = moves[moves.length-1];
+            s.price = close;
 
-            const move = (Math.random() - 0.5) * s.vol;
-            s.price = Math.max(1, s.price + move);
+            s.history.push(close);
+            if(s.history.length > 20) s.history.shift();
             
-            let avg = s.price;
-            if(s.history.length > 0) {
-                const sum = s.history.reduce((a, b) => a + b, 0) + s.price;
-                avg = sum / (s.history.length + 1);
-            }
+            let avg = s.history.reduce((a,b)=>a+b,0) / s.history.length;
             s.sma.push({x: globalTick, y: avg});
             if(s.sma.length > 300) s.sma.shift();
 
-            const prev = s.history[s.history.length-1];
-            s.trend = (s.price > prev) ? "▲" : "▼";
-            totalChange += (s.price - prev) / prev; 
-
-            s.data.push({x: globalTick, y: s.price});
+            s.data.push({x: globalTick, y: close});
             if(s.data.length > 300) s.data.shift();
+
+            s.candles.push({x: globalTick, o: open, h: high, l: low, c: close});
+            if(s.candles.length > 300) s.candles.shift();
+
+            s.trend = (close > open) ? "▲" : "▼";
+            totalChange += (close - open) / open;
         });
 
-        const rawSentiment = totalChange * 10; 
-        state.marketSentiment = (state.marketSentiment * 0.9) + (rawSentiment * 0.1); 
-        updateSentimentDisplay();
+        const rawSentiment = totalChange * 10;
+        state.marketSentiment = (state.marketSentiment * 0.9) + (rawSentiment * 0.1);
 
-        // 3. Process Options
-        processOptions();
+        processOptions(silent);
+        checkStopLossTakeProfit(silent);
 
-        // 4. ML Inference
-        predictionPoints = []; 
+        predictionPoints = [];
         STOCKS.forEach(s => {
             if(s.history.length >= 3) {
-                const i1 = (s.history[s.history.length-1] - s.history[s.history.length-2]);
-                const i2 = (s.history[s.history.length-2] - s.history[s.history.length-3]);
+                const i1 = s.history[s.history.length-1] - s.history[s.history.length-2];
+                const i2 = s.history[s.history.length-2] - s.history[s.history.length-3];
                 const inputs = [i1, i2, 1];
-                const confidence = brain.predict(inputs);
+                const conf = brain.predict(inputs);
+                predictions[s.sym] = { inputs: inputs, conf: conf };
                 
-                predictions[s.sym] = { inputs: inputs, conf: confidence };
+                if(!silent) {
+                    const dir = conf > 0.5 ? 1 : -1;
+                    predictionPoints.push({ x: globalTick+1, y: s.price + (s.vol*dir*1.5), sym: s.sym });
+                }
                 
-                const direction = confidence > 0.5 ? 1 : -1;
-                predictionPoints.push({ x: globalTick + 1, y: s.price + (s.vol * direction * 1.5), sym: s.sym });
-
-                if(state.aiActive) runAdaptiveAI(s, confidence);
+                if(state.aiActive) runAdaptiveAI(s, conf, silent);
             }
         });
 
-        // 5. Update UI & Save
-        updateMarketTableValues();
-        updateUI();
-        updateChart();
-        state.brainData = brain.toJSON();
-        localStorage.setItem('tiu_fix_v15', JSON.stringify(state));
+        if(!silent) {
+            updateSentimentDisplay();
+            updateMarketTableValues();
+            updateUI();
+            updateChart();
+            state.brainData = brain.toJSON();
+            localStorage.setItem('tiu_v21', JSON.stringify(state));
+        }
     }
 
-    function updateSentimentDisplay() {
-        const el = document.getElementById('marketSentiment');
-        let text = "⚖️ NEUTRAL";
-        let cls = "sent-neutral";
-        const val = state.marketSentiment;
-        if (val > 0.1) { text = `🐂 BULLISH (+${(val*10).toFixed(1)}%)`; cls = "sent-bull"; }
-        else if (val < -0.1) { text = `🐻 BEARISH (${(val*10).toFixed(1)}%)`; cls = "sent-bear"; }
-        el.className = `sentiment-badge ${cls}`;
-        el.innerHTML = `<span>${text}</span>`;
-    }
+    function checkStopLossTakeProfit(silent) {
+        const slPct = parseFloat(document.getElementById('slInput').value) / 100;
+        const tpPct = parseFloat(document.getElementById('tpInput').value) / 100;
 
-    function updateStrategy() {
-        state.strategyMode = document.getElementById('strategySelect').value;
-        log(`🔄 Strategy: ${state.strategyMode.toUpperCase()}`, "log-ml");
-    }
+        for(const sym in state.holdings) {
+            const h = state.holdings[sym];
+            const stock = STOCKS.find(s => s.sym === sym);
+            if(!stock) continue;
 
-    function runAdaptiveAI(stock, confidence) {
-        let isBull = false;
-        if (state.strategyMode === 'auto') isBull = state.marketSentiment > 0;
-        else isBull = (state.strategyMode === 'bull');
+            let plPct = 0;
+            if (h.qty > 0) { plPct = (stock.price - h.avg) / h.avg; } 
+            else if (h.qty < 0) { plPct = (h.avg - stock.price) / h.avg; }
 
-        const baseThresh = state.aiThreshold;
-        
-        if (isBull) {
-            if ((confidence > baseThresh) && state.cash > (stock.price + 200)) {
-                if(state.tradeMode === 'options') trade(stock.sym, 'call', true);
-                else trade(stock.sym, 'buy', true);
-            }
-            if (confidence < (1 - baseThresh - 0.1) && state.holdings[stock.sym]) {
-                trade(stock.sym, 'sell', true);
-            }
-        } else {
-            if ((confidence > baseThresh + 0.1) && state.cash > (stock.price + 200)) {
-                if(state.tradeMode === 'options') trade(stock.sym, 'put', true);
-                else trade(stock.sym, 'buy', true);
-            }
-            if (confidence < (1 - baseThresh + 0.1) && state.holdings[stock.sym]) {
-                trade(stock.sym, 'sell', true);
+            if (plPct <= -slPct) {
+                trade(sym, h.qty > 0 ? 'sell' : 'buy', true);
+                if(!silent) log(`🛡️ Stop Loss: ${sym} (${(plPct*100).toFixed(1)}%)`, "log-risk");
+            } else if (plPct >= tpPct) {
+                trade(sym, h.qty > 0 ? 'sell' : 'buy', true);
+                if(!silent) log(`💰 Take Profit: ${sym} (+${(plPct*100).toFixed(1)}%)`, "log-opt");
             }
         }
     }
 
-    function updateAiThreshold(val) {
-        state.aiThreshold = val / 100;
-        document.getElementById('aiThreshDisplay').innerText = val + "%";
-    }
+    function runAdaptiveAI(stock, confidence, silent) {
+        let isBull = false;
+        if (state.strategyMode === 'auto') isBull = state.marketSentiment > 0;
+        else isBull = (state.strategyMode === 'bull');
+        const th = state.aiThreshold;
 
-    function exportBrain() {
-        const data = JSON.stringify(brain.toJSON(), null, 2);
-        const blob = new Blob([data], {type: 'application/json'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'tiu_brain_training_data.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        log("🧠 Training Data Exported!", "log-sys");
-    }
-
-    function importBrain(input) {
-        const file = input.files[0];
-        if (!file) return;
+        if (isBull && confidence > th && state.cash > stock.price) {
+            if(state.aiTradeOptions) trade(stock.sym, 'call', true);
+            else trade(stock.sym, 'buy', true);
+        }
+        if (!isBull && confidence > (th + 0.1) && state.cash > stock.price) {
+            if(state.aiTradeOptions) trade(stock.sym, 'put', true);
+            else trade(stock.sym, 'sell', true); 
+        }
         
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = JSON.parse(e.target.result);
-                brain.merge(data);
-                log("🧠 Brain Data Imported & Merged!", "log-sys");
-                updateStats();
-            } catch(err) {
-                log("❌ Import Failed: Invalid File", "log-err");
-            }
-        };
-        reader.readAsText(file);
-        // Reset input
-        input.value = '';
-    }
-
-    function processOptions() {
-        for (let i = state.options.length - 1; i >= 0; i--) {
-            const opt = state.options[i];
-            opt.ticksLeft--;
-            if (opt.ticksLeft <= 0) {
-                const stock = STOCKS.find(s => s.sym === opt.sym);
-                let profit = 0;
-                if (opt.type === 'call' && stock.price > opt.strike) profit = (stock.price - opt.strike) * 10;
-                if (opt.type === 'put' && stock.price < opt.strike) profit = (opt.strike - stock.price) * 10;
-
-                state.cash += profit;
-                const net = profit - opt.cost;
-                state.stats.totalTrades++;
-                if(net > 0) { state.stats.wins++; state.stats.grossProfit += net; }
-                else { state.stats.losses++; state.stats.grossLoss += Math.abs(net); }
-                
-                state.options.splice(i, 1);
-                log(`⌛ ${opt.sym} Expired. Net: $${net.toFixed(2)}`, "log-opt");
-            }
+        if (state.holdings[stock.sym]) {
+            const h = state.holdings[stock.sym];
+            if (h.qty > 0 && confidence < 0.2) trade(stock.sym, 'sell', true); 
+            if (h.qty < 0 && confidence > 0.8) trade(stock.sym, 'buy', true); 
         }
     }
 
     function trade(sym, action, isAuto = false) {
         const stock = STOCKS.find(s => s.sym === sym);
-        const prefix = isAuto ? "🤖 AI" : "👤";
+        if(!stock) return;
+        const prefix = isAuto ? "🤖" : "👤";
         const logClass = isAuto ? "log-ml" : "log-item";
+        const fee = CONFIG.fee;
 
-        if (action === 'buy' || action === 'sell') {
-            const fee = CONFIG.fee;
-            if (action === 'buy') {
+        if (action === 'buy') {
+            if (state.holdings[sym] && state.holdings[sym].qty < 0) {
+                const h = state.holdings[sym];
+                const cost = stock.price + fee;
+                if (state.cash < cost) return; 
+                state.cash -= cost;
+                const profit = (h.avg - stock.price) - fee;
+                h.qty++; 
+                if (h.qty === 0) delete state.holdings[sym];
+                recordTradeStats(profit);
+                if(!state.aiActive && !isAuto) log(`${prefix} Covered 1 ${sym}. P/L: $${profit.toFixed(2)}`, profit>0?"price-up":"price-down");
+            } else {
                 const total = stock.price + fee;
-                if (state.cash < total) { return; }
+                if (state.cash < total) return;
                 state.cash -= total;
                 if (!state.holdings[sym]) state.holdings[sym] = { qty: 0, avg: 0 };
                 const h = state.holdings[sym];
                 h.avg = ((h.qty * h.avg) + stock.price) / (h.qty + 1);
                 h.qty++;
                 addChartMarker(globalTick, stock.price, 'buy');
-                log(`${prefix} Bought 1 ${sym}`, logClass);
-            } else {
-                if (!state.holdings[sym] || state.holdings[sym].qty <= 0) return;
+                if(!state.aiActive && !isAuto) log(`${prefix} Bought 1 ${sym}`, logClass);
+            }
+        } 
+        else if (action === 'sell') {
+            if (state.holdings[sym] && state.holdings[sym].qty > 0) {
                 const revenue = stock.price - fee;
                 state.cash += revenue;
                 const h = state.holdings[sym];
@@ -675,210 +596,72 @@
                 if(h.qty === 0) delete state.holdings[sym];
                 recordTradeStats(profit);
                 addChartMarker(globalTick, stock.price, 'sell');
-                log(`${prefix} Sold 1 ${sym}. P/L: $${profit.toFixed(2)}`, logClass);
+                if(!state.aiActive && !isAuto) log(`${prefix} Sold 1 ${sym}. P/L: $${profit.toFixed(2)}`, profit>0?"price-up":"price-down");
+            }
+            else {
+                const total = (stock.price * 0.5) + fee; 
+                if (state.cash < total) { if(!isAuto) log("❌ Need Margin to Short"); return; }
+                state.cash -= fee; 
+                if (!state.holdings[sym]) state.holdings[sym] = { qty: 0, avg: 0 };
+                const h = state.holdings[sym];
+                const curShortQty = Math.abs(h.qty);
+                h.avg = ((curShortQty * h.avg) + stock.price) / (curShortQty + 1);
+                h.qty--; 
+                addChartMarker(globalTick, stock.price, 'sell');
+                if(!state.aiActive && !isAuto) log(`${prefix} Shorted 1 ${sym}`, "log-opt");
             }
         }
         if (action === 'call' || action === 'put') {
             const cost = CONFIG.optionCost;
-            if (state.cash < cost) { return; }
+            if (state.cash < cost) return;
             state.cash -= cost;
-            state.options.push({
-                id: Date.now() + Math.random(),
-                sym: sym, type: action, strike: stock.price, cost: cost, ticksLeft: CONFIG.optionDuration
-            });
-            log(`${prefix} ${action.toUpperCase()} ${sym}`, "log-opt");
+            state.options.push({ id: Date.now()+Math.random(), sym: sym, type: action, strike: stock.price, cost: cost, ticksLeft: CONFIG.optionDuration });
+            if(!state.aiActive && !isAuto) log(`${prefix} ${action.toUpperCase()} ${sym}`, "log-opt");
         }
         updateUI();
-        updateStats();
     }
 
-    function recordTradeStats(profit) {
-        state.stats.totalTrades++;
-        if (profit > 0) { state.stats.wins++; state.stats.grossProfit += profit; }
-        else { state.stats.losses++; state.stats.grossLoss += Math.abs(profit); }
-    }
-
-    function addChartMarker(x, y, type) {
-        tradeMarkers.push({ x: x, y: y, type: type });
-        if(tradeMarkers.length > 50) tradeMarkers.shift();
-    }
-
-    function setMode(mode) {
-        state.tradeMode = mode;
-        document.getElementById('mode-stocks').className = `mode-opt ${mode==='stocks'?'active':''}`;
-        document.getElementById('mode-options').className = `mode-opt ${mode==='options'?'active':''}`;
-        buildMarketTable(); 
-    }
-
-    function buildMarketTable() {
-        const tbody = document.getElementById('marketBody');
-        tbody.innerHTML = '';
-        STOCKS.forEach(s => {
-            const tr = document.createElement('tr');
-            tr.id = `row-${s.sym}`;
-            let buttons = state.tradeMode === 'stocks' 
-                ? `<button class="btn btn-buy" id="btn-buy-${s.sym}" onclick="trade('${s.sym}', 'buy')">Buy</button> <button class="btn btn-sell" onclick="trade('${s.sym}', 'sell')">Sell</button>`
-                : `<button class="btn btn-call" onclick="trade('${s.sym}', 'call')">Call</button> <button class="btn btn-put" onclick="trade('${s.sym}', 'put')">Put</button>`;
-            
-            tr.innerHTML = `
-                <td style="font-weight:bold">${s.sym}</td>
-                <td id="price-${s.sym}">...</td>
-                <td id="sma-${s.sym}" style="color:var(--text-dim); font-size:0.8rem">...</td>
-                <td id="trend-${s.sym}">-</td>
-                <td>${buttons}</td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
-
-    function updateMarketTableValues() {
-        STOCKS.forEach(s => {
-            const priceEl = document.getElementById(`price-${s.sym}`);
-            if(priceEl) {
-                priceEl.innerText = `$${s.price.toFixed(2)}`;
-                priceEl.className = s.trend === "▲" ? "price-up" : "price-down";
-                
-                const lastSma = s.sma.length > 0 ? s.sma[s.sma.length-1].y : 0;
-                document.getElementById(`sma-${s.sym}`).innerText = lastSma.toFixed(2);
-                
-                document.getElementById(`trend-${s.sym}`).innerText = s.trend;
-                const buyBtn = document.getElementById(`btn-buy-${s.sym}`);
-                if(buyBtn) buyBtn.disabled = (state.cash < (s.price + CONFIG.fee));
-            }
-        });
-    }
-
-    function updateUI() {
-        document.getElementById('cashDisplay').innerText = `$${state.cash.toFixed(2)}`;
-        const tbody = document.getElementById('holdingsBody');
-        tbody.innerHTML = "";
-        let stockVal = 0;
-        Object.keys(state.holdings).forEach(sym => {
-            const h = state.holdings[sym];
-            const stock = STOCKS.find(s => s.sym === sym);
-            stockVal += h.qty * stock.price;
-            const totalPL = (stock.price - h.avg) * h.qty;
-            const color = totalPL >= 0 ? "var(--green)" : "var(--red)";
-            tbody.innerHTML += `<tr><td>${sym}</td><td>${h.qty}</td><td style="color:${color}">$${totalPL.toFixed(2)}</td></tr>`;
-        });
-        state.options.forEach(opt => {
-            const stock = STOCKS.find(s => s.sym === opt.sym);
-            let p = 0;
-            if (opt.type === 'call') p = Math.max(0, (stock.price - opt.strike) * 10);
-            if (opt.type === 'put') p = Math.max(0, (opt.strike - stock.price) * 10);
-            tbody.innerHTML += `<tr><td>${opt.sym} ${opt.type.toUpperCase()}</td><td>${opt.ticksLeft}s</td><td>$${p.toFixed(2)}</td></tr>`;
-        });
-        document.getElementById('netWorthDisplay').innerText = `$${(state.cash + stockVal).toFixed(2)}`;
-        document.getElementById('activeOptCount').innerText = state.options.length;
-    }
-
-    function updateStats() {
-        const s = state.stats;
-        const winRate = s.totalTrades > 0 ? (s.wins / s.totalTrades * 100) : 0;
-        const profitFactor = s.grossLoss > 0 ? (s.grossProfit / s.grossLoss) : s.grossProfit;
-        document.getElementById('statWinRate').innerText = winRate.toFixed(1) + "%";
-        document.getElementById('statWinRate').style.color = winRate >= 50 ? "var(--green)" : "var(--red)";
-        document.getElementById('statPF').innerText = profitFactor.toFixed(2);
-        document.getElementById('mlAccuracy').innerText = brain.getAccuracy() + "%";
-    }
-
-    function log(msg, cls="") {
-        const div = document.getElementById('logs');
-        const entry = document.createElement('div');
-        entry.className = `log-item ${cls}`;
-        entry.innerText = `[${new Date().toLocaleTimeString().split(' ')[0]}] ${msg}`;
-        div.prepend(entry);
-    }
-
-    function setTab(name) {
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.getElementById(`view-${name}`).classList.add('active');
-        event.target.classList.add('active');
-    }
-
-    function resetGame() {
-        if(confirm("Reset?")) { localStorage.removeItem('tiu_fix_v15'); location.reload(); }
-    }
-
-    function toggleAI() { 
-        state.aiActive = !state.aiActive; 
-        const btn = document.getElementById('aiBtn');
-        btn.innerText = state.aiActive ? "ML: Active" : "Start ML Agent";
-        btn.style.background = state.aiActive ? "#10b981" : "#8b5cf6";
-    }
-
-    function setChartRange(range) {
-        state.chartRange = range;
-        document.querySelectorAll('.btn-range').forEach(b => b.classList.remove('active'));
-        document.getElementById(`range-${range}`).classList.add('active');
-        if(chartObj) updateChart();
+    // --- Charting ---
+    function toggleChartType() {
+        state.chartType = document.getElementById('chartTypeToggle').checked ? 'candle' : 'line';
+        buildChart(); updateChart();
     }
 
     function buildChart() {
         const ctx = document.getElementById('mainChart').getContext('2d');
         const controls = document.getElementById('chartControls');
         controls.innerHTML = '';
-        
+        if(chartObj) chartObj.destroy();
+
         const datasets = [];
-        
         STOCKS.forEach((s, i) => {
             const color = COLORS[i % COLORS.length];
-            datasets.push({
-                label: s.sym,
-                borderColor: color,
-                backgroundColor: color,
-                data: s.data,
-                tension: 0.1,
-                pointRadius: 0,
-                borderWidth: 2,
-                order: 3
-            });
-            datasets.push({
-                label: `${s.sym} SMA`,
-                borderColor: color,
-                data: s.sma,
-                borderDash: [5, 5],
-                borderWidth: 1,
-                pointRadius: 0,
-                hidden: true,
-                order: 2
-            });
+            if (state.chartType === 'line') {
+                datasets.push({ label: s.sym, borderColor: color, backgroundColor: color, data: s.data, tension: 0.1, pointRadius: 0, borderWidth: 2, order: 3 });
+            } else {
+                const candleData = s.candles.map(c => ({
+                    x: c.x,
+                    y: [Math.min(c.o, c.c), Math.max(c.o, c.c)]
+                }));
+                
+                datasets.push({
+                    type: 'bar', label: s.sym, data: candleData,
+                    backgroundColor: (ctx) => { const idx = ctx.dataIndex; if(!s.candles[idx]) return color; return s.candles[idx].c >= s.candles[idx].o ? '#10b981' : '#ef4444'; },
+                    borderColor: (ctx) => { const idx = ctx.dataIndex; if(!s.candles[idx]) return color; return s.candles[idx].c >= s.candles[idx].o ? '#10b981' : '#ef4444'; },
+                    borderWidth: 1, barPercentage: 0.8, order: 3
+                });
+            }
+            datasets.push({ label: `${s.sym} SMA`, borderColor: color, data: s.sma, borderDash: [5, 5], borderWidth: 1, pointRadius: 0, hidden: true, type: 'line', order: 2 });
         });
-
-        datasets.push({
-            label: 'Trades',
-            data: tradeMarkers,
-            type: 'scatter',
-            backgroundColor: (ctx) => ctx.raw?.type === 'buy' ? '#10b981' : '#ef4444',
-            pointStyle: 'triangle',
-            rotation: (ctx) => ctx.raw?.type === 'buy' ? 0 : 180,
-            pointRadius: 8,
-            order: 1
-        });
-
-        datasets.push({
-            label: 'AI Predict',
-            data: predictionPoints,
-            type: 'scatter',
-            backgroundColor: '#c084fc',
-            pointStyle: 'circle',
-            pointRadius: 4,
-            order: 0 
-        });
+        datasets.push({ label: 'Trades', data: tradeMarkers, type: 'scatter', backgroundColor: (c)=>c.raw?.type==='buy'?'#10b981':'#ef4444', pointStyle: 'triangle', rotation: (c)=>c.raw?.type==='buy'?0:180, pointRadius: 6, order: 1 });
+        datasets.push({ label: 'AI', data: predictionPoints, type: 'scatter', backgroundColor: '#c084fc', pointStyle: 'circle', pointRadius: 3, order: 0 });
 
         chartObj = new Chart(ctx, {
-            type: 'line',
+            type: state.chartType === 'candle' ? 'bar' : 'line',
             data: { datasets: datasets },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                interaction: { mode: 'nearest', axis: 'x', intersect: false },
-                scales: { 
-                    x: { type: 'linear', display: false, min: -CONFIG.initialHistorySteps }, 
-                    y: { grid: { color: '#33415550' }, ticks: { color: '#94a3b8' } } 
-                },
+                responsive: true, maintainAspectRatio: false, animation: false,
+                scales: { x: { type: 'linear', display: false, min: -CONFIG.initialHistorySteps }, y: { grid: { color: '#33415550' }, ticks: { color: '#94a3b8' } } },
                 plugins: { legend: { display: false } }
             }
         });
@@ -888,33 +671,130 @@
             label.className = "chart-toggle";
             label.innerHTML = `<input type="checkbox" checked onchange="toggleDataset(${i*2})"><span style="color:${COLORS[i]}">${s.sym}</span>`;
             controls.appendChild(label);
-            
-            const smaLabel = document.createElement('label');
-            smaLabel.className = "chart-toggle";
-            smaLabel.style.opacity = "0.7";
-            smaLabel.innerHTML = `<input type="checkbox" onchange="toggleDataset(${i*2+1})"><span style="color:${COLORS[i]}">SMA</span>`;
-            controls.appendChild(smaLabel);
         });
     }
 
-    function toggleDataset(index) {
-        const isVisible = chartObj.isDatasetVisible(index);
-        isVisible ? chartObj.hide(index) : chartObj.show(index);
-    }
-    
-    function toggleAllCharts(show) {
-        for(let i=0; i<STOCKS.length; i++) {
-            show ? chartObj.show(i*2) : chartObj.hide(i*2);
+    function recordTradeStats(p) { state.stats.totalTrades++; if(p>0){state.stats.wins++;state.stats.grossProfit+=p}else{state.stats.losses++;state.stats.grossLoss+=Math.abs(p)} }
+    function processOptions(silent) {
+        for(let i=state.options.length-1; i>=0; i--) {
+            const o = state.options[i]; o.ticksLeft--;
+            if(o.ticksLeft<=0) {
+                const s = STOCKS.find(x=>x.sym===o.sym);
+                let p = 0;
+                if(o.type==='call' && s.price>o.strike) p=(s.price-o.strike)*10;
+                if(o.type==='put' && s.price<o.strike) p=(o.strike-s.price)*10;
+                state.cash+=p; recordTradeStats(p-o.cost); state.options.splice(i,1);
+                if(!silent) log(`⌛ ${o.sym} Expired. Net: $${(p-o.cost).toFixed(2)}`, "log-opt");
+            }
         }
     }
-
+    function updateMarketTableValues() {
+        STOCKS.forEach(s => {
+            const el = document.getElementById(`price-${s.sym}`);
+            const elTrend = document.getElementById(`trend-${s.sym}`);
+            if(el) {
+                el.innerText = `$${s.price.toFixed(2)}`; el.className = s.trend === "▲" ? "price-up" : "price-down";
+                if(elTrend) { elTrend.innerText = s.trend; elTrend.className = s.trend === "▲" ? "price-up" : "price-down"; }
+                
+                const h = state.holdings[s.sym];
+                const btnBuy = document.getElementById(`btn-buy-${s.sym}`);
+                const btnSell = document.getElementById(`btn-sell-${s.sym}`);
+                
+                if(btnBuy && btnSell) {
+                    if (h && h.qty < 0) { btnBuy.innerText = "Cover"; btnBuy.className = "btn btn-cover"; btnSell.innerText = "Short"; btnSell.className = "btn btn-short"; }
+                    else if (h && h.qty > 0) { btnBuy.innerText = "Buy"; btnBuy.className = "btn btn-buy"; btnSell.innerText = "Sell"; btnSell.className = "btn btn-sell"; }
+                    else { btnBuy.innerText = "Buy"; btnBuy.className = "btn btn-buy"; btnSell.innerText = "Short"; btnSell.className = "btn btn-short"; }
+                }
+            }
+        });
+    }
+    function updateUI() {
+        if(document.getElementById('cashDisplay')) document.getElementById('cashDisplay').innerText = `$${state.cash.toFixed(2)}`;
+        const tbody = document.getElementById('holdingsBody'); tbody.innerHTML = "";
+        let val = 0;
+        for(let sym in state.holdings) {
+            const h = state.holdings[sym]; const s = STOCKS.find(x=>x.sym===sym); if(!s) continue;
+            let pl = 0; let color = "";
+            if (h.qty > 0) { val += h.qty * s.price; pl = (s.price - h.avg) * h.qty; } 
+            else { val += Math.abs(h.qty) * (2*h.avg - s.price); pl = (h.avg - s.price) * Math.abs(h.qty); } 
+            color = pl >= 0 ? "var(--green)" : "var(--red)";
+            tbody.innerHTML += `<tr><td>${sym}</td><td>${h.qty}</td><td style="color:${color}">$${pl.toFixed(2)}</td></tr>`;
+        }
+        state.options.forEach(o => {
+            const s = STOCKS.find(x=>x.sym===o.sym);
+            let p = 0; if(o.type==='call') p=Math.max(0,s.price-o.strike)*10; if(o.type==='put') p=Math.max(0,o.strike-s.price)*10;
+            tbody.innerHTML += `<tr><td>${o.sym} ${o.type.toUpperCase()}</td><td>${o.ticksLeft}s</td><td>$${p.toFixed(2)}</td></tr>`;
+        });
+        if(document.getElementById('netWorthDisplay')) document.getElementById('netWorthDisplay').innerText = `$${(state.cash + val).toFixed(2)}`;
+        if(document.getElementById('statWinRate')) document.getElementById('statWinRate').innerText = state.stats.totalTrades>0?((state.stats.wins/state.stats.totalTrades)*100).toFixed(1)+"%":"0%";
+        
+        // Safety check for ID existance
+        const elPF = document.getElementById('statPF');
+        if(elPF) elPF.innerText = state.stats.grossLoss>0?(state.stats.grossProfit/state.stats.grossLoss).toFixed(2):state.stats.grossProfit.toFixed(2);
+        
+        if(document.getElementById('mlAccuracy')) document.getElementById('mlAccuracy').innerText = brain.getAccuracy()+"%";
+    }
+    function updateSentimentDisplay() {
+        const el = document.getElementById('marketSentiment');
+        let text = "⚖️ NEUTRAL"; let cls = "sent-neutral";
+        if (state.marketSentiment > 0.1) { text = `🐂 BULLISH (+${(state.marketSentiment*10).toFixed(1)}%)`; cls = "sent-bull"; }
+        else if (state.marketSentiment < -0.1) { text = `🐻 BEARISH (${(state.marketSentiment*10).toFixed(1)}%)`; cls = "sent-bear"; }
+        el.className = `sentiment-badge ${cls}`; el.innerText = text;
+    }
     function updateChart() {
         if (!chartObj) return;
         let minX = state.chartRange > 0 ? Math.max(-CONFIG.initialHistorySteps, globalTick - state.chartRange) : Math.max(-CONFIG.initialHistorySteps, globalTick - 300);
-        chartObj.options.scales.x.min = minX;
-        chartObj.options.scales.x.max = globalTick + 5;
+        chartObj.options.scales.x.min = minX; chartObj.options.scales.x.max = globalTick + 5;
+        if(state.chartType === 'candle') {
+             chartObj.data.datasets.forEach((ds, i) => {
+                 if(ds.type === 'bar') {
+                     const s = STOCKS[Math.floor(i/2)]; 
+                     if(s) {
+                        ds.backgroundColor = s.candles.map(c => c.c >= c.o ? '#10b981' : '#ef4444');
+                        ds.borderColor = ds.backgroundColor;
+                        ds.data = s.candles.map(c => ({x: c.x, y: [Math.min(c.o, c.c), Math.max(c.o, c.c)]}));
+                     }
+                 }
+             });
+        }
         chartObj.data.datasets[chartObj.data.datasets.length-1].data = predictionPoints; 
         chartObj.update('none');
+    }
+    function addChartMarker(x, y, type) { tradeMarkers.push({x: x, y: y, type: type}); }
+    
+    // Helpers
+    function setMode(m) { state.tradeMode = m; document.getElementById('mode-stocks').className=`mode-opt ${m==='stocks'?'active':''}`; document.getElementById('mode-options').className=`mode-opt ${m==='options'?'active':''}`; buildMarketTable(); }
+    function log(msg, cls="") { const d=document.getElementById('logs'); const e=document.createElement('div'); e.className=`log-item ${cls}`; e.innerText=`[${new Date().toLocaleTimeString().split(' ')[0]}] ${msg}`; d.prepend(e); }
+    function setTab(name) { document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.getElementById(`view-${name}`).classList.add('active'); event.target.classList.add('active'); }
+    function resetGame() { if(confirm("Reset?")) { localStorage.removeItem('tiu_v21'); location.reload(); } }
+    function toggleAI() { state.aiActive = !state.aiActive; document.getElementById('aiBtn').innerText = state.aiActive ? "ML: Active" : "Start ML"; document.getElementById('aiBtn').style.background = state.aiActive ? "#10b981" : "#8b5cf6"; }
+    function toggleAiOptions() { state.aiTradeOptions = document.getElementById('aiOptToggle').checked; }
+    function setChartRange(r) { state.chartRange = r; document.querySelectorAll('.btn-range').forEach(b=>b.classList.remove('active')); document.getElementById(`range-${r}`).classList.add('active'); if(chartObj) updateChart(); }
+    function updateStrategy() { state.strategyMode = document.getElementById('strategySelect').value; log(`🔄 Strategy: ${state.strategyMode.toUpperCase()}`, "log-sys"); }
+    function toggleDataset(i) { if(chartObj.isDatasetVisible(i)) chartObj.hide(i); else chartObj.show(i); }
+    function toggleAllCharts(show) { for(let i=0; i<STOCKS.length; i++) { show ? chartObj.show(i*2) : chartObj.hide(i*2); } }
+    
+    // Export/Import Brain
+    function exportBrain() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(brain.toJSON()));
+        const downNode = document.createElement('a');
+        downNode.setAttribute("href", dataStr);
+        downNode.setAttribute("download", "tiu_brain.json");
+        document.body.appendChild(downNode); downNode.click(); downNode.remove();
+    }
+    function importBrain(input) {
+        const file = input.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                brain.merge(data);
+                log("🧠 Brain Imported & Merged", "log-ml");
+                updateUI();
+            } catch(err) { log("❌ Import Failed", "log-risk"); }
+        };
+        reader.readAsText(file);
     }
 
     init();
