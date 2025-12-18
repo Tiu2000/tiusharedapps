@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TIU Trader Pro (v26 Scientific)</title>
+    <title>TIU Trader Pro (v28 Aggressive Learning)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -19,20 +19,17 @@
             position: fixed; bottom: 10px; right: 15px; font-size: 3rem; opacity: 0.05;
             pointer-events: none; font-weight: 900; z-index: 0;
         }
-        /* Layout */
         .top-bar { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; z-index: 10; }
         .main-content { flex: 1; min-height: 0; display: grid; grid-template-columns: 2fr 1fr; gap: 15px; position: relative; z-index: 1; }
         .col { display: flex; flex-direction: column; gap: 15px; height: 100%; overflow: hidden; }
-        
-        /* Panels */
         .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; position: relative; }
         .panel-head { font-weight: 600; color: var(--text-dim); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
         .scroll-wrap { overflow-y: auto; flex: 1; min-height: 0; }
+        
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         th { text-align: left; color: var(--text-dim); position: sticky; top: 0; background: var(--panel); padding: 5px; z-index: 10;}
-        td { padding: 6px 5px; border-bottom: 1px solid #33415540; }
+        td { padding: 6px 5px; border-bottom: 1px solid #33415540; font-family: 'Consolas', monospace; }
         
-        /* Controls & Buttons */
         .btn { border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; color: white; font-weight: 600; font-size: 0.75rem; transition: all 0.1s; }
         .btn:active { transform: scale(0.95); }
         .btn-green { background: var(--green); color: #064e3b; }
@@ -41,12 +38,10 @@
         .btn-reset { background: var(--border); }
 
         .control-group {
-            display:flex; flex-direction:column; align-items:end; min-width:160px; 
+            display:flex; flex-direction:column; align-items:end; min-width:180px; 
             background:#1e293b; padding:8px; border-radius:6px; border:1px solid var(--border);
         }
         
-        /* UI Elements */
-        .price-up { color: var(--green); } .price-down { color: var(--red); }
         .log-item { font-size: 0.8rem; margin-bottom: 2px; padding-bottom: 2px; border-bottom: 1px solid #ffffff10; }
         .log-ml { border-left: 3px solid var(--purple); padding-left: 6px; color: #e9d5ff; background: #581c8720; }
         .log-opt { border-left: 3px solid var(--cyan); padding-left: 6px; color: #cffafe; background: #083344; }
@@ -65,9 +60,9 @@
 
 <div class="top-bar">
     <div>
-        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v26 Scientific</span></h1>
+        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v28 Auto-Learn</span></h1>
         <div style="font-size:0.8rem; color:var(--text-dim); margin-top:2px;">
-            Model: <span style="color:var(--green)">Geometric Brownian Motion (GBM)</span>
+            Logic: <span style="color:var(--green)">Forced Exploration + Normalized Inputs</span>
         </div>
     </div>
     
@@ -75,15 +70,11 @@
         <button class="btn btn-green" onclick="addFunds()">+ $5k Funds</button>
         
         <div class="control-group">
-            <div style="font-size:0.7rem; color:var(--text-dim); display:flex; justify-content:space-between; width:100%; margin-bottom:4px;">
-                <label style="cursor:pointer;"><input type="checkbox" id="aiOptToggle" checked> Auto-Opt</label>
-                <span id="volDisplay" style="color:var(--cyan)">GBM</span>
-            </div>
             <div style="font-size:0.7rem; color:var(--text-dim); display:flex; justify-content:space-between; width:100%;">
-                <span>Min Conf:</span>
-                <span id="confValueDisplay" style="color:var(--yellow); font-weight:bold;">70%</span>
+                <span>Min Confidence:</span>
+                <span id="confValueDisplay" style="color:var(--yellow); font-weight:bold;">60%</span>
             </div>
-            <input type="range" id="aiConfidenceSlider" min="55" max="95" value="70" step="5" style="width:100%; cursor:pointer;" 
+            <input type="range" id="aiConfidenceSlider" min="51" max="95" value="60" step="1" style="width:100%; cursor:pointer; margin: 5px 0;" 
                    oninput="document.getElementById('confValueDisplay').innerText = this.value + '%'">
         </div>
 
@@ -100,12 +91,12 @@
         </div>
         <div class="panel" style="flex: 1;">
             <div class="panel-head">
-                <span>Live Market (GBM Model)</span>
-                <span style="font-size:0.7rem; color:var(--cyan)">Option Cost: $150 | Exp: 45t</span>
+                <span>Live Market Analysis</span>
+                <span style="font-size:0.7rem; color:var(--cyan)">Cost: $150 | Exp: 45t</span>
             </div>
             <div class="scroll-wrap">
                 <table id="marketTable">
-                    <thead><tr><th>Sym</th> <th>Price</th> <th>Vol(σ)</th> <th>Trend</th> <th>AI Conf</th> <th>Act</th></tr></thead>
+                    <thead><tr><th>Sym</th> <th>Price</th> <th>Vol</th> <th>AI (Trend|Opt)</th> <th>Action</th></tr></thead>
                     <tbody id="marketBody"></tbody>
                 </table>
             </div>
@@ -132,7 +123,7 @@
         </div>
 
         <div class="panel">
-            <div class="panel-head">Deep Learning Models</div>
+            <div class="panel-head">Neural Networks</div>
             <div style="margin-bottom:8px;">
                 <div style="display:flex; justify-content:space-between; font-size:0.75rem;">
                     <span>Trend Brain (Direction)</span>
@@ -142,7 +133,7 @@
             </div>
             <div>
                 <div style="display:flex; justify-content:space-between; font-size:0.75rem;">
-                    <span>Option Brain (Vol/Profit)</span>
+                    <span>Option Brain (Profitability)</span>
                     <span id="optAcc">Acc: 0%</span>
                 </div>
                 <div class="ai-indicator"><div class="ai-bar" id="optBar" style="width:0%; background:var(--cyan)"></div></div>
@@ -172,13 +163,10 @@
         optionCost: 150,
         optionDuration: 45,
         historySize: 50,
-        baseDrift: 0.0002 // Small upward drift typical of equities
+        baseDrift: 0.0002,
+        explorationRate: 0.15 // 15% chance to force a trade initially
     };
 
-    // --- MATH UTILS (RESEARCH BASED) ---
-    
-    // Box-Muller Transform for Normal Distribution (Bell Curve)
-    // Most financial models assume returns are normally distributed (roughly).
     function randn_bm() {
         let u = 0, v = 0;
         while(u === 0) u = Math.random();
@@ -238,50 +226,36 @@
             ...d,
             price: d.p,
             history: Array(50).fill(d.p),
-            currentVol: d.baseVol, // Dynamic volatility
+            currentVol: d.baseVol,
             trend: 0
         }));
         buildChart();
         updateUI();
         setInterval(tick, CONFIG.updateSpeed);
-        log("Market Model: Geometric Brownian Motion Loaded", "log-sys");
+        log("System Online. Learning Mode Enabled.", "log-sys");
     }
 
     function tick() {
         if(state.aiActive && state.cash < CONFIG.optionCost) {
             state.aiActive = false;
             updateUI();
-            log("🛑 INSUFFICIENT FUNDS. Please Add Funds.", "log-sys");
-            alert("Insufficient Funds! Simulation Paused.");
+            log("🛑 INSUFFICIENT FUNDS.", "log-sys");
+            alert("Insufficient Funds! Add cash to continue.");
             return;
         }
 
         state.tick++;
 
         STOCKS.forEach(s => {
-            // --- SCIENTIFIC MODEL: GEOMETRIC BROWNIAN MOTION (GBM) ---
-            // Price(t) = Price(t-1) * e^( (drift - 0.5*vol^2)dt + vol*dW )
-            // Simplified for discrete steps: P_new = P_old * (1 + drift + vol * NormalRandom)
-            
-            // Volatility Clustering Logic (GARCH-lite):
-            // Volatility decays back to base, but spikes on shocks.
             s.currentVol = (s.currentVol * 0.95) + (s.baseVol * 0.05); 
-            
-            // The Random Walk
-            const drift = CONFIG.baseDrift; // Slight positive drift
-            const shock = randn_bm(); // Normal Distribution (Bell Curve)
+            const drift = CONFIG.baseDrift; 
+            const shock = randn_bm();
             const changePct = drift + (s.currentVol * shock);
-            
             s.price = s.price * (1 + changePct);
-            
-            // If big shock, spike volatility for next ticks (Clustering)
-            if(Math.abs(shock) > 2.0) {
-                s.currentVol *= 1.5; 
-            }
+            if(Math.abs(shock) > 2.0) s.currentVol *= 1.5; 
 
             s.history.push(s.price);
             if(s.history.length > CONFIG.historySize) s.history.shift();
-
             s.trend = s.price - s.history[s.history.length - 5];
         });
 
@@ -307,48 +281,81 @@
                 
                 if (profit > 0) state.wins++; else state.losses++;
 
-                // Train OptionBrain on the PAST inputs
                 optionBrain.train(opt.aiInputs, profit > 0 ? 1 : 0);
 
                 const logClass = profit > 0 ? "log-opt" : "log-sys";
-                log(`${opt.sym} Expired. Result: $${profit.toFixed(0)}`, logClass);
+                log(`${opt.sym} Expired. P/L: $${profit.toFixed(0)}`, logClass);
                 state.options.splice(i, 1);
             }
         }
     }
 
     function runAI() {
-        const confidenceReq = document.getElementById('aiConfidenceSlider').value / 100;
-        const allowOptions = document.getElementById('aiOptToggle').checked;
+        const sliderVal = document.getElementById('aiConfidenceSlider').value;
+        const confidenceReq = sliderVal / 100;
+        
+        // Volatility Threshold is lowered slightly to encourage trades
+        const volThreshold = Math.max(0.45, confidenceReq - 0.1);
 
         STOCKS.forEach(s => {
-            const d1 = s.history[s.history.length-1] - s.history[s.history.length-2];
-            const d2 = s.history[s.history.length-2] - s.history[s.history.length-3];
+            // --- FIX 1: NORMALIZE INPUTS ---
+            // Neural nets hate large numbers. We scale price changes relative to price (Percentage).
+            // Multiply by 10 to make small % changes visible to the network.
+            const d1 = ((s.history[s.history.length-1] - s.history[s.history.length-2]) / s.price) * 10;
+            const d2 = ((s.history[s.history.length-2] - s.history[s.history.length-3]) / s.price) * 10;
             const trendInputs = [d1, d2];
             
-            // Option inputs: Current Volatility (dynamic) + Trend Magnitude
-            const optInputs = [s.currentVol * 100, Math.abs(s.trend)];
+            // Volatility is already a small decimal (0.02). Multiply by 10 to range 0-1.
+            const trendMag = (Math.abs(s.trend) / s.price) * 10;
+            const optInputs = [s.currentVol * 10, trendMag];
 
             const trendConf = trendBrain.predict(trendInputs);
             const optConf = optionBrain.predict(optInputs);
 
-            // Train Direction
             const priceWentUp = (s.price > s.history[s.history.length-2]) ? 1 : 0;
             trendBrain.train(trendInputs, priceWentUp);
 
-            // Trade Logic
             const isBullish = trendConf > confidenceReq;
             const isBearish = trendConf < (1 - confidenceReq);
-            const isVolatile = optConf > 0.6; // AI thinks volatility is high enough to profit
+            const isVolatile = optConf > volThreshold;
 
-            if (allowOptions && state.cash > CONFIG.optionCost * 1.5) {
+            let action = "-";
+            let debugTag = "";
+
+            if (state.cash > CONFIG.optionCost * 1.5) {
                 const hasOpt = state.options.some(o => o.sym === s.sym);
-                if (!hasOpt && isVolatile) {
-                    if (isBullish) buyOption(s, 'call', optInputs);
-                    else if (isBearish) buyOption(s, 'put', optInputs);
+                
+                if (!hasOpt) {
+                    // --- FIX 2: FORCED EXPLORATION (Epsilon-Greedy) ---
+                    // If Random < 0.15, ignore brain and force a trade to gather data.
+                    const isExploration = Math.random() < CONFIG.explorationRate;
+
+                    if (isExploration) {
+                        // Random Call or Put
+                        const type = Math.random() > 0.5 ? 'call' : 'put';
+                        buyOption(s, type, optInputs);
+                        action = "Force " + type.toUpperCase();
+                        debugTag = "🎲"; // Dice icon for random trade
+                    } 
+                    else if (isVolatile) {
+                        if (isBullish) {
+                            buyOption(s, 'call', optInputs);
+                            action = "Buy CALL";
+                        } else if (isBearish) {
+                            buyOption(s, 'put', optInputs);
+                            action = "Buy PUT";
+                        }
+                    }
                 }
             }
-            s.aiData = { trendConf, optConf };
+            
+            s.aiData = { 
+                trendConf, optConf, 
+                targetT: confidenceReq, 
+                targetO: volThreshold,
+                action: action,
+                debugTag: debugTag
+            };
         });
     }
 
@@ -356,14 +363,15 @@
         if(state.cash < CONFIG.optionCost) return;
         state.cash -= CONFIG.optionCost;
         let strike = stock.price; 
-        if(type === 'call') strike = stock.price * 0.995; // Slightly ITM
+        if(type === 'call') strike = stock.price * 0.995; 
         if(type === 'put') strike = stock.price * 1.005;
 
         state.options.push({
             sym: stock.sym, type: type, strike: strike, cost: CONFIG.optionCost,
             life: CONFIG.optionDuration, aiInputs: inputs
         });
-        log(`🤖 Bought ${type.toUpperCase()} ${stock.sym} (Vol: ${(inputs[0]).toFixed(1)})`, "log-opt");
+        const icon = inputs ? "🤖" : "🎲"; // Robot vs Dice
+        log(`${icon} Bought ${type.toUpperCase()} ${stock.sym}`, "log-opt");
     }
 
     function addFunds() {
@@ -398,20 +406,25 @@
         tbody.innerHTML = '';
         STOCKS.forEach(s => {
             const row = document.createElement('tr');
-            const ai = s.aiData || { trendConf: 0.5, optConf: 0.5 };
-            const trendStr = ai.trendConf > 0.6 ? "<span class='price-up'>Bull</span>" : (ai.trendConf < 0.4 ? "<span class='price-down'>Bear</span>" : "-");
-            const optStr = ai.optConf > 0.6 ? "✅" : "<span style='opacity:0.3'>Wait</span>";
+            const ai = s.aiData || { trendConf: 0.5, optConf: 0.5, targetT: 0.6, targetO: 0.6, action: "-", debugTag: "" };
             
-            // Show Volatility as Percentage
-            const volDisplay = (s.currentVol * 100).toFixed(2) + "%";
+            const tConf = (ai.trendConf*100).toFixed(0);
+            const oConf = (ai.optConf*100).toFixed(0);
+            
+            const tColor = ai.trendConf > ai.targetT || ai.trendConf < (1-ai.targetT) ? 'var(--green)' : 'var(--text-dim)';
+            const oColor = ai.optConf > ai.targetO ? 'var(--cyan)' : 'var(--text-dim)';
             
             row.innerHTML = `
                 <td style="font-weight:bold">${s.sym}</td>
                 <td>${s.price.toFixed(2)}</td>
-                <td style="color:${s.currentVol > s.baseVol*1.5 ? 'var(--orange)':'var(--text-dim)'}">${volDisplay}</td>
-                <td>${trendStr}</td>
-                <td>Dir:${(ai.trendConf*100).toFixed(0)}% Opt:${(ai.optConf*100).toFixed(0)}%</td>
-                <td>${optStr}</td>
+                <td style="color:${s.currentVol > s.baseVol*1.5 ? 'var(--orange)':'var(--text-dim)'}">${(s.currentVol*100).toFixed(1)}%</td>
+                <td>
+                    <span style="color:${tColor}">Trd:${tConf}</span> | 
+                    <span style="color:${oColor}">Opt:${oConf}</span> 
+                </td>
+                <td style="color:${ai.action.includes('Buy')?'var(--green)':'var(--text-dim)'}">
+                    ${ai.debugTag} ${ai.action}
+                </td>
             `;
             tbody.appendChild(row);
         });
