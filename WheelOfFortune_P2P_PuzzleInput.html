@@ -124,12 +124,15 @@
         }
         .team-name-input:focus { outline: none; border-color: #fbbf24; background: #1e293b; }
 
-        /* REMOTE CONTROLLER UI */
+        /* REMOTE CONTROLLER UI - MOBILE OPTIMIZED */
         #remote-interface { display: none; }
+        
         .remote-key {
-            @apply w-10 h-12 bg-slate-700 rounded font-bold text-lg shadow active:bg-amber-500 transition-colors flex items-center justify-center select-none cursor-pointer;
+            /* Changed from fixed width/height to flexible height and font size */
+            @apply w-full h-16 bg-slate-700 rounded-lg font-black text-2xl shadow-md active:bg-amber-500 transition-colors flex items-center justify-center select-none cursor-pointer text-slate-200 border border-slate-600;
         }
-        .remote-key.disabled { opacity: 0.3; pointer-events: none; }
+        .remote-key:active { transform: scale(0.95); }
+        .remote-key.disabled { opacity: 0.2; pointer-events: none; border-color: transparent; }
 
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
@@ -229,7 +232,7 @@
             </div>
         </div>
         
-        <div class="flex-grow flex flex-col justify-start gap-3 py-3 overflow-y-auto">
+        <div class="flex-grow flex flex-col justify-start gap-4 py-4 overflow-y-auto">
             <button id="remoteSpin" class="bg-blue-600 active:bg-blue-500 text-white font-black text-2xl py-6 rounded-xl shadow-lg uppercase tracking-widest transition-transform active:scale-95 touch-manipulation">
                 SPIN WHEEL
             </button>
@@ -239,19 +242,19 @@
                 <button id="remoteSolve" class="bg-green-600 active:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 touch-manipulation">SOLVE</button>
             </div>
             
-            <div class="bg-slate-800 p-2 rounded-xl mt-1 border border-slate-700">
-                <div id="remote-keyboard" class="flex flex-wrap gap-2 justify-center">
+            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700">
+                <div id="remote-keyboard" class="grid grid-cols-5 gap-2">
                     </div>
             </div>
 
-            <button onclick="document.getElementById('remotePuzzleModal').classList.remove('hidden')" class="mt-2 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold py-3 rounded-xl border border-slate-700 border-dashed flex items-center justify-center gap-2 text-sm">
+            <button onclick="document.getElementById('remotePuzzleModal').classList.remove('hidden')" class="mt-2 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold py-4 rounded-xl border border-slate-700 border-dashed flex items-center justify-center gap-2 text-sm">
                 <span>+</span> Create Custom Puzzle
             </button>
             
             <div class="h-12"></div>
         </div>
 
-        <div id="remote-msg" class="bg-slate-800 p-3 rounded text-center text-white font-bold animate-pulse mt-auto fixed bottom-0 left-0 right-0 border-t border-slate-700 z-50">
+        <div id="remote-msg" class="bg-slate-800 p-3 rounded text-center text-white font-bold animate-pulse mt-auto fixed bottom-0 left-0 right-0 border-t border-slate-700 z-50 shadow-2xl">
             Initializing...
         </div>
 
