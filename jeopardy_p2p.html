@@ -14,6 +14,8 @@
         }
 
         body {
+            /* Fallback color for older browsers */
+            background-color: #010a3d; 
             background-color: var(--jeopardy-dark);
             color: white;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -24,7 +26,6 @@
             height: 100vh;
             overflow: hidden;
             user-select: none;
-            /* Prevent bounce on mobile */
             overscroll-behavior: none;
         }
 
@@ -46,6 +47,8 @@
         #connection-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
+            /* Fallback background */
+            background: #010a3d;
             background: var(--jeopardy-dark);
             z-index: 2000;
             display: flex;
@@ -56,7 +59,9 @@
         }
 
         .conn-box {
+            background: #060CE9; /* Fallback */
             background: var(--jeopardy-blue);
+            border: 4px solid #D69F4C; /* Fallback */
             border: 4px solid var(--jeopardy-gold);
             padding: 30px;
             border-radius: 15px;
@@ -79,11 +84,15 @@
             border-radius: 5px;
             transition: 0.2s;
         }
-        .conn-btn:hover { background: var(--jeopardy-gold); }
+        .conn-btn:hover { 
+            background: #D69F4C; 
+            background: var(--jeopardy-gold); 
+        }
 
         #id-display {
             font-family: monospace;
             font-size: 2rem;
+            color: #D69F4C;
             color: var(--jeopardy-gold);
             margin: 20px 0;
             border: 2px dashed #666;
@@ -106,15 +115,17 @@
             top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95);
             z-index: 100;
-            display: none; /* Hidden by default */
+            display: none; 
             justify-content: center;
             align-items: center;
             flex-direction: column;
         }
 
         .config-box {
+            background: #060CE9;
             background: var(--jeopardy-blue);
             padding: 20px;
+            border: 4px solid #D69F4C;
             border: 4px solid var(--jeopardy-gold);
             border-radius: 15px;
             text-align: center;
@@ -133,7 +144,7 @@
             border-radius: 8px;
             background: rgba(0,0,0,0.2);
         }
-        .config-section h3 { margin: 0 0 10px 0; color: var(--jeopardy-gold); }
+        .config-section h3 { margin: 0 0 10px 0; color: #D69F4C; color: var(--jeopardy-gold); }
 
         .mode-switch {
             display: flex; gap: 10px; margin-bottom: 10px;
@@ -143,7 +154,7 @@
             padding: 10px 15px; border: none; background: #333; color: #aaa;
             cursor: pointer; border-radius: 5px; font-weight: bold;
         }
-        .mode-btn.active { background: var(--jeopardy-gold); color: #000; }
+        .mode-btn.active { background: #D69F4C; background: var(--jeopardy-gold); color: #000; }
 
         .input-section { display: none; flex-direction: column; align-items: center; }
         .input-section.active { display: flex; }
@@ -154,7 +165,6 @@
         }
         textarea { height: 100px; background: #000; color: #0f0; font-family: monospace; }
 
-        /* Team Manager inside Config */
         #team-config-list {
             display: flex; flex-direction: column; gap: 5px;
             max-height: 150px; overflow-y: auto;
@@ -174,7 +184,10 @@
         button.start-btn {
             padding: 15px 40px; font-size: 1.5rem; margin-top: 10px;
             border-radius: 50px; border: 3px solid white;
-            background-color: var(--jeopardy-gold); color: var(--jeopardy-dark);
+            background-color: #D69F4C;
+            background-color: var(--jeopardy-gold); 
+            color: #010a3d;
+            color: var(--jeopardy-dark);
             font-weight: bold; cursor: pointer;
         }
 
@@ -194,25 +207,32 @@
         }
 
         .category-header {
+            background-color: #060CE9;
             background-color: var(--jeopardy-blue);
             color: white;
             font-weight: bold;
             text-align: center;
             display: flex; align-items: center; justify-content: center;
             text-transform: uppercase; padding: 5px;
-            border: 2px solid black; text-shadow: var(--text-shadow);
+            border: 2px solid black; text-shadow: 2px 2px 0px #000;
+            /* Fallback size */
+            font-size: 1rem;
             font-size: clamp(0.7rem, 1.1vw, 1.3rem);
             word-wrap: break-word; min-height: 50px;
         }
 
         .clue-card {
+            background-color: #060CE9;
             background-color: var(--jeopardy-blue);
+            color: #D69F4C;
             color: var(--jeopardy-gold);
+            /* Fallback size */
+            font-size: 2rem;
             font-size: clamp(1.5rem, 3vw, 3rem);
             font-weight: bold;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; border: 2px solid black;
-            text-shadow: var(--text-shadow); transition: background 0.2s;
+            text-shadow: 2px 2px 0px #000; transition: background 0.2s;
         }
         .clue-card:hover { background-color: #2b32ff; }
         .clue-card.disabled {
@@ -224,16 +244,19 @@
         #scoreboard {
             background: #000; padding: 15px; display: flex;
             justify-content: center; gap: 15px; z-index: 2;
+            border-top: 3px solid #D69F4C;
             border-top: 3px solid var(--jeopardy-gold);
             overflow-x: auto;
-            
-            /* Safe area for mobile home bars */
             padding-bottom: max(20px, env(safe-area-inset-bottom)); 
         }
 
         .team {
-            text-align: center; background: var(--jeopardy-dark);
-            padding: 8px; border: 2px solid var(--jeopardy-blue);
+            text-align: center; 
+            background: #010a3d;
+            background: var(--jeopardy-dark);
+            padding: 8px; 
+            border: 2px solid #060CE9;
+            border: 2px solid var(--jeopardy-blue);
             border-radius: 8px; 
             flex: 1; 
             min-width: 130px;
@@ -248,19 +271,21 @@
         }
 
         .score-display {
-            font-size: 1.8rem; color: var(--jeopardy-gold); font-family: monospace; font-weight: bold; margin: 5px 0;
+            font-size: 1.8rem; 
+            color: #D69F4C;
+            color: var(--jeopardy-gold); 
+            font-family: monospace; font-weight: bold; margin: 5px 0;
         }
 
-        /* Controls: Hidden on Display, Big on Controller */
         .score-controls { display: none; justify-content: center; gap: 15px; margin-top: 5px; }
         
         .score-controls button {
             background: #333; color: white; 
-            width: 50px; height: 50px; /* Big touch target */
+            width: 50px; height: 50px; 
             font-weight: bold; font-size: 1.5rem;
             cursor: pointer; border: 2px solid #555;
             border-radius: 8px;
-            touch-action: manipulation; /* Improves touch response */
+            touch-action: manipulation; 
         }
         .score-controls button.plus { background: #2e5c31; border-color: #4caf50; }
         .score-controls button.minus { background: #5c2e2e; border-color: #f44336; }
@@ -270,17 +295,24 @@
         /* --- MODAL --- */
         #question-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--jeopardy-blue); z-index: 50;
+            background: #060CE9;
+            background: var(--jeopardy-blue); 
+            z-index: 50;
             display: none; flex-direction: column;
             justify-content: center; align-items: center;
             text-align: center; padding: 30px; box-sizing: border-box;
         }
         #modal-content {
-            font-size: clamp(1.5rem, 4vw, 3.5rem); font-weight: bold; color: white;
-            text-shadow: var(--text-shadow); text-transform: uppercase; line-height: 1.3;
+            font-size: 2.5rem;
+            font-size: clamp(1.5rem, 4vw, 3.5rem); 
+            font-weight: bold; color: white;
+            text-shadow: 2px 2px 0px #000; text-transform: uppercase; line-height: 1.3;
         }
         #modal-answer {
-            font-size: clamp(1.2rem, 3vw, 2.5rem); color: var(--jeopardy-gold);
+            font-size: 2rem;
+            font-size: clamp(1.2rem, 3vw, 2.5rem); 
+            color: #D69F4C;
+            color: var(--jeopardy-gold);
             margin-top: 30px; display: none; font-weight: bold;
             border-top: 2px solid rgba(255,255,255,0.3); padding-top: 20px;
         }
@@ -288,22 +320,23 @@
         
         .modal-btn {
             padding: 20px 40px; font-size: 1.2rem; border: 3px solid white;
-            background: var(--jeopardy-dark); color: white; cursor: pointer;
+            background: #010a3d;
+            background: var(--jeopardy-dark); 
+            color: white; cursor: pointer;
             text-transform: uppercase; font-weight: bold; border-radius: 50px;
             min-width: 200px;
         }
-        .modal-btn.reveal { background: var(--jeopardy-gold); color: black; }
+        .modal-btn.reveal { background: #D69F4C; background: var(--jeopardy-gold); color: black; }
         .modal-btn.close { background: #b00; }
 
         /* --- CONTROLLER SPECIFIC STYLES --- */
         body.is-controller .score-controls { display: flex; }
         body.is-controller .modal-controls { display: flex; }
-        body.is-controller #game-board { opacity: 0.6; pointer-events: auto; } /* Allow clicking board */
+        body.is-controller #game-board { opacity: 0.6; pointer-events: auto; } 
         body.is-controller #question-modal { background: rgba(0,0,0,0.95); }
         body.is-controller #modal-answer { display: block; color: #888; font-size: 1.2rem; } 
-        body.is-controller #modal-answer.revealed { color: var(--jeopardy-gold); font-size: 2rem; }
+        body.is-controller #modal-answer.revealed { color: #D69F4C; font-size: 2rem; }
         
-        /* Controller Scoreboard tweak: ensure it stays visible above fold if possible, or scrollable */
         body.is-controller #scoreboard {
             flex-shrink: 0;
             box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
@@ -314,12 +347,21 @@
             background: #fff; color: #000; padding: 5px 10px;
             font-weight: bold; z-index: 3000; border-radius: 5px; font-size: 0.8rem;
         }
+        
+        /* Debug Error Box */
+        #debug-log {
+            position: fixed; bottom: 0; left: 0; width: 100%; 
+            background: red; color: white; padding: 10px; 
+            font-size: 12px; z-index: 9999; display: none;
+            white-space: pre-wrap; font-family: monospace;
+        }
     </style>
 </head>
 <body>
 
     <div id="tiu-watermark">TIU</div>
     <div id="role-display" class="role-badge" style="display:none;"></div>
+    <div id="debug-log"></div>
 
     <div id="connection-overlay">
         <div class="conn-box" id="step-1">
@@ -396,46 +438,70 @@
     </div>
 
     <script>
+        // GLOBAL ERROR HANDLER FOR PROMETHEAN BOARDS
+        window.onerror = function(msg, url, line) {
+            const d = document.getElementById('debug-log');
+            d.style.display = 'block';
+            d.innerText += "Error: " + msg + " (Line " + line + ")\n";
+            return false;
+        };
+
         // --- AUDIO ENGINE (Web Audio API) ---
         const AudioEngine = {
             ctx: null,
             init: function() {
-                if(!this.ctx) {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                try {
+                    const AudioCtor = window.AudioContext || window.webkitAudioContext;
+                    if(!AudioCtor) {
+                        console.warn("Web Audio API not supported");
+                        return;
+                    }
+                    if(!this.ctx) {
+                        this.ctx = new AudioCtor();
+                    }
+                    if(this.ctx.state === 'suspended') this.ctx.resume();
+                } catch(e) {
+                    console.warn("Audio init failed:", e);
                 }
-                if(this.ctx.state === 'suspended') this.ctx.resume();
             },
             playTone: function(freq, type, duration, vol=0.5) {
                 if(!this.ctx) this.init();
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + duration);
+                if(!this.ctx) return; // Silent fail if still no context
+
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch(e) { console.error(e); }
             },
             play: function(soundName) {
-                switch(soundName) {
-                    case 'ding': 
-                        this.playTone(880, 'sine', 1.0, 0.3); // High ping
-                        setTimeout(() => this.playTone(1760, 'sine', 0.8, 0.1), 100); 
-                        break;
-                    case 'buzz': 
-                        this.playTone(150, 'sawtooth', 0.5, 0.4); // Low buzz
-                        break;
-                    case 'pop':
-                        this.playTone(600, 'sine', 0.1, 0.2); // Short blip
-                        break;
-                    case 'chime':
-                        this.playTone(440, 'triangle', 1.5, 0.2);
-                        setTimeout(() => this.playTone(554, 'triangle', 1.5, 0.2), 100); 
-                        setTimeout(() => this.playTone(659, 'triangle', 2.0, 0.2), 200); 
-                        break;
-                }
+                // Wrap in try/catch to ensure game doesn't crash if audio fails
+                try {
+                    switch(soundName) {
+                        case 'ding': 
+                            this.playTone(880, 'sine', 1.0, 0.3); // High ping
+                            setTimeout(() => this.playTone(1760, 'sine', 0.8, 0.1), 100); 
+                            break;
+                        case 'buzz': 
+                            this.playTone(150, 'sawtooth', 0.5, 0.4); // Low buzz
+                            break;
+                        case 'pop':
+                            this.playTone(600, 'sine', 0.1, 0.2); // Short blip
+                            break;
+                        case 'chime':
+                            this.playTone(440, 'triangle', 1.5, 0.2);
+                            setTimeout(() => this.playTone(554, 'triangle', 1.5, 0.2), 100); 
+                            setTimeout(() => this.playTone(659, 'triangle', 2.0, 0.2), 200); 
+                            break;
+                    }
+                } catch(e) { console.warn("Sound play error", e); }
             }
         };
 
@@ -489,7 +555,6 @@
         let role = null; // 'HOST' or 'CONTROLLER'
         let setupMode = 'preset';
         
-        // Dynamic Teams State
         let teams = [
             { id: 1, name: "Team 1", score: 0 },
             { id: 2, name: "Team 2", score: 0 },
@@ -500,11 +565,18 @@
 
         function initHost() {
             role = 'HOST';
-            AudioEngine.init(); // Init audio context
+            AudioEngine.init(); // Safe init
+            
+            // UI Switch
             document.getElementById('step-1').style.display = 'none';
             document.getElementById('step-host').style.display = 'block';
             document.getElementById('role-display').innerText = "DISPLAY BOARD";
             document.getElementById('role-display').style.display = 'block';
+
+            if(typeof Peer === 'undefined') {
+                alert("Error: Networking library failed to load. Check internet connection.");
+                return;
+            }
 
             peer = new Peer(generateShortId(), { debug: 1 });
             peer.on('open', (id) => {
@@ -514,6 +586,9 @@
                 conn = c;
                 setupConnectionHandlers();
                 document.getElementById('connection-overlay').style.display = 'none';
+            });
+            peer.on('error', (err) => {
+                alert("Network Error: " + err.type);
             });
         }
 
@@ -567,10 +642,9 @@
         // --- DATA HANDLING ---
 
         function handleDataPacket(data) {
-            console.log("Received:", data);
+            // console.log("Received:", data);
             switch(data.type) {
                 case 'INIT_GAME':
-                    // Payload contains { board: ..., teams: ... }
                     teams = data.payload.teams;
                     renderScoreboard();
                     buildBoard(data.payload.board);
@@ -658,12 +732,10 @@
                 } catch(e) { return alert("Invalid JSON"); }
             }
 
-            // Build local
             renderScoreboard();
             buildBoard(gameData);
             document.getElementById('config-modal').style.display = 'none';
 
-            // Send Init to Host (Board + Teams)
             sendData('INIT_GAME', { board: gameData, teams: teams });
         }
 
@@ -778,7 +850,6 @@
                 div.appendChild(name);
                 div.appendChild(score);
 
-                // Add controls if controller
                 if(role === 'CONTROLLER') {
                     const ctrls = document.createElement('div');
                     ctrls.className = 'score-controls';
@@ -807,7 +878,6 @@
             renderScoreboard();
             sendData('UPDATE_TEAMS', teams);
             
-            // Send sound command
             if(amount > 0) {
                 sendData('PLAY_SOUND', 'ding');
                 AudioEngine.play('ding');
@@ -819,7 +889,6 @@
 
         function handleLiveNameChange(index, newName) {
             teams[index].name = newName;
-            // Debounce could be added here, but direct send is usually fine for text
             sendData('UPDATE_TEAMS', teams);
         }
 
