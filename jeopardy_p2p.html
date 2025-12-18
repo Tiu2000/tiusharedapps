@@ -117,14 +117,25 @@
             border-radius: 15px;
             text-align: center;
             width: 90%;
-            max-width: 600px;
+            max-width: 700px;
             max-height: 90vh;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
+
+        .config-section {
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.2);
+        }
+        .config-section h3 { margin: 0 0 10px 0; color: var(--jeopardy-gold); }
 
         /* Mode Switcher */
         .mode-switch {
-            display: flex; gap: 10px; margin-bottom: 20px;
+            display: flex; gap: 10px; margin-bottom: 10px;
             justify-content: center;
         }
         .mode-btn {
@@ -137,13 +148,31 @@
         .input-section.active { display: flex; }
 
         select, textarea {
-            padding: 10px; width: 90%; font-size: 1rem; margin: 10px 0;
+            padding: 10px; width: 90%; font-size: 1rem; margin: 5px 0;
             border-radius: 5px;
         }
-        textarea { height: 150px; background: #000; color: #0f0; font-family: monospace; }
+        textarea { height: 100px; background: #000; color: #0f0; font-family: monospace; }
+
+        /* Team Manager inside Config */
+        #team-config-list {
+            display: flex; flex-direction: column; gap: 5px;
+            max-height: 150px; overflow-y: auto;
+        }
+        .team-config-row {
+            display: flex; gap: 5px;
+        }
+        .team-config-row input {
+            flex-grow: 1; padding: 5px;
+        }
+        .btn-small {
+            padding: 5px 10px; cursor: pointer; font-weight: bold; border: none; border-radius: 3px;
+        }
+        .btn-add { background: #4caf50; color: white; margin-top: 5px;}
+        .btn-del { background: #f44336; color: white; }
+
 
         button.start-btn {
-            padding: 15px 40px; font-size: 1.5rem; margin-top: 20px;
+            padding: 15px 40px; font-size: 1.5rem; margin-top: 10px;
             border-radius: 50px; border: 3px solid white;
             background-color: var(--jeopardy-gold); color: var(--jeopardy-dark);
             font-weight: bold; cursor: pointer;
@@ -195,21 +224,32 @@
             background: #000; padding: 10px; display: flex;
             justify-content: center; gap: 10px; z-index: 2;
             border-top: 3px solid var(--jeopardy-gold);
+            overflow-x: auto;
         }
         .team {
             text-align: center; background: var(--jeopardy-dark);
             padding: 5px; border: 2px solid var(--jeopardy-blue);
-            border-radius: 8px; width: 30%; max-width: 200px;
+            border-radius: 8px; 
+            flex: 1; /* Dynamic width */
+            min-width: 120px;
+            max-width: 250px;
+            display: flex; flex-direction: column; justify-content: space-between;
         }
-        .team-name { color: white; border-bottom: 1px solid #444; display: block; }
+        .team-name { 
+            color: white; border-bottom: 1px solid #444; 
+            display: block; padding-bottom: 3px; 
+            min-height: 20px;
+        }
         .score-display {
             font-size: 1.5rem; color: var(--jeopardy-gold); font-family: monospace; font-weight: bold; margin: 5px 0;
         }
         /* Controls are hidden on display, visible on controller */
         .score-controls { display: none; justify-content: center; gap: 5px; }
         .score-controls button {
-            background: #333; color: white; width: 30px; height: 30px; font-weight: bold; cursor: pointer;
+            background: #333; color: white; width: 30px; height: 30px; font-weight: bold; cursor: pointer; border: 1px solid #555;
         }
+        .score-controls button.plus:hover { background: #4caf50; }
+        .score-controls button.minus:hover { background: #f44336; }
 
         /* --- MODAL --- */
         #question-modal {
@@ -263,6 +303,7 @@
             <p>Select your role:</p>
             <button class="conn-btn" onclick="initHost()">HOST BOARD (Display)</button>
             <button class="conn-btn" onclick="showJoinInput()">JOIN REMOTE (Phone)</button>
+            <p style="font-size:0.8rem; opacity:0.7; margin-top:20px;">Ensure audio is enabled.</p>
         </div>
 
         <div class="conn-box" id="step-host" style="display:none;">
@@ -274,7 +315,7 @@
 
         <div class="conn-box" id="step-join" style="display:none;">
             <h2>Connect to Board</h2>
-            <input type="text" id="remote-id-input" placeholder="Enter Game ID (e.g. bold-dog-52)">
+            <input type="text" id="remote-id-input" placeholder="Enter Game ID">
             <button class="conn-btn" onclick="connectToHost()">CONNECT</button>
             <button class="conn-btn" style="background:#444; color:white;" onclick="location.reload()">Back</button>
         </div>
@@ -283,23 +324,35 @@
     <div id="config-modal">
         <div class="config-box">
             <h1>GAME SETUP</h1>
-            <div class="mode-switch">
-                <button class="mode-btn active" id="btn-preset" onclick="setMode('preset')">Presets</button>
-                <button class="mode-btn" id="btn-custom" onclick="setMode('custom')">Custom JSON</button>
+            
+            <div class="config-section">
+                <h3>1. Select Content</h3>
+                <div class="mode-switch">
+                    <button class="mode-btn active" id="btn-preset" onclick="setMode('preset')">Presets</button>
+                    <button class="mode-btn" id="btn-custom" onclick="setMode('custom')">Custom JSON</button>
+                </div>
+                <div id="section-preset" class="input-section active">
+                    <select id="grade-select">
+                        <option value="K">Kindergarten - 1st Grade</option>
+                        <option value="2-3">2nd - 3rd Grade</option>
+                        <option value="4-5">4th - 5th Grade</option>
+                        <option value="6-8">Middle School</option>
+                        <option value="HS">High School / Adult</option>
+                    </select>
+                </div>
+                <div id="section-custom" class="input-section">
+                    <textarea id="custom-json-input" placeholder='{"Category": [{"q":"?", "a":"!"}]...}'></textarea>
+                    <button class="btn-small" style="background:#666; color:white;" onclick="loadTemplate()">Load Template</button>
+                </div>
             </div>
-            <div id="section-preset" class="input-section active">
-                <select id="grade-select">
-                    <option value="K">Kindergarten - 1st Grade</option>
-                    <option value="2-3">2nd - 3rd Grade</option>
-                    <option value="4-5">4th - 5th Grade</option>
-                    <option value="6-8">Middle School</option>
-                    <option value="HS">High School / Adult</option>
-                </select>
+
+            <div class="config-section">
+                <h3>2. Setup Teams</h3>
+                <div id="team-config-list">
+                    </div>
+                <button class="btn-small btn-add" onclick="addTeamConfigRow()">+ Add Team</button>
             </div>
-            <div id="section-custom" class="input-section">
-                <textarea id="custom-json-input" placeholder='{"Category": [{"q":"?", "a":"!"}]...}'></textarea>
-                <button onclick="loadTemplate()">Load Template</button>
-            </div>
+
             <button class="start-btn" onclick="startGame()">START GAME</button>
         </div>
     </div>
@@ -307,31 +360,7 @@
     <div id="game-board"></div>
 
     <div id="scoreboard">
-        <div class="team">
-            <span class="team-name" contenteditable="true" oninput="syncNames()">Team 1</span>
-            <div class="score-display" id="score-1">0</div>
-            <div class="score-controls">
-                <button onclick="changeScore(1, 100)">+</button>
-                <button onclick="changeScore(1, -100)">-</button>
-            </div>
         </div>
-        <div class="team">
-            <span class="team-name" contenteditable="true" oninput="syncNames()">Team 2</span>
-            <div class="score-display" id="score-2">0</div>
-            <div class="score-controls">
-                <button onclick="changeScore(2, 100)">+</button>
-                <button onclick="changeScore(2, -100)">-</button>
-            </div>
-        </div>
-        <div class="team">
-            <span class="team-name" contenteditable="true" oninput="syncNames()">Team 3</span>
-            <div class="score-display" id="score-3">0</div>
-            <div class="score-controls">
-                <button onclick="changeScore(3, 100)">+</button>
-                <button onclick="changeScore(3, -100)">-</button>
-            </div>
-        </div>
-    </div>
 
     <div id="question-modal">
         <div id="modal-content">Question...</div>
@@ -343,6 +372,49 @@
     </div>
 
     <script>
+        // --- AUDIO ENGINE (Web Audio API) ---
+        const AudioEngine = {
+            ctx: null,
+            init: function() {
+                if(!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if(this.ctx.state === 'suspended') this.ctx.resume();
+            },
+            playTone: function(freq, type, duration, vol=0.5) {
+                if(!this.ctx) this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            play: function(soundName) {
+                switch(soundName) {
+                    case 'ding': 
+                        this.playTone(880, 'sine', 1.0, 0.3); // High ping
+                        setTimeout(() => this.playTone(1760, 'sine', 0.8, 0.1), 100); 
+                        break;
+                    case 'buzz': 
+                        this.playTone(150, 'sawtooth', 0.5, 0.4); // Low buzz
+                        break;
+                    case 'pop':
+                        this.playTone(600, 'sine', 0.1, 0.2); // Short blip
+                        break;
+                    case 'chime':
+                        this.playTone(440, 'triangle', 1.5, 0.2);
+                        setTimeout(() => this.playTone(554, 'triangle', 1.5, 0.2), 100); 
+                        setTimeout(() => this.playTone(659, 'triangle', 2.0, 0.2), 200); 
+                        break;
+                }
+            }
+        };
+
         // --- DATABASE ---
         const database = {
             "K": {
@@ -391,35 +463,38 @@
         let peer = null;
         let conn = null;
         let role = null; // 'HOST' or 'CONTROLLER'
-        let scores = { 1: 0, 2: 0, 3: 0 };
         let setupMode = 'preset';
+        
+        // Dynamic Teams State
+        let teams = [
+            { id: 1, name: "Team 1", score: 0 },
+            { id: 2, name: "Team 2", score: 0 },
+            { id: 3, name: "Team 3", score: 0 }
+        ];
 
         // --- P2P CONNECTION LOGIC ---
 
         function initHost() {
             role = 'HOST';
+            AudioEngine.init(); // Init audio context
             document.getElementById('step-1').style.display = 'none';
             document.getElementById('step-host').style.display = 'block';
             document.getElementById('role-display').innerText = "DISPLAY BOARD";
             document.getElementById('role-display').style.display = 'block';
 
-            // Create Peer with random short ID logic or default UUID
-            // We use a library helper to just get a random ID from server
             peer = new Peer(generateShortId(), { debug: 1 });
-
             peer.on('open', (id) => {
                 document.getElementById('id-display').innerText = id;
             });
-
             peer.on('connection', (c) => {
                 conn = c;
                 setupConnectionHandlers();
                 document.getElementById('connection-overlay').style.display = 'none';
-                // Wait for controller to send game data
             });
         }
 
         function showJoinInput() {
+            AudioEngine.init();
             document.getElementById('step-1').style.display = 'none';
             document.getElementById('step-join').style.display = 'block';
         }
@@ -433,20 +508,20 @@
             document.getElementById('role-display').innerText = "CONTROLLER";
             document.getElementById('role-display').style.display = 'block';
 
-            peer = new Peer(); // Client gets random ID
+            peer = new Peer(); 
             peer.on('open', () => {
                 conn = peer.connect(remoteId);
                 conn.on('open', () => {
                     document.getElementById('connection-overlay').style.display = 'none';
                     document.getElementById('config-modal').style.display = 'flex';
                     setupConnectionHandlers();
+                    initTeamConfigUI(); // Show default teams in config
                 });
                 conn.on('error', (err) => alert("Connection failed: " + err));
             });
         }
 
         function generateShortId() {
-            // Generates a somewhat readable ID like "happy-lion-45"
             const adjs = ["red","blue","fast","big","cool","hot","tiu"];
             const nouns = ["cat","dog","fox","bear","lion","wolf"];
             const r = (arr) => arr[Math.floor(Math.random()*arr.length)];
@@ -470,26 +545,30 @@
         function handleDataPacket(data) {
             console.log("Received:", data);
             switch(data.type) {
-                case 'INIT_BOARD':
-                    buildBoard(data.payload);
+                case 'INIT_GAME':
+                    // Payload contains { board: ..., teams: ... }
+                    teams = data.payload.teams;
+                    renderScoreboard();
+                    buildBoard(data.payload.board);
+                    AudioEngine.play('chime');
                     break;
                 case 'OPEN_MODAL':
-                    // Open modal on display (without answer revealed)
-                    // On controller, logic is handled locally, then sends this msg
                     showQuestionModal(data.payload.q, data.payload.a, false);
+                    AudioEngine.play('pop');
                     break;
                 case 'REVEAL_ANSWER':
                     document.getElementById('modal-answer').style.display = 'block';
+                    AudioEngine.play('ding');
                     break;
                 case 'CLOSE_MODAL':
                     closeModal(data.payload.tileId);
                     break;
-                case 'UPDATE_SCORE':
-                    scores = data.payload;
-                    refreshScoreboard();
+                case 'UPDATE_TEAMS':
+                    teams = data.payload;
+                    renderScoreboard();
                     break;
-                case 'UPDATE_NAMES':
-                    updateTeamNames(data.payload);
+                case 'PLAY_SOUND':
+                    AudioEngine.play(data.payload);
                     break;
             }
         }
@@ -502,6 +581,41 @@
             document.getElementById(`btn-${m}`).classList.add('active');
             document.querySelectorAll('.input-section').forEach(s => s.classList.remove('active'));
             document.getElementById(`section-${m}`).classList.add('active');
+        }
+
+        // --- TEAM CONFIGURATION ---
+        
+        function initTeamConfigUI() {
+            renderTeamConfigList();
+        }
+
+        function renderTeamConfigList() {
+            const list = document.getElementById('team-config-list');
+            list.innerHTML = '';
+            teams.forEach((t, index) => {
+                const row = document.createElement('div');
+                row.className = 'team-config-row';
+                row.innerHTML = `
+                    <input type="text" value="${t.name}" oninput="updateConfigTeamName(${index}, this.value)">
+                    <button class="btn-small btn-del" onclick="removeTeam(${index})">X</button>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function addTeamConfigRow() {
+            const nextId = teams.length > 0 ? Math.max(...teams.map(t=>t.id)) + 1 : 1;
+            teams.push({ id: nextId, name: `Team ${teams.length + 1}`, score: 0 });
+            renderTeamConfigList();
+        }
+
+        function removeTeam(index) {
+            teams.splice(index, 1);
+            renderTeamConfigList();
+        }
+
+        function updateConfigTeamName(index, val) {
+            teams[index].name = val;
         }
 
         function loadTemplate() {
@@ -520,12 +634,13 @@
                 } catch(e) { return alert("Invalid JSON"); }
             }
 
-            // Build local board (Controller)
+            // Build local
+            renderScoreboard();
             buildBoard(gameData);
             document.getElementById('config-modal').style.display = 'none';
 
-            // Send data to Host (Display)
-            sendData('INIT_BOARD', gameData);
+            // Send Init to Host (Board + Teams)
+            sendData('INIT_GAME', { board: gameData, teams: teams });
         }
 
         // --- GAME LOGIC ---
@@ -537,7 +652,6 @@
             let cats = Object.keys(dataObj).slice(0, 6);
             while(cats.length < 6) cats.push("Empty");
 
-            // Headers
             cats.forEach(c => {
                 let div = document.createElement('div');
                 div.className = 'category-header';
@@ -545,7 +659,6 @@
                 board.appendChild(div);
             });
 
-            // Grid
             for(let r=0; r<5; r++) {
                 for(let c=0; c<6; c++) {
                     const catName = cats[c];
@@ -560,7 +673,6 @@
                     tile.dataset.q = qObj.q;
                     tile.dataset.a = qObj.a;
                     
-                    // Interaction
                     tile.onclick = () => handleTileClick(tile);
                     board.appendChild(tile);
                 }
@@ -572,14 +684,12 @@
         function handleTileClick(tile) {
             if(tile.classList.contains('disabled')) return;
             
-            // If Controller, we open modal locally AND send command to Host
             if(role === 'CONTROLLER') {
                 currentTileId = tile.id;
-                showQuestionModal(tile.dataset.q, tile.dataset.a, true); // True = show answer preview
+                showQuestionModal(tile.dataset.q, tile.dataset.a, true); 
                 sendData('OPEN_MODAL', { q: tile.dataset.q, a: tile.dataset.a });
+                AudioEngine.play('pop');
             } 
-            // If Host, we ignore clicks (passive display), unless testing solo? 
-            // For this design, Host is passive.
         }
 
         function showQuestionModal(q, a, isController) {
@@ -587,32 +697,25 @@
             document.getElementById('modal-content').innerText = q;
             const ansDiv = document.getElementById('modal-answer');
             ansDiv.innerText = a;
-            ansDiv.className = ''; // reset revealed class
+            ansDiv.className = ''; 
             
             if(isController) {
-                // Controller sees answer immediately but styled as preview
                 ansDiv.style.display = 'block'; 
             } else {
-                // Display hides answer initially
                 ansDiv.style.display = 'none';
             }
             m.style.display = 'flex';
         }
 
-        // Controller Actions
         function triggerReveal() {
-            // Update local controller view
             const ansDiv = document.getElementById('modal-answer');
             ansDiv.classList.add('revealed');
-            
-            // Send to Host
             sendData('REVEAL_ANSWER', {});
+            AudioEngine.play('ding');
         }
 
         function triggerClose() {
-            // Close local
             closeModal(currentTileId);
-            // Send to Host
             sendData('CLOSE_MODAL', { tileId: currentTileId });
         }
 
@@ -628,35 +731,72 @@
             }
         }
 
-        // --- SCORING ---
+        // --- SCORING & DYNAMIC TEAMS ---
 
-        function changeScore(team, amount) {
-            scores[team] += amount;
-            refreshScoreboard();
-            sendData('UPDATE_SCORE', scores);
+        function renderScoreboard() {
+            const board = document.getElementById('scoreboard');
+            board.innerHTML = '';
+            
+            teams.forEach((team, index) => {
+                const div = document.createElement('div');
+                div.className = 'team';
+                
+                const name = document.createElement('span');
+                name.className = 'team-name';
+                name.contentEditable = (role === 'CONTROLLER'); // Allow live edit
+                name.innerText = team.name;
+                name.oninput = (e) => handleLiveNameChange(index, e.target.innerText);
+
+                const score = document.createElement('div');
+                score.className = 'score-display';
+                score.innerText = team.score;
+
+                div.appendChild(name);
+                div.appendChild(score);
+
+                // Add controls if controller
+                if(role === 'CONTROLLER') {
+                    const ctrls = document.createElement('div');
+                    ctrls.className = 'score-controls';
+                    
+                    const btnPlus = document.createElement('button');
+                    btnPlus.className = 'plus';
+                    btnPlus.innerText = '+';
+                    btnPlus.onclick = () => changeScore(index, 100);
+
+                    const btnMinus = document.createElement('button');
+                    btnMinus.className = 'minus';
+                    btnMinus.innerText = '-';
+                    btnMinus.onclick = () => changeScore(index, -100);
+
+                    ctrls.appendChild(btnPlus);
+                    ctrls.appendChild(btnMinus);
+                    div.appendChild(ctrls);
+                }
+
+                board.appendChild(div);
+            });
         }
 
-        function refreshScoreboard() {
-            for(let i=1; i<=3; i++) {
-                document.getElementById(`score-${i}`).innerText = scores[i];
+        function changeScore(teamIndex, amount) {
+            teams[teamIndex].score += amount;
+            renderScoreboard();
+            sendData('UPDATE_TEAMS', teams);
+            
+            // Send sound command
+            if(amount > 0) {
+                sendData('PLAY_SOUND', 'ding');
+                AudioEngine.play('ding');
+            } else {
+                sendData('PLAY_SOUND', 'buzz');
+                AudioEngine.play('buzz');
             }
         }
 
-        function syncNames() {
-            // If user types new name on Controller, send to Host
-            // Not implemented fully bi-directional to save complexity, 
-            // assuming setup happens on controller mostly.
-            let names = {};
-            document.querySelectorAll('.team-name').forEach((el, index) => {
-                names[index] = el.innerText;
-            });
-            sendData('UPDATE_NAMES', names);
-        }
-
-        function updateTeamNames(namesObj) {
-            document.querySelectorAll('.team-name').forEach((el, index) => {
-                if(namesObj[index]) el.innerText = namesObj[index];
-            });
+        function handleLiveNameChange(index, newName) {
+            teams[index].name = newName;
+            // Debounce could be added here, but direct send is usually fine for text
+            sendData('UPDATE_TEAMS', teams);
         }
 
     </script>

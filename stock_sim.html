@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TIU Trader Pro (v25 UI Fix)</title>
+    <title>TIU Trader Pro (v26 Scientific)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -24,7 +24,7 @@
         .main-content { flex: 1; min-height: 0; display: grid; grid-template-columns: 2fr 1fr; gap: 15px; position: relative; z-index: 1; }
         .col { display: flex; flex-direction: column; gap: 15px; height: 100%; overflow: hidden; }
         
-        /* Panels & Tables */
+        /* Panels */
         .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; position: relative; }
         .panel-head { font-weight: 600; color: var(--text-dim); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
         .scroll-wrap { overflow-y: auto; flex: 1; min-height: 0; }
@@ -32,27 +32,29 @@
         th { text-align: left; color: var(--text-dim); position: sticky; top: 0; background: var(--panel); padding: 5px; z-index: 10;}
         td { padding: 6px 5px; border-bottom: 1px solid #33415540; }
         
-        /* Interactive Elements */
+        /* Controls & Buttons */
         .btn { border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; color: white; font-weight: 600; font-size: 0.75rem; transition: all 0.1s; }
         .btn:active { transform: scale(0.95); }
-        .btn-buy { background: var(--green); } .btn-sell { background: var(--red); }
-        .btn-call { background: var(--green); border: 1px solid #ffffff40; }
-        .btn-put { background: var(--red); border: 1px solid #ffffff40; }
+        .btn-green { background: var(--green); color: #064e3b; }
         .btn-ai { background: var(--purple); color: #1e293b; }
         .btn-turbo { background: var(--yellow); color: #000; font-weight: 800; }
+        .btn-reset { background: var(--border); }
+
+        .control-group {
+            display:flex; flex-direction:column; align-items:end; min-width:160px; 
+            background:#1e293b; padding:8px; border-radius:6px; border:1px solid var(--border);
+        }
         
-        /* Specific UI */
+        /* UI Elements */
         .price-up { color: var(--green); } .price-down { color: var(--red); }
         .log-item { font-size: 0.8rem; margin-bottom: 2px; padding-bottom: 2px; border-bottom: 1px solid #ffffff10; }
         .log-ml { border-left: 3px solid var(--purple); padding-left: 6px; color: #e9d5ff; background: #581c8720; }
         .log-opt { border-left: 3px solid var(--cyan); padding-left: 6px; color: #cffafe; background: #083344; }
-        .log-risk { border-left: 3px solid var(--red); padding-left: 6px; background: #450a0a; color: #fca5a5; }
+        .log-sys { border-left: 3px solid var(--orange); padding-left: 6px; color: #fed7aa; background: #431407; }
 
         .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px; }
         .stat-box { background: #0f172a; padding: 5px; border-radius: 4px; text-align: center; }
         .stat-val { font-size: 0.9rem; font-weight: bold; }
-        .stat-label { font-size: 0.7rem; color: var(--text-dim); }
-
         .ai-indicator { height: 4px; background: #334155; border-radius: 2px; overflow: hidden; margin-top: 2px; }
         .ai-bar { height: 100%; transition: width 0.3s; }
     </style>
@@ -63,54 +65,47 @@
 
 <div class="top-bar">
     <div>
-        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v25 UI Fix</span></h1>
+        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v26 Scientific</span></h1>
         <div style="font-size:0.8rem; color:var(--text-dim); margin-top:2px;">
-            AI State: <span id="aiStateDisplay" style="color:var(--orange)">Training...</span>
+            Model: <span style="color:var(--green)">Geometric Brownian Motion (GBM)</span>
         </div>
     </div>
     
     <div style="display:flex; gap:10px; align-items:center;">
-        <div style="display:flex; flex-direction:column; align-items:end; min-width:160px; background:#1e293b; padding:5px; border-radius:4px; border:1px solid var(--border);">
-            
+        <button class="btn btn-green" onclick="addFunds()">+ $5k Funds</button>
+        
+        <div class="control-group">
             <div style="font-size:0.7rem; color:var(--text-dim); display:flex; justify-content:space-between; width:100%; margin-bottom:4px;">
-                <label style="cursor:pointer;"><input type="checkbox" id="aiOptToggle" checked> Auto-Options</label>
-                <span id="volDisplay" style="color:var(--cyan)">Vol: --</span>
+                <label style="cursor:pointer;"><input type="checkbox" id="aiOptToggle" checked> Auto-Opt</label>
+                <span id="volDisplay" style="color:var(--cyan)">GBM</span>
             </div>
-            
             <div style="font-size:0.7rem; color:var(--text-dim); display:flex; justify-content:space-between; width:100%;">
                 <span>Min Conf:</span>
                 <span id="confValueDisplay" style="color:var(--yellow); font-weight:bold;">70%</span>
             </div>
-
             <input type="range" id="aiConfidenceSlider" min="55" max="95" value="70" step="5" style="width:100%; cursor:pointer;" 
                    oninput="document.getElementById('confValueDisplay').innerText = this.value + '%'">
         </div>
 
         <button class="btn btn-turbo" onclick="turboTrain()" title="Simulate 500 ticks">⚡ Turbo</button>
         <button class="btn btn-ai" id="aiBtn" onclick="toggleAI()">Start AI</button>
-        <button class="btn btn-sm" style="background:var(--border)" onclick="resetGame()">Reset</button>
+        <button class="btn btn-reset" onclick="resetGame()">Reset</button>
     </div>
 </div>
 
 <div class="main-content">
-    
     <div class="col">
         <div class="panel" style="flex: 1; min-height: 250px;">
             <canvas id="mainChart"></canvas>
         </div>
-
         <div class="panel" style="flex: 1;">
             <div class="panel-head">
-                <span>Live Market</span>
+                <span>Live Market (GBM Model)</span>
                 <span style="font-size:0.7rem; color:var(--cyan)">Option Cost: $150 | Exp: 45t</span>
             </div>
             <div class="scroll-wrap">
                 <table id="marketTable">
-                    <thead>
-                        <tr>
-                            <th>Sym</th> <th>Price</th> <th>Vol(SD)</th> <th>Trend</th> <th>AI Conf</th> <th>Action</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>Sym</th> <th>Price</th> <th>Vol(σ)</th> <th>Trend</th> <th>AI Conf</th> <th>Act</th></tr></thead>
                     <tbody id="marketBody"></tbody>
                 </table>
             </div>
@@ -124,14 +119,13 @@
                 <div style="font-size:1.8rem; font-weight:bold;" id="cashDisplay">$10,000</div>
                 <div style="font-size:0.8rem; color:var(--text-dim)">Available Cash</div>
             </div>
-            
             <div class="stat-grid">
                 <div class="stat-box">
-                    <div class="stat-label">Net Worth</div>
+                    <div style="font-size:0.7rem; color:var(--text-dim)">Net Worth</div>
                     <div class="stat-val" id="netWorthDisplay">$10,000</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-label">Win Rate</div>
+                    <div style="font-size:0.7rem; color:var(--text-dim)">Win Rate</div>
                     <div class="stat-val" id="winRateDisplay">0%</div>
                 </div>
             </div>
@@ -148,13 +142,10 @@
             </div>
             <div>
                 <div style="display:flex; justify-content:space-between; font-size:0.75rem;">
-                    <span>Option Brain (Profitability)</span>
+                    <span>Option Brain (Vol/Profit)</span>
                     <span id="optAcc">Acc: 0%</span>
                 </div>
                 <div class="ai-indicator"><div class="ai-bar" id="optBar" style="width:0%; background:var(--cyan)"></div></div>
-            </div>
-            <div style="font-size:0.7rem; color:var(--text-dim); margin-top:5px; font-style:italic;">
-                *Option Brain learns with a 45-tick delay to validate actual profit.
             </div>
         </div>
 
@@ -176,16 +167,25 @@
 </div>
 
 <script>
-    // --- CONFIGURATION ---
     const CONFIG = {
         updateSpeed: 800,
-        optionCost: 150,      // Premium paid
-        optionDuration: 45,   // Time to expiry
-        fee: 5,
-        historySize: 50
+        optionCost: 150,
+        optionDuration: 45,
+        historySize: 50,
+        baseDrift: 0.0002 // Small upward drift typical of equities
     };
 
-    // --- NEURAL NETWORK CLASS ---
+    // --- MATH UTILS (RESEARCH BASED) ---
+    
+    // Box-Muller Transform for Normal Distribution (Bell Curve)
+    // Most financial models assume returns are normally distributed (roughly).
+    function randn_bm() {
+        let u = 0, v = 0;
+        while(u === 0) u = Math.random();
+        while(v === 0) v = Math.random();
+        return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
     class Brain {
         constructor(inputSize, learningRate = 0.1) {
             this.weights = new Array(inputSize).fill(0).map(()=> Math.random()*2-1);
@@ -205,100 +205,99 @@
             const error = target - guess;
             for(let i=0; i<this.weights.length; i++) this.weights[i] += error * inputs[i] * this.lr;
             this.bias += error * this.lr;
-            
             this.total++;
             if(Math.abs(target - guess) < 0.5) this.correct++;
         }
         getAccuracy() { return this.total===0 ? 0 : Math.round((this.correct/this.total)*100); }
     }
 
-    // --- STATE & DATA ---
     const STOCK_DEFS = [
-        {sym:"NVDA", p:135, v:2.5}, {sym:"TSLA", p:240, v:3.0}, {sym:"AAPL", p:225, v:1.2},
-        {sym:"AMZN", p:195, v:1.5}, {sym:"GOOG", p:175, v:1.4}
+        {sym:"NVDA", p:135, baseVol: 0.02}, 
+        {sym:"TSLA", p:240, baseVol: 0.025}, 
+        {sym:"AAPL", p:225, baseVol: 0.012},
+        {sym:"AMZN", p:195, baseVol: 0.015}, 
+        {sym:"GOOG", p:175, baseVol: 0.014}
     ];
 
     let STOCKS = [];
     let state = {
         cash: 10000,
-        holdings: {},
         options: [],
         aiActive: false,
         wins: 0,
         losses: 0,
-        tick: 0,
-        experienceBuffer: [] // Stores past states for "Time-Travel" training
+        tick: 0
     };
 
-    // Two Brains:
-    // 1. TrendBrain: Inputs [dPrice1, dPrice2] -> Target: 1 (Up) / 0 (Down)
-    // 2. OptionBrain: Inputs [Volatility, TrendStrength] -> Target: 1 (Profit > Cost) / 0 (Loss)
     const trendBrain = new Brain(2, 0.1); 
-    const optionBrain = new Brain(2, 0.05); // Lower learning rate for options to be conservative
-
+    const optionBrain = new Brain(2, 0.05); 
     let chart = null;
 
-    // --- INITIALIZATION ---
     function init() {
         STOCKS = STOCK_DEFS.map(d => ({
             ...d,
             price: d.p,
             history: Array(50).fill(d.p),
-            volatility: 0,
+            currentVol: d.baseVol, // Dynamic volatility
             trend: 0
         }));
-        
         buildChart();
         updateUI();
         setInterval(tick, CONFIG.updateSpeed);
-        log("System Online. Dual-Network AI Loaded.", "log-ml");
+        log("Market Model: Geometric Brownian Motion Loaded", "log-sys");
     }
 
-    // --- CORE SIMULATION ---
     function tick() {
+        if(state.aiActive && state.cash < CONFIG.optionCost) {
+            state.aiActive = false;
+            updateUI();
+            log("🛑 INSUFFICIENT FUNDS. Please Add Funds.", "log-sys");
+            alert("Insufficient Funds! Simulation Paused.");
+            return;
+        }
+
         state.tick++;
 
-        // 1. Update Market Prices
         STOCKS.forEach(s => {
-            // Random walk with volatility
-            let change = (Math.random() - 0.5) * s.v * 2;
-            s.price += change;
+            // --- SCIENTIFIC MODEL: GEOMETRIC BROWNIAN MOTION (GBM) ---
+            // Price(t) = Price(t-1) * e^( (drift - 0.5*vol^2)dt + vol*dW )
+            // Simplified for discrete steps: P_new = P_old * (1 + drift + vol * NormalRandom)
+            
+            // Volatility Clustering Logic (GARCH-lite):
+            // Volatility decays back to base, but spikes on shocks.
+            s.currentVol = (s.currentVol * 0.95) + (s.baseVol * 0.05); 
+            
+            // The Random Walk
+            const drift = CONFIG.baseDrift; // Slight positive drift
+            const shock = randn_bm(); // Normal Distribution (Bell Curve)
+            const changePct = drift + (s.currentVol * shock);
+            
+            s.price = s.price * (1 + changePct);
+            
+            // If big shock, spike volatility for next ticks (Clustering)
+            if(Math.abs(shock) > 2.0) {
+                s.currentVol *= 1.5; 
+            }
+
             s.history.push(s.price);
             if(s.history.length > CONFIG.historySize) s.history.shift();
 
-            // Calculate Volatility (Standard Deviation of last 10 ticks)
-            const slice = s.history.slice(-10);
-            const mean = slice.reduce((a,b)=>a+b,0)/slice.length;
-            const variance = slice.reduce((a,b)=>a+Math.pow(b-mean,2),0)/slice.length;
-            s.volatility = Math.sqrt(variance);
-
-            // Calculate Trend (Simple Moving Average diff)
             s.trend = s.price - s.history[s.history.length - 5];
         });
 
-        // 2. Process Expiring Options & Train OptionBrain
         processOptions();
-
-        // 3. AI Predictions & Trading
         if(state.aiActive) runAI();
-
-        // 4. Update UI
         updateChart();
         updateUI();
     }
 
     function processOptions() {
-        // Iterate backwards to safely remove
         for (let i = state.options.length - 1; i >= 0; i--) {
             let opt = state.options[i];
             opt.life--;
 
-            // Find current stock price
             const stock = STOCKS.find(s => s.sym === opt.sym);
-            
-            // Check for Expiry
             if (opt.life <= 0) {
-                // Calculate Payout
                 let payout = 0;
                 if (opt.type === 'call') payout = Math.max(0, (stock.price - opt.strike) * 10);
                 if (opt.type === 'put') payout = Math.max(0, (opt.strike - stock.price) * 10);
@@ -308,100 +307,74 @@
                 
                 if (profit > 0) state.wins++; else state.losses++;
 
-                // --- KEY: RETROACTIVE TRAINING ---
-                // We go back in time (using the stored inputs in the option object)
-                // If profit > 0, Target = 1. Else Target = 0.
-                // This teaches the OptionBrain: "That specific setup 45 ticks ago was GOOD/BAD."
+                // Train OptionBrain on the PAST inputs
                 optionBrain.train(opt.aiInputs, profit > 0 ? 1 : 0);
 
-                const logClass = profit > 0 ? "log-opt" : "log-risk";
-                log(`${opt.sym} Expired. P/L: $${profit.toFixed(0)}`, logClass);
-                
+                const logClass = profit > 0 ? "log-opt" : "log-sys";
+                log(`${opt.sym} Expired. Result: $${profit.toFixed(0)}`, logClass);
                 state.options.splice(i, 1);
             }
         }
     }
 
     function runAI() {
-        // Bailout logic
-        if(state.cash < 200 && state.options.length === 0) {
-            state.cash += 2000;
-            log("🚑 Emergency Funding +$2,000", "log-risk");
-        }
-
         const confidenceReq = document.getElementById('aiConfidenceSlider').value / 100;
         const allowOptions = document.getElementById('aiOptToggle').checked;
 
         STOCKS.forEach(s => {
-            // Inputs for TrendBrain: Last 2 price changes
             const d1 = s.history[s.history.length-1] - s.history[s.history.length-2];
             const d2 = s.history[s.history.length-2] - s.history[s.history.length-3];
             const trendInputs = [d1, d2];
             
-            // Inputs for OptionBrain: [Volatility, TrendStrength]
-            const optInputs = [s.volatility, Math.abs(s.trend)];
+            // Option inputs: Current Volatility (dynamic) + Trend Magnitude
+            const optInputs = [s.currentVol * 100, Math.abs(s.trend)];
 
-            // Predictions
-            const trendConf = trendBrain.predict(trendInputs); // >0.5 Bullish, <0.5 Bearish
-            const optConf = optionBrain.predict(optInputs);    // >0.5 Profitable, <0.5 Unprofitable
+            const trendConf = trendBrain.predict(trendInputs);
+            const optConf = optionBrain.predict(optInputs);
 
-            // Train TrendBrain immediately (Short term direction)
-            // Target: Did price go up this tick?
+            // Train Direction
             const priceWentUp = (s.price > s.history[s.history.length-2]) ? 1 : 0;
             trendBrain.train(trendInputs, priceWentUp);
 
-            // DECISION LOGIC
+            // Trade Logic
             const isBullish = trendConf > confidenceReq;
             const isBearish = trendConf < (1 - confidenceReq);
-            const isVolatileEnough = optConf > 0.6; // Hard threshold for option profitability
+            const isVolatile = optConf > 0.6; // AI thinks volatility is high enough to profit
 
-            // Execute Trades
-            // 1. Stock Trade (Directional)
-            if (isBullish && state.cash > s.price) {
-                // Buy Stock logic (omitted for brevity, focus on options)
-            }
-
-            // 2. Option Trade (Directional + Volatility)
             if (allowOptions && state.cash > CONFIG.optionCost * 1.5) {
-                // Check if we already have exposure
                 const hasOpt = state.options.some(o => o.sym === s.sym);
-                
-                if (!hasOpt && isVolatileEnough) {
+                if (!hasOpt && isVolatile) {
                     if (isBullish) buyOption(s, 'call', optInputs);
                     else if (isBearish) buyOption(s, 'put', optInputs);
                 }
             }
-            
-            s.aiData = { trendConf, optConf }; // Save for UI
+            s.aiData = { trendConf, optConf };
         });
     }
 
     function buyOption(stock, type, inputs) {
         if(state.cash < CONFIG.optionCost) return;
-        
         state.cash -= CONFIG.optionCost;
         let strike = stock.price; 
-        // Slight OTM/ITM adjustment
-        if(type === 'call') strike = stock.price - 1; 
-        if(type === 'put') strike = stock.price + 1;
+        if(type === 'call') strike = stock.price * 0.995; // Slightly ITM
+        if(type === 'put') strike = stock.price * 1.005;
 
         state.options.push({
-            sym: stock.sym,
-            type: type,
-            strike: strike,
-            cost: CONFIG.optionCost,
-            life: CONFIG.optionDuration,
-            aiInputs: inputs // Store inputs for retroactive training
+            sym: stock.sym, type: type, strike: strike, cost: CONFIG.optionCost,
+            life: CONFIG.optionDuration, aiInputs: inputs
         });
-
-        log(`🤖 Bought ${type.toUpperCase()} ${stock.sym} (Vol: ${inputs[0].toFixed(2)})`, "log-opt");
+        log(`🤖 Bought ${type.toUpperCase()} ${stock.sym} (Vol: ${(inputs[0]).toFixed(1)})`, "log-opt");
     }
 
-    // --- UI HELPERS ---
+    function addFunds() {
+        state.cash += 5000;
+        log("💰 Injected $5,000 Capital", "log-sys");
+        updateUI();
+    }
+
     function updateUI() {
         document.getElementById('cashDisplay').innerText = `$${state.cash.toFixed(0)}`;
         
-        // Net Worth
         let optVal = 0;
         state.options.forEach(o => {
             const s = STOCKS.find(x=>x.sym===o.sym);
@@ -409,40 +382,40 @@
             if(o.type==='put') optVal += Math.max(0, (o.strike - s.price)*10);
         });
         document.getElementById('netWorthDisplay').innerText = `$${(state.cash + optVal).toFixed(0)}`;
+        document.getElementById('aiBtn').innerText = state.aiActive ? "Stop AI" : "Start AI";
+        document.getElementById('aiBtn').style.background = state.aiActive ? "#ef4444" : "#c084fc";
 
-        // Stats
         const total = state.wins + state.losses;
         const rate = total === 0 ? 0 : Math.round((state.wins/total)*100);
         document.getElementById('winRateDisplay').innerText = `${rate}%`;
         
-        // Brain Stats
-        document.getElementById('trendAcc').innerText = `Acc: ${trendBrain.getAccuracy()}%`;
+        document.getElementById('trendAcc').innerText = `${trendBrain.getAccuracy()}%`;
         document.getElementById('trendBar').style.width = `${trendBrain.getAccuracy()}%`;
-        
-        document.getElementById('optAcc').innerText = `Acc: ${optionBrain.getAccuracy()}%`;
+        document.getElementById('optAcc').innerText = `${optionBrain.getAccuracy()}%`;
         document.getElementById('optBar').style.width = `${optionBrain.getAccuracy()}%`;
 
-        // Market Table
         const tbody = document.getElementById('marketBody');
         tbody.innerHTML = '';
         STOCKS.forEach(s => {
             const row = document.createElement('tr');
             const ai = s.aiData || { trendConf: 0.5, optConf: 0.5 };
             const trendStr = ai.trendConf > 0.6 ? "<span class='price-up'>Bull</span>" : (ai.trendConf < 0.4 ? "<span class='price-down'>Bear</span>" : "-");
-            const optStr = ai.optConf > 0.6 ? "✅" : "❌";
+            const optStr = ai.optConf > 0.6 ? "✅" : "<span style='opacity:0.3'>Wait</span>";
+            
+            // Show Volatility as Percentage
+            const volDisplay = (s.currentVol * 100).toFixed(2) + "%";
             
             row.innerHTML = `
                 <td style="font-weight:bold">${s.sym}</td>
                 <td>${s.price.toFixed(2)}</td>
-                <td style="color:${s.volatility > 2 ? 'var(--green)':'var(--text-dim)'}">${s.volatility.toFixed(2)}</td>
+                <td style="color:${s.currentVol > s.baseVol*1.5 ? 'var(--orange)':'var(--text-dim)'}">${volDisplay}</td>
                 <td>${trendStr}</td>
-                <td>Dir:${(ai.trendConf*100).toFixed(0)}% | Opt:${(ai.optConf*100).toFixed(0)}%</td>
+                <td>Dir:${(ai.trendConf*100).toFixed(0)}% Opt:${(ai.optConf*100).toFixed(0)}%</td>
                 <td>${optStr}</td>
             `;
             tbody.appendChild(row);
         });
 
-        // Holdings Table (Options)
         const hBody = document.getElementById('holdingsBody');
         hBody.innerHTML = '';
         state.options.forEach(o => {
@@ -451,14 +424,7 @@
             if(o.type==='call') curVal = Math.max(0, (s.price - o.strike)*10);
             if(o.type==='put') curVal = Math.max(0, (o.strike - s.price)*10);
             const pl = curVal - o.cost;
-            
-            hBody.innerHTML += `
-                <tr>
-                    <td>${o.sym} ${o.type.toUpperCase()}</td>
-                    <td>${o.life}</td>
-                    <td style="color:${pl>=0?'var(--green)':'var(--red)'}">$${pl.toFixed(0)}</td>
-                </tr>
-            `;
+            hBody.innerHTML += `<tr><td>${o.sym} ${o.type}</td><td>${o.life}</td><td style="color:${pl>=0?'var(--green)':'var(--red)'}">$${pl.toFixed(0)}</td></tr>`;
         });
     }
 
@@ -469,12 +435,9 @@
             data: { 
                 labels: Array(50).fill(''),
                 datasets: STOCKS.map((s,i) => ({
-                    label: s.sym,
-                    data: s.history,
+                    label: s.sym, data: s.history,
                     borderColor: ['#3b82f6','#10b981','#ef4444','#f59e0b','#c084fc'][i],
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    tension: 0.4
+                    borderWidth: 2, pointRadius: 0, tension: 0.4
                 }))
             },
             options: {
@@ -487,38 +450,33 @@
 
     function updateChart() {
         if(!chart) return;
-        STOCKS.forEach((s, i) => {
-            chart.data.datasets[i].data = s.history;
-        });
+        STOCKS.forEach((s, i) => chart.data.datasets[i].data = s.history);
         chart.update('none');
     }
 
-    // --- CONTROLS ---
     function log(msg, cls) {
         const div = document.createElement('div');
         div.className = `log-item ${cls}`;
         div.innerText = `[T${state.tick}] ${msg}`;
-        document.getElementById('logs').prepend(div);
-        if(document.getElementById('logs').children.length > 50) document.getElementById('logs').lastChild.remove();
+        const l = document.getElementById('logs');
+        l.prepend(div);
+        if(l.children.length > 50) l.lastChild.remove();
     }
 
     function toggleAI() {
         state.aiActive = !state.aiActive;
-        document.getElementById('aiBtn').innerText = state.aiActive ? "Stop AI" : "Start AI";
-        document.getElementById('aiBtn').style.background = state.aiActive ? "#ef4444" : "#c084fc";
-        document.getElementById('aiStateDisplay').innerText = state.aiActive ? "ACTIVE TRADING" : "Training (Passive)";
+        updateUI();
     }
-
+    
     function turboTrain() {
-        log("⚡ Turbo Training (500 ticks)...", "log-ml");
+        if(state.cash < CONFIG.optionCost) { addFunds(); }
         state.aiActive = true;
         for(let i=0; i<500; i++) tick();
-        log("⚡ Turbo Complete.", "log-ml");
+        state.aiActive = false;
+        log("⚡ Turbo Complete.", "log-sys");
     }
 
-    function resetGame() {
-        if(confirm("Reset Simulation?")) location.reload();
-    }
+    function resetGame() { if(confirm("Reset Simulation?")) location.reload(); }
 
     init();
 </script>
