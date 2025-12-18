@@ -204,6 +204,8 @@
             margin: 0 auto;
             width: 100%;
             transition: opacity 0.3s;
+            /* Allow scrolling on mobile if board is tall */
+            overflow-y: auto; 
         }
 
         .category-header {
@@ -247,6 +249,8 @@
             border-top: 3px solid #D69F4C;
             border-top: 3px solid var(--jeopardy-gold);
             overflow-x: auto;
+            
+            /* Default padding */
             padding-bottom: max(20px, env(safe-area-inset-bottom)); 
         }
 
@@ -277,15 +281,16 @@
             font-family: monospace; font-weight: bold; margin: 5px 0;
         }
 
-        .score-controls { display: none; justify-content: center; gap: 15px; margin-top: 5px; }
+        .score-controls { display: none; justify-content: center; gap: 10px; margin-top: 5px; }
         
         .score-controls button {
             background: #333; color: white; 
-            width: 50px; height: 50px; 
-            font-weight: bold; font-size: 1.5rem;
+            width: 70px; height: 70px; /* INCREASED SIZE */
+            font-weight: bold; font-size: 2rem; /* BIGGER TEXT */
             cursor: pointer; border: 2px solid #555;
-            border-radius: 8px;
+            border-radius: 12px;
             touch-action: manipulation; 
+            display: flex; align-items: center; justify-content: center;
         }
         .score-controls button.plus { background: #2e5c31; border-color: #4caf50; }
         .score-controls button.minus { background: #5c2e2e; border-color: #f44336; }
@@ -332,14 +337,23 @@
         /* --- CONTROLLER SPECIFIC STYLES --- */
         body.is-controller .score-controls { display: flex; }
         body.is-controller .modal-controls { display: flex; }
-        body.is-controller #game-board { opacity: 0.6; pointer-events: auto; } 
+        body.is-controller #game-board { opacity: 0.6; pointer-events: auto; padding-bottom: 250px; } 
         body.is-controller #question-modal { background: rgba(0,0,0,0.95); }
         body.is-controller #modal-answer { display: block; color: #888; font-size: 1.2rem; } 
         body.is-controller #modal-answer.revealed { color: #D69F4C; font-size: 2rem; }
         
+        /* Controller Scoreboard tweak */
         body.is-controller #scoreboard {
-            flex-shrink: 0;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            box-sizing: border-box;
+            background: rgba(0,0,0,0.95);
+            /* HUGE PADDING FOR ANDROID NAV BAR */
+            padding-bottom: 80px; 
             box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+            z-index: 200;
         }
 
         .role-badge {
@@ -466,7 +480,7 @@
             },
             playTone: function(freq, type, duration, vol=0.5) {
                 if(!this.ctx) this.init();
-                if(!this.ctx) return; // Silent fail if still no context
+                if(!this.ctx) return; 
 
                 try {
                     const osc = this.ctx.createOscillator();
@@ -482,7 +496,6 @@
                 } catch(e) { console.error(e); }
             },
             play: function(soundName) {
-                // Wrap in try/catch to ensure game doesn't crash if audio fails
                 try {
                     switch(soundName) {
                         case 'ding': 
