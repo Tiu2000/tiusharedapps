@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TIU Trader Pro (v21 Stable)</title>
+    <title>TIU Trader Pro (v23 Risk Control)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -135,7 +135,7 @@
 
 <div class="top-bar">
     <div>
-        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v21 Stable</span></h1>
+        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v23 Risk Control</span></h1>
         <div style="display:flex; gap:10px; align-items:center; margin-top:2px;">
             <div id="marketSentiment" class="sentiment-badge sent-neutral">⚖️ NEUTRAL</div>
             <div class="chk-wrap" style="border-left:1px solid var(--border); padding-left:10px;">
@@ -233,9 +233,9 @@
                     
                     <div class="panel-head" style="margin-top:5px;">AI Strategy</div>
                     <select id="strategySelect" onchange="updateStrategy()" style="width:100%; margin-bottom:5px;">
-                        <option value="auto">🤖 Auto-Detect (Adaptive)</option>
-                        <option value="bull">🐂 Always Bullish</option>
-                        <option value="bear">🐻 Always Bearish</option>
+                        <option value="auto">🤖 Auto (Long & Short)</option>
+                        <option value="bull">🐂 Bull Only (Long)</option>
+                        <option value="bear">🐻 Bear Only (Short)</option>
                     </select>
                     
                     <div class="stat-grid">
@@ -284,10 +284,11 @@
 </div>
 
 <script>
-    const CONFIG = { fee: 5.00, initialCash: 10000, updateSpeed: 1000, optionCost: 100, optionDuration: 30, initialHistorySteps: 50 };
+    // Config: Options last longer (45 ticks), Cost slightly higher to reduce spam
+    const CONFIG = { fee: 5.00, initialCash: 10000, updateSpeed: 1000, optionCost: 150, optionDuration: 45, initialHistorySteps: 50 };
 
     class SimpleBrain {
-        constructor() { this.weights = [0.5, 0.2, 0.1]; this.bias = 0; this.learningRate = 0.05; this.totalPredictions = 0; this.correctPredictions = 0; }
+        constructor() { this.weights = [0.5, 0.2, 0.1]; this.bias = 0; this.learningRate = 0.1; this.totalPredictions = 0; this.correctPredictions = 0; }
         sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
         predict(inputs) { let sum = this.bias; for(let i=0; i<this.weights.length; i++) sum += inputs[i] * this.weights[i]; return this.sigmoid(sum); }
         train(inputs, target) {
@@ -328,8 +329,7 @@
     let globalTick = 0, chartObj = null, tradeMarkers = [], predictionPoints = [], brain = new SimpleBrain(), predictions = {}; 
 
     function init() {
-        // Changed key to v21 to force clean start if needed
-        const saved = localStorage.getItem('tiu_v21'); 
+        const saved = localStorage.getItem('tiu_v23'); // Key: v23
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
@@ -369,13 +369,13 @@
         }
 
         setInterval(tickSafe, CONFIG.updateSpeed);
-        log("System Ready. Version 21 (Stable).", "log-sys");
+        log("System Ready. Version 23 (Risk Control).", "log-sys");
     }
 
     function buildMarketTable() {
         const tbody = document.getElementById('marketBody');
         tbody.innerHTML = "";
-        const list = state.tradeMode === 'stocks' ? STOCKS : STOCKS; 
+        const list = STOCKS; 
         
         list.forEach(s => {
             const tr = document.createElement('tr');
@@ -434,16 +434,17 @@
     }
 
     function tickSafe(silent = false) {
-        try {
-            tick(silent);
-        } catch(e) {
-            console.error(e);
-            if(!silent) log("⚠️ System Error in Tick: " + e.message, "log-risk");
-        }
+        try { tick(silent); } catch(e) { console.error(e); if(!silent) log("⚠️ System Error in Tick: " + e.message, "log-risk"); }
     }
 
     function tick(silent = false) {
         globalTick++;
+
+        // Bankruptcy Check
+        if(state.cash < 500 && state.options.length === 0 && Object.keys(state.holdings).length === 0) {
+            state.cash = 2000;
+            if(!silent) log("🚑 Bailout Grant: +$2,000", "log-sys");
+        }
 
         STOCKS.forEach(s => {
             const move = s.history.length > 0 ? (s.price - s.history[s.history.length-1]) : 0;
@@ -507,7 +508,7 @@
             updateUI();
             updateChart();
             state.brainData = brain.toJSON();
-            localStorage.setItem('tiu_v21', JSON.stringify(state));
+            localStorage.setItem('tiu_v23', JSON.stringify(state));
         }
     }
 
@@ -535,24 +536,50 @@
     }
 
     function runAdaptiveAI(stock, confidence, silent) {
-        let isBull = false;
-        if (state.strategyMode === 'auto') isBull = state.marketSentiment > 0;
-        else isBull = (state.strategyMode === 'bull');
-        const th = state.aiThreshold;
+        if (!state.aiActive) return;
 
-        if (isBull && confidence > th && state.cash > stock.price) {
-            if(state.aiTradeOptions) trade(stock.sym, 'call', true);
-            else trade(stock.sym, 'buy', true);
+        // Risk Check: Don't trade if we have too many positions open relative to cash
+        const activeOptionCount = state.options.filter(o => o.sym === stock.sym).length;
+        if (state.aiTradeOptions && activeOptionCount >= 2) return; // Limit: Max 2 active options per stock
+
+        const th = state.aiThreshold;
+        const lowerTh = 1 - th;
+
+        const canBuy = (state.strategyMode === 'auto' || state.strategyMode === 'bull');
+        const canSell = (state.strategyMode === 'auto' || state.strategyMode === 'bear');
+
+        if (canBuy && confidence > th) {
+            if (state.holdings[stock.sym] && state.holdings[stock.sym].qty < 0) {
+                 trade(stock.sym, 'buy', true); // Cover short
+                 return;
+            }
+            if (state.holdings[stock.sym] && state.holdings[stock.sym].qty > 0) return; // Already long
+
+            // New Trade: Check Funds
+            const cost = state.aiTradeOptions ? CONFIG.optionCost : stock.price;
+            if (state.cash > cost) {
+                 // 5% Risk Rule: Only trade if cost is < 5% of cash OR cash is abundant
+                 if (cost < state.cash * 0.05 || state.cash > 20000) {
+                    if(state.aiTradeOptions) trade(stock.sym, 'call', true);
+                    else trade(stock.sym, 'buy', true);
+                 }
+            }
         }
-        if (!isBull && confidence > (th + 0.1) && state.cash > stock.price) {
-            if(state.aiTradeOptions) trade(stock.sym, 'put', true);
-            else trade(stock.sym, 'sell', true); 
-        }
-        
-        if (state.holdings[stock.sym]) {
-            const h = state.holdings[stock.sym];
-            if (h.qty > 0 && confidence < 0.2) trade(stock.sym, 'sell', true); 
-            if (h.qty < 0 && confidence > 0.8) trade(stock.sym, 'buy', true); 
+
+        if (canSell && confidence < lowerTh) {
+            if (state.holdings[stock.sym] && state.holdings[stock.sym].qty > 0) {
+                trade(stock.sym, 'sell', true); // Sell long
+                return;
+            }
+            if (state.holdings[stock.sym] && state.holdings[stock.sym].qty < 0) return; // Already short
+
+             const cost = state.aiTradeOptions ? CONFIG.optionCost : stock.price;
+             if (state.cash > cost) {
+                 if (cost < state.cash * 0.05 || state.cash > 20000) {
+                    if(state.aiTradeOptions) trade(stock.sym, 'put', true);
+                    else trade(stock.sym, 'sell', true);
+                 }
+            }
         }
     }
 
@@ -565,6 +592,7 @@
 
         if (action === 'buy') {
             if (state.holdings[sym] && state.holdings[sym].qty < 0) {
+                // COVER
                 const h = state.holdings[sym];
                 const cost = stock.price + fee;
                 if (state.cash < cost) return; 
@@ -575,6 +603,7 @@
                 recordTradeStats(profit);
                 if(!state.aiActive && !isAuto) log(`${prefix} Covered 1 ${sym}. P/L: $${profit.toFixed(2)}`, profit>0?"price-up":"price-down");
             } else {
+                // BUY
                 const total = stock.price + fee;
                 if (state.cash < total) return;
                 state.cash -= total;
@@ -588,6 +617,7 @@
         } 
         else if (action === 'sell') {
             if (state.holdings[sym] && state.holdings[sym].qty > 0) {
+                // SELL
                 const revenue = stock.price - fee;
                 state.cash += revenue;
                 const h = state.holdings[sym];
@@ -599,6 +629,7 @@
                 if(!state.aiActive && !isAuto) log(`${prefix} Sold 1 ${sym}. P/L: $${profit.toFixed(2)}`, profit>0?"price-up":"price-down");
             }
             else {
+                // SHORT
                 const total = (stock.price * 0.5) + fee; 
                 if (state.cash < total) { if(!isAuto) log("❌ Need Margin to Short"); return; }
                 state.cash -= fee; 
@@ -615,7 +646,12 @@
             const cost = CONFIG.optionCost;
             if (state.cash < cost) return;
             state.cash -= cost;
-            state.options.push({ id: Date.now()+Math.random(), sym: sym, type: action, strike: stock.price, cost: cost, ticksLeft: CONFIG.optionDuration });
+            // Strike logic: Slightly In-The-Money (ITM) to increase win rate
+            let strike = stock.price;
+            if(action === 'call') strike = stock.price - 2.0; // ITM Call
+            if(action === 'put') strike = stock.price + 2.0; // ITM Put
+            
+            state.options.push({ id: Date.now()+Math.random(), sym: sym, type: action, strike: strike, cost: cost, ticksLeft: CONFIG.optionDuration });
             if(!state.aiActive && !isAuto) log(`${prefix} ${action.toUpperCase()} ${sym}`, "log-opt");
         }
         updateUI();
@@ -681,10 +717,17 @@
             if(o.ticksLeft<=0) {
                 const s = STOCKS.find(x=>x.sym===o.sym);
                 let p = 0;
+                // Simple Intrinsic Value calculation
                 if(o.type==='call' && s.price>o.strike) p=(s.price-o.strike)*10;
                 if(o.type==='put' && s.price<o.strike) p=(o.strike-s.price)*10;
-                state.cash+=p; recordTradeStats(p-o.cost); state.options.splice(i,1);
-                if(!silent) log(`⌛ ${o.sym} Expired. Net: $${(p-o.cost).toFixed(2)}`, "log-opt");
+                
+                state.cash+=p; 
+                recordTradeStats(p-o.cost); 
+                state.options.splice(i,1);
+                if(!silent) {
+                    const net = p - o.cost;
+                    log(`⌛ ${o.sym} Expired. Net: $${net.toFixed(2)}`, net>0?"log-opt":"log-risk");
+                }
             }
         }
     }
@@ -723,7 +766,9 @@
         state.options.forEach(o => {
             const s = STOCKS.find(x=>x.sym===o.sym);
             let p = 0; if(o.type==='call') p=Math.max(0,s.price-o.strike)*10; if(o.type==='put') p=Math.max(0,o.strike-s.price)*10;
-            tbody.innerHTML += `<tr><td>${o.sym} ${o.type.toUpperCase()}</td><td>${o.ticksLeft}s</td><td>$${p.toFixed(2)}</td></tr>`;
+            const net = p - o.cost;
+            const color = net >= 0 ? "var(--green)" : "var(--text-dim)";
+            tbody.innerHTML += `<tr><td>${o.sym} ${o.type.toUpperCase()}</td><td>${o.ticksLeft}s</td><td style="color:${color}">$${p.toFixed(2)}</td></tr>`;
         });
         if(document.getElementById('netWorthDisplay')) document.getElementById('netWorthDisplay').innerText = `$${(state.cash + val).toFixed(2)}`;
         if(document.getElementById('statWinRate')) document.getElementById('statWinRate').innerText = state.stats.totalTrades>0?((state.stats.wins/state.stats.totalTrades)*100).toFixed(1)+"%":"0%";
@@ -766,7 +811,7 @@
     function setMode(m) { state.tradeMode = m; document.getElementById('mode-stocks').className=`mode-opt ${m==='stocks'?'active':''}`; document.getElementById('mode-options').className=`mode-opt ${m==='options'?'active':''}`; buildMarketTable(); }
     function log(msg, cls="") { const d=document.getElementById('logs'); const e=document.createElement('div'); e.className=`log-item ${cls}`; e.innerText=`[${new Date().toLocaleTimeString().split(' ')[0]}] ${msg}`; d.prepend(e); }
     function setTab(name) { document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.getElementById(`view-${name}`).classList.add('active'); event.target.classList.add('active'); }
-    function resetGame() { if(confirm("Reset?")) { localStorage.removeItem('tiu_v21'); location.reload(); } }
+    function resetGame() { if(confirm("Reset?")) { localStorage.removeItem('tiu_v23'); location.reload(); } }
     function toggleAI() { state.aiActive = !state.aiActive; document.getElementById('aiBtn').innerText = state.aiActive ? "ML: Active" : "Start ML"; document.getElementById('aiBtn').style.background = state.aiActive ? "#10b981" : "#8b5cf6"; }
     function toggleAiOptions() { state.aiTradeOptions = document.getElementById('aiOptToggle').checked; }
     function setChartRange(r) { state.chartRange = r; document.querySelectorAll('.btn-range').forEach(b=>b.classList.remove('active')); document.getElementById(`range-${r}`).classList.add('active'); if(chartObj) updateChart(); }
