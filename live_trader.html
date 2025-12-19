@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TIU Live Trader (v48 Escape-Key Fix)</title>
+    <title>TIU Live Trader (v50 Real Standard)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -27,46 +27,21 @@
         .panel-head { font-weight: 600; color: var(--text-dim); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
         .scroll-wrap { overflow-y: auto; flex: 1; min-height: 0; }
         
-        /* --- FULLSCREEN & BUTTON LOGIC --- */
+        /* FULLSCREEN & BUTTONS */
         .panel-fullscreen {
-            position: fixed !important;
-            top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
-            z-index: 99999 !important; /* Huge Number */
-            width: 100vw !important;
-            height: 100vh !important;
-            margin: 0 !important;
-            border-radius: 0 !important;
-            padding: 0 !important;
-            background: var(--bg) !important;
+            position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+            z-index: 99999 !important; width: 100vw !important; height: 100vh !important;
+            margin: 0 !important; border-radius: 0 !important; padding: 0 !important; background: var(--bg) !important;
         }
+        .panel-fullscreen canvas { height: 100vh !important; width: 100vw !important; }
+        .expand-btn { background: var(--blue); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
         
-        .panel-fullscreen canvas { 
-            height: 100vh !important; 
-            width: 100vw !important;
-        }
-
-        /* Standard Expand Button */
-        .expand-btn {
-            background: var(--blue); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;
-        }
-
-        /* THE NEW CLOSE BUTTON (Hidden by default) */
         #fullscreenExitBtn {
-            display: none; /* Hidden normally */
-            position: fixed;
-            top: 20px; 
-            right: 20px;
-            background: var(--red);
-            color: white;
-            font-weight: bold;
-            font-size: 1.2rem;
-            padding: 15px 30px;
-            border: 2px solid white;
-            border-radius: 8px;
-            cursor: pointer;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.8);
-            z-index: 1000000; /* Nuclear Option: Top of EVERYTHING */
-            pointer-events: all;
+            display: none; position: fixed; top: 20px; right: 20px;
+            background: var(--red); color: white; font-weight: bold; font-size: 1.2rem;
+            padding: 15px 30px; border: 2px solid white; border-radius: 8px;
+            cursor: pointer; box-shadow: 0 5px 20px rgba(0,0,0,0.8);
+            z-index: 1000000; pointer-events: all;
         }
         
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -79,35 +54,30 @@
         .btn-ai { background: var(--purple); color: #1e293b; }
         .btn-reset { background: var(--border); }
 
-        .control-group {
-            display:flex; flex-direction:column; align-items:end; min-width:180px; 
-            background:#1e293b; padding:8px; border-radius:6px; border:1px solid var(--border);
-        }
-        
+        .control-group { display:flex; flex-direction:column; align-items:end; min-width:180px; background:#1e293b; padding:8px; border-radius:6px; border:1px solid var(--border); }
         .log-item { font-size: 0.8rem; margin-bottom: 2px; padding-bottom: 2px; border-bottom: 1px solid #ffffff10; }
         .log-ml { border-left: 3px solid var(--purple); padding-left: 6px; color: #e9d5ff; background: #581c8720; }
         .log-opt { border-left: 3px solid var(--cyan); padding-left: 6px; color: #cffafe; background: #083344; }
         .log-sys { border-left: 3px solid var(--orange); padding-left: 6px; color: #fed7aa; background: #431407; }
+        .log-win { border-left: 3px solid var(--green); padding-left: 6px; color: #d1fae5; background: #064e3b; }
 
         .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px; }
         .stat-box { background: #0f172a; padding: 5px; border-radius: 4px; text-align: center; }
         .stat-val { font-size: 0.9rem; font-weight: bold; }
         .ai-indicator { height: 4px; background: #334155; border-radius: 2px; overflow: hidden; margin-top: 2px; }
         .ai-bar { height: 100%; transition: width 0.3s; }
-        
         .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--text-dim); margin-right:5px;}
-        .status-live { background: var(--green); box-shadow: 0 0 5px var(--green); }
     </style>
 </head>
 <body>
 
 <button id="fullscreenExitBtn" onclick="closeAllFullscreen()">✖ EXIT FULLSCREEN (ESC)</button>
 
-<div class="watermark">LIVE</div>
+<div class="watermark">STD</div>
 
 <div class="top-bar">
     <div>
-        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Live Trader <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v48 Final</span></h1>
+        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Live Trader <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v50 Real-Standard</span></h1>
         <div style="font-size:0.8rem; color:var(--text-dim); margin-top:2px;">
             Feed: <span id="feedStatus" style="color:var(--text-dim)"><span class="status-dot"></span>Connecting...</span>
         </div>
@@ -115,7 +85,6 @@
     
     <div style="display:flex; gap:10px; align-items:center;">
         <button class="btn btn-green" onclick="addFunds()">+ $5k Funds</button>
-        
         <div class="control-group">
             <div style="font-size:0.7rem; color:var(--text-dim); display:flex; justify-content:space-between; width:100%;">
                 <span>Min Confidence:</span>
@@ -124,7 +93,6 @@
             <input type="range" id="aiConfidenceSlider" min="55" max="95" value="75" step="1" style="width:100%; cursor:pointer; margin: 5px 0;" 
                    oninput="document.getElementById('confValueDisplay').innerText = this.value + '%'">
         </div>
-
         <button class="btn btn-ai" id="aiBtn" onclick="toggleAI()">Start AI</button>
         <button class="btn btn-reset" onclick="resetGame()">Reset</button>
     </div>
@@ -141,11 +109,10 @@
             </div>
             <canvas id="mainChart"></canvas>
         </div>
-
         <div class="panel" style="flex: 1;">
             <div class="panel-head">
                 <span>Live Market Feed</span>
-                <span style="font-size:0.7rem; color:var(--cyan)">Data: Finnhub.io</span>
+                <span style="font-size:0.7rem; color:var(--cyan)">Lot Size: 100 Shares</span>
             </div>
             <div class="scroll-wrap">
                 <table id="marketTable">
@@ -155,7 +122,6 @@
             </div>
         </div>
     </div>
-
     <div class="col">
         <div class="panel">
             <div class="panel-head">Fund Status</div>
@@ -174,7 +140,6 @@
                 </div>
             </div>
         </div>
-
         <div class="panel">
             <div class="panel-head">Neural Networks</div>
             <div style="margin-bottom:8px;">
@@ -192,7 +157,6 @@
                 <div class="ai-indicator"><div class="ai-bar" id="optBar" style="width:0%; background:var(--cyan)"></div></div>
             </div>
         </div>
-
         <div class="panel" style="flex: 1;">
             <div class="panel-head">Portfolio</div>
             <div class="scroll-wrap">
@@ -202,7 +166,6 @@
                 </table>
             </div>
         </div>
-
         <div class="panel" id="logPanel" style="flex: 1;">
             <div class="panel-head">
                 <span>System Log</span>
@@ -218,16 +181,18 @@
     
     const CONFIG = {
         updateSpeed: 1000, 
-        optionCost: 100,  
+        optionCost: 5,   // $5.00 per trade (more realistic for play money)
         optionDuration: 60, 
         historySize: 60,
-        explorationRate: 0.10
+        explorationRate: 0.10,
+        leverage: 100,   // Standard Contract Size (100 Shares)
+        takeProfit: 15   // Auto-sell at $15 profit (3x cost)
     };
 
     class Brain {
         constructor(inputSize, learningRate = 0.05) {
-            this.weights = new Array(inputSize).fill(0).map(()=> Math.random()*2-1);
-            this.bias = 0;
+            this.weights = [0.8, 0.2]; 
+            this.bias = 0.1;
             this.lr = learningRate;
             this.total = 0;
             this.correct = 0;
@@ -255,83 +220,44 @@
     ];
 
     let STOCKS = [];
-    let state = {
-        cash: 10000,
-        options: [],
-        aiActive: false,
-        wins: 0,
-        losses: 0,
-        tick: 0
-    };
-
+    let state = { cash: 10000, options: [], aiActive: false, wins: 0, losses: 0, tick: 0 };
     const trendBrain = new Brain(2, 0.1); 
     const optionBrain = new Brain(2, 0.1); 
     let chart = null;
     let socket = null;
-
-    // --- NEW FULLSCREEN LOGIC ---
     let currentFullscreenPanel = null;
 
     function openFullscreen(panelId) {
         if(currentFullscreenPanel) closeAllFullscreen();
-        
         const panel = document.getElementById(panelId);
         panel.classList.add('panel-fullscreen');
-        
-        // Show the global exit button
         document.getElementById('fullscreenExitBtn').style.display = 'block';
         currentFullscreenPanel = panelId;
     }
 
     function closeAllFullscreen() {
-        if(currentFullscreenPanel) {
-            document.getElementById(currentFullscreenPanel).classList.remove('panel-fullscreen');
-        }
+        if(currentFullscreenPanel) document.getElementById(currentFullscreenPanel).classList.remove('panel-fullscreen');
         document.getElementById('fullscreenExitBtn').style.display = 'none';
         currentFullscreenPanel = null;
     }
 
-    // Listen for Escape Key
-    document.addEventListener('keydown', function(event) {
-        if (event.key === "Escape") {
-            closeAllFullscreen();
-        }
-    });
-    // ---------------------------
+    document.addEventListener('keydown', function(event) { if (event.key === "Escape") closeAllFullscreen(); });
 
     function init() {
-        STOCKS = STOCK_DEFS.map(d => ({
-            ...d,
-            price: d.p,
-            startPrice: d.p, 
-            history: Array(60).fill(0), 
-            currentVol: 0.005,
-            trend: 0
-        }));
-        
-        buildChart();
-        updateUI();
-        setupLiveFeed();
-        
+        STOCKS = STOCK_DEFS.map(d => ({ ...d, price: d.p, startPrice: d.p, history: Array(60).fill(0), currentVol: 0.005, trend: 0 }));
+        buildChart(); updateUI(); setupLiveFeed();
         setInterval(gameLoop, CONFIG.updateSpeed);
-        log("System Initialized. Press ESC to exit fullscreen.", "log-sys");
+        log("System Online. Mode: Standard Lots (100 shares)", "log-sys");
     }
 
     function setupLiveFeed() {
         try {
             socket = new WebSocket(`wss://ws.finnhub.io?token=${API_KEY}`);
-
             socket.addEventListener('open', function (event) {
-                const badge = document.getElementById('feedStatus');
-                badge.innerHTML = '<span class="status-dot status-live"></span>LIVE';
-                badge.style.color = 'var(--green)';
-                log("✅ Connected to Finnhub.", "log-sys");
-                
-                STOCKS.forEach(s => {
-                    socket.send(JSON.stringify({'type':'subscribe', 'symbol': s.sym}));
-                });
+                document.getElementById('feedStatus').innerHTML = '<span class="status-dot status-live"></span>LIVE';
+                document.getElementById('feedStatus').style.color = 'var(--green)';
+                STOCKS.forEach(s => socket.send(JSON.stringify({'type':'subscribe', 'symbol': s.sym})));
             });
-
             socket.addEventListener('message', function (event) {
                 const message = JSON.parse(event.data);
                 if (message.type === 'trade') {
@@ -339,22 +265,12 @@
                         const stock = STOCKS.find(s => s.sym === trade.s);
                         if (stock) {
                             if(state.tick < 2) stock.startPrice = trade.p;
-                            
-                            const oldPrice = stock.price;
                             stock.price = trade.p;
-                            stock.currentVol = Math.abs((stock.price - oldPrice) / oldPrice) * 100;
                         }
                     });
                 }
             });
-            
-            socket.addEventListener('error', function(err) {
-                log("🔴 Socket Error (Check API Key)", "log-sys");
-            });
-
-        } catch(e) {
-            log("🔴 Connection Failed", "log-sys");
-        }
+        } catch(e) { log("Connection Failed", "log-sys"); }
     }
 
     function getSMA(history, periods) {
@@ -366,12 +282,16 @@
 
     function gameLoop() {
         state.tick++;
-
         STOCKS.forEach(s => {
             const pctChange = ((s.price - s.startPrice) / s.startPrice) * 100;
             s.history.push(pctChange);
             if(s.history.length > CONFIG.historySize) s.history.shift();
-            s.trend = s.price - s.startPrice; 
+            
+            // Calculate Volatility relative to recent history
+            if(s.history.length > 5) {
+                let diff = Math.abs(s.history[s.history.length-1] - s.history[s.history.length-2]);
+                s.currentVol = diff * 10; 
+            }
         });
 
         processOptions();
@@ -384,18 +304,24 @@
         for (let i = state.options.length - 1; i >= 0; i--) {
             let opt = state.options[i];
             opt.life--;
+
             const stock = STOCKS.find(s => s.sym === opt.sym);
-            if (opt.life <= 0) {
-                let payout = 0;
-                if (opt.type === 'call') payout = Math.max(0, (stock.price - opt.strike) * 50);
-                if (opt.type === 'put') payout = Math.max(0, (opt.strike - stock.price) * 50);
+            let payout = 0;
+            // STANDARD OPTION MATH: 1 Contract = 100 Shares
+            if (opt.type === 'call') payout = Math.max(0, (stock.price - opt.strike) * CONFIG.leverage);
+            if (opt.type === 'put') payout = Math.max(0, (opt.strike - stock.price) * CONFIG.leverage);
+
+            const shouldScalp = payout >= CONFIG.takeProfit;
+            const expired = opt.life <= 0;
+
+            if (expired || shouldScalp) {
                 const profit = payout - opt.cost;
                 state.cash += payout;
                 if (profit > 0) state.wins++; else state.losses++;
                 optionBrain.train(opt.aiInputs, profit > 0 ? 1 : 0);
-                const logClass = profit > 0 ? "log-opt" : "log-sys";
-                const icon = profit > 0 ? "✅" : "❌";
-                log(`${icon} ${opt.sym} Exp. P/L: $${profit.toFixed(0)}`, logClass);
+                
+                const logClass = profit > 0 ? "log-win" : "log-sys";
+                log(`${profit>0?'✅':'❌'} ${opt.sym} ${expired?'Exp':'Scalp'} P/L: $${profit.toFixed(2)}`, logClass);
                 state.options.splice(i, 1);
             }
         }
@@ -409,12 +335,15 @@
             const smaShort = getSMA(s.history, 5);
             const smaLong = getSMA(s.history, 20);
             const maDivergence = (smaShort - smaLong) * 10; 
-            const volInput = s.currentVol * 10;
+            const volInput = s.currentVol;
             const brainInputs = [maDivergence, volInput];
+
             const trendConf = trendBrain.predict(brainInputs); 
             const optConf = optionBrain.predict(brainInputs);  
+
             const isPriceRising = s.history[s.history.length-1] > s.history[s.history.length-2] ? 1 : 0;
             trendBrain.train(brainInputs, isPriceRising);
+
             const isBullish = trendConf > confidenceReq;
             const isBearish = trendConf < (1 - confidenceReq);
             const isConfident = optConf > 0.55; 
@@ -446,78 +375,58 @@
         if(state.cash < CONFIG.optionCost) return;
         state.cash -= CONFIG.optionCost;
         let strike = stock.price; 
-        if(type === 'call') strike = stock.price * 0.9995; 
-        if(type === 'put') strike = stock.price * 1.0005;
+        if(type === 'call') strike = stock.price * 0.9999; 
+        if(type === 'put') strike = stock.price * 1.0001;
+
         state.options.push({
             sym: stock.sym, type: type, strike: strike, cost: CONFIG.optionCost,
             life: CONFIG.optionDuration, aiInputs: inputs
         });
-        const icon = inputs ? "🤖" : "🎲"; 
-        log(`${icon} Bought ${type.toUpperCase()} ${stock.sym} @ ${stock.price.toFixed(2)}`, "log-opt");
+        log(`🤖 Bought ${type.toUpperCase()} ${stock.sym}`, "log-opt");
     }
 
     function addFunds() { state.cash += 5000; updateUI(); }
 
     function updateUI() {
-        document.getElementById('cashDisplay').innerText = `$${state.cash.toFixed(0)}`;
-        
+        document.getElementById('cashDisplay').innerText = `$${state.cash.toFixed(2)}`;
         let optVal = 0;
         state.options.forEach(o => {
             const s = STOCKS.find(x=>x.sym===o.sym);
             let p = 0;
-            if(o.type==='call') p = Math.max(0, (s.price - o.strike)*50);
-            if(o.type==='put') p = Math.max(0, (o.strike - s.price)*50);
+            if(o.type==='call') p = Math.max(0, (s.price - o.strike)*CONFIG.leverage);
+            if(o.type==='put') p = Math.max(0, (o.strike - s.price)*CONFIG.leverage);
             optVal += p;
         });
-        document.getElementById('netWorthDisplay').innerText = `$${(state.cash + optVal).toFixed(0)}`;
+        document.getElementById('netWorthDisplay').innerText = `$${(state.cash + optVal).toFixed(2)}`;
         document.getElementById('aiBtn').innerText = state.aiActive ? "Stop AI" : "Start AI";
         document.getElementById('aiBtn').style.background = state.aiActive ? "#ef4444" : "#c084fc";
-
         const total = state.wins + state.losses;
         const rate = total === 0 ? 0 : Math.round((state.wins/total)*100);
         document.getElementById('winRateDisplay').innerText = `${rate}%`;
-        
         document.getElementById('trendAcc').innerText = `${trendBrain.getAccuracy()}%`;
         document.getElementById('trendBar').style.width = `${trendBrain.getAccuracy()}%`;
         document.getElementById('optAcc').innerText = `${optionBrain.getAccuracy()}%`;
         document.getElementById('optBar').style.width = `${optionBrain.getAccuracy()}%`;
-
+        
         const tbody = document.getElementById('marketBody');
         tbody.innerHTML = '';
         STOCKS.forEach(s => {
             const row = document.createElement('tr');
             const ai = s.aiData || { trendConf: 0.5, optConf: 0.5, targetT: 0.6, action: "-", debugTag: "" };
-            
-            const tConf = (ai.trendConf*100).toFixed(0);
-            const oConf = (ai.optConf*100).toFixed(0);
-            const tColor = ai.trendConf > ai.targetT || ai.trendConf < (1-ai.targetT) ? 'var(--green)' : 'var(--text-dim)';
             const pctChange = ((s.price - s.startPrice) / s.startPrice) * 100;
             const pctColor = pctChange >= 0 ? 'var(--green)' : 'var(--red)';
-
-            row.innerHTML = `
-                <td style="font-weight:bold">${s.sym}</td>
-                <td>${s.price.toFixed(2)}</td>
-                <td style="color:${pctColor}">${pctChange.toFixed(3)}%</td>
-                <td>
-                    <span style="color:${tColor}">Dir:${tConf}</span> | 
-                    <span style="color:var(--cyan)">Conf:${oConf}</span> 
-                </td>
-                <td style="color:${ai.action.includes('Buy')?'var(--green)':'var(--text-dim)'}">
-                    ${ai.debugTag} ${ai.action}
-                </td>
-            `;
+            row.innerHTML = `<td style="font-weight:bold">${s.sym}</td><td>${s.price.toFixed(2)}</td><td style="color:${pctColor}">${pctChange.toFixed(3)}%</td><td>${(ai.trendConf*100).toFixed(0)}</td><td style="color:${ai.action.includes('Buy')?'var(--green)':'var(--text-dim)'}">${ai.action}</td>`;
             tbody.appendChild(row);
         });
-
         const hBody = document.getElementById('holdingsBody');
         hBody.innerHTML = '';
         state.options.forEach(o => {
             const s = STOCKS.find(x=>x.sym===o.sym);
             let curVal = 0;
-            if(o.type==='call') curVal = Math.max(0, (s.price - o.strike)*50);
-            if(o.type==='put') curVal = Math.max(0, (o.strike - s.price)*50);
+            if(o.type==='call') curVal = Math.max(0, (s.price - o.strike)*CONFIG.leverage);
+            if(o.type==='put') curVal = Math.max(0, (o.strike - s.price)*CONFIG.leverage);
             const pl = curVal - o.cost;
-            hBody.innerHTML += `<tr><td>${o.sym} ${o.type}</td><td>${o.life}s</td><td style="color:${pl>=0?'var(--green)':'var(--red)'}">$${pl.toFixed(0)}</td></tr>`;
+            hBody.innerHTML += `<tr><td>${o.sym} ${o.type}</td><td>${o.life}s</td><td style="color:${pl>=0?'var(--green)':'var(--red)'}">$${pl.toFixed(2)}</td></tr>`;
         });
     }
 
@@ -525,48 +434,21 @@
         const ctx = document.getElementById('mainChart').getContext('2d');
         chart = new Chart(ctx, {
             type: 'line',
-            data: { 
-                labels: Array(60).fill(''),
-                datasets: STOCKS.map((s,i) => ({
-                    label: s.sym, data: s.history,
-                    borderColor: ['#3b82f6','#10b981','#ef4444','#f59e0b','#c084fc'][i],
-                    borderWidth: 2, pointRadius: 0, tension: 0.4
-                }))
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false, animation: false,
-                plugins: { legend: { display: false } },
-                scales: { 
-                    x: { display: false }, 
-                    y: { 
-                        grid: { color: '#33415550' },
-                        ticks: { callback: function(value) { return value.toFixed(3) + "%" } }
-                    } 
-                }
-            }
+            data: { labels: Array(60).fill(''), datasets: STOCKS.map((s,i) => ({ label: s.sym, data: s.history, borderColor: ['#3b82f6','#10b981','#ef4444','#f59e0b','#c084fc'][i], borderWidth: 2, pointRadius: 0, tension: 0.4 })) },
+            options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { grid: { color: '#33415550' }, ticks: { callback: function(value) { return value.toFixed(3) + "%" } } } } }
         });
     }
 
     function updateChart() {
         if(!chart) return;
-
-        // --- SMART ZOOM LOGIC ---
         let allValues = [];
-        STOCKS.forEach((s, i) => {
-            chart.data.datasets[i].data = s.history;
-            allValues.push(...s.history);
-        });
-
+        STOCKS.forEach((s, i) => { chart.data.datasets[i].data = s.history; allValues.push(...s.history); });
         allValues.sort((a,b) => a-b);
         const p10 = allValues[Math.floor(allValues.length * 0.1)] || -0.5;
         const p90 = allValues[Math.floor(allValues.length * 0.9)] || 0.5;
-        
-        let range = p90 - p10;
-        if(range < 0.1) range = 0.1; 
-
+        let range = p90 - p10; if(range < 0.1) range = 0.1; 
         chart.options.scales.y.min = p10 - (range * 0.2);
         chart.options.scales.y.max = p90 + (range * 0.2);
-
         chart.update('none');
     }
 
