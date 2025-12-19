@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TIU Trader (Realism Engine)</title>
+    <title>TIU Trader v53 (Bulletproof)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -21,23 +21,6 @@
         .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; position: relative; transition: all 0.3s ease; }
         .panel-head { font-weight: 600; color: var(--text-dim); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
         .scroll-wrap { overflow-y: auto; flex: 1; min-height: 0; }
-        
-        /* FULLSCREEN & BUTTONS */
-        .panel-fullscreen {
-            position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
-            z-index: 99999 !important; width: 100vw !important; height: 100vh !important;
-            margin: 0 !important; border-radius: 0 !important; padding: 0 !important; background: var(--bg) !important;
-        }
-        .panel-fullscreen canvas { height: 100vh !important; width: 100vw !important; }
-        .expand-btn { background: var(--blue); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
-        
-        #fullscreenExitBtn {
-            display: none; position: fixed; top: 20px; right: 20px;
-            background: var(--red); color: white; font-weight: bold; font-size: 1.2rem;
-            padding: 15px 30px; border: 2px solid white; border-radius: 8px;
-            cursor: pointer; box-shadow: 0 5px 20px rgba(0,0,0,0.8);
-            z-index: 1000000; pointer-events: all;
-        }
         
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         th { text-align: left; color: var(--text-dim); position: sticky; top: 0; background: var(--panel); padding: 5px; z-index: 10;}
@@ -60,6 +43,23 @@
         .ai-indicator { height: 4px; background: #334155; border-radius: 2px; overflow: hidden; margin-top: 2px; }
         .ai-bar { height: 100%; transition: width 0.3s; }
         .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--text-dim); margin-right:5px;}
+
+        /* FULLSCREEN & BUTTONS */
+        .panel-fullscreen {
+            position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+            z-index: 99999 !important; width: 100vw !important; height: 100vh !important;
+            margin: 0 !important; border-radius: 0 !important; padding: 0 !important; background: var(--bg) !important;
+        }
+        .panel-fullscreen canvas { height: 100vh !important; width: 100vw !important; }
+        .expand-btn { background: var(--blue); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        
+        #fullscreenExitBtn {
+            display: none; position: fixed; top: 20px; right: 20px;
+            background: var(--red); color: white; font-weight: bold; font-size: 1.2rem;
+            padding: 15px 30px; border: 2px solid white; border-radius: 8px;
+            cursor: pointer; box-shadow: 0 5px 20px rgba(0,0,0,0.8);
+            z-index: 1000000; pointer-events: all;
+        }
     </style>
 </head>
 <body>
@@ -68,7 +68,7 @@
 
 <div class="top-bar">
     <div>
-        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Live Trader <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v51 Realism</span></h1>
+        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Live Trader <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v53 Bulletproof</span></h1>
         <div style="font-size:0.8rem; color:var(--text-dim); margin-top:2px;">
             Feed: <span id="feedStatus" style="color:var(--text-dim)"><span class="status-dot"></span>Connecting...</span>
         </div>
@@ -102,7 +102,7 @@
         </div>
         <div class="panel" style="flex: 1;">
             <div class="panel-head">
-                <span>Real-Time Market Data</span>
+                <span>Live Market Data</span>
                 <span style="font-size:0.7rem; color:var(--cyan)">Logic: Bid/Ask + Greeks</span>
             </div>
             <div class="scroll-wrap">
@@ -136,16 +136,8 @@
             <div style="margin-bottom:8px;">
                 <div style="display:flex; justify-content:space-between; font-size:0.75rem;">
                     <span>Trend Strength</span>
-                    <span id="trendAcc">--</span>
                 </div>
-                <div class="ai-indicator"><div class="ai-bar" id="trendBar" style="width:0%; background:var(--purple)"></div></div>
-            </div>
-            <div>
-                <div style="display:flex; justify-content:space-between; font-size:0.75rem;">
-                    <span>Profit Probability</span>
-                    <span id="optAcc">--</span>
-                </div>
-                <div class="ai-indicator"><div class="ai-bar" id="optBar" style="width:0%; background:var(--cyan)"></div></div>
+                <div class="ai-indicator"><div class="ai-bar" id="trendBar" style="width:50%; background:var(--purple)"></div></div>
             </div>
         </div>
         <div class="panel" style="flex: 1;">
@@ -157,11 +149,8 @@
                 </table>
             </div>
         </div>
-        <div class="panel" id="logPanel" style="flex: 1;">
-            <div class="panel-head">
-                <span>Execution Log</span>
-                <button class="expand-btn" onclick="openFullscreen('logPanel')">⛶ Expand</button>
-            </div>
+        <div class="panel" style="flex: 1;">
+            <div class="panel-head">Execution Log</div>
             <div class="scroll-wrap" id="logs"></div>
         </div>
     </div>
@@ -170,33 +159,47 @@
 <script>
     const API_KEY = "d52lhbhr01qggm5sggrgd52lhbhr01qggm5sggs0"; 
 
-    // REALISM CONSTANTS
+    // CONFIGURATION
     const CONFIG = {
         updateSpeed: 1000, 
-        spreadPct: 0.0004, // 0.04% Spread (Realistic for liquid stocks)
-        slippageMax: 0.02, // Max $0.02 slippage per execution
-        contractSize: 100, // 1 Option = 100 Shares (Standard)
+        spreadPct: 0.0004, 
+        slippageMax: 0.02, 
+        contractSize: 100, 
         historySize: 60,
-        thetaDecay: 0.05,  // Time decay per tick
-        takeProfitPct: 0.20 // 20% Profit Target
+        thetaDecay: 0.05,
+        takeProfitPct: 0.20,
+        optionDuration: 60
     };
+
+    // --- MATH SANITIZER (PREVENTS NaN) ---
+    function sanitize(num, fallback = 0) {
+        if (num === null || num === undefined || isNaN(num) || !isFinite(num)) {
+            return fallback;
+        }
+        return num;
+    }
 
     class Brain {
         constructor() {
-            this.weights = [0.8, -0.5]; // Trend Weight, Volatility Penalty
+            this.weights = [0.8, -0.5]; 
             this.bias = 0.2;
         }
-        sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
+        sigmoid(x) { return 1 / (1 + Math.exp(-sanitize(x))); }
         predict(inputs) {
             let sum = this.bias;
-            for(let i=0; i<this.weights.length; i++) sum += inputs[i] * this.weights[i];
+            for(let i=0; i<this.weights.length; i++) {
+                // Sanitize every input before calculation
+                const val = sanitize(inputs[i]);
+                sum += val * sanitize(this.weights[i]);
+            }
             return this.sigmoid(sum);
         }
-        // Simple reinforcement learning
         train(inputs, success) {
             const pred = this.predict(inputs);
             const err = (success ? 1 : 0) - pred;
-            for(let i=0; i<this.weights.length; i++) this.weights[i] += err * inputs[i] * 0.1;
+            for(let i=0; i<this.weights.length; i++) {
+                this.weights[i] += err * sanitize(inputs[i]) * 0.1;
+            }
         }
     }
 
@@ -212,37 +215,50 @@
     let socket = null;
     let currentFullscreenPanel = null;
 
-    // --- PRICING ENGINE (Simplified Black-Scholes) ---
+    // --- PRICING ENGINE ---
     function getOptionPrice(stockPrice, strike, type, volatility, timeRemaining) {
-        // Intrinsic Value (Real Value)
+        const p = sanitize(stockPrice);
+        const k = sanitize(strike);
+        const v = sanitize(volatility, 0.01); // Fallback to 1% vol
+        const t = sanitize(timeRemaining, 1); // Fallback to 1 tick
+
         let intrinsic = 0;
-        if(type === 'call') intrinsic = Math.max(0, stockPrice - strike);
-        if(type === 'put') intrinsic = Math.max(0, strike - stockPrice);
+        if(type === 'call') intrinsic = Math.max(0, p - k);
+        if(type === 'put') intrinsic = Math.max(0, k - p);
         
-        // Extrinsic Value (Time + Volatility Premium)
-        // More Volatility = Higher Price. Less Time = Lower Price.
-        let extrinsic = (stockPrice * volatility * 0.1) * (timeRemaining / 60);
-        
-        return (intrinsic + extrinsic) * CONFIG.contractSize;
+        let extrinsic = (p * v * 0.1) * (t / 60);
+        return sanitize((intrinsic + extrinsic) * CONFIG.contractSize);
     }
 
-    // --- REALISTIC EXECUTION ---
     function getExecutionPrice(basePrice, side) {
-        const spread = basePrice * CONFIG.spreadPct;
+        const p = sanitize(basePrice);
+        const spread = p * CONFIG.spreadPct;
         const slippage = Math.random() * CONFIG.slippageMax;
-        
-        // If Buying, you pay Ask (Price + Spread + Slippage)
-        if(side === 'buy') return basePrice + (spread/2) + slippage;
-        // If Selling, you get Bid (Price - Spread - Slippage)
-        if(side === 'sell') return basePrice - (spread/2) - slippage;
-        return basePrice;
+        if(side === 'buy') return p + (spread/2) + slippage;
+        if(side === 'sell') return p - (spread/2) - slippage;
+        return p;
     }
 
     function init() {
-        STOCKS = STOCK_DEFS.map(d => ({ ...d, price: d.p, startPrice: d.p, history: Array(60).fill(d.p), currentVol: 0.01 }));
-        buildChart(); updateUI(); setupLiveFeed();
-        setInterval(gameLoop, CONFIG.updateSpeed);
-        log("System Online. Realism Engine Active.", "log-ml");
+        STOCKS = STOCK_DEFS.map(d => ({ 
+            ...d, 
+            price: d.p, 
+            startPrice: d.p, 
+            history: Array(60).fill(d.p), 
+            currentVol: 0.01 
+        }));
+        
+        buildChart(); 
+        updateUI(); 
+        setupLiveFeed();
+        
+        // Wrap Loop in Try/Catch to prevent freezing
+        setInterval(() => {
+            try { gameLoop(); } 
+            catch(e) { console.error("Loop Error:", e); }
+        }, CONFIG.updateSpeed);
+        
+        log("System Online. NaN Guard Active.", "log-ml");
     }
 
     function setupLiveFeed() {
@@ -254,16 +270,19 @@
                 STOCKS.forEach(s => socket.send(JSON.stringify({'type':'subscribe', 'symbol': s.sym})));
             });
             socket.addEventListener('message', (e) => {
-                const m = JSON.parse(e.data);
-                if (m.type === 'trade') {
-                    m.data.forEach(t => {
-                        const s = STOCKS.find(x => x.sym === t.s);
-                        if (s) {
-                            if(state.tick < 2) s.startPrice = t.p;
-                            s.price = t.p;
-                        }
-                    });
-                }
+                try {
+                    const m = JSON.parse(e.data);
+                    if (m.type === 'trade') {
+                        m.data.forEach(t => {
+                            const s = STOCKS.find(x => x.sym === t.s);
+                            // Only update if we have a valid price > 0
+                            if (s && t.p && !isNaN(t.p) && t.p > 0) { 
+                                if(state.tick < 2) s.startPrice = t.p;
+                                s.price = t.p;
+                            }
+                        });
+                    }
+                } catch(err) { /* Ignore bad packets */ }
             });
         } catch(e) { log("Connection Failed", "log-err"); }
     }
@@ -273,11 +292,14 @@
         STOCKS.forEach(s => {
             s.history.push(s.price);
             if(s.history.length > CONFIG.historySize) s.history.shift();
-            // Calculate Volatility (Standard Deviation Proxy)
+            
             if(s.history.length > 5) {
                 const changes = s.history.slice(-5).map((p, i, a) => i===0?0 : Math.abs(p - a[i-1]));
                 const avgChange = changes.reduce((a,b)=>a+b,0) / changes.length;
-                s.currentVol = (avgChange / s.price) * 100; // Normalized Volatility
+                // Sanitize calculation to prevent Division by Zero Infinity
+                const safePrice = s.price > 0 ? s.price : 1;
+                let vol = (avgChange / safePrice) * 100;
+                s.currentVol = sanitize(vol, 0.01);
             }
         });
 
@@ -293,25 +315,20 @@
             opt.life--;
 
             const stock = STOCKS.find(s => s.sym === opt.sym);
-            
-            // Mark-to-Market: What is this option worth RIGHT NOW if we sell at the BID?
-            // Note: Option prices decay as Life decreases (Theta)
             const fairValue = getOptionPrice(stock.price, opt.strike, opt.type, stock.currentVol, opt.life);
+            const bidPrice = getExecutionPrice(fairValue, 'sell');
             
-            // Realistic Sell: Bid Price (Fair Value - Spread)
-            const bidPrice = fairValue * (1 - CONFIG.spreadPct);
-            opt.currentValue = bidPrice;
+            opt.currentValue = sanitize(bidPrice);
 
-            const profitPct = (bidPrice - opt.cost) / opt.cost;
+            const cost = sanitize(opt.cost, 1); // Avoid div by zero
+            const profitPct = (opt.currentValue - cost) / cost;
             const expired = opt.life <= 0;
             
-            // AI Logic: Take Profit or Stop Loss or Expire
             if (profitPct >= CONFIG.takeProfitPct || expired) {
-                const pnl = bidPrice - opt.cost;
-                state.cash += bidPrice;
+                const pnl = opt.currentValue - cost;
+                state.cash += opt.currentValue;
                 if(pnl > 0) state.wins++; else state.losses++;
                 
-                // Train AI: Did this trade work?
                 aiBrain.train(opt.aiInputs, pnl > 0);
 
                 const icon = pnl > 0 ? "✅" : "❌";
@@ -327,22 +344,21 @@
         const confReq = document.getElementById('aiConfidenceSlider').value / 100;
 
         STOCKS.forEach(s => {
-            // Inputs: Trend (SMA Divergence) & Volatility
             const smaShort = s.history.slice(-5).reduce((a,b)=>a+b,0)/5;
             const smaLong = s.history.slice(-20).reduce((a,b)=>a+b,0)/20;
-            const trend = (smaShort - smaLong) / s.price; // Positive = Up
+            const safePrice = s.price > 0 ? s.price : 1;
+            const trend = (smaShort - smaLong) / safePrice; 
             
-            const inputs = [trend * 100, s.currentVol];
-            const score = aiBrain.predict(inputs); // 0.0 to 1.0
+            const inputs = [sanitize(trend * 100), sanitize(s.currentVol)];
+            const score = aiBrain.predict(inputs); 
 
             const isBullish = score > confReq;
             const isBearish = score < (1 - confReq);
 
             let action = "-";
             
-            if (state.cash > 2000) { // Need cash for margin/premium
+            if (state.cash > 2000) { 
                 const hasPos = state.options.some(o => o.sym === s.sym);
-                
                 if (!hasPos) {
                     if (isBullish) { buyOption(s, 'call', inputs); action = "Buy CALL"; }
                     else if (isBearish) { buyOption(s, 'put', inputs); action = "Buy PUT"; }
@@ -353,15 +369,12 @@
     }
 
     function buyOption(stock, type, inputs) {
-        // Pricing: Contracts are expensive now!
-        // At-The-Money (ATM) options have highest extrinsic value
         const strike = stock.price; 
-        
-        // Calculate Ask Price (Fair Value + Spread + Slippage)
         const fairPrice = getOptionPrice(stock.price, strike, type, stock.currentVol, CONFIG.optionDuration);
         const askPrice = getExecutionPrice(fairPrice, 'buy');
 
-        if(state.cash < askPrice) return; // Can't afford
+        if(askPrice <= 0) return; 
+        if(state.cash < askPrice) return; 
 
         state.cash -= askPrice;
         
@@ -374,15 +387,16 @@
         log(`🛒 Bought ${stock.sym} ${type.toUpperCase()} @ $${askPrice.toFixed(2)}`, "log-ml");
     }
 
-    // UI & UTILS
+    function addFunds() { state.cash += 10000; updateUI(); }
+
     function updateUI() {
+        state.cash = sanitize(state.cash);
         document.getElementById('cashDisplay').innerText = `$${state.cash.toFixed(2)}`;
         
-        // Liquidation Value = Cash + Value of all Open Options
         let liqVal = state.cash;
-        state.options.forEach(o => liqVal += o.currentValue);
+        state.options.forEach(o => liqVal += sanitize(o.currentValue));
         
-        document.getElementById('netWorthDisplay').innerText = `$${liqVal.toFixed(2)}`;
+        document.getElementById('netWorthDisplay').innerText = `$${sanitize(liqVal).toFixed(2)}`;
         
         const total = state.wins + state.losses;
         const rate = total === 0 ? 0 : Math.round((state.wins/total)*100);
@@ -395,19 +409,16 @@
         tbody.innerHTML = '';
         STOCKS.forEach(s => {
             const row = document.createElement('tr');
-            // Realistic Quote Display
             const spread = s.price * CONFIG.spreadPct;
             const bid = s.price - (spread/2);
             const ask = s.price + (spread/2);
-            
             const ai = s.aiData || { score: 0.5, action: "-" };
-            const conf = Math.abs(ai.score - 0.5) * 200; // Visualization scale
 
             row.innerHTML = `
                 <td style="font-weight:bold">${s.sym}</td>
-                <td style="font-size:0.8rem">${bid.toFixed(2)} / ${ask.toFixed(2)}</td>
-                <td>${s.currentVol.toFixed(2)}</td>
-                <td style="color:${ai.score>0.5?'var(--green)':'var(--red)'}">${(ai.score*100).toFixed(0)}%</td>
+                <td style="font-size:0.8rem">${sanitize(bid).toFixed(2)} / ${sanitize(ask).toFixed(2)}</td>
+                <td>${sanitize(s.currentVol).toFixed(2)}</td>
+                <td style="color:${ai.score>0.5?'var(--green)':'var(--red)'}">${(sanitize(ai.score)*100).toFixed(0)}%</td>
                 <td style="font-size:0.8rem">${ai.action}</td>
             `;
             tbody.appendChild(row);
@@ -416,29 +427,16 @@
         const hBody = document.getElementById('holdingsBody');
         hBody.innerHTML = '';
         state.options.forEach(o => {
-            const pnl = o.currentValue - o.cost;
+            const pnl = sanitize(o.currentValue) - o.cost;
             const pnlPct = (pnl / o.cost) * 100;
             const color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
             hBody.innerHTML += `
                 <tr>
                     <td>${o.sym} ${o.type}</td>
-                    <td>$${o.currentValue.toFixed(0)}</td>
-                    <td style="color:${color}">$${pnl.toFixed(0)} (${pnlPct.toFixed(1)}%)</td>
+                    <td>$${sanitize(o.currentValue).toFixed(0)}</td>
+                    <td style="color:${color}">$${pnl.toFixed(0)} (${sanitize(pnlPct).toFixed(1)}%)</td>
                 </tr>`;
         });
-    }
-
-    // Fullscreen Helpers
-    function openFullscreen(panelId) {
-        if(currentFullscreenPanel) closeAllFullscreen();
-        document.getElementById(panelId).classList.add('panel-fullscreen');
-        document.getElementById('fullscreenExitBtn').style.display = 'block';
-        currentFullscreenPanel = panelId;
-    }
-    function closeAllFullscreen() {
-        if(currentFullscreenPanel) document.getElementById(currentFullscreenPanel).classList.remove('panel-fullscreen');
-        document.getElementById('fullscreenExitBtn').style.display = 'none';
-        currentFullscreenPanel = null;
     }
 
     function buildChart() {
@@ -455,7 +453,6 @@
         let allValues = [];
         STOCKS.forEach((s, i) => { chart.data.datasets[i].data = s.history; allValues.push(...s.history); });
         allValues.sort((a,b) => a-b);
-        // Smart Zoom
         const min = allValues[Math.floor(allValues.length*0.05)] || 0;
         const max = allValues[Math.floor(allValues.length*0.95)] || 0;
         const pad = (max - min) * 0.2;
@@ -472,6 +469,20 @@
     }
     function toggleAI() { state.aiActive = !state.aiActive; updateUI(); }
     function resetGame() { if(confirm("Reset Account?")) location.reload(); }
+    
+    // FULLSCREEN LOGIC
+    function openFullscreen(panelId) {
+        if(currentFullscreenPanel) closeAllFullscreen();
+        document.getElementById(panelId).classList.add('panel-fullscreen');
+        document.getElementById('fullscreenExitBtn').style.display = 'block';
+        currentFullscreenPanel = panelId;
+    }
+    function closeAllFullscreen() {
+        if(currentFullscreenPanel) document.getElementById(currentFullscreenPanel).classList.remove('panel-fullscreen');
+        document.getElementById('fullscreenExitBtn').style.display = 'none';
+        currentFullscreenPanel = null;
+    }
+    document.addEventListener('keydown', function(event) { if (event.key === "Escape") closeAllFullscreen(); });
 
     init();
 </script>
