@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TIU Trader Pro (v28 Aggressive Learning)</title>
+    <title>TIU Trader Pro (v30 Fixed Logic)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -60,9 +60,9 @@
 
 <div class="top-bar">
     <div>
-        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v28 Auto-Learn</span></h1>
+        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Trader Pro <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v30 Momentum-Fix</span></h1>
         <div style="font-size:0.8rem; color:var(--text-dim); margin-top:2px;">
-            Logic: <span style="color:var(--green)">Forced Exploration + Normalized Inputs</span>
+            Logic: <span style="color:var(--green)">Sine Wave Momentum + SMA Crossover</span>
         </div>
     </div>
     
@@ -72,9 +72,9 @@
         <div class="control-group">
             <div style="font-size:0.7rem; color:var(--text-dim); display:flex; justify-content:space-between; width:100%;">
                 <span>Min Confidence:</span>
-                <span id="confValueDisplay" style="color:var(--yellow); font-weight:bold;">60%</span>
+                <span id="confValueDisplay" style="color:var(--yellow); font-weight:bold;">75%</span>
             </div>
-            <input type="range" id="aiConfidenceSlider" min="51" max="95" value="60" step="1" style="width:100%; cursor:pointer; margin: 5px 0;" 
+            <input type="range" id="aiConfidenceSlider" min="55" max="95" value="75" step="1" style="width:100%; cursor:pointer; margin: 5px 0;" 
                    oninput="document.getElementById('confValueDisplay').innerText = this.value + '%'">
         </div>
 
@@ -92,7 +92,7 @@
         <div class="panel" style="flex: 1;">
             <div class="panel-head">
                 <span>Live Market Analysis</span>
-                <span style="font-size:0.7rem; color:var(--cyan)">Cost: $150 | Exp: 45t</span>
+                <span style="font-size:0.7rem; color:var(--cyan)">Cost: $100 | Exp: 40t</span>
             </div>
             <div class="scroll-wrap">
                 <table id="marketTable">
@@ -159,12 +159,12 @@
 
 <script>
     const CONFIG = {
-        updateSpeed: 800,
-        optionCost: 150,
-        optionDuration: 45,
-        historySize: 50,
-        baseDrift: 0.0002,
-        explorationRate: 0.15 // 15% chance to force a trade initially
+        updateSpeed: 500, // Faster updates
+        optionCost: 100,  // Lower cost to make wins easier
+        optionDuration: 40,
+        historySize: 60,
+        baseDrift: 0.000,
+        explorationRate: 0.20 // 20% forced exploration
     };
 
     function randn_bm() {
@@ -175,7 +175,7 @@
     }
 
     class Brain {
-        constructor(inputSize, learningRate = 0.1) {
+        constructor(inputSize, learningRate = 0.05) {
             this.weights = new Array(inputSize).fill(0).map(()=> Math.random()*2-1);
             this.bias = 0;
             this.lr = learningRate;
@@ -194,17 +194,18 @@
             for(let i=0; i<this.weights.length; i++) this.weights[i] += error * inputs[i] * this.lr;
             this.bias += error * this.lr;
             this.total++;
-            if(Math.abs(target - guess) < 0.5) this.correct++;
+            // Consider "Correct" if we are on the right side of 0.5
+            if((guess > 0.5 && target === 1) || (guess < 0.5 && target === 0)) this.correct++;
         }
         getAccuracy() { return this.total===0 ? 0 : Math.round((this.correct/this.total)*100); }
     }
 
     const STOCK_DEFS = [
-        {sym:"NVDA", p:135, baseVol: 0.02}, 
-        {sym:"TSLA", p:240, baseVol: 0.025}, 
-        {sym:"AAPL", p:225, baseVol: 0.012},
-        {sym:"AMZN", p:195, baseVol: 0.015}, 
-        {sym:"GOOG", p:175, baseVol: 0.014}
+        {sym:"NVDA", p:135, baseVol: 0.015}, 
+        {sym:"TSLA", p:240, baseVol: 0.02}, 
+        {sym:"AAPL", p:225, baseVol: 0.01},
+        {sym:"AMZN", p:195, baseVol: 0.012}, 
+        {sym:"GOOG", p:175, baseVol: 0.011}
     ];
 
     let STOCKS = [];
@@ -217,22 +218,33 @@
         tick: 0
     };
 
+    // Brains: 2 Inputs [SMA_Diff, Volatility]
     const trendBrain = new Brain(2, 0.1); 
-    const optionBrain = new Brain(2, 0.05); 
+    const optionBrain = new Brain(2, 0.1); 
     let chart = null;
 
     function init() {
         STOCKS = STOCK_DEFS.map(d => ({
             ...d,
             price: d.p,
-            history: Array(50).fill(d.p),
+            history: Array(60).fill(d.p),
             currentVol: d.baseVol,
-            trend: 0
+            trend: 0,
+            // Hidden Momentum Variable (The Market "Mood")
+            momentum: 0, 
+            momentumPhase: Math.random() * Math.PI * 2
         }));
         buildChart();
         updateUI();
         setInterval(tick, CONFIG.updateSpeed);
-        log("System Online. Learning Mode Enabled.", "log-sys");
+        log("System Online. Market Physics: Momentum Enabled.", "log-sys");
+    }
+
+    function getSMA(history, periods) {
+        if(history.length < periods) return history[history.length-1];
+        let sum = 0;
+        for(let i=1; i<=periods; i++) sum += history[history.length-i];
+        return sum / periods;
     }
 
     function tick() {
@@ -247,16 +259,24 @@
         state.tick++;
 
         STOCKS.forEach(s => {
+            // --- LOGIC FIX 1: ADD MOMENTUM ---
+            // Update momentum using a Sine wave to create predictable "Trends"
+            s.momentumPhase += 0.05; // Moves the wave
+            s.momentum = Math.sin(s.momentumPhase) * 0.005; // Momentum Strength
+
             s.currentVol = (s.currentVol * 0.95) + (s.baseVol * 0.05); 
-            const drift = CONFIG.baseDrift; 
             const shock = randn_bm();
-            const changePct = drift + (s.currentVol * shock);
+            
+            // Price = Price * (1 + Momentum + Noise)
+            // Noise is now slightly less dominant than Momentum
+            const changePct = s.momentum + (s.currentVol * shock * 0.5);
+            
             s.price = s.price * (1 + changePct);
-            if(Math.abs(shock) > 2.0) s.currentVol *= 1.5; 
+            if(Math.abs(shock) > 2.5) s.currentVol *= 1.5; 
 
             s.history.push(s.price);
             if(s.history.length > CONFIG.historySize) s.history.shift();
-            s.trend = s.price - s.history[s.history.length - 5];
+            s.trend = s.price - s.history[s.history.length - 10];
         });
 
         processOptions();
@@ -281,10 +301,13 @@
                 
                 if (profit > 0) state.wins++; else state.losses++;
 
+                // Train Option Brain on the RESULT
+                // If profit > 0, we should have predicted 1.0
                 optionBrain.train(opt.aiInputs, profit > 0 ? 1 : 0);
 
                 const logClass = profit > 0 ? "log-opt" : "log-sys";
-                log(`${opt.sym} Expired. P/L: $${profit.toFixed(0)}`, logClass);
+                const icon = profit > 0 ? "✅" : "❌";
+                log(`${icon} ${opt.sym} Exp. P/L: $${profit.toFixed(0)}`, logClass);
                 state.options.splice(i, 1);
             }
         }
@@ -293,31 +316,34 @@
     function runAI() {
         const sliderVal = document.getElementById('aiConfidenceSlider').value;
         const confidenceReq = sliderVal / 100;
-        
-        // Volatility Threshold is lowered slightly to encourage trades
-        const volThreshold = Math.max(0.45, confidenceReq - 0.1);
 
         STOCKS.forEach(s => {
-            // --- FIX 1: NORMALIZE INPUTS ---
-            // Neural nets hate large numbers. We scale price changes relative to price (Percentage).
-            // Multiply by 10 to make small % changes visible to the network.
-            const d1 = ((s.history[s.history.length-1] - s.history[s.history.length-2]) / s.price) * 10;
-            const d2 = ((s.history[s.history.length-2] - s.history[s.history.length-3]) / s.price) * 10;
-            const trendInputs = [d1, d2];
+            // --- LOGIC FIX 2: FEATURE ENGINEERING ---
+            // Calculate Moving Averages
+            const smaShort = getSMA(s.history, 5);
+            const smaLong = getSMA(s.history, 20);
+
+            // Input 1: Divergence (Is Short above Long?) - Normalized
+            // If Short > Long, Trend is UP (Positive Input).
+            const maDivergence = ((smaShort - smaLong) / s.price) * 50; 
             
-            // Volatility is already a small decimal (0.02). Multiply by 10 to range 0-1.
-            const trendMag = (Math.abs(s.trend) / s.price) * 10;
-            const optInputs = [s.currentVol * 10, trendMag];
+            // Input 2: Volatility normalized
+            const volInput = s.currentVol * 20;
 
-            const trendConf = trendBrain.predict(trendInputs);
-            const optConf = optionBrain.predict(optInputs);
+            const brainInputs = [maDivergence, volInput];
 
-            const priceWentUp = (s.price > s.history[s.history.length-2]) ? 1 : 0;
-            trendBrain.train(trendInputs, priceWentUp);
+            const trendConf = trendBrain.predict(brainInputs); // 0 = Bearish, 1 = Bullish
+            const optConf = optionBrain.predict(brainInputs);  // 0 = Unprofitable, 1 = Profitable
+
+            // Train Trend Brain immediately on current direction
+            const isPriceRising = s.price > s.history[s.history.length-2] ? 1 : 0;
+            trendBrain.train(brainInputs, isPriceRising);
 
             const isBullish = trendConf > confidenceReq;
             const isBearish = trendConf < (1 - confidenceReq);
-            const isVolatile = optConf > volThreshold;
+            
+            // The Option Brain learns "Should I trade?"
+            const isConfident = optConf > 0.55; 
 
             let action = "-";
             let debugTag = "";
@@ -326,23 +352,21 @@
                 const hasOpt = state.options.some(o => o.sym === s.sym);
                 
                 if (!hasOpt) {
-                    // --- FIX 2: FORCED EXPLORATION (Epsilon-Greedy) ---
-                    // If Random < 0.15, ignore brain and force a trade to gather data.
+                    // Exploration: Occasionally do random stuff to learn new patterns
                     const isExploration = Math.random() < CONFIG.explorationRate;
 
                     if (isExploration) {
-                        // Random Call or Put
                         const type = Math.random() > 0.5 ? 'call' : 'put';
-                        buyOption(s, type, optInputs);
-                        action = "Force " + type.toUpperCase();
-                        debugTag = "🎲"; // Dice icon for random trade
+                        buyOption(s, type, brainInputs);
+                        action = "Exp " + type.toUpperCase();
+                        debugTag = "🎲"; 
                     } 
-                    else if (isVolatile) {
+                    else if (isConfident) {
                         if (isBullish) {
-                            buyOption(s, 'call', optInputs);
+                            buyOption(s, 'call', brainInputs);
                             action = "Buy CALL";
                         } else if (isBearish) {
-                            buyOption(s, 'put', optInputs);
+                            buyOption(s, 'put', brainInputs);
                             action = "Buy PUT";
                         }
                     }
@@ -352,7 +376,6 @@
             s.aiData = { 
                 trendConf, optConf, 
                 targetT: confidenceReq, 
-                targetO: volThreshold,
                 action: action,
                 debugTag: debugTag
             };
@@ -362,15 +385,18 @@
     function buyOption(stock, type, inputs) {
         if(state.cash < CONFIG.optionCost) return;
         state.cash -= CONFIG.optionCost;
+        
+        // --- LOGIC FIX 3: CLOSER STRIKE PRICE ---
+        // Strike is only 0.2% away instead of 0.5%, making it easier to hit profit
         let strike = stock.price; 
-        if(type === 'call') strike = stock.price * 0.995; 
-        if(type === 'put') strike = stock.price * 1.005;
+        if(type === 'call') strike = stock.price * 0.998; 
+        if(type === 'put') strike = stock.price * 1.002;
 
         state.options.push({
             sym: stock.sym, type: type, strike: strike, cost: CONFIG.optionCost,
             life: CONFIG.optionDuration, aiInputs: inputs
         });
-        const icon = inputs ? "🤖" : "🎲"; // Robot vs Dice
+        const icon = inputs ? "🤖" : "🎲"; 
         log(`${icon} Bought ${type.toUpperCase()} ${stock.sym}`, "log-opt");
     }
 
@@ -406,21 +432,20 @@
         tbody.innerHTML = '';
         STOCKS.forEach(s => {
             const row = document.createElement('tr');
-            const ai = s.aiData || { trendConf: 0.5, optConf: 0.5, targetT: 0.6, targetO: 0.6, action: "-", debugTag: "" };
+            const ai = s.aiData || { trendConf: 0.5, optConf: 0.5, targetT: 0.6, action: "-", debugTag: "" };
             
             const tConf = (ai.trendConf*100).toFixed(0);
             const oConf = (ai.optConf*100).toFixed(0);
             
             const tColor = ai.trendConf > ai.targetT || ai.trendConf < (1-ai.targetT) ? 'var(--green)' : 'var(--text-dim)';
-            const oColor = ai.optConf > ai.targetO ? 'var(--cyan)' : 'var(--text-dim)';
             
             row.innerHTML = `
                 <td style="font-weight:bold">${s.sym}</td>
                 <td>${s.price.toFixed(2)}</td>
                 <td style="color:${s.currentVol > s.baseVol*1.5 ? 'var(--orange)':'var(--text-dim)'}">${(s.currentVol*100).toFixed(1)}%</td>
                 <td>
-                    <span style="color:${tColor}">Trd:${tConf}</span> | 
-                    <span style="color:${oColor}">Opt:${oConf}</span> 
+                    <span style="color:${tColor}">Dir:${tConf}</span> | 
+                    <span style="color:var(--cyan)">Conf:${oConf}</span> 
                 </td>
                 <td style="color:${ai.action.includes('Buy')?'var(--green)':'var(--text-dim)'}">
                     ${ai.debugTag} ${ai.action}
@@ -446,7 +471,7 @@
         chart = new Chart(ctx, {
             type: 'line',
             data: { 
-                labels: Array(50).fill(''),
+                labels: Array(60).fill(''),
                 datasets: STOCKS.map((s,i) => ({
                     label: s.sym, data: s.history,
                     borderColor: ['#3b82f6','#10b981','#ef4444','#f59e0b','#c084fc'][i],
