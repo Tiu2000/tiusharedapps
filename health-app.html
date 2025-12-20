@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU LifeTrack Pro v6 (Hybrid Search)</title>
+    <title>TIU LifeTrack Pro v7 (Scanner)</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         :root {
             --primary: #29b6f6;
@@ -78,7 +79,7 @@
         .macro-meta { font-size: 0.75rem; color: var(--text-light); display: flex; justify-content: space-between; font-weight: 600; }
         .p-fill { background: #9b59b6; } .c-fill { background: #f1c40f; } .f-fill { background: #e74c3c; }
 
-        /* --- New Hydration UI --- */
+        /* Hydration UI */
         .water-card { background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%); border: 1px solid #bbdefb; }
         .water-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
         .water-btn { width: 45px; height: 45px; border-radius: 50%; border: none; background: white; font-size: 1.4rem; cursor: pointer; color: var(--primary); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: transform 0.1s; }
@@ -128,6 +129,10 @@
         
         .section-title { font-size: 0.85rem; font-weight: 700; color:#888; margin: 15px 0 5px 0; text-transform: uppercase; letter-spacing: 0.5px; }
         .badge { display: inline-block; padding: 2px 6px; font-size: 0.65rem; border-radius: 4px; background: #eee; color: #555; vertical-align: middle; margin-left: 5px; }
+
+        /* Scanner Styles */
+        #scanner-container { width: 100%; margin-bottom: 10px; display: none; background: #000; border-radius: 8px; overflow: hidden; }
+        .scan-btn { padding: 0 15px; background: var(--text); color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
     </style>
 </head>
 <body>
@@ -280,10 +285,16 @@
         <div class="modal-body">
             
             <div id="p-food">
-                <div style="position:relative;">
-                    <input type="text" id="searchQ" placeholder="Type food (e.g. Hot Dog)..." onkeyup="debounceSearch()">
-                    <div id="searchStatus" style="font-size:0.8rem; color:var(--primary); margin-bottom:10px; min-height:20px;"></div>
+                <div id="scanner-container">
+                    <div id="reader" style="width:100%"></div>
+                    <div style="text-align:center; padding:10px; color:white; font-size:0.8rem;">Point camera at barcode</div>
                 </div>
+
+                <div style="display:flex; gap:10px; margin-bottom:10px; position:relative;">
+                    <input type="text" id="searchQ" placeholder="Type food..." onkeyup="debounceSearch()" style="margin-bottom:0;">
+                    <button class="scan-btn" onclick="toggleScanner()">📷</button>
+                </div>
+                <div id="searchStatus" style="font-size:0.8rem; color:var(--primary); margin-bottom:10px; min-height:20px;"></div>
                 <div id="searchOut"></div>
             </div>
 
@@ -320,8 +331,6 @@
 </div>
 
 <script>
-    // --- BUILT-IN COMMON FOODS DATABASE (The "Offline" Fix) ---
-    // This provides instant results for generic items that APIs often miss.
     const COMMON_DB = [
         {n:"Apple (Medium)", k:95, p:0, c:25, f:0},
         {n:"Banana (Medium)", k:105, p:1, c:27, f:0},
@@ -329,37 +338,20 @@
         {n:"Egg (Fried)", k:90, p:6, c:1, f:7},
         {n:"Chicken Breast (100g)", k:165, p:31, c:0, f:3},
         {n:"Rice (White, 1 cup cooked)", k:205, p:4, c:45, f:0},
-        {n:"Rice (Brown, 1 cup cooked)", k:216, p:5, c:45, f:2},
         {n:"Hot Dog (Beef, no bun)", k:150, p:5, c:2, f:13},
         {n:"Hot Dog (on Bun)", k:270, p:9, c:24, f:15},
         {n:"Bread (Slice, White)", k:79, p:3, c:15, f:1},
-        {n:"Bread (Slice, Wheat)", k:69, p:4, c:12, f:1},
         {n:"Pizza (Cheese Slice)", k:285, p:12, c:36, f:10},
-        {n:"Pizza (Pepperoni Slice)", k:324, p:13, c:35, f:14},
         {n:"Milk (Whole, 1 cup)", k:149, p:8, c:12, f:8},
-        {n:"Milk (2%, 1 cup)", k:122, p:8, c:12, f:5},
         {n:"Coffee (Black)", k:2, p:0, c:0, f:0},
-        {n:"Coffee (w/ Cream & Sugar)", k:80, p:1, c:10, f:4},
         {n:"Avocado (Half)", k:160, p:2, c:9, f:15},
-        {n:"Potato (Baked, Medium)", k:161, p:4, c:37, f:0},
-        {n:"Pasta (1 cup cooked)", k:220, p:8, c:43, f:1},
-        {n:"Salad (Green, no dressing)", k:15, p:1, c:3, f:0},
-        {n:"Salad (Caesar)", k:350, p:7, c:10, f:30},
         {n:"Burger (Patty only)", k:250, p:20, c:0, f:18},
         {n:"Burger (w/ Bun & Cheese)", k:550, p:25, c:45, f:30},
         {n:"Steak (6oz Sirloin)", k:350, p:45, c:0, f:18},
-        {n:"Yogurt (Greek, Plain)", k:100, p:17, c:6, f:0},
-        {n:"Oatmeal (1 cup cooked)", k:158, p:6, c:27, f:3},
-        {n:"Orange", k:62, p:1, c:15, f:0},
-        {n:"Almonds (1 oz)", k:164, p:6, c:6, f:14},
-        {n:"Peanut Butter (1 tbsp)", k:94, p:4, c:3, f:8},
-        {n:"Coke/Soda (Can)", k:140, p:0, c:39, f:0},
-        {n:"Beer (Pint)", k:208, p:2, c:18, f:0},
-        {n:"Wine (Glass)", k:125, p:0, c:4, f:0}
+        {n:"Coke/Soda (Can)", k:140, p:0, c:39, f:0}
     ];
 
-    // --- APP STATE ---
-    const DB_KEY = 'tiu_track_v6';
+    const DB_KEY = 'tiu_track_v7';
     let state = {
         profile: { weight: 70, goal: 2000, unit: 'metric', wGoal: 2000, wCup: 250 },
         water: 0, 
@@ -367,13 +359,11 @@
         custom: []
     };
     let searchTimer = null;
+    let html5QrcodeScanner = null;
 
-    // --- INIT ---
     function init() {
         const saved = localStorage.getItem(DB_KEY);
         if(saved) state = JSON.parse(saved);
-        
-        // Data Migration
         if(!state.profile.wGoal) { state.profile.wGoal = 2000; state.profile.wCup = 250; }
         
         document.getElementById('dateDisp').innerText = new Date().toDateString();
@@ -386,10 +376,75 @@
         renderHome();
     }
 
-    // --- SEARCH ENGINE (HYBRID) ---
+    // --- BARCODE SCANNER ---
+    function toggleScanner() {
+        const container = document.getElementById('scanner-container');
+        
+        if (html5QrcodeScanner) {
+            stopScanner();
+            return;
+        }
+
+        container.style.display = 'block';
+        
+        // Initialize Scanner
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 150} });
+        html5QrcodeScanner.render(onScanSuccess, onScanError);
+    }
+
+    function stopScanner() {
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.clear().then(() => {
+                document.getElementById('scanner-container').style.display = 'none';
+                html5QrcodeScanner = null;
+            }).catch(error => console.error("Failed to clear html5QrcodeScanner."));
+        }
+    }
+
+    function onScanSuccess(decodedText) {
+        stopScanner(); // Stop camera once found
+        document.getElementById('searchQ').value = ''; 
+        document.getElementById('searchStatus').innerText = 'Barcode found! Fetching data...';
+        
+        fetchBarcode(decodedText);
+    }
+
+    function onScanError(errorMessage) {
+        // usually ignored to prevent console spam
+    }
+
+    async function fetchBarcode(code) {
+        const out = document.getElementById('searchOut');
+        out.innerHTML = '<div class="spinner"></div> Loading Product...';
+        
+        try {
+            const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
+            const data = await res.json();
+            
+            if(data.status === 1) {
+                const p = data.product;
+                let cal = p.nutriments['energy-kcal'] || (p.nutriments.energy_100g / 4.184) || 0;
+                cal = Math.round(cal);
+                const pr = Math.round(p.nutriments.proteins_100g||0);
+                const c = Math.round(p.nutriments.carbohydrates_100g||0);
+                const f = Math.round(p.nutriments.fat_100g||0);
+                
+                out.innerHTML = `<div class="section-title">Scanned Result</div>`;
+                out.innerHTML += renderRes(p.product_name, cal, pr, c, f, p.brands || 'Unknown Brand');
+                document.getElementById('searchStatus').innerText = 'Product found.';
+            } else {
+                out.innerHTML = '<div style="color:var(--danger)">Product not found in database.</div>';
+                document.getElementById('searchStatus').innerText = '';
+            }
+        } catch(e) {
+            out.innerHTML = '<div style="color:var(--danger)">Connection Error.</div>';
+        }
+    }
+
+    // --- SEARCH ---
     function debounceSearch() {
         clearTimeout(searchTimer);
-        searchTimer = setTimeout(doSearch, 400); // 400ms delay
+        searchTimer = setTimeout(doSearch, 400); 
     }
 
     async function doSearch() {
@@ -397,24 +452,16 @@
         const out = document.getElementById('searchOut');
         const status = document.getElementById('searchStatus');
         
-        if(q.length < 2) {
-            out.innerHTML = '';
-            status.innerText = '';
-            return;
-        }
+        if(q.length < 2) { out.innerHTML = ''; status.innerText = ''; return; }
 
         out.innerHTML = '';
-        status.innerText = 'Searching databases...';
+        status.innerText = 'Searching...';
         
-        // 1. Local "My Foods"
+        // Local + Common
         const myFoods = state.custom.filter(c => c.name.toLowerCase().includes(q));
-        
-        // 2. Built-in "Common Foods" (The Instant Fix)
         const common = COMMON_DB.filter(c => c.n.toLowerCase().includes(q));
 
         let html = '';
-
-        // Render Local & Common FIRST (Instant)
         if(myFoods.length) {
             html += `<div class="section-title">My Custom Foods</div>`;
             myFoods.forEach(c => html += renderRes(c.name, c.cal, c.p, c.c, c.f, 'Custom'));
@@ -423,35 +470,28 @@
             html += `<div class="section-title">Common Foods <span class="badge">Instant</span></div>`;
             common.forEach(c => html += renderRes(c.n, c.k, c.p, c.c, c.f, 'Generic'));
         }
-        
-        // Push current results immediately so user sees something
         out.innerHTML = html;
 
-        // 3. API Search (OpenFoodFacts) for Branded items
+        // API
         try {
             const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=5&fields=product_name,nutriments,brands`;
             const res = await fetch(url);
             const data = await res.json();
             
             if(data.products && data.products.length) {
-                html += `<div class="section-title">Branded / Packaged</div>`;
+                html += `<div class="section-title">Online Results</div>`;
                 data.products.forEach(p => {
                     let cal = p.nutriments['energy-kcal'] || (p.nutriments.energy_100g / 4.184) || 0;
                     cal = Math.round(cal);
                     const pr = Math.round(p.nutriments.proteins_100g||0);
                     const c = Math.round(p.nutriments.carbohydrates_100g||0);
                     const f = Math.round(p.nutriments.fat_100g||0);
-                    if(cal > 0) { // Filter junk results
-                        html += renderRes(p.product_name, cal, pr, c, f, p.brands || 'Brand');
-                    }
+                    if(cal > 0) html += renderRes(p.product_name, cal, pr, c, f, p.brands || 'Brand');
                 });
             }
             out.innerHTML = html || '<div style="color:#999; text-align:center">No results found.</div>';
-            status.innerText = 'Search Complete';
-        } catch(e) {
-            console.log(e);
-            status.innerText = 'Showing offline results only.';
-        }
+            status.innerText = '';
+        } catch(e) { status.innerText = 'Showing offline results only.'; }
     }
 
     function renderRes(name, cal, p, c, f, brand) {
@@ -467,7 +507,6 @@
         </div>`;
     }
 
-    // --- HOME & HYDRATION ---
     function renderHome() {
         const todayStr = new Date().toISOString().split('T')[0];
         const todayLogs = state.logs.filter(l => new Date(l.date).toISOString().split('T')[0] === todayStr);
@@ -495,7 +534,6 @@
         const pct = Math.min(eat / (goal + burn), 1);
         document.getElementById('ringProgress').style.strokeDashoffset = 314 - (314 * pct);
 
-        // --- IMPROVED HYDRATION RENDER ---
         const wGoal = state.profile.wGoal;
         const wCup = state.profile.wCup;
         const wUnit = state.profile.unit === 'imperial' ? 'oz' : 'ml';
@@ -507,7 +545,6 @@
         document.getElementById('waterSub').innerText = `${state.water} ${wUnit} (Goal: ${wGoal})`;
         setBar('barWater', state.water, wGoal);
 
-        // Motivational Status
         let wStatus = "Get Started 💧";
         if(wPct > 0.1) wStatus = "Good Start 🌱";
         if(wPct > 0.4) wStatus = "Halfway There 🚀";
@@ -515,7 +552,6 @@
         if(wPct >= 1.0) wStatus = "Hydrated! 🎉";
         document.getElementById('waterStatus').innerText = wStatus;
 
-        // List
         const lDiv = document.getElementById('logList');
         lDiv.innerHTML = todayLogs.length ? '' : '<div style="color:#ccc; text-align:center; padding:10px;">No logs today</div>';
         todayLogs.slice().reverse().forEach(l => {
@@ -535,7 +571,6 @@
         save();
     }
 
-    // --- GENERIC APP FUNCTIONS ---
     function updateProfileUI() {
         const p = state.profile;
         document.getElementById('inpUnit').value = p.unit;
@@ -658,7 +693,10 @@
     }
 
     function openAdd() { document.getElementById('modalAdd').classList.add('active'); tab('food'); }
-    function closeAdd() { document.getElementById('modalAdd').classList.remove('active'); }
+    function closeAdd() { 
+        document.getElementById('modalAdd').classList.remove('active'); 
+        stopScanner(); // Ensure camera stops when closing modal
+    }
     function tab(t) {
         ['food','ex','cust'].forEach(x => { document.getElementById('t-'+x).classList.remove('active'); document.getElementById('p-'+x).style.display = 'none'; });
         document.getElementById('t-'+t).classList.add('active'); document.getElementById('p-'+t).style.display = 'block';
