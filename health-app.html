@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU LifeTrack v16 (Lbs/Kg Toggle)</title>
+    <title>TIU LifeTrack v17 (Fasting)</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
@@ -12,6 +12,7 @@
             --primary: #29b6f6;
             --primary-dark: #0288d1;
             --secondary: #66bb6a;
+            --accent: #ab47bc;
             --bg: #f4f7f6;
             --surface: #ffffff;
             --text: #2c3e50;
@@ -61,7 +62,7 @@
             flex-shrink: 0; height: 70px; background: white; border-top: 1px solid #eee; 
             display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom);
         }
-        .nav-item { background: none; border: none; color: var(--text-light); font-size: 0.7rem; text-align: center; cursor: pointer; }
+        .nav-item { background: none; border: none; color: var(--text-light); font-size: 0.7rem; text-align: center; cursor: pointer; flex: 1; }
         .nav-item.active { color: var(--primary); }
         .nav-icon { display: block; font-size: 1.4rem; margin-bottom: 2px; }
 
@@ -83,6 +84,11 @@
         .c-bg { stroke: #f0f0f0; }
         .c-val { stroke: var(--primary); stroke-dasharray: 283; stroke-dashoffset: 283; transition: 1s ease; }
         
+        /* FASTING RING */
+        .f-ring-container { position: relative; width: 200px; height: 200px; margin: 0 auto; }
+        svg.f-ring { transform: rotate(-90deg); width: 200px; height: 200px; }
+        .f-val { stroke: var(--accent); stroke-dasharray: 565; stroke-dashoffset: 565; transition: 1s linear; }
+
         .macro-flex { display: flex; gap: 8px; margin-top: 20px; }
         .macro-col { flex: 1; }
         .bar-bg { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-bottom: 5px; }
@@ -124,6 +130,10 @@
 
         .view { display: none; }
         .view.active { display: block; }
+
+        /* FASTING SPECIFIC */
+        .timer-big { font-size: 2.5rem; font-weight: 800; color: var(--accent); margin: 10px 0; }
+        .fast-status { padding: 8px 15px; background: #f3e5f5; color: var(--accent); border-radius: 20px; font-weight: 600; font-size: 0.85rem; display: inline-block; margin-bottom: 10px;}
     </style>
 </head>
 <body>
@@ -191,6 +201,54 @@
             </div>
         </div>
         
+        <div id="view-fast" class="view">
+            <div id="fast-inactive" class="card" style="text-align:center; padding:40px 20px;">
+                <h2 style="color:var(--accent); margin-bottom:10px;">Ready to Fast?</h2>
+                <p style="color:#666; font-size:0.9rem; margin-bottom:20px;">Select your protocol and start the timer.</p>
+                
+                <label style="text-align:left; display:block; font-weight:600; margin-bottom:5px;">Target Goal</label>
+                <select id="fastGoalSelect">
+                    <option value="13">13 Hours (Circadian)</option>
+                    <option value="16" selected>16:8 (Leangains)</option>
+                    <option value="18">18:6 (Moderate)</option>
+                    <option value="20">20:4 (Warrior)</option>
+                    <option value="23">23:1 (OMAD)</option>
+                </select>
+
+                <button class="btn" style="background:var(--accent); margin-top:15px; font-size:1.2rem;" onclick="startFast()">START FASTING</button>
+            </div>
+
+            <div id="fast-active" class="card" style="text-align:center; display:none;">
+                <div class="fast-status">🔥 FASTING ACTIVE</div>
+                
+                <div class="f-ring-container">
+                    <svg class="f-ring">
+                        <circle cx="100" cy="100" r="90" class="c-bg"></circle>
+                        <circle cx="100" cy="100" r="90" class="f-val" id="fastRing"></circle>
+                    </svg>
+                    <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);">
+                        <div id="fastTimer" class="timer-big">00:00:00</div>
+                        <div style="font-size:0.8rem; color:#888;">Elapsed Time</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:20px; display:flex; justify-content:space-between; padding:0 10px;">
+                    <div style="text-align:left;">
+                        <small style="color:#aaa;">STARTED</small>
+                        <div id="fastStartDisp" style="font-weight:600;">--:--</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <small style="color:#aaa;">GOAL</small>
+                        <div id="fastGoalDisp" style="font-weight:600;">--:--</div>
+                    </div>
+                </div>
+
+                <p id="fastMsg" style="color:var(--accent); font-weight:600; margin-top:20px;"></p>
+
+                <button class="btn" style="background:white; color:var(--text); border:1px solid #ddd; margin-top:20px;" onclick="endFast()">Stop Fasting</button>
+            </div>
+        </div>
+
         <div id="view-stats" class="view">
             <div class="card">
                 <div style="font-weight:700; margin-bottom:5px;">Weekly Overview</div>
@@ -198,10 +256,6 @@
                 <div style="height:220px; position:relative;">
                     <canvas id="chartStats"></canvas>
                 </div>
-            </div>
-            <div class="card">
-                <h4 style="margin-top:0;">Insights</h4>
-                <p id="statsMsg" style="color:#666; font-size:0.9rem;">Log more food to see your weekly trends!</p>
             </div>
         </div>
 
@@ -241,8 +295,8 @@
 
     <div class="nav">
         <button class="nav-item active" onclick="goView('home', this)"><span class="nav-icon">🏠</span>Home</button>
+        <button class="nav-item" onclick="goView('fast', this)"><span class="nav-icon">⏳</span>Fasting</button>
         <button class="nav-item" onclick="goView('stats', this)"><span class="nav-icon">📊</span>Stats</button>
-        <div style="width:50px;"></div>
         <button class="nav-item" onclick="goView('profile', this)"><span class="nav-icon">⚙️</span>Profile</button>
     </div>
 
@@ -402,10 +456,12 @@
         profile: { weight: 154, goal: 2000, wCup: 8, unit: 'imperial' },
         water: 0, 
         logs: [], 
-        custom: [] 
+        custom: [],
+        fasting: { active: false, start: null, goal: 16 }
     };
     
     let chartInstance = null;
+    let fastInterval = null;
 
     // --- SEARCH LOGIC ---
     let searchTimer;
@@ -447,20 +503,25 @@
 
     // --- APP CORE ---
     function init() {
-        const s = localStorage.getItem('tiu_v16'); 
+        const s = localStorage.getItem('tiu_v17'); 
         if(s) state = JSON.parse(s);
         if(!state.custom) state.custom = []; 
         if(!state.logs) state.logs = [];
         if(!state.profile.unit) state.profile.unit = 'imperial';
-        if(state.profile.weight < 20) state.profile.weight = 154; // default reset for new unit
+        if(state.profile.weight < 20) state.profile.weight = 154; 
+        if(!state.fasting) state.fasting = { active: false, start: null, goal: 16 };
 
         document.getElementById('dateDisp').innerText = new Date().toDateString();
         updateUI();
+        updateFastingUI();
         doSearch();
+        
+        // Start Fasting Tick
+        setInterval(updateFastingUI, 1000);
     }
     
     function save() {
-        localStorage.setItem('tiu_v16', JSON.stringify(state));
+        localStorage.setItem('tiu_v17', JSON.stringify(state));
         updateUI();
     }
 
@@ -511,17 +572,78 @@
         document.getElementById('lblCupUnit').innerText = (state.profile.unit === 'imperial' ? "oz" : "ml");
     }
 
+    // --- FASTING LOGIC ---
+    function startFast() {
+        state.fasting.active = true;
+        state.fasting.start = Date.now();
+        state.fasting.goal = parseInt(document.getElementById('fastGoalSelect').value);
+        save();
+        updateFastingUI();
+    }
+
+    function endFast() {
+        if(confirm("End current fast?")) {
+            state.fasting.active = false;
+            save();
+            updateFastingUI();
+        }
+    }
+
+    function updateFastingUI() {
+        const inAct = document.getElementById('fast-inactive');
+        const act = document.getElementById('fast-active');
+
+        if(!state.fasting.active) {
+            inAct.style.display = 'block';
+            act.style.display = 'none';
+            return;
+        }
+
+        inAct.style.display = 'none';
+        act.style.display = 'block';
+
+        const now = Date.now();
+        const start = state.fasting.start;
+        const diff = now - start;
+        const goalMs = state.fasting.goal * 60 * 60 * 1000;
+
+        // Timer
+        const hrs = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+        document.getElementById('fastTimer').innerText = 
+            `${hrs.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+
+        // Ring
+        const pct = Math.min(diff / goalMs, 1);
+        const ringVal = 565 - (565 * pct);
+        document.getElementById('fastRing').style.strokeDashoffset = ringVal;
+
+        // Info
+        const startDate = new Date(start);
+        const endDate = new Date(start + goalMs);
+        document.getElementById('fastStartDisp').innerText = startDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        document.getElementById('fastGoalDisp').innerText = endDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        if(diff >= goalMs) {
+            document.getElementById('fastMsg').innerText = "🎉 Goal Reached! You are in burning mode.";
+        } else {
+            const left = goalMs - diff;
+            const hLeft = Math.floor(left / (1000*60*60));
+            document.getElementById('fastMsg').innerText = `${hLeft} hours until goal`;
+        }
+    }
+
+    // --- CORE & HELPERS ---
     function changeUnit() {
         const newUnit = document.getElementById('inpUnit').value;
         if(newUnit === state.profile.unit) return;
-        
-        // Convert values
         if(newUnit === 'imperial') {
             state.profile.weight = Math.round(state.profile.weight * 2.20462);
-            state.profile.wCup = Math.round(state.profile.wCup * 0.033814); // ml to oz
+            state.profile.wCup = Math.round(state.profile.wCup * 0.033814); 
         } else {
             state.profile.weight = Math.round(state.profile.weight / 2.20462);
-            state.profile.wCup = Math.round(state.profile.wCup / 0.033814); // oz to ml
+            state.profile.wCup = Math.round(state.profile.wCup / 0.033814); 
         }
         state.profile.unit = newUnit;
         save();
@@ -561,10 +683,8 @@
     function calcBurn() {
         const m = parseFloat(document.getElementById('exType').value);
         const t = parseFloat(document.getElementById('exMin').value) || 0;
-        // Convert lbs to kg if needed for MET formula
         let kg = state.profile.weight;
         if(state.profile.unit === 'imperial') kg = kg / 2.20462;
-        
         document.getElementById('exVal').innerText = Math.round(m * kg * (t/60));
     }
 
@@ -581,7 +701,7 @@
         save();
     }
 
-    function resetApp() { if(confirm("Clear history and custom foods?")) { localStorage.removeItem('tiu_v16'); location.reload(); } }
+    function resetApp() { if(confirm("Clear history and custom foods?")) { localStorage.removeItem('tiu_v17'); location.reload(); } }
     
     function openAdd() { 
         document.getElementById('modalAdd').classList.add('active'); 
@@ -613,7 +733,6 @@
 
     function renderStats() {
         const ctx = document.getElementById('chartStats').getContext('2d');
-        
         const days = [];
         const dataEaten = [];
         const dataGoal = [];
@@ -623,18 +742,12 @@
             d.setDate(d.getDate() - i);
             const dateStr = d.toISOString().split('T')[0];
             const displayStr = d.toLocaleDateString('en-US', {weekday:'short'});
-            
             days.push(displayStr);
-            
             const dayLogs = state.logs.filter(l => new Date(l.date).toISOString().startsWith(dateStr) && l.type === 'food');
             const dayCals = dayLogs.reduce((acc, curr) => acc + curr.cal, 0);
-            
             dataEaten.push(dayCals);
             dataGoal.push(state.profile.goal);
         }
-
-        const avg = Math.round(dataEaten.reduce((a,b)=>a+b,0) / 7);
-        document.getElementById('statsMsg').innerHTML = `7-Day Average: <b>${avg}</b> kcal/day`;
 
         if(chartInstance) chartInstance.destroy();
 
@@ -643,29 +756,13 @@
             data: {
                 labels: days,
                 datasets: [
-                    {
-                        label: 'Calories Eaten',
-                        data: dataEaten,
-                        backgroundColor: '#29b6f6',
-                        borderRadius: 4
-                    },
-                    {
-                        type: 'line',
-                        label: 'Goal',
-                        data: dataGoal,
-                        borderColor: '#ef5350',
-                        borderWidth: 2,
-                        pointRadius: 0
-                    }
+                    { label: 'Calories Eaten', data: dataEaten, backgroundColor: '#29b6f6', borderRadius: 4 },
+                    { type: 'line', label: 'Goal', data: dataGoal, borderColor: '#ef5350', borderWidth: 2, pointRadius: 0 }
                 ]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, grid: {display:false} },
-                    x: { grid: {display:false} }
-                },
+                responsive: true, maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, grid: {display:false} }, x: { grid: {display:false} } },
                 plugins: { legend: { display: false } }
             }
         });
@@ -676,7 +773,6 @@
         const dataStr = JSON.stringify(state, null, 2);
         const blob = new Blob([dataStr], {type: "application/json"});
         const url = URL.createObjectURL(blob);
-        
         const a = document.createElement('a');
         a.href = url;
         a.download = "lifetrack_backup_" + new Date().toISOString().split('T')[0] + ".json";
@@ -688,23 +784,14 @@
     function importData(input) {
         const file = input.files[0];
         if(!file) return;
-
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
                 const json = JSON.parse(e.target.result);
                 if(json.profile && json.logs) {
-                    if(confirm("This will overwrite your current data. Continue?")) {
-                        state = json;
-                        save();
-                        location.reload();
-                    }
-                } else {
-                    alert("Invalid file format.");
-                }
-            } catch(err) {
-                alert("Error reading file.");
-            }
+                    if(confirm("Overwrite data?")) { state = json; save(); location.reload(); }
+                } else { alert("Invalid file."); }
+            } catch(err) { alert("Error reading file."); }
         };
         reader.readAsText(file);
     }
@@ -714,7 +801,6 @@
     function toggleScanner() {
         const vp = document.getElementById('scanner-viewport');
         const btn = document.getElementById('btnScanToggle');
-        
         if(scanner) {
             scanner.clear(); scanner = null;
             vp.style.display = 'none';
@@ -732,7 +818,6 @@
     function onScan(code) {
         toggleScanner();
         document.getElementById('searchStatus').innerText = "Searching online...";
-        
         fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`)
         .then(r=>r.json()).then(data => {
             if(data.status === 1) {
@@ -742,20 +827,12 @@
                 const prot = Math.round(p.nutriments['proteins_100g'] || 0);
                 const carb = Math.round(p.nutriments['carbohydrates_100g'] || 0);
                 const fat = Math.round(p.nutriments['fat_100g'] || 0);
-                
                 document.getElementById('searchOut').innerHTML = `
                     <div class="res-item" style="border:2px solid var(--secondary); background:#e8f5e9;" onclick="addLog('food', '${name}', ${cal}, ${prot}, ${carb}, ${fat})">
-                        <div>
-                            <div style="font-weight:bold;">${name}</div>
-                            <div style="font-size:0.8rem;">Found via Barcode</div>
-                        </div>
-                        <b>${cal}</b>
-                    </div>
-                `;
+                        <div><div style="font-weight:bold;">${name}</div><div style="font-size:0.8rem;">Found via Barcode</div></div><b>${cal}</b>
+                    </div>`;
                 document.getElementById('searchStatus').innerText = "Item Found!";
-            } else {
-                document.getElementById('searchStatus').innerText = "Barcode not found in global DB.";
-            }
+            } else { document.getElementById('searchStatus').innerText = "Barcode not found in global DB."; }
         }).catch(() => document.getElementById('searchStatus').innerText = "Network Error");
     }
 
