@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU LifeTrack v8 (Mobile Fix)</title>
+    <title>TIU LifeTrack v9 (PC & Gym Fix)</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         :root {
@@ -19,30 +19,37 @@
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         
-        /* MOBILE LAYOUT FIX: Use dvh (Dynamic Viewport Height) */
+        /* LAYOUT CORE */
         body { 
-            margin: 0; background: var(--bg); color: var(--text); 
-            height: 100dvh; /* Adapts to mobile browser toolbars */
-            width: 100vw;
-            overflow: hidden; 
-            display: flex; flex-direction: column;
+            margin: 0; background: #e0e5ec; color: var(--text); 
+            height: 100vh; height: 100dvh; 
+            width: 100vw; overflow: hidden; 
+            display: flex; align-items: center; justify-content: center;
         }
 
-        /* Flex Container ensures Nav is always at bottom, never cut off */
+        /* The App "Shell" */
         .app-container {
-            flex: 1; display: flex; flex-direction: column;
-            width: 100%; max-width: 100%; overflow: hidden;
+            width: 100%; height: 100%; 
+            display: flex; flex-direction: column;
             background: var(--surface); position: relative;
+            overflow: hidden;
         }
 
+        /* PC SPECIFIC STYLES */
         @media (min-width: 768px) {
             .app-container {
-                max-width: 600px; margin: 0 auto; 
-                border-left: 1px solid #eee; border-right: 1px solid #eee;
+                max-width: 450px; /* Phone width on PC */
+                height: 90vh; 
+                border-radius: 24px; 
+                box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 0 8px rgba(255,255,255,0.2);
+            }
+            body {
+                background-image: radial-gradient(#d7e1ec 1px, transparent 1px);
+                background-size: 20px 20px;
             }
         }
 
-        /* Header stays at top */
+        /* HEADER */
         .header {
             flex-shrink: 0;
             padding: 15px 20px; background: var(--surface);
@@ -52,49 +59,45 @@
         .header h1 { margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--primary-dark); }
         .date-display { font-size: 0.8rem; color: var(--text-light); }
 
-        /* SCROLLABLE CONTENT AREA */
+        /* SCROLLABLE VIEWPORT */
         .view-port {
-            flex: 1; /* Takes all remaining space */
-            overflow-y: auto; /* Internal scroll */
-            overflow-x: hidden;
-            padding: 15px;
-            padding-bottom: 80px; /* Extra space for FAB */
+            flex: 1; overflow-y: auto; overflow-x: hidden;
+            padding: 15px; padding-bottom: 90px;
             -webkit-overflow-scrolling: touch;
+            background: var(--bg);
         }
 
         .card {
             background: white; border-radius: 16px; padding: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.03); margin-bottom: 15px;
-            border: 1px solid #f0f0f0;
+            border: 1px solid #fff;
         }
         .card-header { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: 700; font-size: 0.95rem; }
 
-        /* Navigation Bar - Static at bottom of flex container */
+        /* NAVIGATION */
         .nav { 
-            flex-shrink: 0; /* Never shrinks */
-            height: 70px; background: white; border-top: 1px solid #eee; 
+            flex-shrink: 0; height: 70px; background: white; border-top: 1px solid #eee; 
             display: flex; justify-content: space-around; align-items: center; 
-            z-index: 20; padding-bottom: env(safe-area-inset-bottom); /* iPhone Home Bar Safe Area */
+            z-index: 20; padding-bottom: env(safe-area-inset-bottom);
         }
         .nav-item { background: none; border: none; color: var(--text-light); font-size: 0.7rem; text-align: center; cursor: pointer; padding: 5px; }
         .nav-item.active { color: var(--primary); }
         .nav-icon { display: block; font-size: 1.4rem; margin-bottom: 2px; }
         
-        /* FAB - Positioned relative to the viewport, not the document */
         .fab { 
             position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%); 
-            width: 60px; height: 60px; background: var(--primary); 
+            width: 56px; height: 56px; background: var(--primary); 
             border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; 
             font-size: 2rem; box-shadow: 0 4px 15px rgba(41, 182, 246, 0.4); 
-            border: 4px solid var(--surface); cursor: pointer; z-index: 25; 
+            border: 4px solid var(--bg); cursor: pointer; z-index: 25; 
         }
 
-        /* Modal fixes */
-        .modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 50; display: none; flex-direction: column; }
+        /* MODAL */
+        .modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 50; display: none; flex-direction: column; }
         .modal.active { display: flex; }
         .modal-body { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 50px; }
 
-        /* Visual Elements */
+        /* VISUALS */
         .summary-wrapper { display: flex; align-items: center; justify-content: space-between; }
         .ring-container { position: relative; width: 110px; height: 110px; }
         svg.ring { transform: rotate(-90deg); width: 110px; height: 110px; }
@@ -112,28 +115,20 @@
         .p-fill { background: #9b59b6; } .c-fill { background: #f1c40f; } .f-fill { background: #e74c3c; }
         .macro-meta { font-size: 0.7rem; color: var(--text-light); display: flex; justify-content: space-between; font-weight: 600; }
 
-        /* Hydration */
-        .water-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
-        .water-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: #f0f8ff; font-size: 1.2rem; cursor: pointer; color: var(--primary); display: flex; align-items: center; justify-content: center; }
-        .water-info { flex: 1; text-align: center; }
-        .water-main { font-size: 1.2rem; font-weight: 800; }
-
-        /* Scanner */
+        /* SCANNER */
         #scanner-viewport { width: 100%; margin-bottom: 10px; display: none; background: #000; border-radius: 12px; overflow: hidden; position: relative; }
         #reader { width: 100%; border: none; }
-        /* Hide html5-qrcode default branding */
         #reader__dashboard_section_csr span, #reader__dashboard_section_swaplink { display: none !important; }
         
+        /* FORM ELEMENTS */
         .input-group { margin-bottom: 15px; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; background:white; }
         .btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 1rem; }
         .btn-scan { background: #333; display: flex; align-items: center; justify-content: center; gap: 8px; }
-
-        .res-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; }
-        .res-item:hover { background: #f9f9f9; }
+        .res-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; background:white; }
         
-        .tab-bar { display: flex; padding: 10px; gap: 10px; background: #f8f9fa; border-bottom: 1px solid #eee; flex-shrink: 0; }
-        .tab { padding: 8px 16px; border-radius: 20px; border: 1px solid #ddd; background: white; font-size: 0.85rem; cursor: pointer; flex: 1; text-align: center; font-weight: 600; }
+        .tab-bar { display: flex; padding: 10px; gap: 10px; background: white; border-bottom: 1px solid #eee; flex-shrink: 0; }
+        .tab { padding: 8px 16px; border-radius: 20px; border: 1px solid #ddd; background: #f8f9fa; font-size: 0.85rem; cursor: pointer; flex: 1; text-align: center; font-weight: 600; }
         .tab.active { background: var(--text); color: white; border-color: var(--text); }
         
         .view { display: none; }
@@ -191,18 +186,18 @@
 
             <div class="card" style="background:#e3f2fd; border-color:#bbdefb;">
                 <div class="card-header" style="border:none; margin-bottom:5px;">Hydration</div>
-                <div class="water-controls">
-                    <button class="water-btn" onclick="modWater(-1)">−</button>
-                    <div class="water-info">
-                        <div class="water-main" id="waterMain">0 Cups</div>
+                <div class="water-controls" style="display:flex; justify-content:space-between; align-items:center;">
+                    <button style="width:40px;height:40px;border-radius:50%;border:none;background:white;color:var(--primary);font-size:1.2rem;cursor:pointer;" onclick="modWater(-1)">−</button>
+                    <div style="text-align:center;">
+                        <div style="font-size:1.2rem; font-weight:800;" id="waterMain">0 Cups</div>
                         <div style="font-size:0.8rem; color:#555;" id="waterSub">0ml</div>
                     </div>
-                    <button class="water-btn" onclick="modWater(1)">+</button>
+                    <button style="width:40px;height:40px;border-radius:50%;border:none;background:white;color:var(--primary);font-size:1.2rem;cursor:pointer;" onclick="modWater(1)">+</button>
                 </div>
             </div>
 
             <div class="card">
-                <div class="card-header">Log History</div>
+                <div class="card-header">Today's Logs</div>
                 <div id="logList"></div>
             </div>
         </div>
@@ -215,7 +210,7 @@
                     <input type="number" id="inpGoal" onchange="saveProfile()">
                 </div>
                 <div class="input-group">
-                    <label>Weight</label>
+                    <label>Weight (kg)</label>
                     <input type="number" id="inpWeight" onchange="saveProfile()">
                 </div>
                 <button class="btn" style="background:var(--danger)" onclick="resetApp()">Reset Data</button>
@@ -224,8 +219,9 @@
 
     </div> <div class="nav">
         <button class="nav-item active" onclick="goView('home', this)"><span class="nav-icon">🏠</span>Home</button>
-        <button class="nav-item" onclick="alert('Charts coming back soon')"><span class="nav-icon">📊</span>Stats</button>
-        <div style="width:50px;"></div> <button class="nav-item" onclick="alert('Social features disabled')"><span class="nav-icon">👥</span>Social</button>
+        <button class="nav-item" onclick="alert('Charts feature pending')"><span class="nav-icon">📊</span>Stats</button>
+        <div style="width:50px;"></div>
+        <button class="nav-item" onclick="alert('Social feature pending')"><span class="nav-icon">👥</span>Social</button>
         <button class="nav-item" onclick="goView('profile', this)"><span class="nav-icon">⚙️</span>Profile</button>
     </div>
 
@@ -233,8 +229,8 @@
 
     <div class="modal" id="modalAdd">
         <div class="header">
-            <button style="background:none; border:none; font-size:1.2rem;" onclick="closeAdd()">Cancel</button>
-            <h3>Add Entry</h3>
+            <button style="background:none; border:none; font-size:1rem; color:var(--text-light)" onclick="closeAdd()">Cancel</button>
+            <h3 style="margin:0; font-size:1.1rem">Add Entry</h3>
             <div style="width:40px"></div>
         </div>
         <div class="tab-bar">
@@ -252,7 +248,7 @@
                 
                 <div id="scanner-viewport">
                     <div id="reader"></div>
-                    <div style="position:absolute; bottom:10px; width:100%; text-align:center; color:white; font-size:0.8rem; text-shadow:0 1px 2px black;">Hold Steady • Good Light</div>
+                    <div style="position:absolute; bottom:10px; width:100%; text-align:center; color:white; font-size:0.8rem;">Hold Steady • Good Light</div>
                 </div>
 
                 <div style="display:flex; gap:10px; margin-top:15px;">
@@ -268,25 +264,39 @@
             </div>
 
             <div id="p-ex" style="display:none;">
-                <label>Activity</label>
+                <label>Activity Type</label>
                 <select id="exType" onchange="calcBurn()">
-                    <option value="3">Walking</option>
-                    <option value="8">Running</option>
-                    <option value="6">Gym/Weights</option>
-                    <option value="4">Cycling</option>
+                    <option value="3.0">Walking (Casual - 3mph)</option>
+                    <option value="4.0">Walking (Brisk - 4mph)</option>
+                    <option value="8.0">Running (5 mph)</option>
+                    <option value="10.0">Running (6 mph)</option>
+                    <option value="11.5">Running (7 mph)</option>
+                    <option value="6.0">Weight Lifting (General)</option>
+                    <option value="8.0">High Intensity Interval (HIIT)</option>
+                    <option value="4.0">Cycling (Leisure)</option>
+                    <option value="8.0">Cycling (Vigorous)</option>
+                    <option value="3.0">Yoga</option>
+                    <option value="7.0">Swimming</option>
                 </select>
-                <input type="number" id="exMin" placeholder="Minutes" style="margin-top:10px;" onkeyup="calcBurn()">
-                <h2 style="text-align:center; color:var(--primary)" id="exVal">0 kcal</h2>
-                <button class="btn" onclick="addEx()">Log Exercise</button>
+                
+                <label style="margin-top:15px; display:block;">Duration (Minutes)</label>
+                <input type="number" id="exMin" placeholder="30" onkeyup="calcBurn()">
+                
+                <div style="text-align:center; padding:20px; margin-top:20px; background:white; border-radius:12px; border:1px solid #eee;">
+                    <div style="font-size:0.9rem; color:#888;">Estimated Burn</div>
+                    <strong style="font-size:2rem; color:var(--primary)" id="exVal">0</strong>
+                    <span style="color:var(--primary)">kcal</span>
+                </div>
+                <button class="btn" onclick="addEx()">Log Workout</button>
             </div>
 
             <div id="p-cust" style="display:none;">
-                <input id="cName" type="text" placeholder="Food Name">
+                <input id="cName" type="text" placeholder="Food Name (e.g., Mom's Lasagna)">
                 <input id="cCal" type="number" placeholder="Calories">
                 <div style="display:flex; gap:5px; margin-top:10px;">
-                    <input id="cP" placeholder="Prot">
-                    <input id="cC" placeholder="Carb">
-                    <input id="cF" placeholder="Fat">
+                    <input id="cP" type="number" placeholder="Prot (g)">
+                    <input id="cC" type="number" placeholder="Carb (g)">
+                    <input id="cF" type="number" placeholder="Fat (g)">
                 </div>
                 <button class="btn" onclick="saveCustom()">Save Food</button>
             </div>
@@ -299,10 +309,12 @@
     // --- DATABASE ---
     const COMMON_DB = [
         {n:"Apple", k:95, p:0, c:25, f:0}, {n:"Banana", k:105, p:1, c:27, f:0},
-        {n:"Egg (Boiled)", k:78, p:6, c:1, f:5}, {n:"Chicken Breast", k:165, p:31, c:0, f:3},
+        {n:"Egg (Boiled)", k:78, p:6, c:1, f:5}, {n:"Chicken Breast (100g)", k:165, p:31, c:0, f:3},
         {n:"Rice (Cup)", k:205, p:4, c:45, f:0}, {n:"Pizza Slice", k:285, p:12, c:36, f:10},
         {n:"Hot Dog", k:150, p:5, c:2, f:13}, {n:"Burger", k:550, p:25, c:45, f:30},
-        {n:"Milk", k:149, p:8, c:12, f:8}, {n:"Coke", k:140, p:0, c:39, f:0}
+        {n:"Milk", k:149, p:8, c:12, f:8}, {n:"Coke", k:140, p:0, c:39, f:0},
+        {n:"Oats (Dry, 1/2 cup)", k:150, p:5, c:27, f:3},
+        {n:"Avocado (Half)", k:160, p:2, c:9, f:15}
     ];
 
     let state = {
@@ -310,30 +322,21 @@
         water: 0, logs: [], custom: []
     };
     
-    // --- SCANNER LOGIC ---
+    // --- SCANNER ---
     let html5QrcodeScanner = null;
-    
     function toggleScanner() {
         const vp = document.getElementById('scanner-viewport');
         const btn = document.getElementById('btnScanToggle');
         
-        if(html5QrcodeScanner) {
-            stopScanner();
-            return;
-        }
+        if(html5QrcodeScanner) { stopScanner(); return; }
 
         vp.style.display = 'block';
         btn.innerHTML = '❌ Stop Scanning';
+        btn.style.background = '#333';
         
-        // Config specifically for UPC/EAN barcodes (Food)
-        const config = { 
-            fps: 20, // Faster scanning
-            qrbox: { width: 250, height: 100 }, // Rectangular box for barcodes
-            aspectRatio: 1.0
-        };
-        
+        const config = { fps: 20, qrbox: { width: 250, height: 100 }, aspectRatio: 1.0 };
         html5QrcodeScanner = new Html5QrcodeScanner("reader", config, false);
-        html5QrcodeScanner.render(onScanSuccess, (err) => { /* ignore errors */ });
+        html5QrcodeScanner.render(onScanSuccess, (err) => {});
     }
 
     function stopScanner() {
@@ -342,17 +345,18 @@
             html5QrcodeScanner = null;
             document.getElementById('scanner-viewport').style.display = 'none';
             document.getElementById('btnScanToggle').innerHTML = '📷 Scan Barcode';
+            document.getElementById('btnScanToggle').style.background = 'var(--primary)';
         }
     }
 
     function onScanSuccess(code) {
         stopScanner();
-        document.getElementById('searchStatus').innerText = `Barcode detected: ${code}. Fetching info...`;
+        document.getElementById('searchStatus').innerText = `Barcode detected. Fetching...`;
         fetchProduct(code);
     }
 
     function manualBarcode() {
-        const code = prompt("Enter the number under the barcode:");
+        const code = prompt("Enter the numbers under the barcode:");
         if(code) {
             document.getElementById('searchStatus').innerText = `Searching for ${code}...`;
             fetchProduct(code);
@@ -367,7 +371,7 @@
                 const p = data.product;
                 const cal = Math.round(p.nutriments['energy-kcal'] || 0);
                 const out = document.getElementById('searchOut');
-                out.innerHTML = `<div class="res-item" style="background:#e8f5e9; border:1px solid #a5d6a7" onclick="addLog('food', '${p.product_name}', ${cal})">
+                out.innerHTML = `<div class="res-item" style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px;" onclick="addLog('food', '${p.product_name}', ${cal})">
                     <div><b>${p.product_name}</b><br><small>${p.brands||''}</small></div>
                     <div style="font-weight:bold; font-size:1.2rem">${cal}</div>
                 </div>`;
@@ -375,23 +379,19 @@
             } else {
                 document.getElementById('searchStatus').innerText = "Product not found.";
             }
-        } catch(e) {
-            document.getElementById('searchStatus').innerText = "Connection error.";
-        }
+        } catch(e) { document.getElementById('searchStatus').innerText = "Connection error."; }
     }
 
-    // --- NORMAL SEARCH ---
+    // --- SEARCH ---
     let searchTimer;
     function debounceSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(doSearch, 400); }
 
     function doSearch() {
         const q = document.getElementById('searchQ').value.toLowerCase();
-        if(q.length < 2) return;
-        
         const out = document.getElementById('searchOut');
         out.innerHTML = '';
+        if(q.length < 2) return;
         
-        // Local + Common
         const results = [...state.custom, ...COMMON_DB].filter(x => (x.name||x.n).toLowerCase().includes(q));
         
         let html = '';
@@ -402,24 +402,23 @@
                 <div>${n}</div><b>${k}</b>
             </div>`;
         });
-        out.innerHTML = html;
+        out.innerHTML = html || '<div style="color:#999;text-align:center">No local results. Try Scanning.</div>';
     }
 
-    // --- APP CORE ---
+    // --- CORE ---
     function init() {
-        const s = localStorage.getItem('tiu_v8');
+        const s = localStorage.getItem('tiu_v9');
         if(s) state = JSON.parse(s);
         document.getElementById('dateDisp').innerText = new Date().toDateString();
         updateUI();
     }
     
     function save() {
-        localStorage.setItem('tiu_v8', JSON.stringify(state));
+        localStorage.setItem('tiu_v9', JSON.stringify(state));
         updateUI();
     }
 
     function updateUI() {
-        // Calcs
         let eat = 0, burn = 0, p=0, c=0, f=0;
         const today = new Date().toISOString().split('T')[0];
         
@@ -429,7 +428,6 @@
             else burn+=l.cal;
         });
 
-        // DOM
         document.getElementById('valGoal').innerText = state.profile.goal;
         document.getElementById('valEaten').innerText = eat;
         document.getElementById('valBurned').innerText = burn;
@@ -446,8 +444,12 @@
         document.getElementById('waterSub').innerText = state.water + " ml";
 
         document.getElementById('logList').innerHTML = logs.slice().reverse().map(l => 
-            `<div class="res-item" style="padding:10px;"><span>${l.name}</span><b>${l.type==='food'?'+':'-'}${l.cal}</b></div>`
-        ).join('');
+            `<div class="res-item" style="padding:10px; border-radius:8px; margin-bottom:5px;"><span>${l.name}</span><b>${l.type==='food'?'+':'-'}${l.cal}</b></div>`
+        ).join('') || '<div style="text-align:center;color:#ccc;margin-top:20px;">No logs yet</div>';
+        
+        // Profile inputs
+        document.getElementById('inpGoal').value = state.profile.goal;
+        document.getElementById('inpWeight').value = state.profile.weight;
     }
 
     function addLog(type, name, cal, p=0, c=0, f=0) {
@@ -464,9 +466,10 @@
     }
 
     function calcBurn() {
-        const m = document.getElementById('exType').value;
-        const t = document.getElementById('exMin').value;
-        document.getElementById('exVal').innerText = Math.round(m * state.profile.weight * (t/60)) + " kcal";
+        const m = parseFloat(document.getElementById('exType').value);
+        const t = parseFloat(document.getElementById('exMin').value) || 0;
+        const burned = Math.round(m * state.profile.weight * (t/60));
+        document.getElementById('exVal').innerText = burned;
     }
 
     function addEx() {
@@ -479,7 +482,7 @@
         const n = document.getElementById('cName').value;
         const k = document.getElementById('cCal').value;
         if(n && k) {
-            state.custom.push({name:n, cal:k, p:0, c:0, f:0}); // Simplified for demo
+            state.custom.push({name:n, cal:k, p:0, c:0, f:0}); 
             save(); tab('food');
         }
     }
@@ -490,9 +493,8 @@
         save();
     }
 
-    function resetApp() { if(confirm("Clear all data?")) { localStorage.removeItem('tiu_v8'); location.reload(); } }
+    function resetApp() { if(confirm("Clear all data?")) { localStorage.removeItem('tiu_v9'); location.reload(); } }
     
-    // UI Helpers
     function openAdd() { document.getElementById('modalAdd').classList.add('active'); tab('food'); }
     function closeAdd() { document.getElementById('modalAdd').classList.remove('active'); stopScanner(); }
     function tab(id) { 
