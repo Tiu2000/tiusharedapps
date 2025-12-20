@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU LifeTrack v9 (PC & Gym Fix)</title>
+    <title>TIU LifeTrack v10 (Mega Exercise List)</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         :root {
@@ -27,7 +27,6 @@
             display: flex; align-items: center; justify-content: center;
         }
 
-        /* The App "Shell" */
         .app-container {
             width: 100%; height: 100%; 
             display: flex; flex-direction: column;
@@ -35,10 +34,9 @@
             overflow: hidden;
         }
 
-        /* PC SPECIFIC STYLES */
         @media (min-width: 768px) {
             .app-container {
-                max-width: 450px; /* Phone width on PC */
+                max-width: 450px; 
                 height: 90vh; 
                 border-radius: 24px; 
                 box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 0 8px rgba(255,255,255,0.2);
@@ -264,19 +262,59 @@
             </div>
 
             <div id="p-ex" style="display:none;">
-                <label>Activity Type</label>
+                <label>Select Activity</label>
                 <select id="exType" onchange="calcBurn()">
-                    <option value="3.0">Walking (Casual - 3mph)</option>
-                    <option value="4.0">Walking (Brisk - 4mph)</option>
-                    <option value="8.0">Running (5 mph)</option>
-                    <option value="10.0">Running (6 mph)</option>
-                    <option value="11.5">Running (7 mph)</option>
-                    <option value="6.0">Weight Lifting (General)</option>
-                    <option value="8.0">High Intensity Interval (HIIT)</option>
-                    <option value="4.0">Cycling (Leisure)</option>
-                    <option value="8.0">Cycling (Vigorous)</option>
-                    <option value="3.0">Yoga</option>
-                    <option value="7.0">Swimming</option>
+                    <optgroup label="Walking & Running">
+                        <option value="2.5">Walking (Slow Stroll)</option>
+                        <option value="3.5">Walking (Moderate/Dog Walk)</option>
+                        <option value="4.5">Walking (Brisk/Power Walk)</option>
+                        <option value="6.0">Hiking (Cross Country)</option>
+                        <option value="7.0">Jogging (General)</option>
+                        <option value="8.0">Running (5 mph)</option>
+                        <option value="10.0">Running (6 mph)</option>
+                        <option value="11.5">Running (7 mph)</option>
+                        <option value="13.5">Running (8 mph +)</option>
+                    </optgroup>
+                    <optgroup label="Gym & Training">
+                        <option value="3.5">Calisthenics (Light)</option>
+                        <option value="8.0">Calisthenics (Vigorous)</option>
+                        <option value="3.5">Weight Lifting (Light/Recovery)</option>
+                        <option value="6.0">Weight Lifting (Vigorous)</option>
+                        <option value="8.0">HIIT / Circuit Training</option>
+                        <option value="7.0">Rowing Machine (Moderate)</option>
+                        <option value="9.0">Elliptical Trainer</option>
+                        <option value="9.0">Stair Climber</option>
+                        <option value="5.5">Spinning / Stationary Bike</option>
+                    </optgroup>
+                    <optgroup label="Sports">
+                        <option value="7.0">Badminton / Tennis</option>
+                        <option value="8.0">Basketball (Game)</option>
+                        <option value="4.5">Basketball (Shooting Hoops)</option>
+                        <option value="10.0">Boxing / Sparring</option>
+                        <option value="4.0">Cycling (Leisure, <10mph)</option>
+                        <option value="8.0">Cycling (Fast, 12-14mph)</option>
+                        <option value="10.0">Cycling (Racing)</option>
+                        <option value="5.0">Dance (Ballroom/Slow)</option>
+                        <option value="7.0">Dance (Zumba/Fast)</option>
+                        <option value="4.0">Golf (Carrying Clubs)</option>
+                        <option value="8.0">Martial Arts</option>
+                        <option value="7.0">Soccer (Casual)</option>
+                        <option value="10.0">Soccer (Competitive)</option>
+                        <option value="6.0">Swimming (Leisure)</option>
+                        <option value="10.0">Swimming (Laps, Vigorous)</option>
+                        <option value="3.0">Volleyball</option>
+                    </optgroup>
+                    <optgroup label="Mind & Body">
+                        <option value="2.5">Yoga (Hatha/Stretching)</option>
+                        <option value="4.0">Yoga (Power/Vinyasa)</option>
+                        <option value="3.0">Pilates</option>
+                    </optgroup>
+                    <optgroup label="Daily Life & Chores">
+                        <option value="2.5">Cleaning / Housework</option>
+                        <option value="4.0">Gardening / Mowing Lawn</option>
+                        <option value="5.5">Shoveling Snow</option>
+                        <option value="5.0">Moving Furniture / Boxes</option>
+                    </optgroup>
                 </select>
                 
                 <label style="margin-top:15px; display:block;">Duration (Minutes)</label>
@@ -407,14 +445,14 @@
 
     // --- CORE ---
     function init() {
-        const s = localStorage.getItem('tiu_v9');
+        const s = localStorage.getItem('tiu_v10');
         if(s) state = JSON.parse(s);
         document.getElementById('dateDisp').innerText = new Date().toDateString();
         updateUI();
     }
     
     function save() {
-        localStorage.setItem('tiu_v9', JSON.stringify(state));
+        localStorage.setItem('tiu_v10', JSON.stringify(state));
         updateUI();
     }
 
@@ -493,7 +531,7 @@
         save();
     }
 
-    function resetApp() { if(confirm("Clear all data?")) { localStorage.removeItem('tiu_v9'); location.reload(); } }
+    function resetApp() { if(confirm("Clear all data?")) { localStorage.removeItem('tiu_v10'); location.reload(); } }
     
     function openAdd() { document.getElementById('modalAdd').classList.add('active'); tab('food'); }
     function closeAdd() { document.getElementById('modalAdd').classList.remove('active'); stopScanner(); }
