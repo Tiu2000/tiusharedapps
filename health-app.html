@@ -611,3 +611,60 @@
         el.setAttribute("href", data); el.setAttribute("download", "tiu_backup.json");
         document.body.appendChild(el); el.click(); el.remove();
     }
+
+    function importData(inp) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try { state = JSON.parse(e.target.result); save(); location.reload(); } 
+            catch(e) { alert('Error reading file'); }
+        };
+        reader.readAsText(inp.files[0]);
+    }
+
+    function resetApp() { if(confirm('Delete All Data?')) { localStorage.removeItem(DB_KEY); location.reload(); } }
+
+    function renderReports() {
+        const ctx = document.getElementById('reportChart');
+        ctx.innerHTML = '';
+        let days = [], maxVal = 2000, totalCals = 0;
+        for(let i=6; i>=0; i--) { const d = new Date(); d.setDate(d.getDate() - i); days.push(d.toISOString().split('T')[0]); }
+        days.forEach(day => {
+            const logs = state.logs.filter(l => new Date(l.date).toISOString().split('T')[0] === day);
+            let inCal = 0, outCal = 0;
+            logs.forEach(l => l.type === 'food' ? inCal += l.cal : outCal += l.cal);
+            if(inCal > maxVal) maxVal = inCal; totalCals += inCal;
+            const hIn = Math.max((inCal / maxVal) * 80, 2); 
+            const hOut = Math.max((outCal / maxVal) * 80, 0);
+            const lbl = new Date(day).toLocaleDateString('en-US', {weekday:'short'});
+            ctx.innerHTML += `
+            <div class="chart-col">
+                <div class="chart-bar-group">
+                    <div class="chart-bar" style="height:${hIn}%" title="In: ${inCal}"></div>
+                    <div class="chart-bar burn" style="height:${hOut}%" title="Out: ${outCal}"></div>
+                </div>
+                <div class="chart-label">${lbl}</div>
+            </div>`;
+        });
+        const avg = Math.round(totalCals / 7);
+        document.getElementById('weeklyStats').innerHTML = `Average: <b>${avg} kcal</b>`;
+    }
+
+    function goView(v, btn) {
+        document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
+        document.getElementById('view-'+v).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+        if(btn) btn.classList.add('active');
+        document.getElementById('viewTitle').innerText = (v==='home')?'Dashboard': v.charAt(0).toUpperCase() + v.slice(1);
+    }
+
+    function openAdd() { document.getElementById('modalAdd').classList.add('active'); tab('food'); }
+    function closeAdd() { document.getElementById('modalAdd').classList.remove('active'); }
+    function tab(t) {
+        ['food','ex','cust'].forEach(x => { document.getElementById('t-'+x).classList.remove('active'); document.getElementById('p-'+x).style.display = 'none'; });
+        document.getElementById('t-'+t).classList.add('active'); document.getElementById('p-'+t).style.display = 'block';
+    }
+
+    init();
+</script>
+</body>
+</html>
