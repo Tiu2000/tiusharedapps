@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TIU Trader v53 (Bulletproof)</title>
+    <title>TIU Trader v54 (Performance Fix)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -18,7 +18,7 @@
         .top-bar { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; z-index: 10; }
         .main-content { flex: 1; min-height: 0; display: grid; grid-template-columns: 2fr 1fr; gap: 15px; position: relative; z-index: 1; }
         .col { display: flex; flex-direction: column; gap: 15px; height: 100%; overflow: hidden; }
-        .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; position: relative; transition: all 0.3s ease; }
+        .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; position: relative; }
         .panel-head { font-weight: 600; color: var(--text-dim); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
         .scroll-wrap { overflow-y: auto; flex: 1; min-height: 0; }
         
@@ -32,7 +32,7 @@
         .btn-reset { background: var(--border); }
         .control-group { display:flex; flex-direction:column; align-items:end; min-width:180px; background:#1e293b; padding:8px; border-radius:6px; border:1px solid var(--border); }
         
-        .log-item { font-size: 0.8rem; margin-bottom: 2px; padding-bottom: 2px; border-bottom: 1px solid #ffffff10; }
+        .log-item { font-size: 0.8rem; margin-bottom: 2px; padding-bottom: 2px; border-bottom: 1px solid #ffffff10; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .log-ml { border-left: 3px solid var(--purple); padding-left: 6px; color: #e9d5ff; background: #581c8720; }
         .log-opt { border-left: 3px solid var(--green); padding-left: 6px; color: #d1fae5; background: #064e3b; }
         .log-err { border-left: 3px solid var(--red); padding-left: 6px; color: #fecaca; background: #450a0a; }
@@ -43,32 +43,20 @@
         .ai-indicator { height: 4px; background: #334155; border-radius: 2px; overflow: hidden; margin-top: 2px; }
         .ai-bar { height: 100%; transition: width 0.3s; }
         .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--text-dim); margin-right:5px;}
-
-        /* FULLSCREEN & BUTTONS */
-        .panel-fullscreen {
-            position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
-            z-index: 99999 !important; width: 100vw !important; height: 100vh !important;
-            margin: 0 !important; border-radius: 0 !important; padding: 0 !important; background: var(--bg) !important;
-        }
-        .panel-fullscreen canvas { height: 100vh !important; width: 100vw !important; }
-        .expand-btn { background: var(--blue); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
         
-        #fullscreenExitBtn {
-            display: none; position: fixed; top: 20px; right: 20px;
-            background: var(--red); color: white; font-weight: bold; font-size: 1.2rem;
-            padding: 15px 30px; border: 2px solid white; border-radius: 8px;
-            cursor: pointer; box-shadow: 0 5px 20px rgba(0,0,0,0.8);
-            z-index: 1000000; pointer-events: all;
+        /* Loading Overlay */
+        #loadingOverlay {
+            position: absolute; top:0; left:0; right:0; bottom:0; background:rgba(15,23,42,0.9);
+            display:flex; justify-content:center; align-items:center; z-index:100;
+            color: var(--blue); font-weight:bold;
         }
     </style>
 </head>
 <body>
 
-<button id="fullscreenExitBtn" onclick="closeAllFullscreen()">✖ EXIT FULLSCREEN (ESC)</button>
-
 <div class="top-bar">
     <div>
-        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Live Trader <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v53 Bulletproof</span></h1>
+        <h1 style="margin:0; font-size:1.3rem; color:var(--blue)">TIU Live Trader <span style="font-size:0.7rem; opacity:0.5; color:var(--text-dim)">v54 Performance</span></h1>
         <div style="font-size:0.8rem; color:var(--text-dim); margin-top:2px;">
             Feed: <span id="feedStatus" style="color:var(--text-dim)"><span class="status-dot"></span>Connecting...</span>
         </div>
@@ -91,10 +79,8 @@
 
 <div class="main-content">
     <div class="col">
-        <div class="panel" id="chartPanel" style="flex: 1; min-height: 250px;">
-            <div style="position:absolute; top:10px; right:10px; z-index:100;">
-                <button class="expand-btn" onclick="openFullscreen('chartPanel')">⛶ Full Screen</button>
-            </div>
+        <div class="panel" style="flex: 1; min-height: 250px;">
+            <div id="loadingOverlay">Waiting for Market Data...</div>
             <div style="position:absolute; top:10px; left:10px; background:#1e293b; padding:2px 8px; border-radius:4px; font-size:0.8rem; color:var(--text-dim); pointer-events:none;">
                 Real-Time Chart
             </div>
@@ -103,7 +89,7 @@
         <div class="panel" style="flex: 1;">
             <div class="panel-head">
                 <span>Live Market Data</span>
-                <span style="font-size:0.7rem; color:var(--cyan)">Logic: Bid/Ask + Greeks</span>
+                <span style="font-size:0.7rem; color:var(--cyan)">Safety Mode: Active</span>
             </div>
             <div class="scroll-wrap">
                 <table id="marketTable">
@@ -167,11 +153,13 @@
         contractSize: 100, 
         historySize: 60,
         thetaDecay: 0.05,
-        takeProfitPct: 0.20,
-        optionDuration: 60
+        takeProfitPct: 0.15,
+        optionDuration: 60,
+        maxVol: 0.50, // Cap volatility at 50% to prevent $6000 options
+        minVol: 0.01
     };
 
-    // --- MATH SANITIZER (PREVENTS NaN) ---
+    // --- MATH SANITIZER (Prevents Crashes) ---
     function sanitize(num, fallback = 0) {
         if (num === null || num === undefined || isNaN(num) || !isFinite(num)) {
             return fallback;
@@ -188,9 +176,7 @@
         predict(inputs) {
             let sum = this.bias;
             for(let i=0; i<this.weights.length; i++) {
-                // Sanitize every input before calculation
-                const val = sanitize(inputs[i]);
-                sum += val * sanitize(this.weights[i]);
+                sum += sanitize(inputs[i]) * sanitize(this.weights[i]);
             }
             return this.sigmoid(sum);
         }
@@ -213,19 +199,26 @@
     const aiBrain = new Brain();
     let chart = null;
     let socket = null;
-    let currentFullscreenPanel = null;
+    
+    // BUFFER: Store latest prices here, don't update STOCKS directly from socket
+    let priceBuffer = {}; 
 
-    // --- PRICING ENGINE ---
     function getOptionPrice(stockPrice, strike, type, volatility, timeRemaining) {
         const p = sanitize(stockPrice);
         const k = sanitize(strike);
-        const v = sanitize(volatility, 0.01); // Fallback to 1% vol
-        const t = sanitize(timeRemaining, 1); // Fallback to 1 tick
+        
+        // Clamp volatility to avoid explosions
+        let v = sanitize(volatility, 0.01);
+        if(v < 0.005) v = 0.005; 
+        if(v > CONFIG.maxVol) v = CONFIG.maxVol;
+
+        const t = sanitize(timeRemaining, 1);
 
         let intrinsic = 0;
         if(type === 'call') intrinsic = Math.max(0, p - k);
         if(type === 'put') intrinsic = Math.max(0, k - p);
         
+        // Simplified Extrinsic Model
         let extrinsic = (p * v * 0.1) * (t / 60);
         return sanitize((intrinsic + extrinsic) * CONFIG.contractSize);
     }
@@ -252,13 +245,13 @@
         updateUI(); 
         setupLiveFeed();
         
-        // Wrap Loop in Try/Catch to prevent freezing
+        // Main Loop
         setInterval(() => {
             try { gameLoop(); } 
             catch(e) { console.error("Loop Error:", e); }
         }, CONFIG.updateSpeed);
         
-        log("System Online. NaN Guard Active.", "log-ml");
+        log("System Online. Memory Leak Fixed.", "log-ml");
     }
 
     function setupLiveFeed() {
@@ -269,39 +262,50 @@
                 document.getElementById('feedStatus').style.color = 'var(--green)';
                 STOCKS.forEach(s => socket.send(JSON.stringify({'type':'subscribe', 'symbol': s.sym})));
             });
+            
+            // OPTIMIZATION: Only update the buffer, do not calculate logic here
             socket.addEventListener('message', (e) => {
                 try {
                     const m = JSON.parse(e.data);
                     if (m.type === 'trade') {
                         m.data.forEach(t => {
-                            const s = STOCKS.find(x => x.sym === t.s);
-                            // Only update if we have a valid price > 0
-                            if (s && t.p && !isNaN(t.p) && t.p > 0) { 
-                                if(state.tick < 2) s.startPrice = t.p;
-                                s.price = t.p;
+                            if (t.p && !isNaN(t.p) && t.p > 0) {
+                                priceBuffer[t.s] = t.p;
                             }
                         });
                     }
-                } catch(err) { /* Ignore bad packets */ }
+                } catch(err) { /* Ignore */ }
             });
         } catch(e) { log("Connection Failed", "log-err"); }
     }
 
     function gameLoop() {
         state.tick++;
+
+        // 1. Process Buffered Data (Decouples Socket from UI)
+        let dataReceived = false;
         STOCKS.forEach(s => {
+            if (priceBuffer[s.sym]) {
+                s.price = priceBuffer[s.sym];
+                dataReceived = true;
+                // Clear buffer so we don't process same price twice if feed dies
+                // Actually, keep it. If feed dies, price stays flat.
+            }
+            
             s.history.push(s.price);
             if(s.history.length > CONFIG.historySize) s.history.shift();
             
+            // Volatility Calc
             if(s.history.length > 5) {
                 const changes = s.history.slice(-5).map((p, i, a) => i===0?0 : Math.abs(p - a[i-1]));
                 const avgChange = changes.reduce((a,b)=>a+b,0) / changes.length;
-                // Sanitize calculation to prevent Division by Zero Infinity
                 const safePrice = s.price > 0 ? s.price : 1;
                 let vol = (avgChange / safePrice) * 100;
                 s.currentVol = sanitize(vol, 0.01);
             }
         });
+
+        if(dataReceived) document.getElementById('loadingOverlay').style.display = 'none';
 
         updatePositions();
         if(state.aiActive) runAI();
@@ -320,7 +324,7 @@
             
             opt.currentValue = sanitize(bidPrice);
 
-            const cost = sanitize(opt.cost, 1); // Avoid div by zero
+            const cost = sanitize(opt.cost, 1); 
             const profitPct = (opt.currentValue - cost) / cost;
             const expired = opt.life <= 0;
             
@@ -373,7 +377,10 @@
         const fairPrice = getOptionPrice(stock.price, strike, type, stock.currentVol, CONFIG.optionDuration);
         const askPrice = getExecutionPrice(fairPrice, 'buy');
 
-        if(askPrice <= 0) return; 
+        // Prevent insane prices (Clamp check)
+        if(askPrice > stock.price * 0.20) return; // Don't buy if option costs > 20% of stock (Unrealistic)
+        if(askPrice <= 0.10) return; // Don't buy dust
+
         if(state.cash < askPrice) return; 
 
         state.cash -= askPrice;
@@ -460,30 +467,19 @@
         chart.update('none');
     }
 
+    // FIXED LOGGING (Prevents memory crash)
     function log(msg, cls) {
         const l = document.getElementById('logs');
         const div = document.createElement('div');
         div.className = `log-item ${cls}`;
         div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
         l.prepend(div);
+        if(l.children.length > 50) l.lastChild.remove(); // CRITICAL: Deletes old logs
     }
+    
     function toggleAI() { state.aiActive = !state.aiActive; updateUI(); }
     function resetGame() { if(confirm("Reset Account?")) location.reload(); }
     
-    // FULLSCREEN LOGIC
-    function openFullscreen(panelId) {
-        if(currentFullscreenPanel) closeAllFullscreen();
-        document.getElementById(panelId).classList.add('panel-fullscreen');
-        document.getElementById('fullscreenExitBtn').style.display = 'block';
-        currentFullscreenPanel = panelId;
-    }
-    function closeAllFullscreen() {
-        if(currentFullscreenPanel) document.getElementById(currentFullscreenPanel).classList.remove('panel-fullscreen');
-        document.getElementById('fullscreenExitBtn').style.display = 'none';
-        currentFullscreenPanel = null;
-    }
-    document.addEventListener('keydown', function(event) { if (event.key === "Escape") closeAllFullscreen(); });
-
     init();
 </script>
 </body>
