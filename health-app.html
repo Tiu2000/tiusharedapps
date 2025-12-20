@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU LifeTrack v12 (Robust Exercises)</title>
+    <title>TIU LifeTrack v13 (CalorieKing Ref)</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         :root {
@@ -110,6 +110,14 @@
         #scanner-viewport { width: 100%; margin-bottom: 10px; display: none; background: #000; border-radius: 12px; overflow: hidden; position: relative; }
         #reader { width: 100%; border: none; }
         #reader__dashboard_section_csr span, #reader__dashboard_section_swaplink { display: none !important; }
+
+        /* External Link Button */
+        .ext-link {
+            display: block; text-align: center; color: var(--primary); 
+            text-decoration: none; font-weight: 600; font-size: 0.9rem;
+            border: 1px solid var(--primary); padding: 10px; border-radius: 8px;
+            background: rgba(41, 182, 246, 0.1); margin-top: 10px;
+        }
 
         .view { display: none; }
         .view.active { display: block; }
@@ -232,8 +240,10 @@
                 
                 <div id="searchOut" class="res-list"></div>
                 
-                <div style="text-align:center; margin-top:20px; color:#999; font-size:0.85rem;">
-                    Can't find it? Go to "Create Food" to add it to the database.
+                <div style="margin-top:20px; border-top:1px dashed #ddd; padding-top:15px;">
+                    <a href="https://www.calorieking.com/us/en/foods/" target="_blank" class="ext-link">
+                        🔍 Verify on CalorieKing.com
+                    </a>
                 </div>
             </div>
 
@@ -241,6 +251,7 @@
                 <div class="card" style="background:#fff3e0; border:1px solid #ffe0b2;">
                     <h4 style="margin-top:0;">Update Database</h4>
                     <p style="font-size:0.85rem; color:#666;">Add a new item here. It will be saved to "My Foods" so you can search for it later.</p>
+                    <a href="https://www.calorieking.com/us/en/" target="_blank" style="font-size:0.8rem; color:var(--primary);">Need info? Check CalorieKing &rarr;</a>
                 </div>
                 <label>Food Name</label>
                 <input id="cName" type="text" placeholder="e.g. Mom's Spaghetti">
@@ -343,7 +354,7 @@
         profile: { weight: 70, goal: 2000, wCup: 250 },
         water: 0, 
         logs: [], 
-        custom: [] // User added foods go here
+        custom: [] 
     };
 
     // --- SEARCH LOGIC ---
@@ -355,19 +366,16 @@
         const out = document.getElementById('searchOut');
         out.innerHTML = '';
         
-        // Show recent custom items if empty query, otherwise search
         let results = [];
         if(q.length < 2) {
-            // If empty, show recent custom foods or common top 5
             results = state.custom.slice(-5).reverse().concat(BASE_DB.slice(0,5));
         } else {
-            // Combine Custom DB + Base DB
             const allFoods = [...state.custom, ...BASE_DB];
             results = allFoods.filter(x => (x.name || x.n).toLowerCase().includes(q));
         }
 
         if(results.length === 0) {
-            out.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">No matches found.<br>Try adding it in "Create Food".</div>';
+            out.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">No matches.<br>Try "Create Food" or verify on CalorieKing.</div>';
             return;
         }
 
@@ -375,7 +383,6 @@
             const n = x.name || x.n;
             const k = x.cal || x.k;
             const p = x.p || 0; const c = x.c || 0; const f = x.f || 0;
-            // Visual indicator for custom foods
             const isCustom = x.name ? '<span style="font-size:0.7rem; color:var(--primary); border:1px solid var(--primary); padding:2px 4px; border-radius:4px; margin-left:5px;">MY FOOD</span>' : '';
             
             return `<div class="res-item" onclick="addLog('food', '${n}', ${k}, ${p}, ${c}, ${f})">
@@ -422,7 +429,6 @@
                 const carb = Math.round(p.nutriments['carbohydrates_100g'] || 0);
                 const fat = Math.round(p.nutriments['fat_100g'] || 0);
                 
-                // Show result prominently
                 document.getElementById('searchOut').innerHTML = `
                     <div class="res-item" style="border:2px solid var(--secondary); background:#e8f5e9;" onclick="addLog('food', '${name}', ${cal}, ${prot}, ${carb}, ${fat})">
                         <div>
@@ -441,21 +447,16 @@
 
     // --- APP CORE ---
     function init() {
-        const s = localStorage.getItem('tiu_v12'); // Using new key to ensure clean slate if needed
+        const s = localStorage.getItem('tiu_v13'); 
         if(s) state = JSON.parse(s);
-        
-        // Ensure custom array exists if upgrading from old version
         if(!state.custom) state.custom = []; 
-        
         document.getElementById('dateDisp').innerText = new Date().toDateString();
         updateUI();
-        
-        // Populate initial list
         doSearch();
     }
     
     function save() {
-        localStorage.setItem('tiu_v12', JSON.stringify(state));
+        localStorage.setItem('tiu_v13', JSON.stringify(state));
         updateUI();
     }
 
@@ -481,7 +482,6 @@
         const pct = Math.min(eat / (state.profile.goal+burn || 1), 1);
         document.getElementById('ringProgress').style.strokeDashoffset = 283 - (283 * pct);
         
-        // Macros bars
         const maxM = Math.max(p,c,f, 100); 
         document.getElementById('barProt').style.width = (p/maxM*100)+'%';
         document.getElementById('barCarb').style.width = (c/maxM*100)+'%';
@@ -497,7 +497,6 @@
             </div>`
         ).join('') || '<div style="text-align:center;color:#ccc;margin-top:20px;">No logs today</div>';
         
-        // Settings inputs
         document.getElementById('inpGoal').value = state.profile.goal;
         document.getElementById('inpWeight').value = state.profile.weight;
     }
@@ -507,7 +506,6 @@
         save(); closeAdd();
     }
 
-    // --- CREATE / UPDATE DB ---
     function saveCustom() {
         const n = document.getElementById('cName').value;
         const k = parseInt(document.getElementById('cCal').value);
@@ -516,15 +514,10 @@
         const f = parseInt(document.getElementById('cF').value) || 0;
 
         if(n && !isNaN(k)) {
-            // Add to local state DB
             state.custom.push({ name:n, cal:k, p, c, f });
             save();
-            
-            // Clear form
             document.getElementById('cName').value = '';
             document.getElementById('cCal').value = '';
-            
-            // Switch back to search to show it works
             tab('food');
             document.getElementById('searchQ').value = n;
             doSearch();
@@ -557,12 +550,12 @@
         save();
     }
 
-    function resetApp() { if(confirm("Clear history and custom foods?")) { localStorage.removeItem('tiu_v12'); location.reload(); } }
+    function resetApp() { if(confirm("Clear history and custom foods?")) { localStorage.removeItem('tiu_v13'); location.reload(); } }
     
     function openAdd() { 
         document.getElementById('modalAdd').classList.add('active'); 
         tab('food'); 
-        doSearch(); // Refresh list on open
+        doSearch(); 
     }
     function closeAdd() { 
         document.getElementById('modalAdd').classList.remove('active'); 
