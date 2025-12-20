@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU LifeTrack v10 (Mega Exercise List)</title>
+    <title>TIU LifeTrack v12 (Robust Exercises)</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         :root {
@@ -19,69 +19,49 @@
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         
-        /* LAYOUT CORE */
         body { 
             margin: 0; background: #e0e5ec; color: var(--text); 
-            height: 100vh; height: 100dvh; 
-            width: 100vw; overflow: hidden; 
+            height: 100vh; height: 100dvh; width: 100vw; overflow: hidden; 
             display: flex; align-items: center; justify-content: center;
         }
 
         .app-container {
-            width: 100%; height: 100%; 
-            display: flex; flex-direction: column;
-            background: var(--surface); position: relative;
-            overflow: hidden;
+            width: 100%; height: 100%; display: flex; flex-direction: column;
+            background: var(--surface); position: relative; overflow: hidden;
         }
 
         @media (min-width: 768px) {
             .app-container {
-                max-width: 450px; 
-                height: 90vh; 
-                border-radius: 24px; 
+                max-width: 450px; height: 90vh; border-radius: 24px; 
                 box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 0 8px rgba(255,255,255,0.2);
             }
-            body {
-                background-image: radial-gradient(#d7e1ec 1px, transparent 1px);
-                background-size: 20px 20px;
-            }
+            body { background-image: radial-gradient(#d7e1ec 1px, transparent 1px); background-size: 20px 20px; }
         }
 
-        /* HEADER */
         .header {
-            flex-shrink: 0;
-            padding: 15px 20px; background: var(--surface);
+            flex-shrink: 0; padding: 15px 20px; background: var(--surface);
             display: flex; justify-content: space-between; align-items: center;
             border-bottom: 1px solid #eee; z-index: 10;
         }
         .header h1 { margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--primary-dark); }
-        .date-display { font-size: 0.8rem; color: var(--text-light); }
-
-        /* SCROLLABLE VIEWPORT */
-        .view-port {
-            flex: 1; overflow-y: auto; overflow-x: hidden;
-            padding: 15px; padding-bottom: 90px;
-            -webkit-overflow-scrolling: touch;
-            background: var(--bg);
-        }
+        
+        /* SCROLL AREAS */
+        .view-port { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 90px; background: var(--bg); }
+        .modal-body { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 50px; }
 
         .card {
             background: white; border-radius: 16px; padding: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.03); margin-bottom: 15px;
-            border: 1px solid #fff;
         }
-        .card-header { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: 700; font-size: 0.95rem; }
-
-        /* NAVIGATION */
+        
         .nav { 
             flex-shrink: 0; height: 70px; background: white; border-top: 1px solid #eee; 
-            display: flex; justify-content: space-around; align-items: center; 
-            z-index: 20; padding-bottom: env(safe-area-inset-bottom);
+            display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom);
         }
-        .nav-item { background: none; border: none; color: var(--text-light); font-size: 0.7rem; text-align: center; cursor: pointer; padding: 5px; }
+        .nav-item { background: none; border: none; color: var(--text-light); font-size: 0.7rem; text-align: center; cursor: pointer; }
         .nav-item.active { color: var(--primary); }
         .nav-icon { display: block; font-size: 1.4rem; margin-bottom: 2px; }
-        
+
         .fab { 
             position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%); 
             width: 56px; height: 56px; background: var(--primary); 
@@ -90,45 +70,47 @@
             border: 4px solid var(--bg); cursor: pointer; z-index: 25; 
         }
 
-        /* MODAL */
         .modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 50; display: none; flex-direction: column; }
         .modal.active { display: flex; }
-        .modal-body { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 50px; }
 
         /* VISUALS */
-        .summary-wrapper { display: flex; align-items: center; justify-content: space-between; }
-        .ring-container { position: relative; width: 110px; height: 110px; }
+        .ring-container { position: relative; width: 110px; height: 110px; margin-right: 15px; }
         svg.ring { transform: rotate(-90deg); width: 110px; height: 110px; }
         circle { fill: none; stroke-width: 8; stroke-linecap: round; }
         .c-bg { stroke: #f0f0f0; }
         .c-val { stroke: var(--primary); stroke-dasharray: 283; stroke-dashoffset: 283; transition: 1s ease; }
-        .ring-data { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
-        .ring-num { font-size: 1.4rem; font-weight: 800; display: block; }
-        .ring-txt { font-size: 0.7rem; color: var(--text-light); text-transform: uppercase; }
         
         .macro-flex { display: flex; gap: 8px; margin-top: 20px; }
         .macro-col { flex: 1; }
         .bar-bg { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-bottom: 5px; }
         .bar-fill { height: 100%; width: 0%; transition: width 0.5s; }
         .p-fill { background: #9b59b6; } .c-fill { background: #f1c40f; } .f-fill { background: #e74c3c; }
-        .macro-meta { font-size: 0.7rem; color: var(--text-light); display: flex; justify-content: space-between; font-weight: 600; }
 
-        /* SCANNER */
-        #scanner-viewport { width: 100%; margin-bottom: 10px; display: none; background: #000; border-radius: 12px; overflow: hidden; position: relative; }
-        #reader { width: 100%; border: none; }
-        #reader__dashboard_section_csr span, #reader__dashboard_section_swaplink { display: none !important; }
+        /* INPUTS & SEARCH */
+        .search-container { position: sticky; top: 0; background: var(--bg); z-index: 5; padding-bottom: 10px; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 1rem; background:white; margin-bottom: 10px; }
+        .btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+        .btn-scan { background: #333; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; }
         
-        /* FORM ELEMENTS */
-        .input-group { margin-bottom: 15px; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; background:white; }
-        .btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 1rem; }
-        .btn-scan { background: #333; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .res-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; background:white; }
-        
+        /* RESULTS LIST */
+        .res-list { margin-top: 10px; }
+        .res-item { 
+            padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; 
+            display: flex; justify-content: space-between; align-items: center;
+            background: white; border-radius: 8px; margin-bottom: 6px;
+        }
+        .res-item:last-child { margin-bottom: 0; }
+        .res-item b { color: var(--primary-dark); font-size: 1.1rem; }
+
+        /* TABS */
         .tab-bar { display: flex; padding: 10px; gap: 10px; background: white; border-bottom: 1px solid #eee; flex-shrink: 0; }
         .tab { padding: 8px 16px; border-radius: 20px; border: 1px solid #ddd; background: #f8f9fa; font-size: 0.85rem; cursor: pointer; flex: 1; text-align: center; font-weight: 600; }
         .tab.active { background: var(--text); color: white; border-color: var(--text); }
         
+        #scanner-viewport { width: 100%; margin-bottom: 10px; display: none; background: #000; border-radius: 12px; overflow: hidden; position: relative; }
+        #reader { width: 100%; border: none; }
+        #reader__dashboard_section_csr span, #reader__dashboard_section_swaplink { display: none !important; }
+
         .view { display: none; }
         .view.active { display: block; }
     </style>
@@ -145,81 +127,75 @@
     </div>
 
     <div class="view-port">
-        
         <div id="view-home" class="view active">
             <div class="card">
-                <div class="card-header">Summary</div>
-                <div class="summary-wrapper">
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-weight:700;">Summary</div>
+                <div style="display:flex; align-items:center;">
                     <div class="ring-container">
                         <svg class="ring">
                             <circle cx="55" cy="55" r="45" class="c-bg"></circle>
                             <circle cx="55" cy="55" r="45" class="c-val" id="ringProgress"></circle>
                         </svg>
-                        <div class="ring-data">
-                            <span class="ring-num" id="valRemain">0</span>
-                            <span class="ring-txt">Left</span>
+                        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center;">
+                            <span style="font-size:1.4rem; font-weight:800; display:block;" id="valRemain">0</span>
+                            <span style="font-size:0.7rem; color:#888;">LEFT</span>
                         </div>
                     </div>
-                    <div style="flex:1; padding-left:20px; text-align:right;">
-                        <div style="margin-bottom:5px; font-size:0.9rem;">Goal: <b id="valGoal">2000</b></div>
-                        <div style="margin-bottom:5px; font-size:0.9rem;">Eaten: <b id="valEaten">0</b></div>
+                    <div style="flex:1; text-align:right;">
+                        <div style="font-size:0.9rem; margin-bottom:4px;">Goal: <b id="valGoal">2000</b></div>
+                        <div style="font-size:0.9rem; margin-bottom:4px;">Eaten: <b id="valEaten">0</b></div>
                         <div style="font-size:0.9rem;">Burn: <b id="valBurned" style="color:var(--secondary)">0</b></div>
                     </div>
                 </div>
                 <div class="macro-flex">
                     <div class="macro-col">
                         <div class="bar-bg"><div class="bar-fill p-fill" id="barProt"></div></div>
-                        <div class="macro-meta"><span>Prot</span><span id="txtProt">0</span></div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#888;"><span>Prot</span><span id="txtProt">0</span></div>
                     </div>
                     <div class="macro-col">
                         <div class="bar-bg"><div class="bar-fill c-fill" id="barCarb"></div></div>
-                        <div class="macro-meta"><span>Carb</span><span id="txtCarb">0</span></div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#888;"><span>Carb</span><span id="txtCarb">0</span></div>
                     </div>
                     <div class="macro-col">
                         <div class="bar-bg"><div class="bar-fill f-fill" id="barFat"></div></div>
-                        <div class="macro-meta"><span>Fat</span><span id="txtFat">0</span></div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#888;"><span>Fat</span><span id="txtFat">0</span></div>
                     </div>
                 </div>
             </div>
 
-            <div class="card" style="background:#e3f2fd; border-color:#bbdefb;">
-                <div class="card-header" style="border:none; margin-bottom:5px;">Hydration</div>
-                <div class="water-controls" style="display:flex; justify-content:space-between; align-items:center;">
-                    <button style="width:40px;height:40px;border-radius:50%;border:none;background:white;color:var(--primary);font-size:1.2rem;cursor:pointer;" onclick="modWater(-1)">−</button>
+            <div class="card" style="background:#e3f2fd;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <button style="width:40px;height:40px;border-radius:50%;border:none;background:white;color:var(--primary);font-size:1.5rem;" onclick="modWater(-1)">−</button>
                     <div style="text-align:center;">
                         <div style="font-size:1.2rem; font-weight:800;" id="waterMain">0 Cups</div>
-                        <div style="font-size:0.8rem; color:#555;" id="waterSub">0ml</div>
+                        <div style="font-size:0.8rem; opacity:0.7;" id="waterSub">0ml</div>
                     </div>
-                    <button style="width:40px;height:40px;border-radius:50%;border:none;background:white;color:var(--primary);font-size:1.2rem;cursor:pointer;" onclick="modWater(1)">+</button>
+                    <button style="width:40px;height:40px;border-radius:50%;border:none;background:white;color:var(--primary);font-size:1.5rem;" onclick="modWater(1)">+</button>
                 </div>
             </div>
 
             <div class="card">
-                <div class="card-header">Today's Logs</div>
+                <div style="font-weight:700; margin-bottom:15px;">Today's Logs</div>
                 <div id="logList"></div>
             </div>
         </div>
 
         <div id="view-profile" class="view">
             <div class="card">
-                <div class="card-header">Settings</div>
-                <div class="input-group">
-                    <label>Daily Calorie Goal</label>
-                    <input type="number" id="inpGoal" onchange="saveProfile()">
-                </div>
-                <div class="input-group">
-                    <label>Weight (kg)</label>
-                    <input type="number" id="inpWeight" onchange="saveProfile()">
-                </div>
-                <button class="btn" style="background:var(--danger)" onclick="resetApp()">Reset Data</button>
+                <div style="font-weight:700; margin-bottom:15px;">Your Settings</div>
+                <label>Daily Calorie Goal</label>
+                <input type="number" id="inpGoal" onchange="saveProfile()">
+                <label>Weight (kg)</label>
+                <input type="number" id="inpWeight" onchange="saveProfile()">
+                <button class="btn" style="background:var(--danger); margin-top:20px;" onclick="resetApp()">Reset All Data</button>
             </div>
         </div>
+    </div>
 
-    </div> <div class="nav">
+    <div class="nav">
         <button class="nav-item active" onclick="goView('home', this)"><span class="nav-icon">🏠</span>Home</button>
-        <button class="nav-item" onclick="alert('Charts feature pending')"><span class="nav-icon">📊</span>Stats</button>
+        <button class="nav-item" onclick="alert('Stats coming soon')"><span class="nav-icon">📊</span>Stats</button>
         <div style="width:50px;"></div>
-        <button class="nav-item" onclick="alert('Social feature pending')"><span class="nav-icon">👥</span>Social</button>
         <button class="nav-item" onclick="goView('profile', this)"><span class="nav-icon">⚙️</span>Profile</button>
     </div>
 
@@ -227,48 +203,67 @@
 
     <div class="modal" id="modalAdd">
         <div class="header">
-            <button style="background:none; border:none; font-size:1rem; color:var(--text-light)" onclick="closeAdd()">Cancel</button>
-            <h3 style="margin:0; font-size:1.1rem">Add Entry</h3>
+            <button style="background:none; border:none; color:var(--text-light)" onclick="closeAdd()">Cancel</button>
+            <h3 style="margin:0; font-size:1rem;">Add Entry</h3>
             <div style="width:40px"></div>
         </div>
         <div class="tab-bar">
             <div class="tab active" onclick="tab('food')" id="t-food">Food</div>
+            <div class="tab" onclick="tab('create')" id="t-create">Create Food</div>
             <div class="tab" onclick="tab('ex')" id="t-ex">Exercise</div>
-            <div class="tab" onclick="tab('cust')" id="t-cust">Custom</div>
         </div>
         
         <div class="modal-body">
             
             <div id="p-food">
-                <button class="btn btn-scan" onclick="toggleScanner()" id="btnScanToggle">
-                    <span>📷</span> Scan Barcode
-                </button>
+                <div class="search-container">
+                    <input type="text" id="searchQ" placeholder="🔍 Search Database & My Foods..." onkeyup="debounceSearch()" style="margin-bottom:10px;">
+                    <button class="btn btn-scan" onclick="toggleScanner()" id="btnScanToggle">
+                        <span>📷</span> Scan Barcode
+                    </button>
+                </div>
                 
                 <div id="scanner-viewport">
                     <div id="reader"></div>
                     <div style="position:absolute; bottom:10px; width:100%; text-align:center; color:white; font-size:0.8rem;">Hold Steady • Good Light</div>
                 </div>
 
-                <div style="display:flex; gap:10px; margin-top:15px;">
-                    <input type="text" id="searchQ" placeholder="Search food name..." onkeyup="debounceSearch()">
-                </div>
+                <div id="searchStatus" style="color:var(--primary); margin:10px 0; font-size:0.9rem; font-weight:600; text-align:center;"></div>
                 
-                <div style="font-size:0.8rem; text-align:right; color:var(--primary); margin-top:5px; cursor:pointer;" onclick="manualBarcode()">
-                    Scanner failed? Enter code manually
+                <div id="searchOut" class="res-list"></div>
+                
+                <div style="text-align:center; margin-top:20px; color:#999; font-size:0.85rem;">
+                    Can't find it? Go to "Create Food" to add it to the database.
                 </div>
+            </div>
 
-                <div id="searchStatus" style="color:var(--primary); margin:10px 0; font-size:0.9rem; font-weight:600;"></div>
-                <div id="searchOut"></div>
+            <div id="p-create" style="display:none;">
+                <div class="card" style="background:#fff3e0; border:1px solid #ffe0b2;">
+                    <h4 style="margin-top:0;">Update Database</h4>
+                    <p style="font-size:0.85rem; color:#666;">Add a new item here. It will be saved to "My Foods" so you can search for it later.</p>
+                </div>
+                <label>Food Name</label>
+                <input id="cName" type="text" placeholder="e.g. Mom's Spaghetti">
+                <label>Calories</label>
+                <input id="cCal" type="number" placeholder="0">
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1"><label>Prot (g)</label><input id="cP" type="number"></div>
+                    <div style="flex:1"><label>Carb (g)</label><input id="cC" type="number"></div>
+                    <div style="flex:1"><label>Fat (g)</label><input id="cF" type="number"></div>
+                </div>
+                <button class="btn" onclick="saveCustom()">Save to My Foods</button>
             </div>
 
             <div id="p-ex" style="display:none;">
                 <label>Select Activity</label>
                 <select id="exType" onchange="calcBurn()">
-                    <optgroup label="Walking & Running">
+                    <optgroup label="Walking & Hiking">
                         <option value="2.5">Walking (Slow Stroll)</option>
-                        <option value="3.5">Walking (Moderate/Dog Walk)</option>
-                        <option value="4.5">Walking (Brisk/Power Walk)</option>
+                        <option value="3.5">Walking (Moderate - 3.5mph)</option>
+                        <option value="4.5">Walking (Brisk - 4.5mph)</option>
                         <option value="6.0">Hiking (Cross Country)</option>
+                    </optgroup>
+                    <optgroup label="Running">
                         <option value="7.0">Jogging (General)</option>
                         <option value="8.0">Running (5 mph)</option>
                         <option value="10.0">Running (6 mph)</option>
@@ -276,68 +271,58 @@
                         <option value="13.5">Running (8 mph +)</option>
                     </optgroup>
                     <optgroup label="Gym & Training">
-                        <option value="3.5">Calisthenics (Light)</option>
-                        <option value="8.0">Calisthenics (Vigorous)</option>
-                        <option value="3.5">Weight Lifting (Light/Recovery)</option>
+                        <option value="3.5">Weight Lifting (Light)</option>
                         <option value="6.0">Weight Lifting (Vigorous)</option>
                         <option value="8.0">HIIT / Circuit Training</option>
-                        <option value="7.0">Rowing Machine (Moderate)</option>
+                        <option value="3.5">Calisthenics (Pushups/Situps)</option>
+                        <option value="7.0">Rowing Machine</option>
                         <option value="9.0">Elliptical Trainer</option>
                         <option value="9.0">Stair Climber</option>
-                        <option value="5.5">Spinning / Stationary Bike</option>
                     </optgroup>
-                    <optgroup label="Sports">
-                        <option value="7.0">Badminton / Tennis</option>
-                        <option value="8.0">Basketball (Game)</option>
-                        <option value="4.5">Basketball (Shooting Hoops)</option>
-                        <option value="10.0">Boxing / Sparring</option>
+                    <optgroup label="Cycling">
                         <option value="4.0">Cycling (Leisure, <10mph)</option>
                         <option value="8.0">Cycling (Fast, 12-14mph)</option>
                         <option value="10.0">Cycling (Racing)</option>
-                        <option value="5.0">Dance (Ballroom/Slow)</option>
-                        <option value="7.0">Dance (Zumba/Fast)</option>
-                        <option value="4.0">Golf (Carrying Clubs)</option>
-                        <option value="8.0">Martial Arts</option>
-                        <option value="7.0">Soccer (Casual)</option>
-                        <option value="10.0">Soccer (Competitive)</option>
+                        <option value="5.5">Spinning Class</option>
+                    </optgroup>
+                    <optgroup label="Sports">
+                        <option value="7.0">Basketball (Game)</option>
+                        <option value="4.5">Basketball (Shooting Hoops)</option>
+                        <option value="7.0">Tennis / Badminton</option>
+                        <option value="10.0">Soccer / Football</option>
+                        <option value="10.0">Boxing / Martial Arts</option>
                         <option value="6.0">Swimming (Leisure)</option>
-                        <option value="10.0">Swimming (Laps, Vigorous)</option>
-                        <option value="3.0">Volleyball</option>
+                        <option value="10.0">Swimming (Laps)</option>
+                        <option value="4.0">Golf (Walking)</option>
+                        <option value="3.0">Bowling / Volleyball</option>
                     </optgroup>
                     <optgroup label="Mind & Body">
                         <option value="2.5">Yoga (Hatha/Stretching)</option>
                         <option value="4.0">Yoga (Power/Vinyasa)</option>
                         <option value="3.0">Pilates</option>
+                        <option value="5.0">Dance (Ballroom)</option>
+                        <option value="7.0">Dance (Zumba/Aerobic)</option>
                     </optgroup>
-                    <optgroup label="Daily Life & Chores">
+                    <optgroup label="Home & Daily Life">
                         <option value="2.5">Cleaning / Housework</option>
-                        <option value="4.0">Gardening / Mowing Lawn</option>
-                        <option value="5.5">Shoveling Snow</option>
+                        <option value="3.5">Gardening</option>
+                        <option value="4.0">Mowing Lawn</option>
                         <option value="5.0">Moving Furniture / Boxes</option>
+                        <option value="6.0">Shoveling Snow</option>
                     </optgroup>
                 </select>
                 
-                <label style="margin-top:15px; display:block;">Duration (Minutes)</label>
+                <label>Duration (Minutes)</label>
                 <input type="number" id="exMin" placeholder="30" onkeyup="calcBurn()">
                 
-                <div style="text-align:center; padding:20px; margin-top:20px; background:white; border-radius:12px; border:1px solid #eee;">
-                    <div style="font-size:0.9rem; color:#888;">Estimated Burn</div>
-                    <strong style="font-size:2rem; color:var(--primary)" id="exVal">0</strong>
+                <div style="text-align:center; padding:20px; margin-top:10px; background:white; border-radius:12px; border:1px solid #eee;">
+                    <div style="font-size:0.9rem; color:#888; margin-bottom:5px;">Estimated Burn</div>
+                    <strong style="font-size:2rem; color:var(--primary)" id="exVal">0</strong> 
                     <span style="color:var(--primary)">kcal</span>
                 </div>
-                <button class="btn" onclick="addEx()">Log Workout</button>
+                <button class="btn" onclick="addEx()" style="margin-top:10px;">Log Workout</button>
             </div>
 
-            <div id="p-cust" style="display:none;">
-                <input id="cName" type="text" placeholder="Food Name (e.g., Mom's Lasagna)">
-                <input id="cCal" type="number" placeholder="Calories">
-                <div style="display:flex; gap:5px; margin-top:10px;">
-                    <input id="cP" type="number" placeholder="Prot (g)">
-                    <input id="cC" type="number" placeholder="Carb (g)">
-                    <input id="cF" type="number" placeholder="Fat (g)">
-                </div>
-                <button class="btn" onclick="saveCustom()">Save Food</button>
-            </div>
         </div>
     </div>
 
@@ -345,114 +330,132 @@
 
 <script>
     // --- DATABASE ---
-    const COMMON_DB = [
+    const BASE_DB = [
         {n:"Apple", k:95, p:0, c:25, f:0}, {n:"Banana", k:105, p:1, c:27, f:0},
         {n:"Egg (Boiled)", k:78, p:6, c:1, f:5}, {n:"Chicken Breast (100g)", k:165, p:31, c:0, f:3},
         {n:"Rice (Cup)", k:205, p:4, c:45, f:0}, {n:"Pizza Slice", k:285, p:12, c:36, f:10},
-        {n:"Hot Dog", k:150, p:5, c:2, f:13}, {n:"Burger", k:550, p:25, c:45, f:30},
-        {n:"Milk", k:149, p:8, c:12, f:8}, {n:"Coke", k:140, p:0, c:39, f:0},
-        {n:"Oats (Dry, 1/2 cup)", k:150, p:5, c:27, f:3},
-        {n:"Avocado (Half)", k:160, p:2, c:9, f:15}
+        {n:"Bread (Slice)", k:79, p:3, c:15, f:1}, {n:"Avocado (Half)", k:160, p:2, c:9, f:15},
+        {n:"Milk (Cup)", k:149, p:8, c:12, f:8}, {n:"Oats (Dry, 1/2 cup)", k:150, p:5, c:27, f:3},
+        {n:"Pasta (Cooked, Cup)", k:220, p:8, c:43, f:1}, {n:"Salmon (Fillet)", k:350, p:37, c:0, f:22}
     ];
 
     let state = {
         profile: { weight: 70, goal: 2000, wCup: 250 },
-        water: 0, logs: [], custom: []
+        water: 0, 
+        logs: [], 
+        custom: [] // User added foods go here
     };
-    
-    // --- SCANNER ---
-    let html5QrcodeScanner = null;
-    function toggleScanner() {
-        const vp = document.getElementById('scanner-viewport');
-        const btn = document.getElementById('btnScanToggle');
-        
-        if(html5QrcodeScanner) { stopScanner(); return; }
 
-        vp.style.display = 'block';
-        btn.innerHTML = '❌ Stop Scanning';
-        btn.style.background = '#333';
-        
-        const config = { fps: 20, qrbox: { width: 250, height: 100 }, aspectRatio: 1.0 };
-        html5QrcodeScanner = new Html5QrcodeScanner("reader", config, false);
-        html5QrcodeScanner.render(onScanSuccess, (err) => {});
-    }
-
-    function stopScanner() {
-        if(html5QrcodeScanner) {
-            html5QrcodeScanner.clear();
-            html5QrcodeScanner = null;
-            document.getElementById('scanner-viewport').style.display = 'none';
-            document.getElementById('btnScanToggle').innerHTML = '📷 Scan Barcode';
-            document.getElementById('btnScanToggle').style.background = 'var(--primary)';
-        }
-    }
-
-    function onScanSuccess(code) {
-        stopScanner();
-        document.getElementById('searchStatus').innerText = `Barcode detected. Fetching...`;
-        fetchProduct(code);
-    }
-
-    function manualBarcode() {
-        const code = prompt("Enter the numbers under the barcode:");
-        if(code) {
-            document.getElementById('searchStatus').innerText = `Searching for ${code}...`;
-            fetchProduct(code);
-        }
-    }
-
-    async function fetchProduct(code) {
-        try {
-            const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
-            const data = await res.json();
-            if(data.status === 1) {
-                const p = data.product;
-                const cal = Math.round(p.nutriments['energy-kcal'] || 0);
-                const out = document.getElementById('searchOut');
-                out.innerHTML = `<div class="res-item" style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px;" onclick="addLog('food', '${p.product_name}', ${cal})">
-                    <div><b>${p.product_name}</b><br><small>${p.brands||''}</small></div>
-                    <div style="font-weight:bold; font-size:1.2rem">${cal}</div>
-                </div>`;
-                document.getElementById('searchStatus').innerText = "Found!";
-            } else {
-                document.getElementById('searchStatus').innerText = "Product not found.";
-            }
-        } catch(e) { document.getElementById('searchStatus').innerText = "Connection error."; }
-    }
-
-    // --- SEARCH ---
+    // --- SEARCH LOGIC ---
     let searchTimer;
-    function debounceSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(doSearch, 400); }
+    function debounceSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(doSearch, 300); }
 
     function doSearch() {
         const q = document.getElementById('searchQ').value.toLowerCase();
         const out = document.getElementById('searchOut');
         out.innerHTML = '';
-        if(q.length < 2) return;
         
-        const results = [...state.custom, ...COMMON_DB].filter(x => (x.name||x.n).toLowerCase().includes(q));
-        
-        let html = '';
-        results.forEach(x => {
+        // Show recent custom items if empty query, otherwise search
+        let results = [];
+        if(q.length < 2) {
+            // If empty, show recent custom foods or common top 5
+            results = state.custom.slice(-5).reverse().concat(BASE_DB.slice(0,5));
+        } else {
+            // Combine Custom DB + Base DB
+            const allFoods = [...state.custom, ...BASE_DB];
+            results = allFoods.filter(x => (x.name || x.n).toLowerCase().includes(q));
+        }
+
+        if(results.length === 0) {
+            out.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">No matches found.<br>Try adding it in "Create Food".</div>';
+            return;
+        }
+
+        out.innerHTML = results.map(x => {
             const n = x.name || x.n;
             const k = x.cal || x.k;
-            html += `<div class="res-item" onclick="addLog('food', '${n}', ${k}, ${x.p||0}, ${x.c||0}, ${x.f||0})">
-                <div>${n}</div><b>${k}</b>
+            const p = x.p || 0; const c = x.c || 0; const f = x.f || 0;
+            // Visual indicator for custom foods
+            const isCustom = x.name ? '<span style="font-size:0.7rem; color:var(--primary); border:1px solid var(--primary); padding:2px 4px; border-radius:4px; margin-left:5px;">MY FOOD</span>' : '';
+            
+            return `<div class="res-item" onclick="addLog('food', '${n}', ${k}, ${p}, ${c}, ${f})">
+                <div>
+                    <div style="font-weight:600; color:#333;">${n} ${isCustom}</div>
+                    <div style="font-size:0.75rem; color:#888;">P:${p}g C:${c}g F:${f}g</div>
+                </div>
+                <b>${k}</b>
             </div>`;
-        });
-        out.innerHTML = html || '<div style="color:#999;text-align:center">No local results. Try Scanning.</div>';
+        }).join('');
     }
 
-    // --- CORE ---
+    // --- SCANNER ---
+    let scanner = null;
+    function toggleScanner() {
+        const vp = document.getElementById('scanner-viewport');
+        const btn = document.getElementById('btnScanToggle');
+        
+        if(scanner) {
+            scanner.clear(); scanner = null;
+            vp.style.display = 'none';
+            btn.innerHTML = '📷 Scan Barcode';
+            btn.style.background = '#333';
+        } else {
+            vp.style.display = 'block';
+            btn.innerHTML = '❌ Stop Scanning';
+            btn.style.background = 'var(--danger)';
+            scanner = new Html5QrcodeScanner("reader", { fps: 20, qrbox: {width:250, height:100}, aspectRatio:1.0 }, false);
+            scanner.render(onScan, ()=>{});
+        }
+    }
+
+    function onScan(code) {
+        toggleScanner(); // Stop scanning
+        document.getElementById('searchStatus').innerText = "Searching online...";
+        
+        fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`)
+        .then(r=>r.json()).then(data => {
+            if(data.status === 1) {
+                const p = data.product;
+                const name = p.product_name;
+                const cal = Math.round(p.nutriments['energy-kcal'] || 0);
+                const prot = Math.round(p.nutriments['proteins_100g'] || 0);
+                const carb = Math.round(p.nutriments['carbohydrates_100g'] || 0);
+                const fat = Math.round(p.nutriments['fat_100g'] || 0);
+                
+                // Show result prominently
+                document.getElementById('searchOut').innerHTML = `
+                    <div class="res-item" style="border:2px solid var(--secondary); background:#e8f5e9;" onclick="addLog('food', '${name}', ${cal}, ${prot}, ${carb}, ${fat})">
+                        <div>
+                            <div style="font-weight:bold;">${name}</div>
+                            <div style="font-size:0.8rem;">Found via Barcode</div>
+                        </div>
+                        <b>${cal}</b>
+                    </div>
+                `;
+                document.getElementById('searchStatus').innerText = "Item Found!";
+            } else {
+                document.getElementById('searchStatus').innerText = "Barcode not found in global DB.";
+            }
+        }).catch(() => document.getElementById('searchStatus').innerText = "Network Error");
+    }
+
+    // --- APP CORE ---
     function init() {
-        const s = localStorage.getItem('tiu_v10');
+        const s = localStorage.getItem('tiu_v12'); // Using new key to ensure clean slate if needed
         if(s) state = JSON.parse(s);
+        
+        // Ensure custom array exists if upgrading from old version
+        if(!state.custom) state.custom = []; 
+        
         document.getElementById('dateDisp').innerText = new Date().toDateString();
         updateUI();
+        
+        // Populate initial list
+        doSearch();
     }
     
     function save() {
-        localStorage.setItem('tiu_v10', JSON.stringify(state));
+        localStorage.setItem('tiu_v12', JSON.stringify(state));
         updateUI();
     }
 
@@ -475,17 +478,26 @@
         document.getElementById('txtCarb').innerText = c+'g';
         document.getElementById('txtFat').innerText = f+'g';
         
-        const pct = Math.min(eat / (state.profile.goal+burn), 1);
+        const pct = Math.min(eat / (state.profile.goal+burn || 1), 1);
         document.getElementById('ringProgress').style.strokeDashoffset = 283 - (283 * pct);
+        
+        // Macros bars
+        const maxM = Math.max(p,c,f, 100); 
+        document.getElementById('barProt').style.width = (p/maxM*100)+'%';
+        document.getElementById('barCarb').style.width = (c/maxM*100)+'%';
+        document.getElementById('barFat').style.width = (f/maxM*100)+'%';
 
         document.getElementById('waterMain').innerText = (state.water / state.profile.wCup).toFixed(1) + " Cups";
         document.getElementById('waterSub').innerText = state.water + " ml";
 
         document.getElementById('logList').innerHTML = logs.slice().reverse().map(l => 
-            `<div class="res-item" style="padding:10px; border-radius:8px; margin-bottom:5px;"><span>${l.name}</span><b>${l.type==='food'?'+':'-'}${l.cal}</b></div>`
-        ).join('') || '<div style="text-align:center;color:#ccc;margin-top:20px;">No logs yet</div>';
+            `<div class="res-item" style="padding:10px; cursor:default;">
+                <span>${l.name}</span>
+                <span style="font-weight:bold; color:${l.type==='food'?'var(--text)':'var(--secondary)'}">${l.type==='food'?'+':'-'}${l.cal}</span>
+            </div>`
+        ).join('') || '<div style="text-align:center;color:#ccc;margin-top:20px;">No logs today</div>';
         
-        // Profile inputs
+        // Settings inputs
         document.getElementById('inpGoal').value = state.profile.goal;
         document.getElementById('inpWeight').value = state.profile.weight;
     }
@@ -493,9 +505,33 @@
     function addLog(type, name, cal, p=0, c=0, f=0) {
         state.logs.push({ type, name, cal:parseInt(cal), p, c, f, date: Date.now() });
         save(); closeAdd();
-        document.getElementById('searchQ').value = '';
-        document.getElementById('searchOut').innerHTML = '';
-        document.getElementById('searchStatus').innerText = '';
+    }
+
+    // --- CREATE / UPDATE DB ---
+    function saveCustom() {
+        const n = document.getElementById('cName').value;
+        const k = parseInt(document.getElementById('cCal').value);
+        const p = parseInt(document.getElementById('cP').value) || 0;
+        const c = parseInt(document.getElementById('cC').value) || 0;
+        const f = parseInt(document.getElementById('cF').value) || 0;
+
+        if(n && !isNaN(k)) {
+            // Add to local state DB
+            state.custom.push({ name:n, cal:k, p, c, f });
+            save();
+            
+            // Clear form
+            document.getElementById('cName').value = '';
+            document.getElementById('cCal').value = '';
+            
+            // Switch back to search to show it works
+            tab('food');
+            document.getElementById('searchQ').value = n;
+            doSearch();
+            alert("Saved to My Foods!");
+        } else {
+            alert("Please enter Name and Calories");
+        }
     }
 
     function modWater(d) {
@@ -506,8 +542,7 @@
     function calcBurn() {
         const m = parseFloat(document.getElementById('exType').value);
         const t = parseFloat(document.getElementById('exMin').value) || 0;
-        const burned = Math.round(m * state.profile.weight * (t/60));
-        document.getElementById('exVal').innerText = burned;
+        document.getElementById('exVal').innerText = Math.round(m * state.profile.weight * (t/60));
     }
 
     function addEx() {
@@ -515,28 +550,26 @@
         const cal = parseInt(document.getElementById('exVal').innerText);
         if(cal > 0) addLog('ex', sel.options[sel.selectedIndex].text, cal);
     }
-
-    function saveCustom() {
-        const n = document.getElementById('cName').value;
-        const k = document.getElementById('cCal').value;
-        if(n && k) {
-            state.custom.push({name:n, cal:k, p:0, c:0, f:0}); 
-            save(); tab('food');
-        }
-    }
-
+    
     function saveProfile() {
         state.profile.goal = parseInt(document.getElementById('inpGoal').value) || 2000;
         state.profile.weight = parseInt(document.getElementById('inpWeight').value) || 70;
         save();
     }
 
-    function resetApp() { if(confirm("Clear all data?")) { localStorage.removeItem('tiu_v10'); location.reload(); } }
+    function resetApp() { if(confirm("Clear history and custom foods?")) { localStorage.removeItem('tiu_v12'); location.reload(); } }
     
-    function openAdd() { document.getElementById('modalAdd').classList.add('active'); tab('food'); }
-    function closeAdd() { document.getElementById('modalAdd').classList.remove('active'); stopScanner(); }
+    function openAdd() { 
+        document.getElementById('modalAdd').classList.add('active'); 
+        tab('food'); 
+        doSearch(); // Refresh list on open
+    }
+    function closeAdd() { 
+        document.getElementById('modalAdd').classList.remove('active'); 
+        if(scanner) toggleScanner(); 
+    }
     function tab(id) { 
-        ['food','ex','cust'].forEach(x => { 
+        ['food','ex','create'].forEach(x => { 
             document.getElementById('t-'+x).classList.remove('active'); 
             document.getElementById('p-'+x).style.display='none'; 
         });
