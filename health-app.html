@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU LifeTrack Pro v3</title>
+    <title>TIU LifeTrack Pro v4</title>
     <style>
         :root {
             --primary: #29b6f6;
@@ -50,6 +50,7 @@
             position: absolute; bottom: 85px; right: 20px;
             font-size: 3.5rem; font-weight: 900; color: #000; opacity: 0.04;
             pointer-events: none; z-index: 0; transform: rotate(-10deg); font-family: 'Arial Black', sans-serif;
+            user-select: none;
         }
 
         /* --- Header --- */
@@ -65,7 +66,7 @@
         .card {
             background: white; border-radius: 16px; padding: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.03); margin-bottom: 15px;
-            border: 1px solid #f0f0f0;
+            border: 1px solid #f0f0f0; position: relative; z-index: 2;
         }
         .card-header { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: 700; font-size: 0.95rem; }
 
@@ -255,13 +256,13 @@
             </div>
 
             <div class="card">
-                <div class="card-header">Backup & Sync</div>
+                <div class="card-header">Google Drive Backup</div>
                 <p style="font-size:0.85rem; color:#666;">
                     1. Click "Save File" to download your data.<br>
-                    2. Upload that file to Google Drive manually.<br>
-                    3. To restore on another device, download the file and click "Restore".
+                    2. Upload that file to your Google Drive manually.<br>
+                    3. To restore on another device, download the file from Drive and click "Restore" here.
                 </p>
-                <button class="btn secondary" onclick="exportData()">💾 Save File (for Drive)</button>
+                <button class="btn secondary" onclick="exportData()">💾 Save File (Download)</button>
                 <button class="btn secondary" onclick="document.getElementById('fileImp').click()" style="margin-top:10px;">📂 Restore from File</button>
                 <input type="file" id="fileImp" style="display:none" onchange="importData(this)">
             </div>
@@ -294,7 +295,7 @@
             
             <div id="p-food">
                 <div style="display:flex; gap:10px;">
-                    <input type="text" id="searchQ" placeholder="Search (e.g. Avocado)..." onkeypress="if(event.key==='Enter') doSearch()">
+                    <input type="text" id="searchQ" placeholder="Search (e.g. Banana)..." onkeypress="if(event.key==='Enter') doSearch()">
                     <button class="btn" style="width:auto; margin:0; margin-bottom:10px;" onclick="doSearch()">🔍</button>
                 </div>
                 <div id="searchOut"></div>
@@ -347,7 +348,7 @@
 
 <script>
     // --- STATE ---
-    const DB_KEY = 'tiu_track_v3';
+    const DB_KEY = 'tiu_track_v4';
     let state = {
         profile: { weight: 70, goal: 2000, unit: 'metric' },
         water: 0,
@@ -435,7 +436,7 @@
         btn.style.background = state.fast.on ? "var(--danger)" : "var(--primary)";
     }
 
-    // --- SEARCH API (PROXY FIX) ---
+    // --- SEARCH API (DIRECT FIX FOR HOSTED SITES) ---
     async function doSearch() {
         const q = document.getElementById('searchQ').value;
         const out = document.getElementById('searchOut');
@@ -452,14 +453,12 @@
 
         if(q.length > 2) {
             try {
-                // WE USE A PROXY (allorigins.win) TO BYPASS CORS ON LOCAL FILES
-                const target = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1`;
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(target)}`;
+                // DIRECT API CALL (Works best on hosted sites)
+                const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=8`;
                 
-                const res = await fetch(proxyUrl);
-                const json = await res.json();
-                const data = JSON.parse(json.contents); // The proxy returns content in 'contents' string
-
+                const res = await fetch(url);
+                const data = await res.json();
+                
                 out.innerHTML = html;
                 
                 if(data.products && data.products.length) {
@@ -477,7 +476,7 @@
                 }
             } catch(e) {
                 console.error(e);
-                out.innerHTML = html + `<div style="color:red">Search Failed. Ensure you have internet.</div>`;
+                out.innerHTML = html + `<div style="color:red">Search Failed.</div>`;
             }
         }
     }
