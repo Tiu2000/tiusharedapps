@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU LifeTrack Pro v4</title>
+    <title>TIU LifeTrack Pro v6 (Hybrid Search)</title>
     <style>
         :root {
             --primary: #29b6f6;
@@ -20,13 +20,11 @@
         
         body { margin: 0; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        /* --- Layout Engine (PC & Mobile) --- */
         .app-container {
             width: 100%; height: 100%; display: flex; flex-direction: column;
             margin: 0 auto; position: relative; background: var(--surface);
         }
 
-        /* PC Mode */
         @media (min-width: 768px) {
             .app-container {
                 max-width: 1100px; height: 95vh; margin-top: 2.5vh;
@@ -38,22 +36,12 @@
             .col-right { background: #f9f9f9; border-left: 1px solid #eee; padding: 20px; overflow-y: auto; padding-bottom: 100px; }
         }
         
-        /* Mobile Mode */
         @media (max-width: 767px) {
             .dashboard-grid { display: block; height: 100%; overflow-y: auto; }
             .col-left, .col-right { padding: 20px; padding-bottom: 0; }
             .col-right { padding-bottom: 90px; } 
         }
 
-        /* --- Watermark --- */
-        .watermark {
-            position: absolute; bottom: 85px; right: 20px;
-            font-size: 3.5rem; font-weight: 900; color: #000; opacity: 0.04;
-            pointer-events: none; z-index: 0; transform: rotate(-10deg); font-family: 'Arial Black', sans-serif;
-            user-select: none;
-        }
-
-        /* --- Header --- */
         .header {
             padding: 15px 25px; background: var(--surface);
             display: flex; justify-content: space-between; align-items: center;
@@ -62,15 +50,14 @@
         .header h1 { margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--primary-dark); }
         .date-display { font-size: 0.8rem; color: var(--text-light); }
 
-        /* --- Cards --- */
         .card {
             background: white; border-radius: 16px; padding: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.03); margin-bottom: 15px;
-            border: 1px solid #f0f0f0; position: relative; z-index: 2;
+            border: 1px solid #f0f0f0; position: relative;
         }
         .card-header { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: 700; font-size: 0.95rem; }
 
-        /* --- Visuals --- */
+        /* Visuals */
         .summary-wrapper { display: flex; align-items: center; justify-content: space-between; }
         .ring-container { position: relative; width: 120px; height: 120px; }
         svg.ring { transform: rotate(-90deg); width: 120px; height: 120px; }
@@ -84,7 +71,6 @@
         .stats-list { text-align: right; flex: 1; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; }
         .stat-item { display: flex; justify-content: space-between; border-bottom: 1px dotted #eee; padding-bottom: 5px; font-size: 0.9rem; }
 
-        /* --- Macros --- */
         .macro-flex { display: flex; gap: 10px; margin-top: 20px; }
         .macro-col { flex: 1; }
         .bar-bg { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-bottom: 5px; }
@@ -92,7 +78,17 @@
         .macro-meta { font-size: 0.75rem; color: var(--text-light); display: flex; justify-content: space-between; font-weight: 600; }
         .p-fill { background: #9b59b6; } .c-fill { background: #f1c40f; } .f-fill { background: #e74c3c; }
 
-        /* --- Reports (Charts) --- */
+        /* --- New Hydration UI --- */
+        .water-card { background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%); border: 1px solid #bbdefb; }
+        .water-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+        .water-btn { width: 45px; height: 45px; border-radius: 50%; border: none; background: white; font-size: 1.4rem; cursor: pointer; color: var(--primary); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: transform 0.1s; }
+        .water-btn:active { transform: scale(0.95); }
+        .water-info { flex: 1; text-align: center; }
+        .water-status { font-size: 0.8rem; font-weight: 700; color: var(--primary-dark); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .water-main { font-size: 1.4rem; font-weight: 800; color: var(--text); }
+        .water-sub { font-size: 0.85rem; color: #666; }
+
+        /* Chart */
         .chart-container { display: flex; align-items: flex-end; justify-content: space-between; height: 200px; padding-top: 20px; gap: 5px; }
         .chart-col { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; }
         .chart-bar-group { display: flex; width: 100%; height: 100%; align-items: flex-end; justify-content: center; gap: 2px; }
@@ -103,20 +99,12 @@
         .legend span { display: flex; align-items: center; gap: 5px; }
         .dot { width: 8px; height: 8px; border-radius: 50%; }
 
-        /* --- Water & Fasting --- */
-        .water-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; margin: 10px 0; }
-        .drop { height: 35px; background: #e1f5fe; border-radius: 6px; cursor: pointer; border: 1px solid #b3e5fc; }
-        .drop.active { background: var(--primary); border-color: var(--primary-dark); }
-        .timer-box { font-size: 2rem; font-family: monospace; font-weight: 700; text-align: center; margin: 10px 0; color: var(--text); background: #f9f9f9; padding: 10px; border-radius: 8px; }
-
-        /* --- Navigation --- */
         .nav { position: absolute; bottom: 0; width: 100%; height: 75px; background: white; border-top: 1px solid #eee; display: flex; justify-content: space-around; align-items: center; z-index: 20; padding-bottom: 10px; }
         .nav-item { background: none; border: none; color: var(--text-light); font-size: 0.75rem; text-align: center; cursor: pointer; }
         .nav-item.active { color: var(--primary); }
         .nav-icon { display: block; font-size: 1.5rem; margin-bottom: 4px; }
         .fab { position: absolute; bottom: 45px; left: 50%; transform: translateX(-50%); width: 64px; height: 64px; background: var(--primary); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; box-shadow: 0 4px 15px rgba(41, 182, 246, 0.4); border: 4px solid var(--surface); cursor: pointer; z-index: 25; }
 
-        /* --- Modal --- */
         .modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 50; display: none; flex-direction: column; }
         .modal.active { display: flex; }
         .modal-head { padding: 20px; border-bottom: 1px solid #eee; display: flex; gap: 15px; align-items: center; background: #fff; }
@@ -126,7 +114,6 @@
         .tab { padding: 8px 16px; border-radius: 20px; border: 1px solid #ddd; background: white; font-size: 0.85rem; cursor: pointer; flex: 1; text-align: center; font-weight: 600; }
         .tab.active { background: var(--text); color: white; border-color: var(--text); }
 
-        /* UI Elements */
         input, select { width: 100%; padding: 14px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
         .btn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1rem; margin-top: 10px; }
         .btn.secondary { background: #555; }
@@ -136,24 +123,16 @@
         .res-item:hover { background: #f9f9f9; }
         .log-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; align-items: center; }
 
-        /* Toggle */
-        .switch-container { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; }
-        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 26px; }
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--primary); }
-        input:checked + .slider:before { transform: translateX(24px); }
-
         .view { display: none; height: 100%; }
         .view.active { display: block; }
+        
+        .section-title { font-size: 0.85rem; font-weight: 700; color:#888; margin: 15px 0 5px 0; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge { display: inline-block; padding: 2px 6px; font-size: 0.65rem; border-radius: 4px; background: #eee; color: #555; vertical-align: middle; margin-left: 5px; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    <div class="watermark">TIU</div>
-
     <div class="header">
         <div>
             <div class="date-display" id="dateDisp">Today</div>
@@ -199,19 +178,23 @@
                         </div>
                     </div>
                 </div>
-                <div class="card">
-                    <div class="card-header">Hydration</div>
-                    <div class="water-grid" id="waterGrid"></div>
+                
+                <div class="card water-card">
+                    <div class="card-header" style="border-bottom:none; margin-bottom:5px;">Hydration</div>
+                    <div class="water-controls">
+                        <button class="water-btn" onclick="modWater(-1)">−</button>
+                        <div class="water-info">
+                            <div class="water-status" id="waterStatus">Get Started</div>
+                            <div class="water-main" id="waterMain">0 Cups</div>
+                            <div class="water-sub" id="waterSub">0 / 2000 ml</div>
+                        </div>
+                        <button class="water-btn" onclick="modWater(1)">+</button>
+                    </div>
+                    <div class="bar-bg" style="margin-top:15px; background:rgba(255,255,255,0.5);"><div class="bar-fill" style="background:#29b6f6" id="barWater"></div></div>
                 </div>
             </div>
 
             <div class="col-right">
-                <div class="card">
-                    <div class="card-header">Fasting Timer</div>
-                    <div class="timer-box" id="fastTimer">--:--:--</div>
-                    <button class="btn" id="btnFast" onclick="toggleFast()">Start Fast</button>
-                </div>
-
                 <div class="card">
                     <div class="card-header">Today's Logs</div>
                     <div id="logList"></div>
@@ -230,7 +213,6 @@
                 </div>
                 <div class="chart-container" id="reportChart"></div>
             </div>
-            
             <div class="card">
                 <div class="card-header">Weekly Insights</div>
                 <div id="weeklyStats" style="font-size:0.9rem; line-height:1.6; color:#555;">Log data to see stats.</div>
@@ -241,33 +223,37 @@
     <div id="view-profile" class="view">
         <div style="padding:20px; max-width:600px; margin:0 auto;">
             <div class="card">
-                <div class="card-header">Settings</div>
-                <div class="switch-container">
-                    <span>Units (Kg / Lbs)</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="unitToggle" onchange="toggleUnits()">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                <label>Current Weight <span id="lblWeightUnit">(kg)</span></label>
+                <div class="card-header">Personal Settings</div>
+                
+                <label>Unit System</label>
+                <select id="inpUnit" onchange="changeUnit()">
+                    <option value="metric">Metric (kg, ml)</option>
+                    <option value="imperial">Imperial (lbs, oz)</option>
+                </select>
+
+                <label>Current Weight</label>
                 <input type="number" id="inpWeight" onchange="saveProfile()" placeholder="70">
+                
                 <label>Daily Calorie Target</label>
                 <input type="number" id="inpGoal" onchange="saveProfile()">
+
+                <div style="border-top:1px dashed #eee; margin:15px 0;"></div>
+                <h4 style="margin:10px 0; color:var(--primary-dark)">Hydration Settings</h4>
+                
+                <label>Daily Water Goal <span class="unit-vol"></span></label>
+                <input type="number" id="inpWaterGoal" onchange="saveProfile()">
+                
+                <label>Cup Size <span class="unit-vol"></span></label>
+                <input type="number" id="inpCupSize" onchange="saveProfile()">
             </div>
 
             <div class="card">
-                <div class="card-header">Google Drive Backup</div>
-                <p style="font-size:0.85rem; color:#666;">
-                    1. Click "Save File" to download your data.<br>
-                    2. Upload that file to your Google Drive manually.<br>
-                    3. To restore on another device, download the file from Drive and click "Restore" here.
-                </p>
-                <button class="btn secondary" onclick="exportData()">💾 Save File (Download)</button>
-                <button class="btn secondary" onclick="document.getElementById('fileImp').click()" style="margin-top:10px;">📂 Restore from File</button>
+                <div class="card-header">Data Management</div>
+                <button class="btn secondary" onclick="exportData()">💾 Backup Data</button>
+                <button class="btn secondary" onclick="document.getElementById('fileImp').click()" style="margin-top:10px;">📂 Restore Data</button>
                 <input type="file" id="fileImp" style="display:none" onchange="importData(this)">
+                <button class="btn danger" onclick="resetApp()" style="margin-top:20px;">Reset All Data</button>
             </div>
-            
-            <button class="btn danger" onclick="resetApp()">Reset All Data</button>
         </div>
     </div>
 
@@ -294,9 +280,9 @@
         <div class="modal-body">
             
             <div id="p-food">
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="searchQ" placeholder="Search (e.g. Banana)..." onkeypress="if(event.key==='Enter') doSearch()">
-                    <button class="btn" style="width:auto; margin:0; margin-bottom:10px;" onclick="doSearch()">🔍</button>
+                <div style="position:relative;">
+                    <input type="text" id="searchQ" placeholder="Type food (e.g. Hot Dog)..." onkeyup="debounceSearch()">
+                    <div id="searchStatus" style="font-size:0.8rem; color:var(--primary); margin-bottom:10px; min-height:20px;"></div>
                 </div>
                 <div id="searchOut"></div>
             </div>
@@ -306,27 +292,15 @@
                 <select id="exType" onchange="calcBurn()">
                     <option value="3.0">Walking (Casual)</option>
                     <option value="4.0">Walking (Brisk)</option>
-                    <option value="5.0">Elliptical (Moderate)</option>
-                    <option value="7.0">Elliptical (Vigorous)</option>
                     <option value="8.0">Running (5 mph)</option>
                     <option value="10.0">Running (6 mph)</option>
-                    <option value="11.5">Running (7 mph)</option>
-                    <option value="8.0">HIIT / Circuit Training</option>
-                    <option value="7.0">Rowing</option>
                     <option value="6.0">Weight Lifting</option>
-                    <option value="7.0">Swimming</option>
-                    <option value="6.0">Hiking</option>
-                    <option value="3.5">Pilates</option>
                     <option value="3.0">Yoga</option>
-                    <option value="4.5">Dancing</option>
-                    <option value="10.0">Jump Rope</option>
-                    <option value="3.0">House Cleaning</option>
                 </select>
                 <label>Duration (Minutes)</label>
                 <input type="number" id="exMin" placeholder="30" onkeyup="calcBurn()">
                 <div style="text-align:center; padding:15px; background:#e3f2fd; border-radius:8px; margin:10px 0;">
-                    <span style="font-size:0.9rem">Estimated Burn:</span>
-                    <br><strong style="font-size:1.5rem; color:var(--primary)" id="exVal">0</strong> kcal
+                    <strong style="font-size:1.5rem; color:var(--primary)" id="exVal">0</strong> kcal
                 </div>
                 <button class="btn" onclick="addEx()">Log Workout</button>
             </div>
@@ -335,43 +309,76 @@
                 <label>Name</label> <input id="cName" type="text">
                 <label>Calories</label> <input id="cCal" type="number">
                 <div style="display:flex; gap:10px;">
-                    <input id="cP" type="number" placeholder="Prot (g)">
-                    <input id="cC" type="number" placeholder="Carb (g)">
-                    <input id="cF" type="number" placeholder="Fat (g)">
+                    <input id="cP" type="number" placeholder="Prot">
+                    <input id="cC" type="number" placeholder="Carb">
+                    <input id="cF" type="number" placeholder="Fat">
                 </div>
                 <button class="btn" onclick="saveCustom()">Save</button>
             </div>
-
         </div>
     </div>
 </div>
 
 <script>
-    // --- STATE ---
-    const DB_KEY = 'tiu_track_v4';
+    // --- BUILT-IN COMMON FOODS DATABASE (The "Offline" Fix) ---
+    // This provides instant results for generic items that APIs often miss.
+    const COMMON_DB = [
+        {n:"Apple (Medium)", k:95, p:0, c:25, f:0},
+        {n:"Banana (Medium)", k:105, p:1, c:27, f:0},
+        {n:"Egg (Large, Boiled)", k:78, p:6, c:1, f:5},
+        {n:"Egg (Fried)", k:90, p:6, c:1, f:7},
+        {n:"Chicken Breast (100g)", k:165, p:31, c:0, f:3},
+        {n:"Rice (White, 1 cup cooked)", k:205, p:4, c:45, f:0},
+        {n:"Rice (Brown, 1 cup cooked)", k:216, p:5, c:45, f:2},
+        {n:"Hot Dog (Beef, no bun)", k:150, p:5, c:2, f:13},
+        {n:"Hot Dog (on Bun)", k:270, p:9, c:24, f:15},
+        {n:"Bread (Slice, White)", k:79, p:3, c:15, f:1},
+        {n:"Bread (Slice, Wheat)", k:69, p:4, c:12, f:1},
+        {n:"Pizza (Cheese Slice)", k:285, p:12, c:36, f:10},
+        {n:"Pizza (Pepperoni Slice)", k:324, p:13, c:35, f:14},
+        {n:"Milk (Whole, 1 cup)", k:149, p:8, c:12, f:8},
+        {n:"Milk (2%, 1 cup)", k:122, p:8, c:12, f:5},
+        {n:"Coffee (Black)", k:2, p:0, c:0, f:0},
+        {n:"Coffee (w/ Cream & Sugar)", k:80, p:1, c:10, f:4},
+        {n:"Avocado (Half)", k:160, p:2, c:9, f:15},
+        {n:"Potato (Baked, Medium)", k:161, p:4, c:37, f:0},
+        {n:"Pasta (1 cup cooked)", k:220, p:8, c:43, f:1},
+        {n:"Salad (Green, no dressing)", k:15, p:1, c:3, f:0},
+        {n:"Salad (Caesar)", k:350, p:7, c:10, f:30},
+        {n:"Burger (Patty only)", k:250, p:20, c:0, f:18},
+        {n:"Burger (w/ Bun & Cheese)", k:550, p:25, c:45, f:30},
+        {n:"Steak (6oz Sirloin)", k:350, p:45, c:0, f:18},
+        {n:"Yogurt (Greek, Plain)", k:100, p:17, c:6, f:0},
+        {n:"Oatmeal (1 cup cooked)", k:158, p:6, c:27, f:3},
+        {n:"Orange", k:62, p:1, c:15, f:0},
+        {n:"Almonds (1 oz)", k:164, p:6, c:6, f:14},
+        {n:"Peanut Butter (1 tbsp)", k:94, p:4, c:3, f:8},
+        {n:"Coke/Soda (Can)", k:140, p:0, c:39, f:0},
+        {n:"Beer (Pint)", k:208, p:2, c:18, f:0},
+        {n:"Wine (Glass)", k:125, p:0, c:4, f:0}
+    ];
+
+    // --- APP STATE ---
+    const DB_KEY = 'tiu_track_v6';
     let state = {
-        profile: { weight: 70, goal: 2000, unit: 'metric' },
-        water: 0,
+        profile: { weight: 70, goal: 2000, unit: 'metric', wGoal: 2000, wCup: 250 },
+        water: 0, 
         logs: [],
-        custom: [],
-        fast: { on: false, start: null }
+        custom: []
     };
+    let searchTimer = null;
 
     // --- INIT ---
     function init() {
         const saved = localStorage.getItem(DB_KEY);
         if(saved) state = JSON.parse(saved);
         
+        // Data Migration
+        if(!state.profile.wGoal) { state.profile.wGoal = 2000; state.profile.wCup = 250; }
+        
         document.getElementById('dateDisp').innerText = new Date().toDateString();
-        
-        // Setup Inputs
-        const isImp = state.profile.unit === 'imperial';
-        document.getElementById('unitToggle').checked = isImp;
-        document.getElementById('inpGoal').value = state.profile.goal;
-        
-        updateWeightInput();
+        updateProfileUI();
         renderHome();
-        setInterval(updateTimer, 1000);
     }
 
     function save() {
@@ -379,23 +386,101 @@
         renderHome();
     }
 
+    // --- SEARCH ENGINE (HYBRID) ---
+    function debounceSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(doSearch, 400); // 400ms delay
+    }
+
+    async function doSearch() {
+        const q = document.getElementById('searchQ').value.toLowerCase().trim();
+        const out = document.getElementById('searchOut');
+        const status = document.getElementById('searchStatus');
+        
+        if(q.length < 2) {
+            out.innerHTML = '';
+            status.innerText = '';
+            return;
+        }
+
+        out.innerHTML = '';
+        status.innerText = 'Searching databases...';
+        
+        // 1. Local "My Foods"
+        const myFoods = state.custom.filter(c => c.name.toLowerCase().includes(q));
+        
+        // 2. Built-in "Common Foods" (The Instant Fix)
+        const common = COMMON_DB.filter(c => c.n.toLowerCase().includes(q));
+
+        let html = '';
+
+        // Render Local & Common FIRST (Instant)
+        if(myFoods.length) {
+            html += `<div class="section-title">My Custom Foods</div>`;
+            myFoods.forEach(c => html += renderRes(c.name, c.cal, c.p, c.c, c.f, 'Custom'));
+        }
+        if(common.length) {
+            html += `<div class="section-title">Common Foods <span class="badge">Instant</span></div>`;
+            common.forEach(c => html += renderRes(c.n, c.k, c.p, c.c, c.f, 'Generic'));
+        }
+        
+        // Push current results immediately so user sees something
+        out.innerHTML = html;
+
+        // 3. API Search (OpenFoodFacts) for Branded items
+        try {
+            const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=5&fields=product_name,nutriments,brands`;
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            if(data.products && data.products.length) {
+                html += `<div class="section-title">Branded / Packaged</div>`;
+                data.products.forEach(p => {
+                    let cal = p.nutriments['energy-kcal'] || (p.nutriments.energy_100g / 4.184) || 0;
+                    cal = Math.round(cal);
+                    const pr = Math.round(p.nutriments.proteins_100g||0);
+                    const c = Math.round(p.nutriments.carbohydrates_100g||0);
+                    const f = Math.round(p.nutriments.fat_100g||0);
+                    if(cal > 0) { // Filter junk results
+                        html += renderRes(p.product_name, cal, pr, c, f, p.brands || 'Brand');
+                    }
+                });
+            }
+            out.innerHTML = html || '<div style="color:#999; text-align:center">No results found.</div>';
+            status.innerText = 'Search Complete';
+        } catch(e) {
+            console.log(e);
+            status.innerText = 'Showing offline results only.';
+        }
+    }
+
+    function renderRes(name, cal, p, c, f, brand) {
+        if(!name) return '';
+        const nEsc = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        return `
+        <div class="res-item" onclick="addLog('food', '${nEsc}', ${cal}, ${p}, ${c}, ${f})">
+            <div>
+                <div style="font-weight:600; color:#333;">${name}</div>
+                <div style="font-size:0.75rem; color:#888">${brand} • P:${p} C:${c} F:${f}</div>
+            </div>
+            <div style="color:var(--primary); font-weight:bold; font-size:1.1rem;">${cal}</div>
+        </div>`;
+    }
+
+    // --- HOME & HYDRATION ---
     function renderHome() {
         const todayStr = new Date().toISOString().split('T')[0];
         const todayLogs = state.logs.filter(l => new Date(l.date).toISOString().split('T')[0] === todayStr);
         
         let eat = 0, burn = 0, p=0, c=0, f=0;
         todayLogs.forEach(l => {
-            if(l.type === 'food') {
-                eat += l.cal; p += (l.p||0); c += (l.c||0); f += (l.f||0);
-            } else {
-                burn += l.cal;
-            }
+            if(l.type === 'food') { eat += l.cal; p += (l.p||0); c += (l.c||0); f += (l.f||0); } 
+            else { burn += l.cal; }
         });
 
-        const goal = parseInt(state.profile.goal);
+        const goal = state.profile.goal;
         const remain = goal - eat + burn;
         
-        // Update DOM
         document.getElementById('valGoal').innerText = goal;
         document.getElementById('valEaten').innerText = eat;
         document.getElementById('valBurned').innerText = burn;
@@ -404,20 +489,31 @@
         document.getElementById('txtCarb').innerText = c+'g';
         document.getElementById('txtFat').innerText = f+'g';
 
-        // Bars
         const setBar = (id, val, max) => document.getElementById(id).style.width = Math.min((val/max)*100, 100)+'%';
         setBar('barProt', p, 150); setBar('barCarb', c, 250); setBar('barFat', f, 70);
 
-        // Ring
         const pct = Math.min(eat / (goal + burn), 1);
         document.getElementById('ringProgress').style.strokeDashoffset = 314 - (314 * pct);
 
-        // Water
-        const wDiv = document.getElementById('waterGrid');
-        wDiv.innerHTML = '';
-        for(let i=0; i<8; i++) {
-            wDiv.innerHTML += `<div class="drop ${i<state.water?'active':''}" onclick="setWater(${i})"></div>`;
-        }
+        // --- IMPROVED HYDRATION RENDER ---
+        const wGoal = state.profile.wGoal;
+        const wCup = state.profile.wCup;
+        const wUnit = state.profile.unit === 'imperial' ? 'oz' : 'ml';
+        
+        const cups = (state.water / wCup).toFixed(1);
+        const wPct = state.water / wGoal;
+        
+        document.getElementById('waterMain').innerText = `${cups} Cups`;
+        document.getElementById('waterSub').innerText = `${state.water} ${wUnit} (Goal: ${wGoal})`;
+        setBar('barWater', state.water, wGoal);
+
+        // Motivational Status
+        let wStatus = "Get Started 💧";
+        if(wPct > 0.1) wStatus = "Good Start 🌱";
+        if(wPct > 0.4) wStatus = "Halfway There 🚀";
+        if(wPct > 0.8) wStatus = "Almost Done 🔥";
+        if(wPct >= 1.0) wStatus = "Hydrated! 🎉";
+        document.getElementById('waterStatus').innerText = wStatus;
 
         // List
         const lDiv = document.getElementById('logList');
@@ -430,77 +526,55 @@
                 <div style="font-weight:bold; color:${isF?'#333':'var(--secondary)'}">${isF?'+':'-'}${l.cal}</div>
             </div>`;
         });
-
-        const btn = document.getElementById('btnFast');
-        btn.innerText = state.fast.on ? "End Fast" : "Start Fast";
-        btn.style.background = state.fast.on ? "var(--danger)" : "var(--primary)";
     }
 
-    // --- SEARCH API (DIRECT FIX FOR HOSTED SITES) ---
-    async function doSearch() {
-        const q = document.getElementById('searchQ').value;
-        const out = document.getElementById('searchOut');
-        
-        // Custom Check
-        const customs = state.custom.filter(c => c.name.toLowerCase().includes(q.toLowerCase()));
-        let html = '';
-        if(customs.length) {
-            html += `<b>My Foods</b>`;
-            customs.forEach(c => html += renderRes(c.name, c.cal, c.p, c.c, c.f, 'Custom'));
+    function modWater(dir) {
+        const amount = state.profile.wCup;
+        if(dir > 0) state.water += amount;
+        else state.water = Math.max(0, state.water - amount);
+        save();
+    }
+
+    // --- GENERIC APP FUNCTIONS ---
+    function updateProfileUI() {
+        const p = state.profile;
+        document.getElementById('inpUnit').value = p.unit;
+        document.getElementById('inpWeight').value = p.weight;
+        document.getElementById('inpGoal').value = p.goal;
+        document.getElementById('inpWaterGoal').value = p.wGoal;
+        document.getElementById('inpCupSize').value = p.wCup;
+        const isImp = p.unit === 'imperial';
+        document.querySelectorAll('.unit-vol').forEach(el => el.innerText = isImp ? '(oz)' : '(ml)');
+    }
+
+    function changeUnit() {
+        const newUnit = document.getElementById('inpUnit').value;
+        if(newUnit === state.profile.unit) return;
+        if(newUnit === 'imperial') {
+            state.profile.weight = Math.round(state.profile.weight * 2.20462);
+            state.profile.wGoal = Math.round(state.profile.wGoal * 0.033814); 
+            state.profile.wCup = Math.round(state.profile.wCup * 0.033814);
+        } else {
+            state.profile.weight = Math.round(state.profile.weight / 2.20462);
+            state.profile.wGoal = Math.round(state.profile.wGoal / 0.033814);
+            state.profile.wCup = Math.round(state.profile.wCup / 0.033814);
         }
-
-        out.innerHTML = html + '<div style="color:#888; margin-top:10px;">Searching database...</div>';
-
-        if(q.length > 2) {
-            try {
-                // DIRECT API CALL (Works best on hosted sites)
-                const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=8`;
-                
-                const res = await fetch(url);
-                const data = await res.json();
-                
-                out.innerHTML = html;
-                
-                if(data.products && data.products.length) {
-                    out.innerHTML += `<div style="margin-top:10px;"><b>Online Results</b></div>`;
-                    data.products.slice(0, 8).forEach(p => {
-                        let cal = p.nutriments['energy-kcal'] || (p.nutriments.energy_100g / 4.184) || 0;
-                        cal = Math.round(cal);
-                        const pr = Math.round(p.nutriments.proteins_100g||0);
-                        const c = Math.round(p.nutriments.carbohydrates_100g||0);
-                        const f = Math.round(p.nutriments.fat_100g||0);
-                        out.innerHTML += renderRes(p.product_name, cal, pr, c, f, p.brands || '');
-                    });
-                } else {
-                    out.innerHTML += `<div>No results found.</div>`;
-                }
-            } catch(e) {
-                console.error(e);
-                out.innerHTML = html + `<div style="color:red">Search Failed.</div>`;
-            }
-        }
+        state.profile.unit = newUnit;
+        save(); updateProfileUI();
     }
 
-    function renderRes(name, cal, p, c, f, brand) {
-        if(!name) return '';
-        const nEsc = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        return `
-        <div class="res-item" onclick="addLog('food', '${nEsc}', ${cal}, ${p}, ${c}, ${f})">
-            <div>
-                <div style="font-weight:600">${name}</div>
-                <div style="font-size:0.75rem; color:#888">${brand}</div>
-            </div>
-            <div style="color:var(--primary); font-weight:bold;">${cal} kcal</div>
-        </div>`;
+    function saveProfile() {
+        state.profile.weight = parseFloat(document.getElementById('inpWeight').value);
+        state.profile.goal = parseFloat(document.getElementById('inpGoal').value);
+        state.profile.wGoal = parseFloat(document.getElementById('inpWaterGoal').value);
+        state.profile.wCup = parseFloat(document.getElementById('inpCupSize').value);
+        save();
     }
 
-    // --- LOGGING ---
     function addLog(type, name, cal, p=0, c=0, f=0) {
         state.logs.push({ type, name, cal: parseInt(cal), p, c, f, date: new Date().getTime() });
-        save();
-        closeAdd();
+        save(); closeAdd();
         document.getElementById('searchQ').value = '';
-        document.getElementById('searchOut').innerHTML = '';
     }
 
     function calcBurn() {
@@ -527,144 +601,13 @@
                 c: parseInt(document.getElementById('cC').value)||0,
                 f: parseInt(document.getElementById('cF').value)||0
             });
-            save();
-            alert('Saved to My Foods!');
-            tab('food');
+            save(); tab('food');
         }
-    }
-
-    // --- SETTINGS ---
-    function toggleUnits() {
-        state.profile.unit = document.getElementById('unitToggle').checked ? 'imperial' : 'metric';
-        updateWeightInput();
-        save();
-    }
-
-    function updateWeightInput() {
-        const isImp = state.profile.unit === 'imperial';
-        document.getElementById('lblWeightUnit').innerText = isImp ? '(lbs)' : '(kg)';
-        let val = state.profile.weight;
-        if(isImp) val = Math.round(val * 2.20462);
-        document.getElementById('inpWeight').value = val;
-    }
-
-    function saveProfile() {
-        const isImp = state.profile.unit === 'imperial';
-        let val = parseFloat(document.getElementById('inpWeight').value);
-        if(isImp) val = val / 2.20462;
-        state.profile.weight = val;
-        state.profile.goal = document.getElementById('inpGoal').value;
-        save();
     }
 
     function exportData() {
         const data = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
         const el = document.createElement('a');
-        el.setAttribute("href", data);
-        el.setAttribute("download", "tiu_backup.json");
-        document.body.appendChild(el);
-        el.click();
-        el.remove();
+        el.setAttribute("href", data); el.setAttribute("download", "tiu_backup.json");
+        document.body.appendChild(el); el.click(); el.remove();
     }
-
-    function importData(inp) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                state = JSON.parse(e.target.result);
-                save();
-                location.reload();
-            } catch(e) { alert('Error reading file'); }
-        };
-        reader.readAsText(inp.files[0]);
-    }
-
-    function resetApp() {
-        if(confirm('Delete All Data?')) {
-            localStorage.removeItem(DB_KEY);
-            location.reload();
-        }
-    }
-
-    // --- REPORTS ---
-    function renderReports() {
-        const ctx = document.getElementById('reportChart');
-        ctx.innerHTML = '';
-        let days = [];
-        let maxVal = 2000;
-        let totalCals = 0;
-
-        for(let i=6; i>=0; i--) {
-            const d = new Date(); d.setDate(d.getDate() - i);
-            days.push(d.toISOString().split('T')[0]);
-        }
-
-        days.forEach(day => {
-            const logs = state.logs.filter(l => new Date(l.date).toISOString().split('T')[0] === day);
-            let inCal = 0, outCal = 0;
-            logs.forEach(l => l.type === 'food' ? inCal += l.cal : outCal += l.cal);
-            if(inCal > maxVal) maxVal = inCal;
-            totalCals += inCal;
-
-            const hIn = Math.max((inCal / maxVal) * 80, 2); 
-            const hOut = Math.max((outCal / maxVal) * 80, 0);
-            const lbl = new Date(day).toLocaleDateString('en-US', {weekday:'short'});
-
-            ctx.innerHTML += `
-            <div class="chart-col">
-                <div class="chart-bar-group">
-                    <div class="chart-bar" style="height:${hIn}%" title="In: ${inCal}"></div>
-                    <div class="chart-bar burn" style="height:${hOut}%" title="Out: ${outCal}"></div>
-                </div>
-                <div class="chart-label">${lbl}</div>
-            </div>`;
-        });
-        
-        const avg = Math.round(totalCals / 7);
-        document.getElementById('weeklyStats').innerHTML = `
-            Average Intake: <b>${avg} kcal</b><br>
-            Highest Day: <b>${maxVal} kcal</b>
-        `;
-    }
-
-    // --- UI HELPERS ---
-    function toggleFast() {
-        state.fast.on = !state.fast.on;
-        state.fast.start = state.fast.on ? new Date().getTime() : null;
-        save();
-    }
-    
-    function updateTimer() {
-        if(!state.fast.on) { document.getElementById('fastTimer').innerText = "--:--:--"; return; }
-        const diff = new Date().getTime() - state.fast.start;
-        const h = Math.floor(diff / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
-        document.getElementById('fastTimer').innerText = `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-    }
-
-    function setWater(i) { state.water = (i < state.water) ? i : i+1; save(); }
-
-    function goView(v, btn) {
-        document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
-        document.getElementById('view-'+v).classList.add('active');
-        document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
-        if(btn) btn.classList.add('active');
-        document.getElementById('viewTitle').innerText = (v==='home')?'Dashboard': v.charAt(0).toUpperCase() + v.slice(1);
-    }
-
-    function openAdd() { document.getElementById('modalAdd').classList.add('active'); tab('food'); }
-    function closeAdd() { document.getElementById('modalAdd').classList.remove('active'); }
-    function tab(t) {
-        ['food','ex','cust'].forEach(x => {
-            document.getElementById('t-'+x).classList.remove('active');
-            document.getElementById('p-'+x).style.display = 'none';
-        });
-        document.getElementById('t-'+t).classList.add('active');
-        document.getElementById('p-'+t).style.display = 'block';
-    }
-
-    init();
-</script>
-</body>
-</html>
