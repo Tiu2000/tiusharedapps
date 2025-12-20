@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU LifeTrack v14 (Stats & Sync)</title>
+    <title>TIU LifeTrack v15 (Robust Exercises)</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
@@ -299,21 +299,74 @@
                         <option value="3.5">Walking (Moderate - 3.5mph)</option>
                         <option value="4.5">Walking (Brisk - 4.5mph)</option>
                         <option value="6.0">Hiking (Cross Country)</option>
+                        <option value="7.0">Backpacking</option>
                     </optgroup>
                     <optgroup label="Running">
                         <option value="7.0">Jogging (General)</option>
                         <option value="8.0">Running (5 mph)</option>
                         <option value="10.0">Running (6 mph)</option>
+                        <option value="11.5">Running (7 mph)</option>
+                        <option value="13.5">Running (8 mph +)</option>
+                        <option value="16.0">Running (Sprinting)</option>
                     </optgroup>
-                    <optgroup label="Gym & Home">
-                        <option value="6.0">Weight Lifting</option>
-                        <option value="8.0">HIIT / Circuit</option>
-                        <option value="2.5">Cleaning / Chores</option>
+                    <optgroup label="Gym & Training">
+                        <option value="3.5">Weight Lifting (Light)</option>
+                        <option value="6.0">Weight Lifting (Vigorous)</option>
+                        <option value="8.0">HIIT / Circuit Training</option>
+                        <option value="4.0">Calisthenics (Pushups/Situps)</option>
+                        <option value="7.0">Rowing Machine (Moderate)</option>
+                        <option value="12.0">Rowing Machine (Vigorous)</option>
+                        <option value="5.0">Elliptical Trainer (Moderate)</option>
+                        <option value="9.0">Stair Climber</option>
+                        <option value="6.0">Aerobics Class</option>
+                    </optgroup>
+                    <optgroup label="Cycling">
+                        <option value="4.0">Cycling (Leisure, <10mph)</option>
+                        <option value="8.0">Cycling (Moderate, 12-14mph)</option>
+                        <option value="10.0">Cycling (Fast, 14-16mph)</option>
+                        <option value="12.0">Cycling (Racing)</option>
+                        <option value="8.5">Mountain Biking</option>
+                        <option value="7.0">Spinning Class</option>
+                    </optgroup>
+                    <optgroup label="Sports">
+                        <option value="8.0">Basketball (Game)</option>
+                        <option value="4.5">Basketball (Shooting Hoops)</option>
+                        <option value="7.0">Soccer (Casual)</option>
+                        <option value="10.0">Soccer (Competitive)</option>
+                        <option value="7.0">Tennis (Singles)</option>
+                        <option value="5.0">Tennis (Doubles)</option>
+                        <option value="12.0">Boxing (Ring/Sparring)</option>
+                        <option value="6.0">Punching Bag</option>
+                        <option value="6.0">Swimming (Leisure)</option>
+                        <option value="10.0">Swimming (Laps)</option>
+                        <option value="4.5">Golf (Walking)</option>
+                        <option value="3.0">Volleyball</option>
+                        <option value="3.0">Bowling</option>
+                    </optgroup>
+                    <optgroup label="Mind & Body">
+                        <option value="2.5">Yoga (Hatha/Stretching)</option>
+                        <option value="4.0">Yoga (Power/Vinyasa)</option>
+                        <option value="3.0">Pilates</option>
+                        <option value="3.0">Tai Chi</option>
+                        <option value="5.0">Dance (Ballroom)</option>
+                        <option value="7.0">Dance (Zumba/Club)</option>
+                    </optgroup>
+                    <optgroup label="Home & Daily Life">
+                        <option value="2.5">Cleaning (Light)</option>
+                        <option value="3.5">Cleaning (Heavy/Scrubbing)</option>
+                        <option value="3.5">Gardening</option>
+                        <option value="4.0">Mowing Lawn (Push)</option>
+                        <option value="6.0">Shoveling Snow</option>
+                        <option value="5.0">Moving Furniture</option>
+                        <option value="3.0">Playing with Kids</option>
                     </optgroup>
                 </select>
+                
                 <label>Duration (Minutes)</label>
                 <input type="number" id="exMin" placeholder="30" onkeyup="calcBurn()">
+                
                 <div style="text-align:center; padding:20px; margin-top:10px; background:white; border-radius:12px; border:1px solid #eee;">
+                    <div style="font-size:0.9rem; color:#888; margin-bottom:5px;">Estimated Burn</div>
                     <strong style="font-size:2rem; color:var(--primary)" id="exVal">0</strong> 
                     <span style="color:var(--primary)">kcal</span>
                 </div>
@@ -383,7 +436,7 @@
 
     // --- APP CORE ---
     function init() {
-        const s = localStorage.getItem('tiu_v14'); 
+        const s = localStorage.getItem('tiu_v15'); 
         if(s) state = JSON.parse(s);
         if(!state.custom) state.custom = []; 
         if(!state.logs) state.logs = [];
@@ -394,7 +447,7 @@
     }
     
     function save() {
-        localStorage.setItem('tiu_v14', JSON.stringify(state));
+        localStorage.setItem('tiu_v15', JSON.stringify(state));
         updateUI();
     }
 
@@ -487,7 +540,7 @@
         save();
     }
 
-    function resetApp() { if(confirm("Clear history and custom foods?")) { localStorage.removeItem('tiu_v14'); location.reload(); } }
+    function resetApp() { if(confirm("Clear history and custom foods?")) { localStorage.removeItem('tiu_v15'); location.reload(); } }
     
     function openAdd() { 
         document.getElementById('modalAdd').classList.add('active'); 
@@ -520,7 +573,6 @@
     function renderStats() {
         const ctx = document.getElementById('chartStats').getContext('2d');
         
-        // 1. Group data by day (Last 7 days)
         const days = [];
         const dataEaten = [];
         const dataGoal = [];
@@ -600,7 +652,6 @@
         reader.onload = function(e) {
             try {
                 const json = JSON.parse(e.target.result);
-                // Basic validation
                 if(json.profile && json.logs) {
                     if(confirm("This will overwrite your current data. Continue?")) {
                         state = json;
