@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Type Hero - Ultimate Edition</title>
+    <title>Type Hero - TIU Edition</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
@@ -21,10 +21,20 @@
             overflow: hidden; height: 100vh; width: 100vw;
         }
 
+        /* --- WATERMARK (ADJUSTED VISIBILITY) --- */
+        #tiu-watermark {
+            position: fixed; bottom: 20px; right: 20px;
+            font-size: 80px; font-weight: 900;
+            color: rgba(255, 255, 255, 0.15); /* Increased opacity to 15% */
+            pointer-events: none; z-index: 2;
+            font-family: Impact, sans-serif;
+            user-select: none;
+        }
+
         /* --- VIDEO LAYER --- */
         #video-background {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 1; opacity: 0.6; pointer-events: none; /* Increased opacity */
+            z-index: 1; opacity: 0.6; pointer-events: none; 
         }
 
         /* --- UI LAYER --- */
@@ -118,6 +128,8 @@
 </head>
 <body>
 
+    <div id="tiu-watermark">TIU</div>
+
     <div id="video-background"><div id="yt-player"></div></div>
 
     <div id="ui-layer">
@@ -130,7 +142,7 @@
         <div class="hud-panel">
             <div style="font-size:12px; color:#aaa; margin-bottom:5px;">PLAYERS</div>
             <div id="leaderboard-content"></div>
-            </div>
+        </div>
     </div>
     
     <div id="feedback-text">PERFECT</div>
@@ -156,8 +168,7 @@
             <input type="text" id="inp-url" placeholder="Paste YouTube URL (e.g. youtu.be/xyz)" onchange="updateVideo()">
             <div id="video-info" style="font-size:12px; color:var(--neon-blue);">No Video Loaded</div>
             
-            <div style="text-align:left; background:#111; padding:10px; max-height:150px; overflow-y:auto;" id="host-lobby-list">
-                </div>
+            <div style="text-align:left; background:#111; padding:10px; max-height:150px; overflow-y:auto;" id="host-lobby-list"></div>
             
             <button class="btn-start" onclick="hostStartGame()">START GAME</button>
         </div>
@@ -188,7 +199,7 @@
         
         let ytPlayer;
         let gameRunning = false;
-        let songData = []; // Shared notes array
+        let songData = []; 
         let score = 0, combo = 0;
 
         /* --- YOUTUBE API --- */
@@ -218,7 +229,7 @@
                 showScreen('screen-host');
                 document.getElementById('host-room-id').innerText = room;
                 renderLobby();
-                updateLeaderboard(); // Update host screen immediately
+                updateLeaderboard(); 
             });
             peer.on('connection', conn => {
                 handleConnection(conn);
@@ -229,21 +240,18 @@
         function handleConnection(conn) {
             connections[conn.peer] = conn;
             conn.on('open', () => {
-                // Send current state (Video, Players, Game Status, Notes)
                 let syncData = {
                     type: 'WELCOME',
                     vid: currentVideoId,
                     players: players,
                     gameRunning: gameRunning,
-                    songData: songData, // Send existing notes if late join
+                    songData: songData, 
                     time: (ytPlayer && ytPlayer.getCurrentTime) ? ytPlayer.getCurrentTime() : 0
                 };
                 conn.send(syncData);
             });
             conn.on('data', data => handleHostData(conn.peer, data));
-            conn.on('close', () => {
-                removePlayer(conn.peer);
-            });
+            conn.on('close', () => { removePlayer(conn.peer); });
         }
 
         function handleHostData(id, data) {
@@ -297,7 +305,7 @@
                     hostConn.send({ type: 'JOIN', name: myName });
                 });
                 hostConn.on('data', handleClientData);
-                hostConn.on('close', () => { alert("Host disconnected or you were kicked."); location.reload(); });
+                hostConn.on('close', () => { alert("Disconnected or Kicked"); location.reload(); });
             });
             peer.on('error', err => document.getElementById('login-status').innerText = "Room Not Found");
         }
@@ -311,17 +319,13 @@
                 players = data.players;
                 if(data.vid) {
                     currentVideoId = data.vid;
-                    
-                    // Late Join Logic
                     if(data.gameRunning) {
-                        songData = data.songData; // Use host's notes
+                        songData = data.songData; 
                         document.getElementById('menu-overlay').style.display = 'none';
                         ytPlayer.loadVideoById(currentVideoId);
                         ytPlayer.mute(); ytPlayer.playVideo();
-                        
-                        // Sync Play
                         setTimeout(() => {
-                            ytPlayer.seekTo(data.time + 1); // +1s for latency buffer
+                            ytPlayer.seekTo(data.time + 1); 
                             ytPlayer.unMute();
                             gameRunning = true;
                             requestAnimationFrame(gameLoop);
@@ -342,7 +346,7 @@
             }
             if(data.type === 'UPDATE_PLAYERS') { players = data.players; updateLeaderboard(); }
             if(data.type === 'START_GAME') {
-                songData = data.songData; // Receive notes from host
+                songData = data.songData; 
                 runGame();
             }
             if(data.type === 'GAME_OVER') showGameOver(data.winner);
@@ -376,15 +380,12 @@
         }
 
         function renderLobby() {
-            // Render Host Lobby List (with Kick buttons)
             const hostList = document.getElementById('host-lobby-list');
             if(hostList) {
                 hostList.innerHTML = '';
                 Object.entries(players).forEach(([id, p]) => {
                     const div = document.createElement('div'); div.className = 'player-row';
                     let html = `<span>${p.name} <small style="color:#777">(${p.ready ? 'RDY' : 'WAIT'})</small></span>`;
-                    
-                    // Add kick button if I am host AND this isn't me
                     if(isHost && id !== myId) {
                         html += `<button class="btn-warn" onclick="kickPlayer('${id}')">KICK</button>`;
                     }
@@ -401,7 +402,6 @@
                 const div = document.createElement('div');
                 div.className = 'player-row';
                 let html = `<span style="font-weight:bold; color:${p.ready ? 'var(--neon-green)' : '#aaa'}">${p.name}</span><span>${p.score}</span>`;
-                // Add Kick button in leaderboard too if Host
                 if(isHost && id !== myId) {
                      html += `<button class="btn-warn" style="margin-left:5px" onclick="kickPlayer('${id}')">X</button>`;
                 }
@@ -414,10 +414,7 @@
         function hostStartGame() {
             let dur = ytPlayer.getDuration();
             if(!dur || dur === 0) dur = 180; 
-            
-            // Host generates notes ONCE
             songData = generateNotes(dur);
-            
             broadcast({ type: 'START_GAME', songData: songData });
             runGame();
         }
@@ -427,7 +424,6 @@
             score = 0; combo = 0;
             document.querySelectorAll('.note').forEach(n => n.remove());
             
-            // Re-map elements to songData for this client
             songData.forEach(n => { n.hit = false; n.el = null; });
 
             ytPlayer.playVideo();
@@ -437,13 +433,13 @@
 
         function generateNotes(duration) {
             let notes = [];
-            const totalNotes = Math.floor(duration * 2.5); // Density
+            const totalNotes = Math.floor(duration * 2.5); 
             const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
             for(let i=0; i<totalNotes; i++) {
                 notes.push({
                     char: chars[Math.floor(Math.random() * 26)], 
                     xPos: 10 + Math.floor(Math.random() * 80),   
-                    time: 2500 + (i * 600), // Spacing
+                    time: 2500 + (i * 600), 
                 });
             }
             return notes;
@@ -452,7 +448,6 @@
         function gameLoop() {
             if(!gameRunning) return;
             
-            // Auto-end
             if(ytPlayer.getPlayerState() === 0) {
                 gameRunning = false;
                 if(isHost) finishGame();
@@ -467,7 +462,6 @@
 
                 const diff = note.time - currTime;
 
-                // Spawn Note
                 if(!note.el && diff < SPAWN_AHEAD && diff > -200) {
                     const el = document.createElement('div');
                     el.className = 'note';
@@ -477,12 +471,10 @@
                     note.el = el;
                 }
 
-                // Move Note
                 if(note.el) {
                     const percent = 90 - (diff / (SPAWN_AHEAD/90));
                     note.el.style.top = percent + "%";
 
-                    // Miss
                     if(diff < -300) {
                         note.hit = true; note.el.remove();
                         combo = 0; updateScoreUI(); showFeedback("MISS");
@@ -502,7 +494,6 @@
             const currTime = ytPlayer.getCurrentTime() * 1000;
             let hit = false;
 
-            // Simple hit detection
             for(let note of songData) {
                 if(!note.hit && note.char === key && note.el) {
                     const diff = Math.abs(note.time - currTime);
