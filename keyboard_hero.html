@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Keyboard Hero - TIU Admin Edition (High Vis)</title>
+    <title>Keyboard Hero - TIU Tournament Edition</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -15,16 +15,16 @@
             --neon-yellow: #ffff00;
             
             /* Lighter Background Colors */
-            --bg-color: #1e1e2e;      /* Deep Blue-Grey instead of Black */
-            --panel-bg: #2b2b3b;      /* Lighter panel color */
-            --highway-gradient: linear-gradient(180deg, #111 0%, #3a4a5a 100%);
+            --bg-color: #1e1e2e;      
+            --panel-bg: #2b2b3b;      
+            --highway-gradient: linear-gradient(180deg, #0a0a1a 0%, #3a4a5a 100%);
         }
 
         body {
             margin: 0;
             background-color: var(--bg-color);
             color: white;
-            font-family: 'Verdana', sans-serif; /* Cleaner font for readability */
+            font-family: 'Verdana', sans-serif;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -51,7 +51,7 @@
             border-radius: 12px;
             min-width: 240px;
             pointer-events: auto;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5); /* Drop shadow for separation */
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
 
         #score-display { font-size: 36px; font-weight: bold; color: white; text-shadow: 2px 2px 0 #000; }
@@ -72,25 +72,31 @@
         }
         .kick-btn:hover { background: #ff5555; transform: scale(1.1); }
 
-        /* --- THE HIGHWAY (GAME VIEW) --- */
+        /* --- THE HIGHWAY (Longer View) --- */
         #game-container {
-            position: relative; width: 450px; height: 100vh;
+            position: relative; 
+            width: 500px; /* Slightly wider */
+            height: 120vh; /* Taller than screen to extend off bottom */
             background: var(--highway-gradient);
-            transform: perspective(600px) rotateX(40deg);
+            /* Modified perspective for longer view */
+            transform: perspective(800px) rotateX(30deg); 
             transform-origin: bottom center;
-            border-left: 4px solid #555; border-right: 4px solid #555;
+            border-left: 4px solid #666; border-right: 4px solid #666;
             box-shadow: 0 0 80px rgba(0, 243, 255, 0.15);
+            /* Push it down slightly so the top (vanishing point) is visible */
+            top: -50px; 
         }
 
         .lane {
             position: absolute; top: 0; height: 100%; width: 25%;
-            border-right: 2px solid rgba(255, 255, 255, 0.15); /* Brighter lane lines */
+            border-right: 2px solid rgba(255, 255, 255, 0.15);
             box-sizing: border-box;
         }
         .lane:last-child { border-right: none; }
 
         .hit-zone {
-            position: absolute; bottom: 30px; width: 100%; display: flex;
+            position: absolute; bottom: 100px; /* Moved up due to increased height */
+            width: 100%; display: flex;
             padding: 0 10px; box-sizing: border-box;
         }
 
@@ -104,12 +110,12 @@
         }
         .button-target.pressed { background: white; transform: scale(0.9); box-shadow: 0 0 25px white; }
 
-        /* Notes - Made brighter and thicker */
+        /* Notes */
         .note {
             position: absolute; width: 20%; height: 20px;
             border-radius: 6px; left: 2.5%; 
             box-shadow: 0 0 15px currentColor;
-            border: 1px solid white; /* White border makes color pop */
+            border: 1px solid white;
         }
         .note.lane-0 { background-color: var(--neon-green); color: var(--neon-green); left: 2.5%; }
         .note.lane-1 { background-color: var(--neon-red); color: var(--neon-red); left: 27.5%; }
@@ -119,13 +125,13 @@
         /* --- MENUS --- */
         #menu-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(20, 20, 30, 0.95); /* Lighter Menu BG */
+            background: rgba(20, 20, 30, 0.95);
             z-index: 20;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
 
         .menu-box {
-            width: 360px; padding: 30px;
+            width: 400px; padding: 30px;
             border: 2px solid #555; text-align: center;
             background: #2b2b3b;
             border-radius: 15px;
@@ -154,11 +160,14 @@
         button.start-btn { border-color: var(--neon-green); background: #2a3a2a; }
         button.start-btn:hover { background: var(--neon-green); }
 
+        button.end-btn { border-color: var(--neon-red); background: #3a2a2a; }
+        button.end-btn:hover { background: var(--neon-red); }
+
         /* TIU Watermark */
         #tiu-watermark {
             position: fixed; bottom: 20px; right: 20px;
             font-size: 48px; font-weight: 900;
-            color: rgba(255, 255, 255, 0.1); /* Increased opacity slightly */
+            color: rgba(255, 255, 255, 0.1); 
             pointer-events: none; z-index: 100;
             user-select: none;
         }
@@ -175,12 +184,15 @@
         .error-msg { color: var(--neon-red); font-weight: bold; font-size: 14px; margin-bottom: 10px; display: none; }
         .hidden { display: none !important; }
         
-        /* Helper for Room ID text */
         .room-highlight {
             font-size: 32px; font-weight: 900; margin: 15px 0;
             color: var(--neon-yellow); letter-spacing: 2px;
             background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;
         }
+
+        /* Winner Screen */
+        .winner-text { font-size: 40px; color: var(--neon-green); margin-bottom: 10px; }
+        .winner-score { font-size: 60px; font-weight: bold; color: white; margin-bottom: 30px; }
     </style>
 </head>
 <body>
@@ -249,11 +261,28 @@
             <p>Waiting for host to start...</p>
             <div id="client-status" style="color:var(--neon-yellow); font-size:14px; font-weight:bold;">Synced</div>
         </div>
+
+        <div class="menu-box hidden" id="menu-gameover">
+            <h2 style="color: white; border-bottom: 1px solid #555; padding-bottom:10px;">ROUND OVER</h2>
+            <p style="font-size: 14px; color: #aaa;">THE WINNER IS</p>
+            <div id="winner-name" class="winner-text">NAME</div>
+            <div id="winner-score" class="winner-score">0</div>
+            
+            <div id="host-controls" class="hidden">
+                <button class="start-btn" onclick="hostRestartGame()">PLAY AGAIN</button>
+                <button class="end-btn" onclick="hostEndSession()">END SESSION</button>
+            </div>
+            
+            <div id="client-wait-msg" class="hidden">
+                <p style="color: var(--neon-yellow)">Waiting for host...</p>
+            </div>
+        </div>
     </div>
 
     <script>
         // --- CONFIG ---
-        const SONG_LENGTH = 300; 
+        const SONG_NOTES_COUNT = 50; // Shorter for testing, increase for full game
+        const SPAWN_AHEAD_MS = 3000; // Increased to 3s (Longer Highway)
         
         // --- GLOBAL STATE ---
         let gameRunning = false;
@@ -261,6 +290,7 @@
         let songData = [];
         let score = 0;
         let combo = 0;
+        let notesProcessed = 0; // Track how many notes have passed
         
         // --- NETWORKING STATE ---
         let peer = null;
@@ -280,7 +310,6 @@
             if(audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            // Pentatonic scaleish
             const freqs = [261.63, 293.66, 329.63, 392.00]; 
             osc.frequency.value = freqs[lane];
             osc.type = 'triangle';
@@ -296,21 +325,24 @@
 
         function generateSong() {
             let notes = [];
-            // Create a more interesting pattern
-            for(let i=0; i<SONG_LENGTH; i++) {
+            for(let i=0; i<SONG_NOTES_COUNT; i++) {
                 const lane = Math.floor((Math.sin(i * 1.5)*100) % 4); 
                 const safeLane = Math.abs(lane);
-                const time = 2000 + (i * 350); // Slower pacing for better readability
+                const time = 3000 + (i * 400); // Start later (3000ms) to account for spawn time
                 notes.push({ lane: safeLane, time, hit: false, element: null });
             }
             return notes;
         }
 
         function initializeGameEngine(timeOffset = 0) {
+            // UI Reset
             document.getElementById('menu-overlay').style.display = 'none';
+            document.getElementById('menu-gameover').classList.add('hidden');
+            
             songData = generateSong();
             score = 0;
             combo = 0;
+            notesProcessed = 0;
             updateUI();
             
             document.querySelectorAll('.note').forEach(n => n.remove());
@@ -324,32 +356,59 @@
         function gameLoop(timestamp) {
             if (!gameRunning) return;
             const timeElapsed = timestamp - localStartTime;
+            let activeNotes = 0;
 
             songData.forEach(note => {
-                if (note.hit) return;
+                // If already handled (hit or missed/processed), skip
+                if (note.hit) return; 
 
                 const timeDiff = note.time - timeElapsed;
 
+                // Note moved past the hit line
                 if (timeDiff < -300) {
                     note.hit = true; 
                     if(note.element) note.element.remove();
                     breakCombo();
+                    checkGameEnd();
                     return;
                 }
 
-                if (!note.element && timeDiff <= 2000 && timeDiff > -200) {
+                // Spawn Note (Longer horizon: 3000ms)
+                if (!note.element && timeDiff <= SPAWN_AHEAD_MS && timeDiff > -200) {
                     const el = document.createElement('div');
                     el.className = `note lane-${note.lane}`;
                     document.getElementById('game-container').appendChild(el);
                     note.element = el;
                 }
 
+                // Move Note
                 if (note.element) {
-                    const percent = 90 - (timeDiff / 20);
+                    // Map timeDiff (3000ms -> 0ms) to position (0% -> 90%)
+                    // Note: Hit zone is approx 90% down the container
+                    // Formula: Start at 0% (top) when timeDiff = 3000
+                    // End at 90% (hit line) when timeDiff = 0
+                    
+                    const percent = 90 - (timeDiff / (SPAWN_AHEAD_MS / 90));
                     note.element.style.top = `${percent}%`;
                 }
             });
+
             requestAnimationFrame(gameLoop);
+        }
+
+        function checkGameEnd() {
+            notesProcessed++;
+            // Calculate total notes processed
+            const totalProcessed = songData.filter(n => n.hit).length;
+            
+            if (totalProcessed >= songData.length) {
+                gameRunning = false;
+                // Add a small delay for dramatic effect
+                setTimeout(() => {
+                    broadcastScore(); // Ensure final score is sent
+                    if (isHost) hostTriggerGameOver();
+                }, 1000);
+            }
         }
 
         // Input
@@ -361,7 +420,6 @@
                 const lane = keys[k];
                 const btn = document.getElementById(`btn-${lane}`);
                 btn.classList.add('pressed');
-                // Remove class after animation
                 setTimeout(() => btn.classList.remove('pressed'), 100);
                 checkHit(lane);
             }
@@ -369,7 +427,7 @@
 
         function checkHit(lane) {
             const currentTime = performance.now() - localStartTime;
-            const hitWindow = 130; 
+            const hitWindow = 150; 
 
             const note = songData.find(n => n.lane === lane && !n.hit && Math.abs(n.time - currentTime) < hitWindow);
 
@@ -377,11 +435,10 @@
                 note.hit = true;
                 if(note.element) note.element.remove();
                 
-                // Score calc
                 const accuracy = Math.abs(note.time - currentTime);
                 let points = 100;
                 let txt = "HIT";
-                if(accuracy < 30) { points = 150; txt = "PERFECT"; }
+                if(accuracy < 40) { points = 150; txt = "PERFECT"; }
                 
                 score += points + (combo * 5);
                 combo++;
@@ -389,6 +446,7 @@
                 showFeedback(txt);
                 updateUI();
                 broadcastScore();
+                checkGameEnd();
             }
         }
 
@@ -412,6 +470,68 @@
         function updateUI() {
             document.getElementById('score-display').innerText = score;
             document.getElementById('combo-display').innerText = "Combo: " + combo;
+        }
+
+        // --- GAME OVER LOGIC ---
+
+        function hostTriggerGameOver() {
+            // Find winner
+            let winnerName = "No One";
+            let winnerScore = -1;
+            
+            // Include host in calculation
+            if(players[myId]) players[myId].score = score;
+            
+            Object.values(players).forEach(p => {
+                if (p.score > winnerScore) {
+                    winnerScore = p.score;
+                    winnerName = p.name;
+                }
+            });
+
+            const results = { name: winnerName, score: winnerScore };
+            
+            // Show Local
+            showGameOverScreen(results);
+            
+            // Broadcast
+            Object.values(connections).forEach(c => c.send({ type: 'GAME_OVER', results: results }));
+        }
+
+        function showGameOverScreen(results) {
+            const overlay = document.getElementById('menu-overlay');
+            const goMenu = document.getElementById('menu-gameover');
+            
+            overlay.style.display = 'flex';
+            goMenu.classList.remove('hidden');
+            document.getElementById('menu-login').classList.add('hidden');
+            document.getElementById('menu-host').classList.add('hidden');
+            document.getElementById('menu-client').classList.add('hidden');
+
+            document.getElementById('winner-name').innerText = results.name;
+            document.getElementById('winner-score').innerText = results.score;
+
+            if (isHost) {
+                document.getElementById('host-controls').classList.remove('hidden');
+                document.getElementById('client-wait-msg').classList.add('hidden');
+            } else {
+                document.getElementById('host-controls').classList.add('hidden');
+                document.getElementById('client-wait-msg').classList.remove('hidden');
+            }
+        }
+
+        function hostRestartGame() {
+            // Reset Host
+            hostStartTime = performance.now();
+            initializeGameEngine(0);
+            
+            // Reset Everyone else
+            Object.values(connections).forEach(c => c.send({ type: 'RESTART' }));
+        }
+
+        function hostEndSession() {
+            Object.values(connections).forEach(c => c.send({ type: 'SESSION_END' }));
+            location.reload();
         }
 
         // --- NETWORKING ---
@@ -561,6 +681,16 @@
             if (data.type === 'START_GAME') {
                 document.getElementById('menu-client').classList.add('hidden');
                 initializeGameEngine(data.offset);
+            }
+            if (data.type === 'RESTART') {
+                initializeGameEngine(0);
+            }
+            if (data.type === 'GAME_OVER') {
+                showGameOverScreen(data.results);
+            }
+            if (data.type === 'SESSION_END') {
+                alert("Host ended the session.");
+                location.reload();
             }
             if (data.type === 'SYNC_PLAYERS') {
                 players = data.data;
