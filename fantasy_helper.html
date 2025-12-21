@@ -3,172 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fantasy Hoops Edge | Live Data</title>
+    <title>Fantasy Hoops Edge | Final Fix</title>
     <style>
-        :root {
-            --primary: #f97316;
-            --bg-dark: #111827;
-            --bg-card: #1f2937;
-            --text-light: #f3f4f6;
-            --text-gray: #9ca3af;
-            --success: #10b981;
-            --danger: #ef4444;
-            --border: #374151;
-        }
-
+        :root { --primary: #f97316; --bg-dark: #111827; --bg-card: #1f2937; --text-light: #f3f4f6; --text-gray: #9ca3af; --success: #10b981; --danger: #ef4444; --border: #374151; }
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        
-        body {
-            background-color: var(--bg-dark);
-            color: var(--text-light);
-            margin: 0;
-            padding: 20px;
-        }
-
-        /* Header */
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        h1 { margin: 0; font-size: 1.5rem; }
-        h1 span { color: var(--primary); }
-
-        button.refresh-btn {
-            background: var(--primary);
-            border: none;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-        
-        button.refresh-btn:hover { opacity: 0.9; }
-        button.refresh-btn:disabled { background: var(--text-gray); cursor: not-allowed; }
-
-        /* Navigation */
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .tab-btn {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            color: var(--text-gray);
-            padding: 10px 20px;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: all 0.2s;
-        }
-
-        .tab-btn.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        /* Content Areas */
-        .section { display: none; }
-        .section.active { display: block; animation: fadeIn 0.3s; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Tables */
-        .card {
-            background: var(--bg-card);
-            border-radius: 8px;
-            overflow: hidden;
-            border: 1px solid var(--border);
-        }
-
-        .controls {
-            padding: 15px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-
+        body { background-color: var(--bg-dark); color: var(--text-light); margin: 0; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+        h1 { margin: 0; font-size: 1.5rem; } h1 span { color: var(--primary); }
+        button.refresh-btn { background: var(--primary); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        button.refresh-btn:hover { opacity: 0.9; } button.refresh-btn:disabled { background: var(--text-gray); cursor: not-allowed; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-gray); padding: 10px 20px; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .section { display: none; } .section.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .card { background: var(--bg-card); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+        .controls { padding: 15px; border-bottom: 1px solid var(--border); display: flex; gap: 15px; align-items: center; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border); }
         th { background: #374151; color: var(--text-gray); font-size: 0.85rem; text-transform: uppercase; }
         tr:hover { background: rgba(255,255,255,0.05); }
-
-        .badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: bold;
-        }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
         .badge-fa { background: rgba(16, 185, 129, 0.2); color: var(--success); }
         .badge-inj { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
-        .badge-ros { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-
-        /* Trade Calculator Specifics */
-        .trade-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        
-        .trade-side {
-            background: var(--bg-card);
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-        }
-
-        .trade-result {
-            grid-column: 1 / -1;
-            background: #2d3748;
-            padding: 20px;
-            text-align: center;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-
-        select {
-            width: 100%;
-            padding: 10px;
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            color: white;
-            border-radius: 6px;
-            margin-bottom: 10px;
-        }
-
-        .player-chip {
-            display: flex;
-            justify-content: space-between;
-            background: var(--bg-dark);
-            padding: 8px;
-            margin-bottom: 5px;
-            border-radius: 4px;
-            font-size: 0.9rem;
-        }
-        
+        .trade-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .trade-side { background: var(--bg-card); padding: 20px; border-radius: 8px; border: 1px solid var(--border); }
+        .trade-result { grid-column: 1 / -1; background: #2d3748; padding: 20px; text-align: center; border-radius: 8px; margin-top: 20px; }
+        select { width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border); color: white; border-radius: 6px; margin-bottom: 10px; }
+        .player-chip { display: flex; justify-content: space-between; background: var(--bg-dark); padding: 8px; margin-bottom: 5px; border-radius: 4px; font-size: 0.9rem; }
         .score-val { font-weight: bold; color: var(--primary); }
         .equity-positive { color: var(--success); font-size: 1.5rem; font-weight: bold; }
         .equity-negative { color: var(--danger); font-size: 1.5rem; font-weight: bold; }
-
+        #error-log { display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 10px; margin-bottom: 20px; border-radius: 6px; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
 <header>
     <h1>Fantasy <span>Hoops Edge</span></h1>
-    <button class="refresh-btn" onclick="app.fetchLiveStats()">↻ Fetch Live Stats (API)</button>
+    <button class="refresh-btn" onclick="app.fetchLiveStats()">↻ Fetch Live Stats (Final Fix)</button>
 </header>
+
+<div id="error-log"></div>
 
 <div class="tabs">
     <button class="tab-btn active" onclick="app.switchTab('rankings')">Top Players</button>
@@ -179,23 +55,11 @@
 
 <div id="rankings" class="section active">
     <div class="card">
-        <div class="controls">
-            <span>Sorted by calculated Fantasy Avg (Standard Scoring)</span>
-        </div>
+        <div class="controls"><span>Sorted by Fantasy Avg (Basketball Ref)</span></div>
         <div class="table-container">
             <table>
-                <thead>
-                    <tr>
-                        <th>Rank</th>
-                        <th>Player</th>
-                        <th>Team</th>
-                        <th>Calc FPts</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="rankings-body">
-                    <tr><td colspan="5">Click "Fetch Live Stats" to load data...</td></tr>
-                </tbody>
+                <thead><tr><th>Rank</th><th>Player</th><th>Team</th><th>FPts</th><th>Status</th></tr></thead>
+                <tbody id="rankings-body"><tr><td colspan="5">Click "Fetch Live Stats" to load data...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -203,19 +67,9 @@
 
 <div id="waiver" class="section">
     <div class="card">
-        <div class="controls">
-            <h3>Available Free Agents (Simulated)</h3>
-            <small style="color:var(--text-gray); margin-left:10px;">*API doesn't track fantasy leagues, so availability is randomized for demo.</small>
-        </div>
+        <div class="controls"><h3>Available Free Agents (Simulated)</h3></div>
         <table>
-            <thead>
-                <tr>
-                    <th>Player</th>
-                    <th>Team</th>
-                    <th>Calc FPts</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Player</th><th>Team</th><th>FPts</th><th>Action</th></tr></thead>
             <tbody id="waiver-body"></tbody>
         </table>
     </div>
@@ -225,19 +79,11 @@
     <div class="card">
         <div class="controls">
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                <input type="checkbox" id="sort-return-date" onchange="app.renderInjured()"> 
-                <strong>Toggle: Sort by Earliest Return Date</strong>
+                <input type="checkbox" id="sort-return-date" onchange="app.renderInjured()"> <strong>Sort by Earliest Return</strong>
             </label>
         </div>
         <table>
-            <thead>
-                <tr>
-                    <th>Player</th>
-                    <th>Status</th>
-                    <th>Calc FPts</th>
-                    <th>Est. Return</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Player</th><th>Status</th><th>FPts</th><th>Est. Return</th></tr></thead>
             <tbody id="injury-body"></tbody>
         </table>
     </div>
@@ -247,333 +93,201 @@
     <div class="trade-container">
         <div class="trade-side">
             <h3>Team A</h3>
-            <select id="team-a-select" onchange="app.addToTrade('A')">
-                <option value="">+ Add Player</option>
-            </select>
+            <select id="team-a-select" onchange="app.addToTrade('A')"><option value="">+ Add Player</option></select>
             <div id="team-a-roster"></div>
-            <p>Total Value: <span id="val-a">0</span></p>
+            <p>Total: <span id="val-a">0</span></p>
         </div>
-
         <div class="trade-side">
             <h3>Team B</h3>
-            <select id="team-b-select" onchange="app.addToTrade('B')">
-                <option value="">+ Add Player</option>
-            </select>
+            <select id="team-b-select" onchange="app.addToTrade('B')"><option value="">+ Add Player</option></select>
             <div id="team-b-roster"></div>
-            <p>Total Value: <span id="val-b">0</span></p>
+            <p>Total: <span id="val-b">0</span></p>
         </div>
-
         <div class="trade-result">
             <h3>Trade Equity</h3>
             <div id="trade-equity">0.0</div>
-            <p id="trade-message" style="color: var(--text-gray); margin-top: 10px;">Add players to compare values</p>
+            <p id="trade-message" style="color: var(--text-gray); margin-top: 10px;">Add players to compare</p>
         </div>
     </div>
 </div>
 
 <script>
-const API_KEY = "d2a69b56-d501-42c2-add3-330ae557f31e";
+// --------------------------------------------------------
+// CONFIGURATION: THIS IS YOUR LINK
+// --------------------------------------------------------
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRjXx4Qj9T0pewiLLDUqrPZCwJDaxjuWZSwq6zwjmBgrkREOTEkDyNal-87_YR-_6JokM-R2ywkLDcu/pub?output=csv";
 
-// To respect rate limits and keep it simple, we will fetch data for these specific IDs
-// (Jokic, Luka, Embiid, Giannis, SGA, Curry, etc.)
-const TARGET_PLAYER_IDS = [
-    246, 132, 145, 15, 175, 115, 367, 140, 3, 228, 
-    237, 666698, 666700, 322, 192, 447, 415, 274, 349, 472
-];
-
+// --------------------------------------------------------
+// APP LOGIC
+// --------------------------------------------------------
 const app = {
     data: [],
     tradeState: { A: [], B: [] },
 
-    init: function() {
-        console.log("App Ready. Waiting for user to fetch.");
-    },
-
-    // 1. FETCH REAL DATA
     fetchLiveStats: async function() {
         const btn = document.querySelector('.refresh-btn');
-        btn.textContent = "Fetching API...";
+        const errBox = document.getElementById('error-log');
+        errBox.style.display = 'none';
+        btn.textContent = "Fetching via Proxy...";
         btn.disabled = true;
 
         try {
-            // Construct Query String for multiple IDs
-            const idParams = TARGET_PLAYER_IDS.map(id => `player_ids[]=${id}`).join('&');
-            // We fetch 2024 season averages
-            const url = `https://api.balldontlie.io/v1/season_averages?season=2024&${idParams}`;
+            // THE FIX: Route through a CORS Proxy to bypass "Failed to Fetch" error
+            const proxy = "https://corsproxy.io/?";
+            const response = await fetch(proxy + encodeURIComponent(SHEET_CSV_URL));
 
-            const response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Authorization": API_KEY,
-                    "Content-Type": "application/json"
-                }
-            });
+            if (!response.ok) throw new Error(`Network Error: ${response.status}`);
+            
+            const csvText = await response.text();
+            
+            // --- PARSING BASKETBALL REFERENCE CSV ---
+            // Headers usually: Rk,Player,Pos,Age,Tm,G,GS,MP,FG... [PTS is last]
+            const rows = csvText.split('\n');
+            const headers = rows[0].split(',');
+            
+            const findCol = (name) => headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+            
+            const idxName = findCol("Player");
+            const idxTm = findCol("Tm");
+            const idxPTS = findCol("PTS");
+            const idxTRB = findCol("TRB");
+            const idxAST = findCol("AST");
+            const idxSTL = findCol("STL");
+            const idxBLK = findCol("BLK");
+            const idxTOV = findCol("TOV");
 
-            if(!response.ok) throw new Error("API Limit or Key Error");
+            if(idxName === -1 || idxPTS === -1) throw new Error("Could not find stat headers. Did you paste the data into the sheet?");
 
-            const json = await response.json();
-            const rawData = json.data;
+            const parsedData = rows.slice(1).map((row, i) => {
+                const cols = row.split(',');
+                // Skip empty rows or repeated headers
+                if(cols.length < 10 || cols[idxName] === "Player") return null;
 
-            // PROCESS DATA
-            // The API returns stats, but not injury status or "Fantasy Points".
-            // We must calculate FPts and simulate status for this demo.
-            this.data = rawData.map(p => {
-                // Calculate Fantasy Points (Standard Scoring)
-                // Pts=1, Reb=1.2, Ast=1.5, Stl=3, Blk=3, TO=-1
-                const fpts = (p.pts * 1) + 
-                             (p.reb * 1.2) + 
-                             (p.ast * 1.5) + 
-                             (p.stl * 3) + 
-                             (p.blk * 3) - 
-                             (p.turnover * 1);
+                const getVal = (idx) => parseFloat(cols[idx]) || 0;
 
-                // Simulate metadata not provided by stats API
-                const isInjured = Math.random() < 0.2; // 20% chance to be injured for demo
-                const isFA = Math.random() < 0.3; // 30% chance to be Free Agent for demo
-                
-                // Return Date Logic (Mock)
+                // Calc Fantasy Points
+                const fpts = (getVal(idxPTS) * 1) + (getVal(idxTRB) * 1.2) + (getVal(idxAST) * 1.5) + 
+                             (getVal(idxSTL) * 3) + (getVal(idxBLK) * 3) - (getVal(idxTOV) * 1);
+
+                const isInjured = Math.random() < 0.15; // Simulating injury data
+                const isFA = Math.random() < 0.2; 
+
+                // Simple simulated return date
                 let rDate = null;
                 if(isInjured) {
-                    const daysToAdd = Math.floor(Math.random() * 20); // Return in 0-20 days
-                    const d = new Date();
-                    d.setDate(d.getDate() + daysToAdd);
+                    const d = new Date(); d.setDate(d.getDate() + Math.floor(Math.random() * 20));
                     rDate = d.toISOString().split('T')[0];
                 }
 
                 return {
-                    id: p.player_id, 
-                    // Note: season_averages endpoint doesn't give Name directly, 
-                    // usually you need a second call, but we will use ID to look up or generic names if missing.
-                    // For this specific endpoint, Balldontlie usually includes player object inside the season stats.
-                    // Let's check structure. Wait, Balldontlie season_averages DOES NOT return name.
-                    // To fix this without making 20 extra API calls (which hits rate limit), 
-                    // I will map IDs to Names manually for this demo list.
-                    name: this.resolveName(p.player_id), 
-                    team: p.games_played > 0 ? "NBA" : "FA",
+                    id: i,
+                    name: cols[idxName].replace('*', '').replace(/"/g, ''),
+                    team: cols[idxTm],
                     fpts: parseFloat(fpts.toFixed(1)),
                     status: isFA ? "FA" : "ROSTERED",
                     injured: isInjured,
                     returnDate: rDate
                 };
-            });
+            }).filter(p => p !== null && p.fpts > 0);
 
-            // Sort by Fantasy Points
-            this.data.sort((a, b) => b.fpts - a.fpts);
+            this.data = parsedData.sort((a, b) => b.fpts - a.fpts).slice(0, 150); // Top 150
+
+            if(this.data.length === 0) throw new Error("Sheet appears empty. Paste B-Ref stats into A1.");
 
             this.renderAll();
             this.populateTradeDropdowns();
-            
-            btn.textContent = "✔ Data Updated";
-            setTimeout(() => { btn.disabled = false; btn.textContent = "↻ Fetch Live Stats (API)"; }, 2000);
+            btn.textContent = "✔ Data Loaded";
 
         } catch (error) {
             console.error(error);
-            alert("Error: Check console. API Key might be invalid or Rate Limit hit.");
+            errBox.style.display = 'block';
+            errBox.innerHTML = `<strong>Connection Error:</strong> ${error.message}<br><small>Trying to load mock data instead...</small>`;
+            // Fallback so the app doesn't break completely
+            this.loadMockFallback();
+        } finally {
             btn.disabled = false;
-            btn.textContent = "Retry Fetch";
         }
     },
 
-    // Helper to map IDs to Names (Since Stats API doesn't send names to save bandwidth)
-    resolveName: function(id) {
-        const names = {
-            246: "Nikola Jokic", 132: "Luka Doncic", 145: "Joel Embiid", 15: "Giannis Antetokounmpo",
-            175: "Shai Gilgeous-Alexander", 115: "Stephen Curry", 367: "Victor Wembanyama", 
-            140: "Kevin Durant", 3: "Anthony Davis", 228: "Kyrie Irving", 237: "LeBron James",
-            666698: "Chet Holmgren", 322: "Tyrese Maxey", 192: "James Harden", 415: "Jayson Tatum",
-            447: "Karl-Anthony Towns", 274: "Damian Lillard", 472: "Trae Young"
-        };
-        return names[id] || "Player #" + id;
+    loadMockFallback: function() {
+         const mock = [
+            {id:1, name:"Jokic (Mock)", team:"DEN", fpts:60.5, status:"ROSTERED", injured:false},
+            {id:2, name:"Luka (Mock)", team:"DAL", fpts:58.2, status:"ROSTERED", injured:false},
+            {id:3, name:"Embiid (Mock)", team:"PHI", fpts:57.0, status:"ROSTERED", injured:true, returnDate:"2024-11-20"}
+         ];
+         this.data = mock;
+         this.renderAll();
+         this.populateTradeDropdowns();
     },
 
+    // UI Functions
     switchTab: function(tabId) {
         document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        
         document.getElementById(tabId).classList.add('active');
-        const buttons = document.getElementsByClassName('tab-btn');
-        for(let btn of buttons) {
-            if(btn.getAttribute('onclick').includes(tabId)) {
-                btn.classList.add('active');
-            }
-        }
+        const btns = document.querySelectorAll('.tab-btn');
+        btns.forEach(b => { if(b.getAttribute('onclick').includes(tabId)) b.classList.add('active'); });
     },
-
-    renderAll: function() {
-        this.renderRankings();
-        this.renderWaiver();
-        this.renderInjured();
-    },
-
-    // 2. RENDER RANKINGS
+    renderAll: function() { this.renderRankings(); this.renderWaiver(); this.renderInjured(); },
     renderRankings: function() {
-        const tbody = document.getElementById('rankings-body');
-        tbody.innerHTML = '';
-        
-        this.data.forEach((p, index) => {
+        const tbody = document.getElementById('rankings-body'); tbody.innerHTML = '';
+        this.data.forEach((p, i) => {
             const statusClass = p.status === 'FA' ? 'badge-fa' : 'badge-ros';
             const injHtml = p.injured ? '<span class="badge badge-inj">INJ</span>' : '';
-            
-            const tr = `
-                <tr>
-                    <td>#${index + 1}</td>
-                    <td>${p.name} ${injHtml}</td>
-                    <td>${p.team}</td>
-                    <td style="font-weight:bold; color:var(--primary)">${p.fpts}</td>
-                    <td><span class="badge ${statusClass}">${p.status}</span></td>
-                </tr>
-            `;
-            tbody.innerHTML += tr;
+            tbody.innerHTML += `<tr><td>#${i+1}</td><td>${p.name} ${injHtml}</td><td>${p.team}</td><td style="font-weight:bold; color:var(--primary)">${p.fpts}</td><td><span class="badge ${statusClass}">${p.status}</span></td></tr>`;
         });
     },
-
-    // 3. RENDER WAIVER
     renderWaiver: function() {
-        const tbody = document.getElementById('waiver-body');
-        tbody.innerHTML = '';
-        
-        const available = this.data.filter(p => p.status === 'FA');
-        
-        if(available.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4">No active free agents found in top 20 list.</td></tr>';
-            return;
-        }
-
-        available.forEach(p => {
-            const tr = `
-                <tr>
-                    <td>${p.name}</td>
-                    <td>${p.team}</td>
-                    <td style="font-weight:bold">${p.fpts}</td>
-                    <td><button style="padding:4px 8px; cursor:pointer;">Claim</button></td>
-                </tr>
-            `;
-            tbody.innerHTML += tr;
-        });
+        const tbody = document.getElementById('waiver-body'); tbody.innerHTML = '';
+        const av = this.data.filter(p => p.status === 'FA');
+        if(!av.length) { tbody.innerHTML = '<tr><td colspan="4">No FAs in top 150.</td></tr>'; return; }
+        av.forEach(p => tbody.innerHTML += `<tr><td>${p.name}</td><td>${p.team}</td><td style="font-weight:bold">${p.fpts}</td><td><button style="padding:4px 8px;">Claim</button></td></tr>`);
     },
-
-    // 4. RENDER INJURED
     renderInjured: function() {
-        const tbody = document.getElementById('injury-body');
-        const sortByDate = document.getElementById('sort-return-date').checked;
-        tbody.innerHTML = '';
-
-        let injured = this.data.filter(p => p.injured);
-
-        if (sortByDate) {
-            injured.sort((a, b) => new Date(a.returnDate) - new Date(b.returnDate));
-        } else {
-            injured.sort((a, b) => b.fpts - a.fpts);
-        }
-
-        if(injured.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4">No injuries in current list.</td></tr>';
-            return;
-        }
-
-        const today = new Date();
-
-        injured.forEach(p => {
-            const rDate = new Date(p.returnDate);
-            const diffTime = Math.abs(rDate - today);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-            
-            const tr = `
-                <tr>
-                    <td>${p.name}</td>
-                    <td><span class="badge badge-inj">OUT</span></td>
-                    <td>${p.fpts}</td>
-                    <td style="font-weight:bold; color:var(--text-light)">
-                        ${p.returnDate} (${diffDays} days)
-                    </td>
-                </tr>
-            `;
-            tbody.innerHTML += tr;
+        const tbody = document.getElementById('injury-body'); tbody.innerHTML = '';
+        let inj = this.data.filter(p => p.injured);
+        if(document.getElementById('sort-return-date').checked && inj.length) inj.sort((a,b) => new Date(a.returnDate) - new Date(b.returnDate));
+        if(!inj.length) { tbody.innerHTML = '<tr><td colspan="4">No injuries in top 150.</td></tr>'; return; }
+        inj.forEach(p => {
+             const diff = Math.ceil(Math.abs(new Date(p.returnDate) - new Date()) / (86400000));
+             tbody.innerHTML += `<tr><td>${p.name}</td><td><span class="badge badge-inj">OUT</span></td><td>${p.fpts}</td><td>${p.returnDate} (${diff}d)</td></tr>`;
         });
     },
-
-    // 5. TRADE CALCULATOR
     populateTradeDropdowns: function() {
-        const options = `<option value="">+ Add Player</option>` + 
-            this.data.map(p => `<option value="${p.id}">${p.name} (${p.fpts})</option>`).join('');
-        
-        document.getElementById('team-a-select').innerHTML = options;
-        document.getElementById('team-b-select').innerHTML = options;
+        const opts = `<option value="">+ Add Player</option>` + this.data.map(p => `<option value="${p.id}">${p.name} (${p.fpts})</option>`).join('');
+        document.getElementById('team-a-select').innerHTML = opts; document.getElementById('team-b-select').innerHTML = opts;
     },
-
     addToTrade: function(side) {
-        const select = document.getElementById(`team-${side.toLowerCase()}-select`);
-        const playerId = parseInt(select.value);
-        if(!playerId) return;
-
-        const player = this.data.find(p => p.id === playerId);
-        
-        // Prevent duplicates in same side
-        if(this.tradeState[side].find(p => p.id === playerId)) return;
-
-        this.tradeState[side].push(player);
-        this.renderTradeSide(side);
-        this.calcEquity();
-        
-        // Reset Select
-        select.value = "";
+        const sel = document.getElementById(`team-${side.toLowerCase()}-select`);
+        const pid = parseInt(sel.value);
+        if(!pid || this.tradeState[side].find(p=>p.id===pid)) return;
+        this.tradeState[side].push(this.data.find(p=>p.id===pid));
+        this.renderTrade(side); this.calcEquity(); sel.value = "";
     },
-
-    removeFromTrade: function(side, playerId) {
-        this.tradeState[side] = this.tradeState[side].filter(p => p.id !== playerId);
-        this.renderTradeSide(side);
-        this.calcEquity();
-    },
-
-    renderTradeSide: function(side) {
-        const container = document.getElementById(`team-${side.toLowerCase()}-roster`);
-        const valSpan = document.getElementById(`val-${side.toLowerCase()}`);
-        container.innerHTML = '';
-
-        let total = 0;
+    renderTrade: function(side) {
+        const div = document.getElementById(`team-${side.toLowerCase()}-roster`); div.innerHTML = '';
+        let tot = 0;
         this.tradeState[side].forEach(p => {
-            total += p.fpts;
-            container.innerHTML += `
-                <div class="player-chip">
-                    <span>${p.name}</span>
-                    <div>
-                        <span class="score-val">${p.fpts}</span>
-                        <span style="cursor:pointer; color:var(--danger); margin-left:8px;" onclick="app.removeFromTrade('${side}', ${p.id})">×</span>
-                    </div>
-                </div>
-            `;
+            tot += p.fpts;
+            div.innerHTML += `<div class="player-chip"><span>${p.name}</span><div><span class="score-val">${p.fpts}</span><span style="cursor:pointer;color:var(--danger);margin-left:8px;" onclick="app.remTrade('${side}',${p.id})">×</span></div></div>`;
         });
-
-        valSpan.innerText = total.toFixed(1);
-        return total;
+        document.getElementById(`val-${side.toLowerCase()}`).innerText = tot.toFixed(1);
     },
-
+    remTrade: function(side, pid) {
+        this.tradeState[side] = this.tradeState[side].filter(p => p.id !== pid);
+        this.renderTrade(side); this.calcEquity();
+    },
     calcEquity: function() {
-        const totalA = this.tradeState.A.reduce((sum, p) => sum + p.fpts, 0);
-        const totalB = this.tradeState.B.reduce((sum, p) => sum + p.fpts, 0);
-        
-        const diff = totalA - totalB;
-        const resultDiv = document.getElementById('trade-equity');
-        const msgDiv = document.getElementById('trade-message');
-
-        if (diff > 0) {
-            resultDiv.className = "equity-positive";
-            resultDiv.innerText = `+${diff.toFixed(1)}`;
-            msgDiv.innerText = "Team A wins by " + diff.toFixed(1) + " FPts";
-        } else if (diff < 0) {
-            resultDiv.className = "equity-negative";
-            resultDiv.innerText = `${diff.toFixed(1)}`;
-            msgDiv.innerText = "Team B wins by " + Math.abs(diff).toFixed(1) + " FPts";
-        } else {
-            resultDiv.className = "";
-            resultDiv.innerText = "0.0";
-            msgDiv.innerText = "The trade is perfectly even.";
-        }
+        const A = this.tradeState.A.reduce((s,p)=>s+p.fpts,0);
+        const B = this.tradeState.B.reduce((s,p)=>s+p.fpts,0);
+        const d = A - B;
+        const el = document.getElementById('trade-equity');
+        const msg = document.getElementById('trade-message');
+        el.innerText = (d>0?"+":"") + d.toFixed(1);
+        el.className = d>0?"equity-positive":(d<0?"equity-negative":"");
+        msg.innerText = d===0?"Even trade":`Team ${d>0?'A':'B'} wins by ${Math.abs(d).toFixed(1)}`;
     }
 };
-
-app.init();
 </script>
-
 </body>
 </html>
