@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SNES Battleship P2P</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #2c0e37;
+            --water-color: #3b3b98;
+            --grid-line: #5d5dff;
+            --hit-color: #ff3e3e;
+            --miss-color: #ffffff;
+            --ship-color: #8b8b8b;
+            --text-color: #e0e0e0;
+            --ui-bg: #1a1a2e;
+            --ui-border: #dcdcdc;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Press Start 2P', cursive;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        /* Scanline Overlay for SNES CRT feel */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.2) 50%,
+                rgba(0,0,0,0.2)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        h1 {
+            text-shadow: 4px 4px 0px #000;
+            margin-top: 20px;
+            font-size: 24px;
+            color: #ffcc00;
+        }
+
+        /* TIU Watermark */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 48px;
+            color: rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+            z-index: 100;
+            font-weight: bold;
+        }
+
+        /* Connection Panel */
+        #connection-panel {
+            background: var(--ui-bg);
+            border: 4px solid var(--ui-border);
+            padding: 20px;
+            margin: 20px;
+            text-align: center;
+            box-shadow: 8px 8px 0px #000;
+            max-width: 600px;
+        }
+
+        input[type="text"] {
+            background: #000;
+            color: #0f0;
+            border: 2px solid #555;
+            padding: 10px;
+            font-family: 'Press Start 2P', cursive;
+            margin: 10px 0;
+            width: 250px;
+            text-transform: uppercase;
+        }
+
+        button {
+            background: #a90000;
+            color: #fff;
+            border: 4px solid #fff;
+            padding: 15px 20px;
+            font-family: 'Press Start 2P', cursive;
+            cursor: pointer;
+            margin: 5px;
+            box-shadow: 4px 4px 0px #000;
+            transition: transform 0.1s;
+        }
+
+        button:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px #000;
+        }
+
+        button:disabled {
+            background: #555;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        /* Game Area */
+        #game-area {
+            display: none; /* Hidden until connected */
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 40px;
+            padding: 20px;
+        }
+
+        .board-container {
+            text-align: center;
+        }
+
+        .board-title {
+            margin-bottom: 10px;
+            color: #00ff00;
+            text-shadow: 2px 2px #000;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 30px);
+            grid-template-rows: repeat(10, 30px);
+            background-color: var(--water-color);
+            border: 4px solid #fff;
+            box-shadow: 6px 6px 0px #000;
+        }
+
+        .cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid var(--grid-line);
+            box-sizing: border-box;
+            cursor: crosshair;
+            position: relative;
+        }
+
+        /* Visual states for cells */
+        .cell.ship { background-color: var(--ship-color); box-shadow: inset 2px 2px 0 rgba(255,255,255,0.5); }
+        .cell.hit { background-color: var(--hit-color); }
+        .cell.miss { background-color: var(--water-color); }
+        
+        /* Markers for hits/misses */
+        .cell.hit::after { content: 'X'; position: absolute; top: 4px; left: 4px; color: yellow; font-size: 14px; }
+        .cell.miss::after { content: 'O'; position: absolute; top: 4px; left: 4px; color: var(--miss-color); font-size: 14px; }
+
+        /* Preview during placement */
+        .cell.preview-valid { background-color: rgba(0, 255, 0, 0.5); }
+        .cell.preview-invalid { background-color: rgba(255, 0, 0, 0.5); }
+
+        #status-log {
+            margin-top: 20px;
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            border: 2px solid #555;
+            width: 80%;
+            text-align: center;
+            min-height: 1.5em;
+            font-size: 12px;
+            box-shadow: 4px 4px 0 #000;
+        }
+
+        #rotate-btn {
+            display: none;
+            margin-bottom: 10px;
+            background-color: #0044aa;
+        }
+
+        /* Enemy board interaction only active when playing */
+        #enemy-grid.disabled {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        /* Overlay for alerts */
+        #overlay-msg {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #000;
+            border: 4px solid #fff;
+            padding: 40px;
+            z-index: 1000;
+            text-align: center;
+            box-shadow: 10px 10px 0px #000;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="scanlines"></div>
+    <div class="watermark">TIU</div>
+
+    <h1>NAVAL BATTLE P2P</h1>
+
+    <div id="connection-panel">
+        <p>1. Host copies ID<br>2. Peer joins with ID</p>
+        <div id="host-controls">
+            <button id="btn-host">Host Game</button>
+            <div id="my-id-display" style="margin-top: 10px; font-size: 12px; color: yellow;"></div>
+        </div>
+        <hr style="border: 1px dashed #555; margin: 15px 0;">
+        <div id="join-controls">
+            <input type="text" id="join-id-input" placeholder="Enter Host ID">
+            <button id="btn-join">Join Game</button>
+        </div>
+        <p id="conn-status" style="color: #888; margin-top:10px;">Status: Disconnected</p>
+    </div>
+
+    <button id="rotate-btn">Rotate Ship (R)</button>
+    <div id="status-log">Welcome, Commander.</div>
+
+    <div id="game-area">
+        <div class="board-container">
+            <div class="board-title">RADAR (Enemy)</div>
+            <div id="enemy-grid" class="grid disabled"></div>
+        </div>
+        <div class="board-container">
+            <div class="board-title">FLEET (You)</div>
+            <div id="my-grid" class="grid"></div>
+        </div>
+    </div>
+
+    <div id="overlay-msg">
+        <h2 id="overlay-text">GAME OVER</h2>
+        <button onclick="location.reload()">REMATCH</button>
+    </div>
+
+    <script>
+        // --- Game Configuration ---
+        const GRID_SIZE = 10;
+        const SHIPS = [5, 4, 3, 3, 2]; // Length of ships
+        
+        // --- State Variables ---
+        let peer = null;
+        let conn = null;
+        let myId = null;
+        let isHost = false;
+        
+        let gameState = 'LOBBY'; // LOBBY, PLACING, WAITING_OPPONENT, PLAYING, GAME_OVER
+        let isMyTurn = false;
+        
+        // Boards: 0=empty, 1=ship, 2=miss, 3=hit
+        let myBoard = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+        let enemyBoardView = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0)); // What we see of enemy
+        
+        // Placement variables
+        let shipsToPlace = [...SHIPS];
+        let currentShipSize = shipsToPlace[0];
+        let isVertical = false;
+        let myTotalHitsTaken = 0;
+        let enemyTotalHitsTaken = 0;
+        const totalShipCells = SHIPS.reduce((a,b)=>a+b, 0);
+
+        // --- Sound Effects System (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'select') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'shoot') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'hit') {
+                osc.type = 'square'; // Noise approx
+                // Simple low boom
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.4);
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'miss') {
+                // High pitch ping for splash
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.linearRampToValueAtTime(300, now + 0.2);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        }
+
+        // --- UI Initialization ---
+        const myGridEl = document.getElementById('my-grid');
+        const enemyGridEl = document.getElementById('enemy-grid');
+        const statusLog = document.getElementById('status-log');
+        const connStatus = document.getElementById('conn-status');
+
+        function createGrid(element, isEnemy) {
+            element.innerHTML = '';
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    
+                    if (!isEnemy) {
+                        // Placement Logic Handlers
+                        cell.addEventListener('mouseover', () => handleHover(x, y));
+                        cell.addEventListener('click', () => handleClickMyGrid(x, y));
+                    } else {
+                        // Attack Logic
+                        cell.addEventListener('click', () => handleClickEnemyGrid(x, y));
+                    }
+                    element.appendChild(cell);
+                }
+            }
+        }
+
+        createGrid(myGridEl, false);
+        createGrid(enemyGridEl, true);
+
+        // --- PeerJS Networking ---
+
+        document.getElementById('btn-host').addEventListener('click', () => {
+            initializePeer();
+            isHost = true;
+            statusLog.innerText = "Initializing Comm-Link...";
+            playSound('select');
+        });
+
+        document.getElementById('btn-join').addEventListener('click', () => {
+            const hostId = document.getElementById('join-id-input').value;
+            if(!hostId) return alert("Enter Host ID");
+            playSound('select');
+            initializePeer(hostId);
+        });
+
+        function initializePeer(targetId = null) {
+            peer = new Peer(); // Auto-generate ID
+
+            peer.on('open', (id) => {
+                myId = id;
+                if (!targetId) {
+                    // We are hosting
+                    document.getElementById('my-id-display').innerText = `MY ID: ${id} (Send to friend)`;
+                    connStatus.innerText = "Waiting for peer...";
+                    document.getElementById('btn-host').disabled = true;
+                    document.getElementById('btn-join').disabled = true;
+                } else {
+                    // We are joining
+                    connectToPeer(targetId);
+                }
+            });
+
+            peer.on('connection', (connection) => {
+                if(conn) return; // Already connected
+                setupConnection(connection);
+            });
+            
+            peer.on('error', (err) => {
+                console.error(err);
+                alert("Connection Error. Refresh and try again.");
+            });
+        }
+
+        function connectToPeer(id) {
+            conn = peer.connect(id);
+            setupConnection(conn);
+        }
+
+        function setupConnection(connection) {
+            conn = connection;
+            
+            conn.on('open', () => {
+                connStatus.innerText = "Status: CONNECTED";
+                connStatus.style.color = "#0f0";
+                document.getElementById('connection-panel').style.display = 'none';
+                document.getElementById('game-area').style.display = 'flex';
+                startPlacementPhase();
+            });
+
+            conn.on('data', (data) => handleData(data));
+        }
+
+        function handleData(data) {
+            switch(data.type) {
+                case 'READY':
+                    if (gameState === 'WAITING_OPPONENT') {
+                        startGame();
+                    } else {
+                        // If we receive ready but aren't done placing, note that opponent is waiting
+                        statusLog.innerText = "Opponent is ready. Finish placing ships!";
+                    }
+                    break;
+                case 'FIRE':
+                    receiveFire(data.x, data.y);
+                    break;
+                case 'RESULT':
+                    processResult(data.x, data.y, data.hit);
+                    break;
+            }
+        }
+
+        // --- Game Logic: Placement ---
+
+        function startPlacementPhase() {
+            gameState = 'PLACING';
+            statusLog.innerText = `Place Ship (Length: ${currentShipSize}). Press R to rotate.`;
+            document.getElementById('rotate-btn').style.display = 'block';
+        }
+
+        document.getElementById('rotate-btn').addEventListener('click', () => {
+            isVertical = !isVertical;
+            playSound('select');
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if(e.key === 'r' || e.key === 'R') isVertical = !isVertical;
+        });
+
+        function handleHover(x, y) {
+            if (gameState !== 'PLACING') return;
+            
+            // clear previews
+            document.querySelectorAll('.preview-valid, .preview-invalid').forEach(el => {
+                el.classList.remove('preview-valid', 'preview-invalid');
+            });
+
+            const cells = getShipCells(x, y, currentShipSize, isVertical);
+            const isValid = isValidPlacement(cells);
+            
+            cells.forEach(pos => {
+                if (pos.x >= 0 && pos.x < GRID_SIZE && pos.y >= 0 && pos.y < GRID_SIZE) {
+                    const idx = pos.y * GRID_SIZE + pos.x;
+                    const cell = myGridEl.children[idx];
+                    cell.classList.add(isValid ? 'preview-valid' : 'preview-invalid');
+                }
+            });
+        }
+
+        function handleClickMyGrid(x, y) {
+            if (gameState !== 'PLACING') return;
+
+            const cells = getShipCells(x, y, currentShipSize, isVertical);
+            if (isValidPlacement(cells)) {
+                playSound('select');
+                // Place ship
+                cells.forEach(pos => {
+                    myBoard[pos.y][pos.x] = 1; // 1 = ship
+                    const idx = pos.y * GRID_SIZE + pos.x;
+                    myGridEl.children[idx].classList.add('ship');
+                });
+
+                // Next ship
+                shipsToPlace.shift();
+                if (shipsToPlace.length > 0) {
+                    currentShipSize = shipsToPlace[0];
+                    statusLog.innerText = `Place Ship (Length: ${currentShipSize})`;
+                } else {
+                    finishPlacement();
+                }
+            } else {
+                playSound('miss'); // Error sound
+            }
+        }
+
+        function getShipCells(x, y, length, vertical) {
+            const cells = [];
+            for (let i = 0; i < length; i++) {
+                cells.push({ x: vertical ? x : x + i, y: vertical ? y + i : y });
+            }
+            return cells;
+        }
+
+        function isValidPlacement(cells) {
+            return cells.every(pos => 
+                pos.x >= 0 && pos.x < GRID_SIZE &&
+                pos.y >= 0 && pos.y < GRID_SIZE &&
+                myBoard[pos.y][pos.x] === 0
+            );
+        }
+
+        function finishPlacement() {
+            gameState = 'WAITING_OPPONENT';
+            statusLog.innerText = "Fleet Deployed. Waiting for opponent...";
+            document.getElementById('rotate-btn').style.display = 'none';
+            conn.send({ type: 'READY' });
+        }
+
+        // --- Game Logic: Battle ---
+
+        function startGame() {
+            gameState = 'PLAYING';
+            // Determine turn: Host goes first
+            isMyTurn = isHost;
+            updateTurnUI();
+        }
+
+        function updateTurnUI() {
+            if (isMyTurn) {
+                statusLog.innerText = "YOUR TURN - Select coordinates on Radar.";
+                statusLog.style.color = "#0f0";
+                enemyGridEl.classList.remove('disabled');
+            } else {
+                statusLog.innerText = "ENEMY TURN - Brace for impact!";
+                statusLog.style.color = "#f00";
+                enemyGridEl.classList.add('disabled');
+            }
+        }
+
+        function handleClickEnemyGrid(x, y) {
+            if (gameState !== 'PLAYING' || !isMyTurn) return;
+            if (enemyBoardView[y][x] !== 0) return; // Already fired here
+
+            playSound('shoot');
+            enemyBoardView[y][x] = 2; // Mark temporary (prevent double click)
+            isMyTurn = false;
+            enemyGridEl.classList.add('disabled'); // Disable immediately
+            statusLog.innerText = "Firing...";
+            
+            // Send fire command
+            conn.send({ type: 'FIRE', x, y });
+        }
+
+        function receiveFire(x, y) {
+            const isHit = myBoard[y][x] === 1;
+            
+            // Update local board
+            myBoard[y][x] = isHit ? 3 : 2; // 3 hit, 2 miss
+            const idx = y * GRID_SIZE + x;
+            const cell = myGridEl.children[idx];
+            cell.classList.add(isHit ? 'hit' : 'miss');
+
+            if (isHit) {
+                playSound('hit');
+                myTotalHitsTaken++;
+                // Check loss condition
+                if (myTotalHitsTaken >= totalShipCells) {
+                    conn.send({ type: 'RESULT', hit: true, x, y, gameOver: true });
+                    endGame(false);
+                    return;
+                }
+            } else {
+                playSound('miss');
+            }
+
+            // Send result back
+            conn.send({ type: 'RESULT', hit: isHit, x, y });
+            
+            // My turn now
+            isMyTurn = true;
+            updateTurnUI();
+        }
+
+        function processResult(x, y, hit) {
+            // Update enemy view
+            enemyBoardView[y][x] = hit ? 3 : 2;
+            const idx = y * GRID_SIZE + x;
+            const cell = enemyGridEl.children[idx];
+            cell.classList.remove('preview-valid'); // cleanup
+            cell.classList.add(hit ? 'hit' : 'miss');
+
+            if (hit) {
+                playSound('hit');
+                enemyTotalHitsTaken++;
+                statusLog.innerText = "DIRECT HIT!";
+                
+                // We don't rely on local calc for win, we wait for 'gameOver' flag usually, 
+                // but for simplicity in this script let's just count.
+                if (enemyTotalHitsTaken >= totalShipCells) {
+                    endGame(true);
+                    return;
+                }
+            } else {
+                playSound('miss');
+                statusLog.innerText = "Missed.";
+            }
+
+            // Still not my turn, opponent logic runs `receiveFire` then gives turn back
+            // Wait... classic battleship: if you hit, do you go again? 
+            // In this simple version: Alternate turns strictly.
+        }
+
+        function endGame(victory) {
+            gameState = 'GAME_OVER';
+            document.getElementById('overlay-msg').style.display = 'block';
+            const title = document.getElementById('overlay-text');
+            if (victory) {
+                title.innerText = "VICTORY!";
+                title.style.color = "#0f0";
+                playSound('select'); // reused as victory jingle trigger
+            } else {
+                title.innerText = "DEFEAT";
+                title.style.color = "#f00";
+            }
+        }
+
+        // Handle case where opponent declares game over in RESULT
+        // Modified handleData to support custom gameOver payload if needed, 
+        // but simple counting works for trusted clients.
+    </script>
+</body>
+</html>
