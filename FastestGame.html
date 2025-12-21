@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Classroom P2P Quiz</title>
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <title>Classroom P2P Quiz 2.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
     <style>
         :root {
             --primary: #4f46e5;
@@ -26,6 +26,7 @@
         button { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: transform 0.1s; margin: 5px; }
         button:hover { opacity: 0.9; transform: scale(1.02); }
         button:active { transform: scale(0.98); }
+        button:disabled { background: #9ca3af; cursor: not-allowed; }
         
         /* Game Elements */
         .answer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
@@ -36,8 +37,7 @@
         
         /* Leaderboard */
         .leaderboard-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; font-size: 1.2rem; }
-        .top-rank { font-weight: bold; color: var(--primary); }
-
+        
         /* States */
         .correct { background: var(--success) !important; color: white !important; }
         .wrong { background: var(--danger) !important; color: white !important; }
@@ -53,13 +53,14 @@
 
     <div id="screen-entry" class="screen active">
         <p>Are you the Teacher (Host) or a Student?</p>
-        <button onclick="setupHost()">Host Game (Teacher)</button>
-        <button onclick="setupJoin()">Join Game (Student)</button>
+        <div id="loading-msg" style="color: #666; margin-bottom: 10px;">Checking connection libraries...</div>
+        <button onclick="setupHost()" id="btn-host">Host Game (Teacher)</button>
+        <button onclick="setupJoin()" id="btn-join">Join Game (Student)</button>
     </div>
 
     <div id="screen-host-lobby" class="screen">
         <h2>Host Lobby</h2>
-        <div class="stat-box">Game ID: <span id="display-id" style="color:var(--primary); font-size:1.5em; user-select: all;">...</span></div>
+        <div class="stat-box">Game ID: <span id="display-id" style="color:var(--primary); font-size:1.5em; user-select: all;">Loading...</span></div>
         <p>Share this ID with your students.</p>
         
         <label>Select Grade Level:</label><br>
@@ -108,9 +109,28 @@
         </div>
         <p id="waiting-msg" style="display:none;">Waiting for teacher...</p>
     </div>
+
+    <div id="screen-final" class="screen">
+        <h2>🏆 Game Over! 🏆</h2>
+        <div id="final-podium"></div>
+        <br>
+        <button onclick="location.reload()">Play Again</button>
+    </div>
 </div>
 
 <script>
+/* ---------------- SAFETY CHECKS ---------------- */
+window.onload = function() {
+    const msg = document.getElementById('loading-msg');
+    if (typeof Peer === 'undefined') {
+        msg.innerHTML = "<strong style='color:red'>Error: PeerJS library not loaded.</strong><br>Check internet or firewall.";
+        alert("The app cannot start because the networking library failed to load.\n\n1. Check your internet connection.\n2. If at school, the Wi-Fi might block 'cdnjs.cloudflare.com'.");
+    } else {
+        msg.innerHTML = "✅ System Ready";
+        msg.style.color = "green";
+    }
+};
+
 /* ---------------- DATA: QUESTION BANK ---------------- */
 const QUESTION_BANK = {
     elementary: [
@@ -134,7 +154,6 @@ const QUESTION_BANK = {
         { q: "What gas do plants absorb from the atmosphere?", options: ["Oxygen", "Carbon Dioxide", "Nitrogen", "Helium"], a: 1 },
         { q: "What is 12 squared?", options: ["122", "144", "24", "124"], a: 1 },
         { q: "Which continent is the Sahara Desert in?", options: ["Asia", "South America", "Africa", "Australia"], a: 2 },
-        { q: "What are the three branches of US Government?", options: ["Legislative, Executive, Judicial", "King, Queen, Jack", "Senate, House, President", "Democrat, Republican, Independent"], a: 0 },
         { q: "Start of WWI?", options: ["1914", "1918", "1939", "1945"], a: 0 }
     ],
     high: [
@@ -143,10 +162,8 @@ const QUESTION_BANK = {
         { q: "Who wrote '1984'?", options: ["Aldous Huxley", "George Orwell", "Ray Bradbury", "F. Scott Fitzgerald"], a: 1 },
         { q: "What year did the Berlin Wall fall?", options: ["1987", "1989", "1991", "1985"], a: 1 },
         { q: "In physics, F = ma refers to?", options: ["Newton's 1st Law", "Newton's 2nd Law", "Newton's 3rd Law", "Einstein's Relativity"], a: 1 },
-        { q: "What is the capital of Australia?", options: ["Sydney", "Melbourne", "Canberra", "Perth"], a: 2 },
         { q: "Which molecule carries genetic information?", options: ["RNA", "Protein", "DNA", "Lipid"], a: 2 },
         { q: "Value of Pi to 2 decimals?", options: ["3.12", "3.14", "3.16", "3.18"], a: 1 },
-        { q: "The Great Gatsby is set in which era?", options: ["The Roaring 20s", "The Great Depression", "The Civil War", "The 60s"], a: 0 },
         { q: "Chemical symbol for Gold?", options: ["Ag", "Au", "Fe", "Pb"], a: 1 }
     ],
     coding: [
@@ -184,38 +201,39 @@ function showScreen(id) {
 
 /* ---------------- HOST LOGIC ---------------- */
 function setupHost() {
+    if (typeof Peer === 'undefined') return alert("Network library failed to load. Check internet.");
+    
     isHost = true;
-    peer = new Peer(null, { debug: 2 }); // Let PeerJS assign ID
+    peer = new Peer(null, { debug: 2 }); 
     
     peer.on('open', (id) => {
         document.getElementById('display-id').innerText = id;
         showScreen('screen-host-lobby');
     });
 
+    peer.on('error', (err) => {
+        alert("PeerJS Error: " + err.type);
+    });
+
     peer.on('connection', (c) => {
         c.on('data', (data) => handleHostData(c, data));
         c.on('open', () => {
-            // Keep track of connection
             connections.push(c);
         });
     });
 }
 
 function handleHostData(conn, data) {
-    // 1. Player Joining
     if (data.type === 'JOIN') {
+        // Prevent duplicate names or update existing
         players[conn.peer] = { name: data.name, score: 0, conn: conn };
         updatePlayerList();
     }
-    // 2. Player Answering
     if (data.type === 'ANSWER') {
         const p = players[conn.peer];
         if (p && currentQuestions[currentQIndex]) {
-            // Validate Answer
             const correctIndex = currentQuestions[currentQIndex].a;
             if (data.answerIndex === correctIndex) {
-                // Calculate Score based on speed
-                // Formula: Points * (TimeLeft / TotalTime)
                 const points = Math.floor(MAX_POINTS * (data.timeLeft / QUESTION_TIME));
                 p.score += points;
             }
@@ -259,7 +277,7 @@ function runQuestion() {
     showScreen('screen-question');
     document.getElementById('host-controls').style.display = 'none';
 
-    // 2. Broadcast Question to players
+    // 2. Broadcast Question
     broadcast({ 
         type: 'NEW_QUESTION', 
         q: q, 
@@ -269,16 +287,13 @@ function runQuestion() {
 
     // 3. Start Timer
     startTimer(QUESTION_TIME, () => {
-        // End of Question
         showLeaderboard();
     });
 }
 
 function showLeaderboard() {
-    // Sort players
     const sortedPlayers = Object.values(players).sort((a, b) => b.score - a.score);
     
-    // Render Leaderboard HTML
     let html = '';
     sortedPlayers.forEach((p, i) => {
         html += `<div class="leaderboard-item">
@@ -291,7 +306,6 @@ function showLeaderboard() {
     showScreen('screen-leaderboard');
     document.getElementById('host-controls').style.display = 'block';
     
-    // Broadcast Leaderboard data
     broadcast({ type: 'SHOW_LEADERBOARD', data: sortedPlayers.map(p => ({name: p.name, score: p.score})) });
 }
 
@@ -300,12 +314,27 @@ function nextQuestion() {
     runQuestion();
 }
 
+function finishGame() {
+    showScreen('screen-final');
+    // Generate final podium
+    const sortedPlayers = Object.values(players).sort((a, b) => b.score - a.score);
+    let html = '';
+    if(sortedPlayers.length > 0) html += `<h3 style="color:gold">🥇 ${sortedPlayers[0].name} - ${sortedPlayers[0].score}</h3>`;
+    if(sortedPlayers.length > 1) html += `<h3 style="color:silver">🥈 ${sortedPlayers[1].name} - ${sortedPlayers[1].score}</h3>`;
+    if(sortedPlayers.length > 2) html += `<h3 style="color:#cd7f32">🥉 ${sortedPlayers[2].name} - ${sortedPlayers[2].score}</h3>`;
+    
+    document.getElementById('final-podium').innerHTML = html;
+    
+    broadcast({ type: 'GAME_OVER', html: html });
+}
+
 function broadcast(data) {
     connections.forEach(c => c.send(data));
 }
 
 /* ---------------- STUDENT LOGIC ---------------- */
 function setupJoin() {
+    if (typeof Peer === 'undefined') return alert("Network library failed to load. Check internet.");
     showScreen('screen-join');
 }
 
@@ -316,7 +345,7 @@ function joinGame() {
     if(!id) return alert("Enter Game ID");
 
     document.getElementById('join-status').innerText = "Connecting...";
-    peer = new Peer(); // Client peer
+    peer = new Peer(); 
 
     peer.on('open', () => {
         conn = peer.connect(id);
@@ -337,7 +366,7 @@ function handleStudentData(data) {
         hasAnswered = false;
         renderQuestion(data.q, data.index, data.total);
         showScreen('screen-question');
-        startTimer(QUESTION_TIME); // Visual timer only
+        startTimer(QUESTION_TIME); 
     }
     else if (data.type === 'SHOW_LEADERBOARD') {
         renderLeaderboard(data.data);
@@ -345,22 +374,17 @@ function handleStudentData(data) {
         document.getElementById('host-controls').style.display = 'none';
         document.getElementById('waiting-msg').style.display = 'block';
     }
+    else if (data.type === 'GAME_OVER') {
+        document.getElementById('final-podium').innerHTML = data.html;
+        showScreen('screen-final');
+    }
 }
 
 function sendAnswer(index) {
     if (hasAnswered) return;
     hasAnswered = true;
     
-    // Visual feedback immediately
     const btns = document.querySelectorAll('.answer-btn');
-    const correctIndex = isHost ? currentQuestions[currentQIndex].a : -1; // Client doesn't know correct yet strictly speaking, but for simplicity:
-    
-    // In this simple P2P model, we are trusting the client logic for UI, 
-    // but scoring happens on server.
-    // To show immediate feedback, we need to know the correct answer.
-    // The Host sent the full 'q' object including 'a' (index) in NEW_QUESTION.
-    
-    // Check local q data
     const qData = isHost ? currentQuestions[currentQIndex] : window.lastReceivedQ;
     
     if (index === qData.a) {
@@ -373,7 +397,6 @@ function sendAnswer(index) {
         document.getElementById('feedback-text').style.color = "var(--danger)";
     }
 
-    // Send to Host
     if (!isHost) {
         conn.send({ type: 'ANSWER', answerIndex: index, timeLeft: timeRemaining });
     }
@@ -381,7 +404,7 @@ function sendAnswer(index) {
 
 /* ---------------- SHARED UI LOGIC ---------------- */
 function renderQuestion(q, index, total) {
-    if(!isHost) window.lastReceivedQ = q; // Save for client checking
+    if(!isHost) window.lastReceivedQ = q; 
 
     document.getElementById('q-counter').innerText = `Q: ${index}/${total}`;
     document.getElementById('q-text').innerText = q.q;
@@ -416,7 +439,7 @@ function startTimer(seconds, onComplete) {
     timeRemaining = seconds;
     const bar = document.getElementById('timer-bar');
     bar.style.width = '100%';
-    bar.style.transition = 'none'; // reset
+    bar.style.transition = 'none'; 
     
     setTimeout(() => {
         bar.style.transition = `width ${seconds}s linear`;
