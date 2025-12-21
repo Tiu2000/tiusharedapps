@@ -23,6 +23,20 @@
             overflow: hidden; height: 100vh; width: 100vw;
         }
 
+        /* --- WATERMARK --- */
+        .watermark {
+            position: fixed;
+            bottom: 15px;
+            right: 20px;
+            font-size: 24px;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.15); /* Subtle opacity */
+            z-index: 9999;
+            pointer-events: none; /* Allows clicking through it */
+            letter-spacing: 2px;
+            user-select: none;
+        }
+
         /* --- VIDEO LAYER --- */
         #video-background {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -135,6 +149,8 @@
 <body>
 
     <div id="video-background"><div id="yt-player"></div></div>
+
+    <div class="watermark">TIU</div>
 
     <div id="ui-layer">
         <div class="hud-panel">
