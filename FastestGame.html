@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Classroom P2P Quiz 3.0</title>
+    <title>Classroom P2P Quiz 4.0</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root { --primary: #4f46e5; --success: #22c55e; --danger: #ef4444; --bg: #f3f4f6; --card: #ffffff; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
@@ -12,20 +13,17 @@
         .screen.active { display: block; }
         input, select { padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1rem; width: 80%; margin: 10px 0; }
         button { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 1rem; cursor: pointer; margin: 5px; }
-        button:disabled { background: #9ca3af; cursor: not-allowed; opacity: 0.7; }
+        button:hover { opacity: 0.9; }
+        .fix-btn { background: #6b7280; font-size: 0.9rem; padding: 8px 16px; }
+        
+        /* Game UI */
         .answer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
         .answer-btn { background: #e0e7ff; color: #3730a3; font-size: 1.2rem; min-height: 80px; }
         .leaderboard-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; font-size: 1.2rem; }
         .correct { background: var(--success) !important; color: white !important; }
         .wrong { background: var(--danger) !important; color: white !important; }
-        .stat-box { background: #f8fafc; padding: 10px; border-radius: 8px; display: inline-block; margin: 5px; font-weight: bold; }
         .timer-bar { height: 10px; background: #e5e7eb; border-radius: 5px; margin: 20px 0; overflow: hidden; }
         .timer-fill { height: 100%; background: var(--primary); width: 100%; transition: width 1s linear; }
-        
-        /* Status Banner */
-        #network-status { padding: 10px; margin-bottom: 15px; border-radius: 8px; width: 100%; display: none; }
-        .status-error { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
-        .status-ok { background: #dcfce7; color: #166534; border: 1px solid #4ade80; }
     </style>
 </head>
 <body>
@@ -33,38 +31,45 @@
 <div class="container">
     <h1>🚀 Speed Quiz P2P</h1>
 
-    <div id="network-status"></div>
-
     <div id="screen-entry" class="screen active">
         <p>Are you the Teacher (Host) or a Student?</p>
-        <button onclick="setupHost()" id="btn-host" disabled>Host Game (Teacher)</button>
-        <button onclick="setupJoin()" id="btn-join" disabled>Join Game (Student)</button>
         
-        <div id="manual-load-area" style="display:none; margin-top:20px; border-top:1px solid #eee; padding-top:10px;">
-            <p style="font-size:0.9rem; color:#666;">Still stuck? Your internet is blocking the library.</p>
-            <p><strong>Fix:</strong> Download <a href="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js" target="_blank">peerjs.min.js</a>, save it in the same folder as this file, then click below:</p>
-            <button onclick="loadScript('local')" style="background:#4b5563;">I have saved the file locally</button>
+        <button onclick="setupHost()">Host Game (Teacher)</button>
+        <button onclick="setupJoin()">Join Game (Student)</button>
+
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+        
+        <div style="text-align: left; background: #fff1f2; padding: 15px; border-radius: 8px; border: 1px solid #fecdd3;">
+            <h3 style="margin-top:0; color: #be123c;">⚠️ Buttons not working?</h3>
+            <p style="font-size: 0.9rem; color: #881337;">Your school internet is blocking the connection file. Follow these steps:</p>
+            <ol style="font-size: 0.9rem; color: #881337; padding-left: 20px;">
+                <li><a href="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js" target="_blank" style="color: #be123c; font-weight: bold;">Download this file (peerjs.min.js)</a></li>
+                <li>Click the grey button below to select the file you just downloaded.</li>
+            </ol>
+            <input type="file" id="file-picker" style="display: none;" onchange="loadLocalFile(this)">
+            <button class="fix-btn" onclick="document.getElementById('file-picker').click()">📂 Select 'peerjs.min.js' File</button>
+            <span id="manual-status" style="font-weight: bold; margin-left: 10px;"></span>
         </div>
     </div>
 
     <div id="screen-host-lobby" class="screen">
         <h2>Host Lobby</h2>
-        <div class="stat-box">Game ID: <span id="display-id" style="color:var(--primary); font-size:1.5em; user-select: all;">...</span></div>
+        <div style="background:#f8fafc; padding:10px; border-radius:8px;">Game ID: <span id="display-id" style="color:var(--primary); font-size:1.5em; user-select: all;">Generating...</span></div>
         <p>Share this ID with your students.</p>
         <select id="grade-select">
             <option value="elementary">Elementary (Grades 1-5)</option>
             <option value="middle">Middle School (Grades 6-8)</option>
             <option value="high">High School (Grades 9-12)</option>
-            <option value="coding">Computer Science (Bonus)</option>
+            <option value="coding">Computer Science</option>
         </select>
-        <h3>Connected Students: <span id="host-player-count">0</span></h3>
+        <h3>Students: <span id="host-player-count">0</span></h3>
         <ul id="player-list" style="list-style: none; padding: 0; color: #666;"></ul>
         <button onclick="startGame()">Start Game</button>
     </div>
 
     <div id="screen-join" class="screen">
         <h2>Join Class</h2>
-        <input type="text" id="join-id" placeholder="Enter Game ID (from board)">
+        <input type="text" id="join-id" placeholder="Enter Game ID">
         <input type="text" id="player-name" placeholder="Your Name">
         <button onclick="joinGame()">Connect</button>
         <p id="join-status" style="color: #666;"></p>
@@ -72,8 +77,8 @@
 
     <div id="screen-question" class="screen">
         <div style="display:flex; justify-content:space-between;">
-            <span class="stat-box" id="q-counter">Q: 1/10</span>
-            <span class="stat-box" id="score-display">Score: 0</span>
+            <span id="q-counter">Q: 1/10</span>
+            <span id="score-display">Score: 0</span>
         </div>
         <div class="timer-bar"><div class="timer-fill" id="timer-bar"></div></div>
         <h2 id="q-text" style="font-size: 1.8rem;">Question</h2>
@@ -97,86 +102,70 @@
 </div>
 
 <script>
-/* ---------------- LIBRARY LOADER (The Fix) ---------------- */
-const SOURCES = [
-    "https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js",       // Source 1
-    "https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js", // Source 2
-    "peerjs.min.js"                                             // Local Backup
-];
-
-function setStatus(msg, type) {
-    const el = document.getElementById('network-status');
-    el.style.display = 'block';
-    el.innerHTML = msg;
-    el.className = type === 'error' ? 'status-error' : 'status-ok';
-}
-
-function loadScript(sourceIndex) {
-    if (sourceIndex === 'local') sourceIndex = 2; // Jump to local
-    if (sourceIndex >= SOURCES.length) {
-        setStatus("❌ Failed to load PeerJS. Firewall is blocking all sources.<br>Please use the download instructions below.", "error");
-        document.getElementById('manual-load-area').style.display = 'block';
-        return;
-    }
-
-    setStatus(`Attempting to load network library (Source ${sourceIndex+1})...`, "normal");
+/* ---------------- MANUAL FILE LOADER ---------------- */
+function loadLocalFile(input) {
+    const file = input.files[0];
+    if (!file) return;
     
-    const script = document.createElement('script');
-    script.src = SOURCES[sourceIndex];
-    script.onload = () => {
-        setStatus("✅ System Ready! Library Loaded.", "ok");
-        document.getElementById('btn-host').disabled = false;
-        document.getElementById('btn-join').disabled = false;
-        document.getElementById('manual-load-area').style.display = 'none';
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const scriptContent = e.target.result;
+        const script = document.createElement('script');
+        script.innerHTML = scriptContent;
+        document.head.appendChild(script);
+        
+        document.getElementById('manual-status').innerText = "✅ Loaded! Try clicking Host/Join now.";
+        document.getElementById('manual-status').style.color = "green";
     };
-    script.onerror = () => {
-        console.log("Failed source " + sourceIndex);
-        loadScript(sourceIndex + 1); // Try next source
-    };
-    document.head.appendChild(script);
+    reader.readAsText(file);
 }
 
-// Start loading immediately
-loadScript(0);
+function checkLibrary() {
+    if (typeof Peer === 'undefined') {
+        alert("⚠️ Connection Library Missing!\n\nPlease use the 'Manual Fix' section below to load the 'peerjs.min.js' file.");
+        return false;
+    }
+    return true;
+}
 
-/* ---------------- GAME LOGIC ---------------- */
+/* ---------------- DATA ---------------- */
 const QUESTION_BANK = {
     elementary: [
-        { q: "What is 5 x 8?", options: ["35", "40", "45", "42"], a: 1 },
-        { q: "Which planet is closest to the sun?", options: ["Venus", "Mars", "Mercury", "Earth"], a: 2 },
-        { q: "How many states are in the USA?", options: ["48", "50", "52", "13"], a: 1 },
-        { q: "Which animal lays eggs?", options: ["Dog", "Cat", "Chicken", "Cow"], a: 2 },
-        { q: "H2O is the chemical formula for?", options: ["Salt", "Air", "Water", "Gold"], a: 2 },
-        { q: "Who was the first US President?", options: ["Lincoln", "Washington", "Jefferson", "Adams"], a: 1 },
-        { q: "How many legs does a spider have?", options: ["6", "8", "10", "4"], a: 1 },
-        { q: "What color do you get mixing Blue and Yellow?", options: ["Purple", "Orange", "Green", "Brown"], a: 2 },
-        { q: "What is the opposite of 'Cold'?", options: ["Hot", "Freeze", "Ice", "Snow"], a: 0 }
+        { q: "5 x 8 = ?", options: ["35", "40", "45", "42"], a: 1 },
+        { q: "Closest planet to sun?", options: ["Venus", "Mars", "Mercury", "Earth"], a: 2 },
+        { q: "States in USA?", options: ["48", "50", "52", "13"], a: 1 },
+        { q: "Animal that lays eggs?", options: ["Dog", "Cat", "Chicken", "Cow"], a: 2 },
+        { q: "H2O is?", options: ["Salt", "Air", "Water", "Gold"], a: 2 },
+        { q: "First US President?", options: ["Lincoln", "Washington", "Jefferson", "Adams"], a: 1 },
+        { q: "Spider legs?", options: ["6", "8", "10", "4"], a: 1 },
+        { q: "Blue + Yellow = ?", options: ["Purple", "Orange", "Green", "Brown"], a: 2 },
+        { q: "Opposite of Cold?", options: ["Hot", "Freeze", "Ice", "Snow"], a: 0 }
     ],
     middle: [
-        { q: "Solve for x: 2x + 4 = 12", options: ["2", "3", "4", "6"], a: 2 },
-        { q: "What is the powerhouse of the cell?", options: ["Nucleus", "Ribosome", "Mitochondria", "Cytoplasm"], a: 2 },
-        { q: "Which ancient civilization built the pyramids?", options: ["Romans", "Greeks", "Egyptians", "Mayans"], a: 2 },
-        { q: "Who wrote 'Romeo and Juliet'?", options: ["Dickens", "Hemingway", "Shakespeare", "Twain"], a: 2 },
-        { q: "What gas do plants absorb from the atmosphere?", options: ["Oxygen", "Carbon Dioxide", "Nitrogen", "Helium"], a: 1 },
-        { q: "Which continent is the Sahara Desert in?", options: ["Asia", "South America", "Africa", "Australia"], a: 2 },
+        { q: "2x + 4 = 12, x=?", options: ["2", "3", "4", "6"], a: 2 },
+        { q: "Powerhouse of cell?", options: ["Nucleus", "Ribosome", "Mitochondria", "Cytoplasm"], a: 2 },
+        { q: "Built pyramids?", options: ["Romans", "Greeks", "Egyptians", "Mayans"], a: 2 },
+        { q: "Written by Shakespeare?", options: ["Dickens", "Hemingway", "Romeo & Juliet", "Twain"], a: 2 },
+        { q: "Plants absorb?", options: ["Oxygen", "CO2", "Nitrogen", "Helium"], a: 1 },
+        { q: "Sahara Desert location?", options: ["Asia", "S. America", "Africa", "Australia"], a: 2 },
         { q: "Start of WWI?", options: ["1914", "1918", "1939", "1945"], a: 0 }
     ],
     high: [
         { q: "Derivative of x^2?", options: ["x", "2x", "x^2", "2"], a: 1 },
-        { q: "Atomic number 6 is?", options: ["Oxygen", "Carbon", "Nitrogen", "Iron"], a: 1 },
+        { q: "Atomic #6?", options: ["Oxygen", "Carbon", "Nitrogen", "Iron"], a: 1 },
         { q: "Author of '1984'?", options: ["Huxley", "Orwell", "Bradbury", "Fitzgerald"], a: 1 },
-        { q: "Year Berlin Wall fell?", options: ["1987", "1989", "1991", "1985"], a: 1 },
-        { q: "F = ma refers to?", options: ["Newton's 1st", "Newton's 2nd", "Newton's 3rd", "Relativity"], a: 1 },
-        { q: "Genetic information molecule?", options: ["RNA", "Protein", "DNA", "Lipid"], a: 2 },
-        { q: "Pi to 2 decimals?", options: ["3.12", "3.14", "3.16", "3.18"], a: 1 },
+        { q: "Berlin Wall fell?", options: ["1987", "1989", "1991", "1985"], a: 1 },
+        { q: "F = ma?", options: ["Newton 1st", "Newton 2nd", "Newton 3rd", "Relativity"], a: 1 },
+        { q: "Genetic molecule?", options: ["RNA", "Protein", "DNA", "Lipid"], a: 2 },
+        { q: "Pi (2 decimals)?", options: ["3.12", "3.14", "3.16", "3.18"], a: 1 },
         { q: "Symbol for Gold?", options: ["Ag", "Au", "Fe", "Pb"], a: 1 }
     ],
     coding: [
-        { q: "What does HTML stand for?", options: ["Hyper Text Markup Language", "Home Tool Markup Language", "No idea", "None"], a: 0 },
-        { q: "ID symbol in CSS?", options: ".", "#", "@", "$", a: 1 },
+        { q: "HTML stands for?", options: ["Hyper Text Markup Language", "High Tech Multi Language", "Home Tool", "None"], a: 0 },
+        { q: "CSS ID symbol?", options: ".", "#", "@", "$", a: 1 },
         { q: "Web logic language?", options: ["Java", "Python", "JavaScript", "C++"], a: 2 },
         { q: "Array start index?", options: ["1", "0", "-1", "null"], a: 1 },
-        { q: "Boolean value?", options: ["Text", "Number", "True/False", "List"], a: 2 }
+        { q: "Boolean?", options: ["Text", "Number", "True/False", "List"], a: 2 }
     ]
 };
 
@@ -186,16 +175,15 @@ const QUESTION_TIME=15, MAX_POINTS=1000;
 function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 
 function setupHost() {
+    if(!checkLibrary()) return;
     isHost = true;
-    try {
-        peer = new Peer(null, { debug: 2 });
-        peer.on('open', (id) => { document.getElementById('display-id').innerText = id; showScreen('screen-host-lobby'); });
-        peer.on('error', (err) => alert("Error: " + err.type));
-        peer.on('connection', (c) => {
-            c.on('data', (d) => handleHostData(c, d));
-            c.on('open', () => connections.push(c));
-        });
-    } catch(e) { alert("PeerJS failed to start. Check library loaded."); }
+    peer = new Peer(null, { debug: 2 });
+    peer.on('open', (id) => { document.getElementById('display-id').innerText = id; showScreen('screen-host-lobby'); });
+    peer.on('error', (err) => alert("PeerJS Error: " + err.type));
+    peer.on('connection', (c) => {
+        c.on('data', (d) => handleHostData(c, d));
+        c.on('open', () => connections.push(c));
+    });
 }
 
 function handleHostData(conn, data) {
@@ -250,6 +238,7 @@ function showLeaderboard() {
 }
 
 function nextQuestion() { currentQIndex++; runQuestion(); }
+
 function finishGame() {
     showScreen('screen-final');
     const sorted = Object.values(players).sort((a, b) => b.score - a.score);
@@ -259,10 +248,15 @@ function finishGame() {
     document.getElementById('final-podium').innerHTML = html;
     broadcast({ type: 'GAME_OVER', html: html });
 }
+
 function broadcast(d) { connections.forEach(c => c.send(d)); }
 
 /* CLIENT */
-function setupJoin() { showScreen('screen-join'); }
+function setupJoin() {
+    if(!checkLibrary()) return;
+    showScreen('screen-join');
+}
+
 function joinGame() {
     const id = document.getElementById('join-id').value;
     myName = document.getElementById('player-name').value || "Student";
@@ -276,11 +270,13 @@ function joinGame() {
         conn.on('error', (e) => alert("Error: " + e));
     });
 }
+
 function handleStudentData(data) {
     if (data.type === 'NEW_QUESTION') { hasAnswered = false; renderQuestion(data.q, data.index, data.total); showScreen('screen-question'); startTimer(QUESTION_TIME); }
     if (data.type === 'SHOW_LEADERBOARD') { renderLeaderboard(data.data); showScreen('screen-leaderboard'); document.getElementById('waiting-msg').style.display = 'block'; }
     if (data.type === 'GAME_OVER') { document.getElementById('final-podium').innerHTML = data.html; showScreen('screen-final'); }
 }
+
 function sendAnswer(idx) {
     if (hasAnswered) return;
     hasAnswered = true;
@@ -290,6 +286,7 @@ function sendAnswer(idx) {
     else { btns[idx].classList.add('wrong'); document.getElementById('feedback-text').innerText = "Wrong!"; document.getElementById('feedback-text').style.color="var(--danger)"; }
     if (!isHost) conn.send({ type: 'ANSWER', answerIndex: idx, timeLeft: timeRemaining });
 }
+
 function renderQuestion(q, i, t) {
     if(!isHost) window.lastReceivedQ = q;
     document.getElementById('q-counter').innerText = `Q: ${i}/${t}`;
@@ -301,11 +298,13 @@ function renderQuestion(q, i, t) {
         b.onclick = () => sendAnswer(idx); c.appendChild(b);
     });
 }
+
 function renderLeaderboard(data) {
     let html = '';
     data.forEach((p, i) => html += `<div class="leaderboard-item" style="${p.name===myName?'background:#e0e7ff':''}"><span>#${i+1} ${p.name}</span><span>${p.score} pts</span></div>`);
     document.getElementById('leaderboard-list').innerHTML = html;
 }
+
 function startTimer(s, cb) {
     clearInterval(timerInterval); timeRemaining = s;
     const b = document.getElementById('timer-bar'); b.style.width='100%'; b.style.transition='none';
