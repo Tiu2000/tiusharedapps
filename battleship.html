@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNES Battleship P2P</title>
+    <title>SNES Battleship - Classroom Edition</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     
@@ -18,6 +18,7 @@
             --text-color: #e0e0e0;
             --ui-bg: #1a1a2e;
             --ui-border: #dcdcdc;
+            --highlight: #ffcc00;
         }
 
         body {
@@ -33,7 +34,7 @@
             user-select: none;
         }
 
-        /* Scanline Overlay for SNES CRT feel */
+        /* Scanline Overlay */
         .scanlines {
             position: fixed;
             top: 0;
@@ -55,42 +56,63 @@
         h1 {
             text-shadow: 4px 4px 0px #000;
             margin-top: 20px;
-            font-size: 24px;
-            color: #ffcc00;
+            font-size: 28px;
+            color: var(--highlight);
+            text-align: center;
+            line-height: 1.5;
         }
 
         /* TIU Watermark */
         .watermark {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            font-size: 48px;
-            color: rgba(255, 255, 255, 0.1);
+            bottom: 15px;
+            right: 15px;
+            font-size: 30px;
+            color: rgba(255, 255, 255, 0.15);
             pointer-events: none;
             z-index: 100;
             font-weight: bold;
+            font-family: sans-serif; /* Cleaner look for watermark */
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            padding: 5px 10px;
+            border-radius: 4px;
         }
 
         /* Connection Panel */
         #connection-panel {
             background: var(--ui-bg);
             border: 4px solid var(--ui-border);
-            padding: 20px;
+            padding: 30px;
             margin: 20px;
             text-align: center;
             box-shadow: 8px 8px 0px #000;
-            max-width: 600px;
+            max-width: 700px;
+            width: 90%;
         }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border: 2px solid #444;
+        }
+
+        h3 { color: #00ffff; margin-top: 0; }
 
         input[type="text"] {
             background: #000;
             color: #0f0;
             border: 2px solid #555;
-            padding: 10px;
+            padding: 15px;
             font-family: 'Press Start 2P', cursive;
-            margin: 10px 0;
-            width: 250px;
+            font-size: 16px;
             text-transform: uppercase;
+            text-align: center;
+            width: 80%;
+            align-self: center;
         }
 
         button {
@@ -99,26 +121,19 @@
             border: 4px solid #fff;
             padding: 15px 20px;
             font-family: 'Press Start 2P', cursive;
+            font-size: 14px;
             cursor: pointer;
-            margin: 5px;
+            margin-top: 10px;
             box-shadow: 4px 4px 0px #000;
             transition: transform 0.1s;
         }
 
-        button:active {
-            transform: translate(2px, 2px);
-            box-shadow: 2px 2px 0px #000;
-        }
-
-        button:disabled {
-            background: #555;
-            color: #888;
-            cursor: not-allowed;
-        }
+        button:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000; }
+        button:disabled { background: #555; color: #888; border-color: #888; cursor: not-allowed; }
 
         /* Game Area */
         #game-area {
-            display: none; /* Hidden until connected */
+            display: none;
             flex-direction: row;
             flex-wrap: wrap;
             justify-content: center;
@@ -126,15 +141,8 @@
             padding: 20px;
         }
 
-        .board-container {
-            text-align: center;
-        }
-
-        .board-title {
-            margin-bottom: 10px;
-            color: #00ff00;
-            text-shadow: 2px 2px #000;
-        }
+        .board-container { text-align: center; }
+        .board-title { margin-bottom: 15px; color: #00ff00; text-shadow: 2px 2px #000; }
 
         .grid {
             display: grid;
@@ -154,45 +162,33 @@
             position: relative;
         }
 
-        /* Visual states for cells */
-        .cell.ship { background-color: var(--ship-color); box-shadow: inset 2px 2px 0 rgba(255,255,255,0.5); }
+        /* Visual states */
+        .cell.ship { background-color: var(--ship-color); box-shadow: inset 3px 3px 0 rgba(255,255,255,0.3); }
         .cell.hit { background-color: var(--hit-color); }
         .cell.miss { background-color: var(--water-color); }
-        
-        /* Markers for hits/misses */
-        .cell.hit::after { content: 'X'; position: absolute; top: 4px; left: 4px; color: yellow; font-size: 14px; }
-        .cell.miss::after { content: 'O'; position: absolute; top: 4px; left: 4px; color: var(--miss-color); font-size: 14px; }
+        .cell.hit::after { content: 'X'; position: absolute; top: 5px; left: 5px; color: yellow; font-size: 16px; }
+        .cell.miss::after { content: '•'; position: absolute; top: 2px; left: 6px; color: var(--miss-color); font-size: 20px; }
 
-        /* Preview during placement */
-        .cell.preview-valid { background-color: rgba(0, 255, 0, 0.5); }
-        .cell.preview-invalid { background-color: rgba(255, 0, 0, 0.5); }
+        .cell.preview-valid { background-color: #00ff00; opacity: 0.6; }
+        .cell.preview-invalid { background-color: #ff0000; opacity: 0.6; }
 
         #status-log {
-            margin-top: 20px;
+            margin-top: 10px;
             background: #000;
             color: #0f0;
-            padding: 10px;
+            padding: 15px;
             border: 2px solid #555;
             width: 80%;
             text-align: center;
-            min-height: 1.5em;
             font-size: 12px;
             box-shadow: 4px 4px 0 #000;
+            line-height: 1.5;
         }
 
-        #rotate-btn {
-            display: none;
-            margin-bottom: 10px;
-            background-color: #0044aa;
-        }
+        #rotate-btn { display: none; margin-bottom: 15px; background-color: #0044aa; }
+        #enemy-grid.disabled { opacity: 0.6; pointer-events: none; filter: grayscale(100%); }
 
-        /* Enemy board interaction only active when playing */
-        #enemy-grid.disabled {
-            opacity: 0.7;
-            pointer-events: none;
-        }
-
-        /* Overlay for alerts */
+        /* Overlay */
         #overlay-msg {
             display: none;
             position: fixed;
@@ -200,12 +196,15 @@
             left: 50%;
             transform: translate(-50%, -50%);
             background: #000;
-            border: 4px solid #fff;
-            padding: 40px;
+            border: 6px solid #fff;
+            padding: 50px;
             z-index: 1000;
             text-align: center;
-            box-shadow: 10px 10px 0px #000;
+            box-shadow: 15px 15px 0px #000;
         }
+
+        /* Error Text */
+        .error-text { color: #ff5555; font-size: 10px; margin-top: 5px; min-height: 15px; }
 
     </style>
 </head>
@@ -214,60 +213,65 @@
     <div class="scanlines"></div>
     <div class="watermark">TIU</div>
 
-    <h1>NAVAL BATTLE P2P</h1>
+    <h1>BATTLESHIP P2P</h1>
 
     <div id="connection-panel">
-        <p>1. Host copies ID<br>2. Peer joins with ID</p>
-        <div id="host-controls">
-            <button id="btn-host">Host Game</button>
-            <div id="my-id-display" style="margin-top: 10px; font-size: 12px; color: yellow;"></div>
+        <p>Pick a unique room name (e.g. "Table1")</p>
+        
+        <div class="input-group">
+            <h3>CREATE A GAME</h3>
+            <input type="text" id="host-name-input" placeholder="Enter Room Name" maxlength="15">
+            <div id="host-error" class="error-text"></div>
+            <button id="btn-host">Create Room</button>
         </div>
-        <hr style="border: 1px dashed #555; margin: 15px 0;">
-        <div id="join-controls">
-            <input type="text" id="join-id-input" placeholder="Enter Host ID">
-            <button id="btn-join">Join Game</button>
+
+        <div style="font-size: 10px; color: #666;">--- OR ---</div>
+
+        <div class="input-group">
+            <h3>JOIN A GAME</h3>
+            <input type="text" id="join-name-input" placeholder="Enter Room Name" maxlength="15">
+            <div id="join-error" class="error-text"></div>
+            <button id="btn-join">Join Room</button>
         </div>
-        <p id="conn-status" style="color: #888; margin-top:10px;">Status: Disconnected</p>
+        
+        <p id="conn-status" style="color: #888; margin-top:20px;">System Standby...</p>
     </div>
 
     <button id="rotate-btn">Rotate Ship (R)</button>
-    <div id="status-log">Welcome, Commander.</div>
+    <div id="status-log">Awaiting Orders...</div>
 
     <div id="game-area">
         <div class="board-container">
-            <div class="board-title">RADAR (Enemy)</div>
+            <div class="board-title">ENEMY RADAR</div>
             <div id="enemy-grid" class="grid disabled"></div>
         </div>
         <div class="board-container">
-            <div class="board-title">FLEET (You)</div>
+            <div class="board-title">YOUR FLEET</div>
             <div id="my-grid" class="grid"></div>
         </div>
     </div>
 
     <div id="overlay-msg">
         <h2 id="overlay-text">GAME OVER</h2>
-        <button onclick="location.reload()">REMATCH</button>
+        <button onclick="location.reload()">PLAY AGAIN</button>
     </div>
 
     <script>
         // --- Game Configuration ---
         const GRID_SIZE = 10;
-        const SHIPS = [5, 4, 3, 3, 2]; // Length of ships
-        
-        // --- State Variables ---
+        const SHIPS = [5, 4, 3, 3, 2]; 
+        const PREFIX = "tiu_battleship_p2p_"; // Hidden prefix to keep rooms unique on public server
+
+        // --- State ---
         let peer = null;
         let conn = null;
-        let myId = null;
         let isHost = false;
-        
-        let gameState = 'LOBBY'; // LOBBY, PLACING, WAITING_OPPONENT, PLAYING, GAME_OVER
+        let gameState = 'LOBBY'; 
         let isMyTurn = false;
         
-        // Boards: 0=empty, 1=ship, 2=miss, 3=hit
         let myBoard = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
-        let enemyBoardView = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0)); // What we see of enemy
+        let enemyBoardView = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
         
-        // Placement variables
         let shipsToPlace = [...SHIPS];
         let currentShipSize = shipsToPlace[0];
         let isVertical = false;
@@ -275,17 +279,15 @@
         let enemyTotalHitsTaken = 0;
         const totalShipCells = SHIPS.reduce((a,b)=>a+b, 0);
 
-        // --- Sound Effects System (Web Audio API) ---
+        // --- Sound Effects (Synthesized) ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
         function playSound(type) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             osc.connect(gainNode);
             gainNode.connect(audioCtx.destination);
-
             const now = audioCtx.currentTime;
 
             if (type === 'select') {
@@ -294,42 +296,144 @@
                 osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
                 gainNode.gain.setValueAtTime(0.1, now);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                osc.start(now);
-                osc.stop(now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
             } else if (type === 'shoot') {
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(800, now);
                 osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
                 gainNode.gain.setValueAtTime(0.1, now);
                 gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
-                osc.start(now);
-                osc.stop(now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
             } else if (type === 'hit') {
-                osc.type = 'square'; // Noise approx
-                // Simple low boom
+                osc.type = 'square';
                 osc.frequency.setValueAtTime(150, now);
                 osc.frequency.exponentialRampToValueAtTime(40, now + 0.4);
                 gainNode.gain.setValueAtTime(0.3, now);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-                osc.start(now);
-                osc.stop(now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
             } else if (type === 'miss') {
-                // High pitch ping for splash
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(600, now);
                 osc.frequency.linearRampToValueAtTime(300, now + 0.2);
                 gainNode.gain.setValueAtTime(0.1, now);
                 gainNode.gain.linearRampToValueAtTime(0, now + 0.2);
-                osc.start(now);
-                osc.stop(now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
             }
         }
 
-        // --- UI Initialization ---
+        // --- Helper: Clean Input ---
+        function sanitizeInput(input) {
+            return input.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        }
+
+        // --- PeerJS Networking ---
+        const hostBtn = document.getElementById('btn-host');
+        const joinBtn = document.getElementById('btn-join');
+        const connStatus = document.getElementById('conn-status');
+
+        hostBtn.addEventListener('click', () => {
+            const name = sanitizeInput(document.getElementById('host-name-input').value);
+            if(name.length < 3) {
+                document.getElementById('host-error').innerText = "Name too short (3+ chars)";
+                return;
+            }
+            playSound('select');
+            initHost(name);
+        });
+
+        joinBtn.addEventListener('click', () => {
+            const name = sanitizeInput(document.getElementById('join-name-input').value);
+            if(name.length < 3) {
+                document.getElementById('join-error').innerText = "Name too short (3+ chars)";
+                return;
+            }
+            playSound('select');
+            initJoin(name);
+        });
+
+        function initHost(roomName) {
+            hostBtn.disabled = true;
+            joinBtn.disabled = true;
+            connStatus.innerText = "Creating Room: " + roomName + "...";
+            
+            // Create Peer with a specific ID based on room name
+            const fullId = PREFIX + roomName;
+            
+            peer = new Peer(fullId);
+
+            peer.on('open', (id) => {
+                isHost = true;
+                connStatus.innerText = `Room Created: "${roomName}". Waiting for player...`;
+                connStatus.style.color = "#ffcc00";
+            });
+
+            peer.on('connection', (connection) => {
+                setupConnection(connection);
+            });
+
+            peer.on('error', (err) => {
+                console.log(err);
+                if(err.type === 'unavailable-id') {
+                    document.getElementById('host-error').innerText = "Room name taken! Try another.";
+                    connStatus.innerText = "Error.";
+                    hostBtn.disabled = false;
+                    joinBtn.disabled = false;
+                } else {
+                    connStatus.innerText = "Network Error.";
+                }
+            });
+        }
+
+        function initJoin(roomName) {
+            hostBtn.disabled = true;
+            joinBtn.disabled = true;
+            connStatus.innerText = "Searching for Room: " + roomName + "...";
+
+            // When joining, we don't need a specific ID, we just need to connect TO the specific ID
+            peer = new Peer(); 
+
+            peer.on('open', (id) => {
+                const targetId = PREFIX + roomName;
+                conn = peer.connect(targetId);
+                
+                // If connection fails silently (peer doesn't exist), PeerJS is tricky.
+                // We set a timeout to detect failure.
+                const timeout = setTimeout(() => {
+                    if(!conn.open) {
+                        connStatus.innerText = "Room not found or full.";
+                        hostBtn.disabled = false;
+                        joinBtn.disabled = false;
+                    }
+                }, 5000);
+
+                conn.on('open', () => {
+                    clearTimeout(timeout);
+                    setupConnection(conn);
+                });
+                
+                conn.on('error', (err) => {
+                    clearTimeout(timeout);
+                    connStatus.innerText = "Connection Failed.";
+                });
+            });
+        }
+
+        function setupConnection(connection) {
+            conn = connection;
+            conn.on('open', () => {
+                document.getElementById('connection-panel').style.display = 'none';
+                document.getElementById('game-area').style.display = 'flex';
+                startPlacementPhase();
+            });
+            conn.on('data', handleData);
+        }
+
+        // --- Game Logic ---
+        // (Almost identical to previous, ensuring flow works)
+
         const myGridEl = document.getElementById('my-grid');
         const enemyGridEl = document.getElementById('enemy-grid');
         const statusLog = document.getElementById('status-log');
-        const connStatus = document.getElementById('conn-status');
 
         function createGrid(element, isEnemy) {
             element.innerHTML = '';
@@ -337,112 +441,22 @@
                 for (let x = 0; x < GRID_SIZE; x++) {
                     const cell = document.createElement('div');
                     cell.className = 'cell';
-                    cell.dataset.x = x;
-                    cell.dataset.y = y;
-                    
                     if (!isEnemy) {
-                        // Placement Logic Handlers
                         cell.addEventListener('mouseover', () => handleHover(x, y));
                         cell.addEventListener('click', () => handleClickMyGrid(x, y));
                     } else {
-                        // Attack Logic
                         cell.addEventListener('click', () => handleClickEnemyGrid(x, y));
                     }
                     element.appendChild(cell);
                 }
             }
         }
-
         createGrid(myGridEl, false);
         createGrid(enemyGridEl, true);
 
-        // --- PeerJS Networking ---
-
-        document.getElementById('btn-host').addEventListener('click', () => {
-            initializePeer();
-            isHost = true;
-            statusLog.innerText = "Initializing Comm-Link...";
-            playSound('select');
-        });
-
-        document.getElementById('btn-join').addEventListener('click', () => {
-            const hostId = document.getElementById('join-id-input').value;
-            if(!hostId) return alert("Enter Host ID");
-            playSound('select');
-            initializePeer(hostId);
-        });
-
-        function initializePeer(targetId = null) {
-            peer = new Peer(); // Auto-generate ID
-
-            peer.on('open', (id) => {
-                myId = id;
-                if (!targetId) {
-                    // We are hosting
-                    document.getElementById('my-id-display').innerText = `MY ID: ${id} (Send to friend)`;
-                    connStatus.innerText = "Waiting for peer...";
-                    document.getElementById('btn-host').disabled = true;
-                    document.getElementById('btn-join').disabled = true;
-                } else {
-                    // We are joining
-                    connectToPeer(targetId);
-                }
-            });
-
-            peer.on('connection', (connection) => {
-                if(conn) return; // Already connected
-                setupConnection(connection);
-            });
-            
-            peer.on('error', (err) => {
-                console.error(err);
-                alert("Connection Error. Refresh and try again.");
-            });
-        }
-
-        function connectToPeer(id) {
-            conn = peer.connect(id);
-            setupConnection(conn);
-        }
-
-        function setupConnection(connection) {
-            conn = connection;
-            
-            conn.on('open', () => {
-                connStatus.innerText = "Status: CONNECTED";
-                connStatus.style.color = "#0f0";
-                document.getElementById('connection-panel').style.display = 'none';
-                document.getElementById('game-area').style.display = 'flex';
-                startPlacementPhase();
-            });
-
-            conn.on('data', (data) => handleData(data));
-        }
-
-        function handleData(data) {
-            switch(data.type) {
-                case 'READY':
-                    if (gameState === 'WAITING_OPPONENT') {
-                        startGame();
-                    } else {
-                        // If we receive ready but aren't done placing, note that opponent is waiting
-                        statusLog.innerText = "Opponent is ready. Finish placing ships!";
-                    }
-                    break;
-                case 'FIRE':
-                    receiveFire(data.x, data.y);
-                    break;
-                case 'RESULT':
-                    processResult(data.x, data.y, data.hit);
-                    break;
-            }
-        }
-
-        // --- Game Logic: Placement ---
-
         function startPlacementPhase() {
             gameState = 'PLACING';
-            statusLog.innerText = `Place Ship (Length: ${currentShipSize}). Press R to rotate.`;
+            statusLog.innerText = `DEPLOY: Size ${currentShipSize} (Press R to Rotate)`;
             document.getElementById('rotate-btn').style.display = 'block';
         }
 
@@ -450,191 +464,151 @@
             isVertical = !isVertical;
             playSound('select');
         });
-
         document.addEventListener('keydown', (e) => {
-            if(e.key === 'r' || e.key === 'R') isVertical = !isVertical;
+            if(e.key.toLowerCase() === 'r') isVertical = !isVertical;
         });
 
         function handleHover(x, y) {
             if (gameState !== 'PLACING') return;
-            
-            // clear previews
-            document.querySelectorAll('.preview-valid, .preview-invalid').forEach(el => {
-                el.classList.remove('preview-valid', 'preview-invalid');
-            });
+            document.querySelectorAll('.preview-valid, .preview-invalid').forEach(el => 
+                el.classList.remove('preview-valid', 'preview-invalid'));
 
             const cells = getShipCells(x, y, currentShipSize, isVertical);
             const isValid = isValidPlacement(cells);
-            
             cells.forEach(pos => {
-                if (pos.x >= 0 && pos.x < GRID_SIZE && pos.y >= 0 && pos.y < GRID_SIZE) {
+                if (pos.x < GRID_SIZE && pos.y < GRID_SIZE) {
                     const idx = pos.y * GRID_SIZE + pos.x;
-                    const cell = myGridEl.children[idx];
-                    cell.classList.add(isValid ? 'preview-valid' : 'preview-invalid');
+                    myGridEl.children[idx].classList.add(isValid ? 'preview-valid' : 'preview-invalid');
                 }
             });
         }
 
         function handleClickMyGrid(x, y) {
             if (gameState !== 'PLACING') return;
-
             const cells = getShipCells(x, y, currentShipSize, isVertical);
             if (isValidPlacement(cells)) {
                 playSound('select');
-                // Place ship
                 cells.forEach(pos => {
-                    myBoard[pos.y][pos.x] = 1; // 1 = ship
-                    const idx = pos.y * GRID_SIZE + pos.x;
-                    myGridEl.children[idx].classList.add('ship');
+                    myBoard[pos.y][pos.x] = 1; 
+                    myGridEl.children[pos.y * GRID_SIZE + pos.x].classList.add('ship');
                 });
-
-                // Next ship
                 shipsToPlace.shift();
                 if (shipsToPlace.length > 0) {
                     currentShipSize = shipsToPlace[0];
-                    statusLog.innerText = `Place Ship (Length: ${currentShipSize})`;
+                    statusLog.innerText = `DEPLOY: Size ${currentShipSize}`;
                 } else {
-                    finishPlacement();
+                    gameState = 'WAITING_OPPONENT';
+                    statusLog.innerText = "WAITING FOR OPPONENT...";
+                    document.getElementById('rotate-btn').style.display = 'none';
+                    conn.send({ type: 'READY' });
                 }
             } else {
-                playSound('miss'); // Error sound
+                playSound('miss'); 
             }
         }
 
         function getShipCells(x, y, length, vertical) {
             const cells = [];
-            for (let i = 0; i < length; i++) {
-                cells.push({ x: vertical ? x : x + i, y: vertical ? y + i : y });
-            }
+            for (let i = 0; i < length; i++) cells.push({ x: vertical ? x : x + i, y: vertical ? y + i : y });
             return cells;
         }
 
         function isValidPlacement(cells) {
             return cells.every(pos => 
-                pos.x >= 0 && pos.x < GRID_SIZE &&
-                pos.y >= 0 && pos.y < GRID_SIZE &&
-                myBoard[pos.y][pos.x] === 0
+                pos.x >= 0 && pos.x < GRID_SIZE && pos.y >= 0 && pos.y < GRID_SIZE && myBoard[pos.y][pos.x] === 0
             );
         }
 
-        function finishPlacement() {
-            gameState = 'WAITING_OPPONENT';
-            statusLog.innerText = "Fleet Deployed. Waiting for opponent...";
-            document.getElementById('rotate-btn').style.display = 'none';
-            conn.send({ type: 'READY' });
+        function handleData(data) {
+            if(data.type === 'READY') {
+                if(gameState === 'WAITING_OPPONENT') startGame();
+                else statusLog.innerText = "Opponent Ready. Finish deploying!";
+            }
+            if(data.type === 'FIRE') receiveFire(data.x, data.y);
+            if(data.type === 'RESULT') processResult(data.x, data.y, data.hit);
         }
-
-        // --- Game Logic: Battle ---
 
         function startGame() {
             gameState = 'PLAYING';
-            // Determine turn: Host goes first
-            isMyTurn = isHost;
+            isMyTurn = isHost; // Host goes first
             updateTurnUI();
         }
 
         function updateTurnUI() {
             if (isMyTurn) {
-                statusLog.innerText = "YOUR TURN - Select coordinates on Radar.";
-                statusLog.style.color = "#0f0";
+                statusLog.innerText = "YOUR TURN: Fire on Enemy Radar";
+                statusLog.style.color = "#00ff00";
                 enemyGridEl.classList.remove('disabled');
             } else {
-                statusLog.innerText = "ENEMY TURN - Brace for impact!";
-                statusLog.style.color = "#f00";
+                statusLog.innerText = "ENEMY TURN: Hold fast!";
+                statusLog.style.color = "#ff3333";
                 enemyGridEl.classList.add('disabled');
             }
         }
 
         function handleClickEnemyGrid(x, y) {
-            if (gameState !== 'PLAYING' || !isMyTurn) return;
-            if (enemyBoardView[y][x] !== 0) return; // Already fired here
-
+            if (gameState !== 'PLAYING' || !isMyTurn || enemyBoardView[y][x] !== 0) return;
             playSound('shoot');
-            enemyBoardView[y][x] = 2; // Mark temporary (prevent double click)
+            enemyBoardView[y][x] = 2; // prevent double click
             isMyTurn = false;
-            enemyGridEl.classList.add('disabled'); // Disable immediately
-            statusLog.innerText = "Firing...";
-            
-            // Send fire command
+            enemyGridEl.classList.add('disabled');
+            statusLog.innerText = "FIRING...";
             conn.send({ type: 'FIRE', x, y });
         }
 
         function receiveFire(x, y) {
             const isHit = myBoard[y][x] === 1;
-            
-            // Update local board
-            myBoard[y][x] = isHit ? 3 : 2; // 3 hit, 2 miss
+            myBoard[y][x] = isHit ? 3 : 2;
             const idx = y * GRID_SIZE + x;
             const cell = myGridEl.children[idx];
             cell.classList.add(isHit ? 'hit' : 'miss');
-
-            if (isHit) {
+            
+            if(isHit) {
                 playSound('hit');
                 myTotalHitsTaken++;
-                // Check loss condition
-                if (myTotalHitsTaken >= totalShipCells) {
-                    conn.send({ type: 'RESULT', hit: true, x, y, gameOver: true });
+                if(myTotalHitsTaken >= totalShipCells) {
+                    conn.send({ type: 'RESULT', hit: true, x, y });
                     endGame(false);
                     return;
                 }
             } else {
                 playSound('miss');
             }
-
-            // Send result back
             conn.send({ type: 'RESULT', hit: isHit, x, y });
-            
-            // My turn now
             isMyTurn = true;
             updateTurnUI();
         }
 
         function processResult(x, y, hit) {
-            // Update enemy view
             enemyBoardView[y][x] = hit ? 3 : 2;
             const idx = y * GRID_SIZE + x;
             const cell = enemyGridEl.children[idx];
-            cell.classList.remove('preview-valid'); // cleanup
+            cell.classList.remove('preview-valid');
             cell.classList.add(hit ? 'hit' : 'miss');
-
-            if (hit) {
+            
+            if(hit) {
                 playSound('hit');
                 enemyTotalHitsTaken++;
-                statusLog.innerText = "DIRECT HIT!";
-                
-                // We don't rely on local calc for win, we wait for 'gameOver' flag usually, 
-                // but for simplicity in this script let's just count.
-                if (enemyTotalHitsTaken >= totalShipCells) {
-                    endGame(true);
-                    return;
-                }
+                statusLog.innerText = "TARGET HIT!";
+                if(enemyTotalHitsTaken >= totalShipCells) endGame(true);
             } else {
                 playSound('miss');
-                statusLog.innerText = "Missed.";
+                statusLog.innerText = "SPLASH. Target missed.";
             }
-
-            // Still not my turn, opponent logic runs `receiveFire` then gives turn back
-            // Wait... classic battleship: if you hit, do you go again? 
-            // In this simple version: Alternate turns strictly.
         }
 
         function endGame(victory) {
             gameState = 'GAME_OVER';
             document.getElementById('overlay-msg').style.display = 'block';
             const title = document.getElementById('overlay-text');
-            if (victory) {
-                title.innerText = "VICTORY!";
-                title.style.color = "#0f0";
-                playSound('select'); // reused as victory jingle trigger
+            if(victory) {
+                title.innerText = "VICTORY";
+                title.style.color = "#00ff00";
             } else {
                 title.innerText = "DEFEAT";
-                title.style.color = "#f00";
+                title.style.color = "#ff0000";
             }
         }
-
-        // Handle case where opponent declares game over in RESULT
-        // Modified handleData to support custom gameOver payload if needed, 
-        // but simple counting works for trusted clients.
     </script>
 </body>
 </html>
