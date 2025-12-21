@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNES Battleship - Robust P2P</title>
+    <title>SNES Battleship - Instant Action</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     
@@ -12,9 +12,9 @@
             --bg-color: #2c0e37;
             --water-color: #3b3b98;
             --grid-line: #5d5dff;
+            --ship-color: #8b8b8b;
             --hit-color: #ff3e3e;
             --miss-color: #ffffff;
-            --ship-color: #8b8b8b;
             --text-color: #e0e0e0;
             --ui-bg: #1a1a2e;
             --ui-border: #dcdcdc;
@@ -30,152 +30,107 @@
             min-height: 100vh;
             user-select: none;
             overflow-x: hidden;
+            margin: 0;
         }
 
         .scanlines {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
-            background-size: 100% 4px;
-            pointer-events: none;
-            z-index: 999;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%);
+            background-size: 100% 4px; pointer-events: none; z-index: 999;
         }
 
         h1 {
-            color: #ffcc00;
-            text-shadow: 4px 4px 0px #000;
-            text-align: center;
-            font-size: 24px;
-            margin-top: 20px;
+            color: #ffcc00; text-shadow: 4px 4px 0 #000;
+            font-size: 24px; margin-top: 20px; text-align: center;
         }
 
-        /* TIU Watermark */
         .watermark {
-            position: fixed;
-            bottom: 10px; right: 10px;
-            font-size: 20px;
-            color: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            padding: 5px;
-            font-family: sans-serif;
-            font-weight: bold;
-            z-index: 100;
+            position: fixed; bottom: 10px; right: 10px;
+            font-size: 16px; color: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.2); padding: 5px;
+            font-family: sans-serif; font-weight: bold; z-index: 100;
         }
 
-        /* Connection Panel */
+        /* --- CONNECTION PANEL --- */
         #connection-panel {
-            background: var(--ui-bg);
-            border: 4px solid var(--ui-border);
-            padding: 20px;
-            margin-top: 20px;
-            text-align: center;
-            box-shadow: 8px 8px 0px #000;
-            max-width: 600px;
-            width: 90%;
+            background: var(--ui-bg); border: 4px solid var(--ui-border);
+            padding: 20px; margin-top: 20px; text-align: center;
+            box-shadow: 8px 8px 0 #000; max-width: 600px; width: 90%;
         }
 
         .panel-section {
-            background: rgba(0,0,0,0.3);
-            border: 2px solid #555;
-            padding: 15px;
-            margin: 10px 0;
+            background: rgba(0,0,0,0.3); border: 2px solid #555;
+            padding: 15px; margin: 10px 0;
         }
 
         input[type="text"] {
-            background: #000;
-            color: #0f0;
-            border: 2px solid #fff;
-            padding: 10px;
-            font-family: 'Press Start 2P', cursive;
-            text-align: center;
-            width: 70%;
-            text-transform: uppercase;
-            font-size: 14px;
+            background: #000; color: #0f0; border: 2px solid #fff;
+            padding: 10px; font-family: 'Press Start 2P', cursive;
+            text-align: center; width: 70%; text-transform: uppercase;
         }
 
         button {
-            background: #a90000;
-            color: #fff;
-            border: 4px solid #fff;
-            padding: 10px 15px;
-            font-family: 'Press Start 2P', cursive;
-            cursor: pointer;
-            margin-top: 10px;
-            box-shadow: 4px 4px 0px #000;
+            background: #a90000; color: #fff; border: 4px solid #fff;
+            padding: 10px 15px; font-family: 'Press Start 2P', cursive;
+            cursor: pointer; margin-top: 10px; box-shadow: 4px 4px 0 #000;
         }
-        button:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000; }
-        button:disabled { background: #555; color: #aaa; cursor: not-allowed; }
+        button:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
+        button:disabled { background: #555; cursor: not-allowed; }
 
-        .status-msg {
-            font-size: 10px;
-            margin-top: 10px;
-            min-height: 20px;
-            color: #ffff00;
+        /* --- GAME UI --- */
+        #game-ui {
+            display: none; /* Hidden by default */
+            flex-direction: column; align-items: center; width: 100%;
         }
 
-        /* Game Area */
+        #game-info-bar {
+            display: flex; justify-content: space-between; width: 90%; max-width: 800px;
+            margin-bottom: 10px; font-size: 10px; color: #aaa;
+        }
+
+        #game-log {
+            width: 80%; max-width: 600px; text-align: center;
+            background: #000; border: 2px solid #555; padding: 10px;
+            color: #0f0; font-size: 12px; margin-bottom: 10px; min-height: 20px;
+        }
+
         #game-area {
-            display: none;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-            padding: 20px;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 30px; padding: 10px;
         }
 
-        .board-title { color: #0f0; margin-bottom: 5px; text-shadow: 2px 2px #000; font-size: 12px; text-align: center;}
+        .board-title { color: #0f0; margin-bottom: 10px; text-shadow: 2px 2px #000; font-size: 12px; text-align: center; }
 
         .grid {
-            display: grid;
-            grid-template-columns: repeat(10, 28px);
-            grid-template-rows: repeat(10, 28px);
-            background-color: var(--water-color);
-            border: 4px solid #fff;
-            box-shadow: 6px 6px 0px #000;
+            display: grid; grid-template-columns: repeat(10, 30px); grid-template-rows: repeat(10, 30px);
+            background-color: var(--water-color); border: 4px solid #fff; box-shadow: 6px 6px 0 #000;
         }
 
         .cell {
-            width: 28px; height: 28px;
-            border: 1px solid var(--grid-line);
-            box-sizing: border-box;
-            position: relative;
-            cursor: crosshair;
+            width: 30px; height: 30px; border: 1px solid var(--grid-line);
+            box-sizing: border-box; position: relative; cursor: crosshair;
         }
 
-        .cell.ship { background-color: var(--ship-color); box-shadow: inset 2px 2px 0 rgba(255,255,255,0.5); }
+        .cell.ship { background-color: var(--ship-color); box-shadow: inset 3px 3px 0 rgba(255,255,255,0.4); }
         .cell.hit { background-color: var(--hit-color); }
         .cell.miss { background-color: var(--water-color); }
-        .cell.hit::after { content: 'X'; position: absolute; top: 3px; left: 3px; color: yellow; }
-        .cell.miss::after { content: '•'; position: absolute; top: 0px; left: 5px; color: #fff; font-size: 18px; }
+        .cell.hit::after { content: 'X'; position: absolute; top: 4px; left: 4px; color: yellow; font-size: 16px; }
+        .cell.miss::after { content: '•'; position: absolute; top: -2px; left: 6px; color: #fff; font-size: 24px; }
 
         .cell.preview-valid { background-color: #00ff00; opacity: 0.5; }
         .cell.preview-invalid { background-color: #ff0000; opacity: 0.5; }
 
-        #game-log {
-            width: 80%;
-            text-align: center;
-            background: #000;
-            border: 2px solid #555;
-            padding: 10px;
-            color: #0f0;
-            font-size: 12px;
-            margin-bottom: 10px;
-        }
-
-        #rotate-btn { display: none; background: #0044aa; margin-bottom: 10px;}
+        #rotate-btn { display: none; background: #0044aa; margin-bottom: 10px; }
         #enemy-grid.disabled { opacity: 0.5; pointer-events: none; filter: grayscale(1); }
 
-        /* Overlay */
         #overlay {
-            display: none;
-            position: fixed; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: #000; border: 6px solid #fff;
-            padding: 40px; z-index: 1000; text-align: center;
-            box-shadow: 10px 10px 0 #000;
+            display: none; position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); background: #000; border: 6px solid #fff;
+            padding: 40px; z-index: 1000; text-align: center; box-shadow: 10px 10px 0 #000;
         }
     </style>
 </head>
 <body>
+
 
 <div class="scanlines"></div>
 <div class="watermark">TIU</div>
@@ -183,30 +138,32 @@
 <h1>BATTLESHIP P2P</h1>
 
 <div id="connection-panel">
-    <div style="font-size: 10px; color: #aaa; margin-bottom: 15px;">
-        INSTRUCTIONS: <br>
-        1. Player A creates a room (e.g. "ROOM1")<br>
-        2. Player A waits for "ROOM READY" status.<br>
-        3. Player B joins "ROOM1".
+    <div style="font-size: 10px; color: #aaa; margin-bottom: 15px; line-height: 1.5;">
+        1. <b>HOST</b> creates a room name.<br>
+        2. <b>JOINER</b> enters that name to play.<br>
     </div>
 
     <div class="panel-section">
-        <h3 style="color:#00ffff; margin:0 0 10px 0;">PLAYER A (HOST)</h3>
-        <input type="text" id="host-room" placeholder="Room Name" maxlength="10">
-        <button id="btn-create">Create Room</button>
-        <div id="host-status" class="status-msg"></div>
+        <h3 style="color:#00ffff; margin:0 0 10px 0;">HOST GAME</h3>
+        <input type="text" id="host-room" placeholder="CREATE ROOM NAME" maxlength="10">
+        <button id="btn-create">Create & Enter</button>
     </div>
 
     <div class="panel-section">
-        <h3 style="color:#ff00ff; margin:0 0 10px 0;">PLAYER B (JOIN)</h3>
-        <input type="text" id="join-room" placeholder="Room Name" maxlength="10">
+        <h3 style="color:#ff00ff; margin:0 0 10px 0;">JOIN GAME</h3>
+        <input type="text" id="join-room" placeholder="ENTER ROOM NAME" maxlength="10">
         <button id="btn-join">Join Room</button>
-        <div id="join-status" class="status-msg"></div>
+        <div id="join-status" style="font-size:10px; margin-top:5px; color:#ffcc00;"></div>
     </div>
 </div>
 
-<div id="game-ui" style="display:none; flex-direction:column; align-items:center; width: 100%;">
-    <div id="game-log">Deploy your fleet.</div>
+<div id="game-ui">
+    <div id="game-info-bar">
+        <span id="room-display">ROOM: ???</span>
+        <span id="conn-display" style="color: #f00;">DISCONNECTED</span>
+    </div>
+
+    <div id="game-log">Deploy your fleet, Commander.</div>
     <button id="rotate-btn">Rotate Ship (R)</button>
     
     <div id="game-area">
@@ -227,11 +184,12 @@
 </div>
 
 <script>
-    // --- CONFIG & STATE ---
+    // --- CONFIG ---
     const GRID_SIZE = 10;
     const SHIPS = [5, 4, 3, 3, 2];
-    const APP_PREFIX = "tiu_bs_2024_"; // Prefix to ensure global uniqueness
+    const APP_PREFIX = "tiu_bs_2024_"; 
 
+    // --- STATE ---
     let peer, conn;
     let myBoard = Array(GRID_SIZE).fill().map(()=>Array(GRID_SIZE).fill(0));
     let enemyView = Array(GRID_SIZE).fill().map(()=>Array(GRID_SIZE).fill(0));
@@ -241,7 +199,7 @@
     let isHost = false;
     let isMyTurn = false;
     let gameState = 'LOBBY'; 
-    let myHitsTaken = 0, enemyHitsTaken = 0;
+    let myHits = 0, enemyHits = 0;
     const totalHits = SHIPS.reduce((a,b)=>a+b,0);
 
     // --- AUDIO ---
@@ -266,7 +224,7 @@
             gain.gain.setValueAtTime(0.2, t);
             gain.gain.linearRampToValueAtTime(0, t+0.3);
             osc.start(t); osc.stop(t+0.3);
-        } else if(type==='miss') { // high ping
+        } else if(type==='miss') { 
             osc.type = 'sine';
             osc.frequency.setValueAtTime(800, t);
             gain.gain.setValueAtTime(0.05, t);
@@ -275,111 +233,109 @@
         }
     }
 
-    // --- NETWORKING ---
-    
-    function cleanId(str) {
-        // Remove spaces, special chars, make uppercase
-        return str.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    // --- UTILS ---
+    function cleanId(str) { return str.replace(/[^a-zA-Z0-9]/g, '').toUpperCase(); }
+
+    // --- UI SWITCHING ---
+    function enterGameUI(roomName) {
+        document.getElementById('connection-panel').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'flex';
+        document.getElementById('room-display').innerText = "ROOM: " + roomName;
+        startPlacement();
     }
 
-    // HOST LOGIC
+    function setConnectionStatus(status, color) {
+        const el = document.getElementById('conn-display');
+        el.innerText = status;
+        el.style.color = color;
+    }
+
+    // --- NETWORK LOGIC ---
+
+    // 1. HOST: Creates room, enters UI IMMEDIATELY
     document.getElementById('btn-create').addEventListener('click', () => {
         let room = cleanId(document.getElementById('host-room').value);
-        if(room.length < 3) return alert("Room name must be 3+ letters");
-        
+        if(room.length < 3) return alert("Room name too short");
         playTone('click');
-        document.getElementById('host-status').innerText = "Connecting to Global Server...";
-        document.getElementById('btn-create').disabled = true;
-        document.getElementById('btn-join').disabled = true;
-
+        
         peer = new Peer(APP_PREFIX + room);
+        
+        // Show UI immediately (Don't wait for open/connection)
+        isHost = true;
+        enterGameUI(room);
+        setConnectionStatus("WAITING FOR P2...", "#ffcc00");
 
         peer.on('open', (id) => {
-            document.getElementById('host-status').innerHTML = `<span style="color:#0f0">ROOM READY!</span><br>Tell Player B to join "${room}"`;
-            isHost = true;
+            console.log("Host ID active");
         });
 
         peer.on('connection', (c) => {
             conn = c;
-            setupConnection();
+            handleConnectionOpen();
         });
 
         peer.on('error', (err) => {
-            console.error(err);
-            document.getElementById('host-status').innerText = "Error: Room name taken or network blocked.";
-            document.getElementById('btn-create').disabled = false;
+            alert("Error: Room name likely taken.");
+            location.reload();
         });
     });
 
-    // JOIN LOGIC
+    // 2. JOINER: Joins room
     document.getElementById('btn-join').addEventListener('click', () => {
         let room = cleanId(document.getElementById('join-room').value);
-        if(room.length < 3) return alert("Room name must be 3+ letters");
-
+        if(room.length < 3) return alert("Room name too short");
         playTone('click');
-        const statusEl = document.getElementById('join-status');
-        statusEl.innerText = "Initializing...";
-        document.getElementById('btn-create').disabled = true;
-        document.getElementById('btn-join').disabled = true;
 
-        peer = new Peer(); // Get random ID for myself
+        const status = document.getElementById('join-status');
+        status.innerText = "Connecting...";
+        
+        peer = new Peer(); // Random ID for joiner
 
         peer.on('open', () => {
-            statusEl.innerText = `Looking for "${room}"...`;
-            connectToHost(APP_PREFIX + room);
-        });
+            conn = peer.connect(APP_PREFIX + room);
+            
+            // If connection opens, enter game
+            conn.on('open', () => {
+                enterGameUI(room);
+                handleConnectionOpen();
+            });
 
-        peer.on('error', (err) => {
-            statusEl.innerText = "Network Connection Failed.";
-            document.getElementById('btn-join').disabled = false;
+            // If it fails or takes too long
+            setTimeout(() => {
+                if(!conn.open) {
+                    status.innerText = "Room not found (or Host busy).";
+                }
+            }, 3000);
         });
     });
 
-    function connectToHost(hostId) {
-        const statusEl = document.getElementById('join-status');
+    function handleConnectionOpen() {
+        setConnectionStatus("CONNECTED", "#00ff00");
+        document.getElementById('game-log').innerText = "Opponent Connected!";
         
-        // Retry logic
-        let attempts = 0;
-        const tryConnect = () => {
-            attempts++;
-            statusEl.innerText = `Searching... (Attempt ${attempts}/5)`;
-            
-            conn = peer.connect(hostId, { reliable: true });
-
-            // If connection opens, we are good
-            conn.on('open', () => {
-                setupConnection();
-            });
-
-            // If connection fails within 2 seconds, retry
-            setTimeout(() => {
-                if(!conn.open && attempts < 5) {
-                    tryConnect();
-                } else if (!conn.open) {
-                    statusEl.innerText = "Room not found. Did Host create it?";
-                    document.getElementById('btn-join').disabled = false;
-                }
-            }, 2000);
-        };
-        
-        tryConnect();
-    }
-
-    function setupConnection() {
-        document.getElementById('connection-panel').style.display = 'none';
-        document.getElementById('game-ui').style.display = 'flex';
-        
+        // Setup data listener
         conn.on('data', handleData);
-        startPlacement();
+
+        // If Host was already waiting (finished placement), send READY now
+        if(gameState === 'WAITING') {
+             conn.send({type:'READY'});
+             document.getElementById('game-log').innerText = "Opponent connected. Waiting for them...";
+        }
     }
 
     function handleData(data) {
         if(data.type === 'READY') {
             if(gameState === 'WAITING') startGame();
-            else document.getElementById('game-log').innerText = "Opponent is ready!";
+            else document.getElementById('game-log').innerText = "Opponent is Ready!";
         }
         if(data.type === 'FIRE') receiveFire(data.x, data.y);
         if(data.type === 'RESULT') handleResult(data.x, data.y, data.hit);
+    }
+
+    function safeSend(data) {
+        if(conn && conn.open) {
+            conn.send(data);
+        }
     }
 
     // --- GAMEPLAY ---
@@ -388,7 +344,6 @@
     const enemyGrid = document.getElementById('enemy-grid');
     const log = document.getElementById('game-log');
 
-    // Init Grids
     function drawGrid(el, isEnemy) {
         el.innerHTML = '';
         for(let y=0; y<GRID_SIZE; y++) {
@@ -408,10 +363,9 @@
     drawGrid(myGrid, false);
     drawGrid(enemyGrid, true);
 
-    // Placement
     function startPlacement() {
         gameState = 'PLACING';
-        log.innerText = `Place Ship (Size ${currentShip}). Press R to Rotate.`;
+        log.innerText = `Place Ship (Size ${currentShip}). R to Rotate.`;
         document.getElementById('rotate-btn').style.display = 'block';
     }
 
@@ -445,19 +399,26 @@
                 myGrid.children[p.y*10+p.x].classList.add('ship');
             });
             shipsToPlace.shift();
+            
+            // Check if more ships needed
             if(shipsToPlace.length) {
                 currentShip = shipsToPlace[0];
                 log.innerText = `Place Ship (Size ${currentShip})`;
             } else {
+                // All ships placed
                 gameState = 'WAITING';
-                log.innerText = "Waiting for opponent...";
                 document.getElementById('rotate-btn').style.display = 'none';
-                conn.send({type:'READY'});
+                
+                if(conn && conn.open) {
+                    log.innerText = "Waiting for opponent...";
+                    safeSend({type:'READY'});
+                } else {
+                    log.innerText = "Fleet Deployed. Waiting for P2 to connect...";
+                }
             }
         }
     }
 
-    // Battle
     function startGame() {
         gameState = 'PLAYING';
         isMyTurn = isHost;
@@ -479,12 +440,12 @@
     function fire(x, y) {
         if(gameState!=='PLAYING' || !isMyTurn || enemyView[y][x]!==0) return;
         playTone('click');
-        enemyView[y][x] = 2; // temp mark
-        enemyGrid.children[y*10+x].style.backgroundColor = '#555'; // temp visual
+        enemyView[y][x] = 2; 
+        enemyGrid.children[y*10+x].style.backgroundColor = '#555'; 
         isMyTurn = false;
         enemyGrid.classList.add('disabled');
         log.innerText = "Firing...";
-        conn.send({type:'FIRE', x, y});
+        safeSend({type:'FIRE', x, y});
     }
 
     function receiveFire(x, y) {
@@ -495,16 +456,16 @@
         
         if(hit) {
             playTone('hit');
-            myHitsTaken++;
-            if(myHitsTaken >= totalHits) {
-                conn.send({type:'RESULT', hit:true, x, y});
+            myHits++;
+            if(myHits >= totalHits) {
+                safeSend({type:'RESULT', hit:true, x, y});
                 gameOver(false);
                 return;
             }
         } else {
             playTone('miss');
         }
-        conn.send({type:'RESULT', hit, x, y});
+        safeSend({type:'RESULT', hit, x, y});
         isMyTurn = true;
         updateTurn();
     }
@@ -512,12 +473,12 @@
     function handleResult(x, y, hit) {
         enemyView[y][x] = hit ? 3 : 2;
         let cell = enemyGrid.children[y*10+x];
-        cell.style.backgroundColor = ''; // clear temp
+        cell.style.backgroundColor = ''; 
         cell.classList.add(hit?'hit':'miss');
         if(hit) {
             playTone('hit');
-            enemyHitsTaken++;
-            if(enemyHitsTaken >= totalHits) gameOver(true);
+            enemyHits++;
+            if(enemyHits >= totalHits) gameOver(true);
             else log.innerText = "DIRECT HIT!";
         } else {
             playTone('miss');
@@ -532,7 +493,6 @@
         msg.innerText = win ? "VICTORY!" : "DEFEAT";
         msg.style.color = win ? "#0f0" : "#f00";
     }
-
 </script>
 </body>
 </html>
