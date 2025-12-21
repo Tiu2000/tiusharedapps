@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyboard Hero - Type Edition</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <style>
+        :root {
+            --neon-blue: #00ffff;
+            --neon-pink: #ff66ff;
+            --neon-green: #39ff14;
+            --neon-red: #ff3333;
+            --neon-yellow: #ffff00;
+            --bg-color: #121212;      
+            --panel-bg: #1e1e24;      
+        }
+
+        body {
+            margin: 0; background-color: var(--bg-color); color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            overflow: hidden; height: 100vh; width: 100vw;
+        }
+
+        /* --- VIDEO LAYER --- */
+        #video-background {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; opacity: 0.3; pointer-events: none;
+        }
+
+        /* --- GAME UI LAYER --- */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; display: flex; justify-content: space-between; padding: 20px;
+            pointer-events: none; box-sizing: border-box;
+        }
+
+        .hud-panel {
+            background: rgba(30, 30, 36, 0.9); padding: 20px;
+            border: 2px solid #444; border-radius: 10px;
+            min-width: 200px; pointer-events: auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            height: fit-content;
+        }
+
+        /* --- HIGHWAY (GAMEPLAY) --- */
+        #game-container {
+            position: absolute; left: 50%; bottom: 0;
+            transform: translateX(-50%) perspective(800px) rotateX(20deg); /* Flatter angle for reading text */
+            width: 600px; height: 100vh;
+            background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%);
+            border-left: 2px solid #333; border-right: 2px solid #333;
+            z-index: 5;
+        }
+
+        /* The Hit Line */
+        .target-line {
+            position: absolute; bottom: 100px; width: 100%; height: 4px;
+            background: var(--neon-blue);
+            box-shadow: 0 0 15px var(--neon-blue);
+        }
+
+        /* The Falling Letters */
+        .note {
+            position: absolute; width: 40px; height: 40px; 
+            border-radius: 6px; z-index: 100;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid white;
+            color: white;
+            font-weight: bold; font-size: 20px;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        
+        .note.hit-effect {
+            transform: scale(1.5); opacity: 0; transition: 0.2s;
+            background: var(--neon-green); border-color: var(--neon-green);
+        }
+
+        /* --- MENUS --- */
+        #menu-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 15, 20, 0.98); z-index: 50;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .menu-box {
+            background: #252530; padding: 40px; border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            width: 400px; text-align: center; border: 1px solid #444;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+
+        input {
+            padding: 15px; background: #15151a; border: 1px solid #555;
+            color: white; font-size: 16px; border-radius: 6px; text-align: center;
+        }
+
+        button {
+            padding: 15px; font-size: 16px; font-weight: bold; cursor: pointer;
+            border: none; border-radius: 6px; text-transform: uppercase;
+            transition: 0.2s;
+        }
+        .btn-primary { background: var(--neon-blue); color: black; }
+        .btn-primary:hover { background: white; }
+        
+        .btn-ready { background: var(--neon-yellow); color: black; animation: pulse 2s infinite; }
+        .btn-start { background: var(--neon-green); color: black; }
+
+        @keyframes pulse { 0% {box-shadow: 0 0 0 0 rgba(255, 255, 0, 0.4);} 70% {box-shadow: 0 0 0 10px rgba(255, 255, 0, 0);} 100% {box-shadow: 0 0 0 0 rgba(255, 255, 0, 0);} }
+
+        /* LOBBY LIST */
+        #lobby-list {
+            background: #111; border-radius: 6px; padding: 10px;
+            max-height: 150px; overflow-y: auto; text-align: left;
+        }
+        .lobby-player {
+            display: flex; justify-content: space-between; padding: 8px;
+            border-bottom: 1px solid #333;
+        }
+        .status-ready { color: var(--neon-green); font-weight: bold; }
+        .status-wait { color: #777; }
+
+        .hidden { display: none !important; }
+        
+        #feedback-text {
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%);
+            font-size: 48px; font-weight: 900; opacity: 0; pointer-events: none;
+            -webkit-text-stroke: 1px black; text-shadow: 0 0 20px white;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="video-background"><div id="yt-player"></div></div>
+
+    <div id="ui-layer">
+        <div class="hud-panel">
+            <div style="font-size:12px; color:#aaa;">SCORE</div>
+            <div id="score-display" style="font-size:32px; font-weight:bold;">0</div>
+            <div id="combo-display">Combo: 0</div>
+        </div>
+        <div class="hud-panel">
+            <div style="font-size:12px; color:#aaa; text-align:right;">LEADERBOARD</div>
+            <div id="leaderboard-content"></div>
+        </div>
+    </div>
+    
+    <div id="feedback-text">PERFECT</div>
+
+    <div id="game-container">
+        <div class="target-line"></div>
+    </div>
+
+    <div id="menu-overlay">
+        
+        <div id="screen-login" class="menu-box">
+            <h1 style="margin:0; color:var(--neon-blue);">TYPE HERO</h1>
+            <input type="text" id="inp-name" placeholder="Enter Your Name">
+            <input type="text" id="inp-room" placeholder="Room Name (e.g. ROOM1)">
+            <button class="btn-primary" onclick="startHost()">HOST GAME</button>
+            <button class="btn-primary" onclick="startJoin()">JOIN GAME</button>
+            <div id="login-status" style="font-size:12px; color:var(--neon-red);"></div>
+        </div>
+
+        <div id="screen-host" class="menu-box hidden">
+            <h2 style="margin:0; color:var(--neon-green);">HOST PANEL</h2>
+            <div style="color:#aaa; font-size:14px;">Room: <span id="host-room-id" style="color:white;"></span></div>
+            
+            <input type="text" id="inp-url" placeholder="Paste YouTube URL" onchange="updateVideo()">
+            <div id="video-info" style="font-size:12px; color:var(--neon-blue);">No Video Loaded</div>
+
+            <div style="text-align:left; font-size:12px; color:#aaa;">PLAYERS:</div>
+            <div id="lobby-list"></div>
+
+            <button class="btn-start" onclick="hostStartGame()">START GAME</button>
+        </div>
+
+        <div id="screen-client" class="menu-box hidden">
+            <h2 style="margin:0; color:var(--neon-blue);">WAITING ROOM</h2>
+            <p id="client-status-text">Connected. Waiting for host to pick song...</p>
+            
+            <button id="btn-client-ready" class="btn-ready hidden" onclick="clientReady()">
+                LOAD VIDEO & READY UP
+            </button>
+            
+            <div id="client-ready-confirm" class="hidden" style="color:var(--neon-green); font-weight:bold;">
+                YOU ARE READY!
+            </div>
+        </div>
+
+        <div id="screen-gameover" class="menu-box hidden">
+            <h2>GAME OVER</h2>
+            <div style="font-size:14px;">WINNER</div>
+            <div id="winner-name" style="font-size:40px; color:var(--neon-green);"></div>
+            <div id="winner-score" style="font-size:40px; font-weight:bold;"></div>
+            <button class="btn-primary" onclick="location.reload()">MAIN MENU</button>
+        </div>
+    </div>
+
+    <script>
+        /* --- GLOBAL VARIABLES --- */
+        let peer, myId, myName;
+        let connections = {};
+        let hostConn = null;
+        let isHost = false;
+        let players = {};
+        let currentVideoId = "";
+        
+        let ytPlayer;
+        let gameRunning = false;
+        let songData = [];
+        let score = 0, combo = 0;
+
+        /* --- YOUTUBE API --- */
+        function onYouTubeIframeAPIReady() {
+            ytPlayer = new YT.Player('yt-player', {
+                height: '100%', width: '100%',
+                videoId: '',
+                playerVars: { 'autoplay':0, 'controls':0, 'disablekb':1, 'iv_load_policy':3 }
+            });
+        }
+
+        /* --- NETWORK SETUP (HOST) --- */
+        function startHost() {
+            const {name, room} = getLoginInfo(); if(!name) return;
+            myName = name;
+            peer = new Peer(room);
+            peer.on('open', id => {
+                isHost = true; myId = id;
+                players[myId] = { name: myName, score: 0, ready: true }; 
+                showScreen('screen-host');
+                document.getElementById('host-room-id').innerText = room;
+                renderLobby();
+            });
+            peer.on('connection', conn => {
+                connections[conn.peer] = conn;
+                conn.on('open', () => {
+                    conn.send({ type: 'WELCOME', vid: currentVideoId, players: players });
+                });
+                conn.on('data', data => handleHostData(conn.peer, data));
+                conn.on('close', () => { delete players[conn.peer]; delete connections[conn.peer]; renderLobby(); });
+            });
+            peer.on('error', err => document.getElementById('login-status').innerText = "Room Name Unavailable");
+        }
+
+        function handleHostData(id, data) {
+            if(data.type === 'JOIN') {
+                players[id] = { name: data.name, score: 0, ready: false };
+                renderLobby();
+                broadcast({ type: 'UPDATE_PLAYERS', players: players });
+            }
+            if(data.type === 'READY') {
+                if(players[id]) players[id].ready = true;
+                renderLobby();
+                broadcast({ type: 'UPDATE_PLAYERS', players: players });
+            }
+            if(data.type === 'SCORE') {
+                if(players[id]) players[id].score = data.score;
+                updateLeaderboard(); 
+                broadcast({ type: 'UPDATE_PLAYERS', players: players }); 
+            }
+        }
+
+        /* --- NETWORK SETUP (CLIENT) --- */
+        function startJoin() {
+            const {name, room} = getLoginInfo(); if(!name) return;
+            myName = name;
+            peer = new Peer();
+            peer.on('open', id => {
+                myId = id;
+                hostConn = peer.connect(room);
+                hostConn.on('open', () => {
+                    showScreen('screen-client');
+                    hostConn.send({ type: 'JOIN', name: myName });
+                });
+                hostConn.on('data', handleClientData);
+            });
+            peer.on('error', err => document.getElementById('login-status').innerText = "Connection Error");
+        }
+
+        function handleClientData(data) {
+            if(data.type === 'WELCOME') {
+                if(data.vid) {
+                    currentVideoId = data.vid;
+                    document.getElementById('client-status-text').innerText = "Host selected a song!";
+                    document.getElementById('btn-client-ready').classList.remove('hidden');
+                }
+                players = data.players;
+            }
+            if(data.type === 'NEW_VIDEO') {
+                currentVideoId = data.vid;
+                document.getElementById('client-status-text').innerText = "Host changed song!";
+                document.getElementById('btn-client-ready').classList.remove('hidden');
+                document.getElementById('btn-client-ready').style.display = 'block';
+                document.getElementById('client-ready-confirm').classList.add('hidden');
+            }
+            if(data.type === 'UPDATE_PLAYERS') { players = data.players; updateLeaderboard(); }
+            if(data.type === 'START_GAME') runGame();
+            if(data.type === 'GAME_OVER') showGameOver(data.winner);
+        }
+
+        /* --- LOBBY LOGIC --- */
+        function updateVideo() {
+            const url = document.getElementById('inp-url').value;
+            const match = url.match(/v=([^#&?]*)/);
+            if(match && match[1]) {
+                currentVideoId = match[1];
+                document.getElementById('video-info').innerText = "Loaded ID: " + currentVideoId;
+                ytPlayer.loadVideoById(currentVideoId);
+                setTimeout(() => ytPlayer.pauseVideo(), 1000); 
+                broadcast({ type: 'NEW_VIDEO', vid: currentVideoId });
+            }
+        }
+
+        function clientReady() {
+            if(!ytPlayer) return;
+            ytPlayer.loadVideoById(currentVideoId);
+            ytPlayer.mute(); ytPlayer.playVideo();
+            setTimeout(() => {
+                ytPlayer.pauseVideo(); ytPlayer.seekTo(0); ytPlayer.unMute();
+                document.getElementById('btn-client-ready').style.display = 'none';
+                document.getElementById('client-ready-confirm').classList.remove('hidden');
+                hostConn.send({ type: 'READY' });
+            }, 1000);
+        }
+
+        function renderLobby() {
+            const list = document.getElementById('lobby-list'); list.innerHTML = '';
+            Object.values(players).forEach(p => {
+                const div = document.createElement('div'); div.className = 'lobby-player';
+                div.innerHTML = `<span>${p.name}</span><span class="${p.ready ? 'status-ready' : 'status-wait'}">${p.ready ? 'READY' : 'WAITING'}</span>`;
+                list.appendChild(div);
+            });
+        }
+
+        /* --- GAME ENGINE (WHOLE KEYBOARD) --- */
+        function hostStartGame() {
+            broadcast({ type: 'START_GAME' });
+            runGame();
+        }
+
+        function runGame() {
+            document.getElementById('menu-overlay').style.display = 'none';
+            let dur = ytPlayer.getDuration();
+            if(!dur || dur === 0) dur = 180; 
+
+            songData = generateNotes(dur);
+            score = 0; combo = 0;
+            document.querySelectorAll('.note').forEach(n => n.remove());
+            
+            ytPlayer.playVideo();
+            gameRunning = true;
+            requestAnimationFrame(gameLoop);
+        }
+
+        // GENERATE RANDOM LETTERS instead of LANES
+        function generateNotes(duration) {
+            let notes = [];
+            const totalNotes = Math.floor(duration * 2); 
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            
+            for(let i=0; i<totalNotes; i++) {
+                notes.push({
+                    char: chars[Math.floor(Math.random() * 26)], // Random Letter
+                    xPos: 10 + Math.floor(Math.random() * 80),   // Random Position (10% to 90%)
+                    time: 2000 + (i * 500), 
+                    hit: false,
+                    el: null
+                });
+            }
+            return notes;
+        }
+
+        function gameLoop() {
+            if(!gameRunning) return;
+            if(ytPlayer.getPlayerState() === 0) {
+                gameRunning = false;
+                if(isHost) finishGame();
+                return;
+            }
+
+            const currTime = ytPlayer.getCurrentTime() * 1000;
+            const SPAWN_AHEAD = 2000; 
+
+            songData.forEach(note => {
+                if(note.hit) return;
+
+                const diff = note.time - currTime;
+
+                // Create Note DOM (Letter)
+                if(!note.el && diff < SPAWN_AHEAD && diff > -200) {
+                    const el = document.createElement('div');
+                    el.className = 'note';
+                    el.innerText = note.char; // Display the letter
+                    el.style.left = note.xPos + "%"; // Set random horizontal pos
+                    document.getElementById('game-container').appendChild(el);
+                    note.el = el;
+                }
+
+                // Move Note
+                if(note.el) {
+                    const percent = 90 - (diff / (SPAWN_AHEAD/90));
+                    note.el.style.top = percent + "%";
+
+                    // Auto Miss
+                    if(diff < -200) {
+                        note.hit = true; note.el.remove();
+                        combo = 0; updateScoreUI(); showFeedback("MISS");
+                    }
+                }
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        /* --- WHOLE KEYBOARD INPUT --- */
+        document.addEventListener('keydown', e => {
+            if(!gameRunning) return;
+            const key = e.key.toUpperCase();
+            
+            // Allow A-Z only
+            if(!/^[A-Z]$/.test(key)) return;
+
+            checkHit(key);
+        });
+
+        function checkHit(pressedKey) {
+            const currTime = ytPlayer.getCurrentTime() * 1000;
+            let hit = false;
+
+            // Check if ANY note matches the key pressed and is in window
+            for(let note of songData) {
+                if(!note.hit && note.char === pressedKey) {
+                    const diff = Math.abs(note.time - currTime);
+                    if(diff < 200) { 
+                        note.hit = true; 
+                        
+                        // Visual Hit Effect
+                        if(note.el) {
+                            note.el.classList.add('hit-effect');
+                            setTimeout((el) => el.remove(), 200, note.el);
+                            note.el = null;
+                        }
+
+                        score += 100 + (combo*10);
+                        combo++;
+                        showFeedback("HIT");
+                        updateScoreUI();
+                        sendScoreUpdate();
+                        hit = true;
+                        break; // Only hit one note per keypress
+                    }
+                }
+            }
+            if(!hit && combo > 0) { combo = 0; showFeedback("MISS"); updateScoreUI(); }
+        }
+
+        /* --- UTILS --- */
+        function getLoginInfo() {
+            const name = document.getElementById('inp-name').value;
+            const room = document.getElementById('inp-room').value;
+            if(!name || !room) { document.getElementById('login-status').innerText = "Fill all fields"; return {}; }
+            return {name, room};
+        }
+        function showScreen(id) {
+            document.querySelectorAll('.menu-box').forEach(b => b.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+        }
+        function broadcast(msg) { Object.values(connections).forEach(c => c.send(msg)); }
+        function updateScoreUI() {
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('combo-display').innerText = "Combo: " + combo;
+        }
+        function updateLeaderboard() {
+            const el = document.getElementById('leaderboard-content');
+            el.innerHTML = '';
+            Object.values(players).sort((a,b) => b.score - a.score).forEach(p => {
+                    el.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>${p.name}</span><span>${p.score}</span></div>`;
+            });
+        }
+        function sendScoreUpdate() {
+            if(isHost) { players[myId].score = score; updateLeaderboard(); broadcast({type:'UPDATE_PLAYERS', players}); }
+            else if(hostConn) { hostConn.send({type:'SCORE', score}); }
+        }
+        function showFeedback(txt) {
+            const f = document.getElementById('feedback-text');
+            f.innerText = txt; f.style.opacity = 1;
+            setTimeout(() => f.style.opacity = 0, 300);
+        }
+        function finishGame() {
+            let winner = { name: "None", score: -1 };
+            Object.values(players).forEach(p => { if(p.score > winner.score) winner = p; });
+            broadcast({ type: 'GAME_OVER', winner });
+            showGameOver(winner);
+        }
+        function showGameOver(winner) {
+            document.getElementById('menu-overlay').style.display = 'flex';
+            showScreen('screen-gameover');
+            document.getElementById('winner-name').innerText = winner.name;
+            document.getElementById('winner-score').innerText = winner.score;
+        }
+    </script>
+</body>
+</html>
