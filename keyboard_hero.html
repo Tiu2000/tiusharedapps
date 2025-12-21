@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Keyboard Hero - YouTube Edition</title>
+    <title>Keyboard Hero - Sync Fix Edition</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
@@ -35,9 +35,8 @@
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             z-index: 1;
-            opacity: 0.3; /* Faded out so game is visible */
+            opacity: 0.4; 
             pointer-events: none;
-            filter: blur(4px); /* Slight blur for style */
         }
 
         /* --- UI LAYER --- */
@@ -64,25 +63,18 @@
 
         #score-display { font-size: 36px; font-weight: bold; color: white; text-shadow: 2px 2px 0 #000; }
         
-        /* Leaderboard Styles */
         #leaderboard { text-align: right; border-color: var(--neon-blue); max-height: 300px; overflow-y: auto; }
         .lb-entry {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 8px; font-size: 15px;
             border-bottom: 1px solid #444; padding-bottom: 4px;
         }
-        .lb-name-group { display: flex; align-items: center; gap: 8px; }
-        .kick-btn {
-            background: var(--neon-red); color: white; border: none;
-            border-radius: 4px; cursor: pointer; font-size: 11px;
-            padding: 4px 8px; font-weight: bold;
-        }
 
         /* --- THE HIGHWAY --- */
         #game-container {
             position: relative; 
             width: 500px;
-            height: 120vh;
+            height: 110vh;
             background: var(--highway-gradient);
             transform: perspective(800px) rotateX(30deg); 
             transform-origin: bottom center;
@@ -100,7 +92,7 @@
         .lane:last-child { border-right: none; }
 
         .hit-zone {
-            position: absolute; bottom: 100px;
+            position: absolute; bottom: 120px;
             width: 100%; display: flex;
             padding: 0 10px; box-sizing: border-box;
         }
@@ -119,7 +111,8 @@
             position: absolute; width: 20%; height: 20px;
             border-radius: 6px; left: 2.5%; 
             box-shadow: 0 0 15px currentColor;
-            border: 1px solid white;
+            border: 2px solid white;
+            z-index: 100;
         }
         .note.lane-0 { background-color: var(--neon-green); color: var(--neon-green); left: 2.5%; }
         .note.lane-1 { background-color: var(--neon-red); color: var(--neon-red); left: 27.5%; }
@@ -129,13 +122,13 @@
         /* --- MENUS --- */
         #menu-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(20, 20, 30, 0.95);
+            background: rgba(20, 20, 30, 0.98);
             z-index: 20;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
 
         .menu-box {
-            width: 420px; padding: 30px;
+            width: 450px; padding: 30px;
             border: 2px solid #555; text-align: center;
             background: #2b2b3b;
             border-radius: 15px;
@@ -149,7 +142,6 @@
             font-family: inherit; font-size: 16px; font-weight: bold;
             border-radius: 8px;
         }
-        input:focus { border-color: var(--neon-blue); outline: none; }
 
         button {
             background: #3a3a4a; color: white;
@@ -161,11 +153,11 @@
         }
         button:hover { background: var(--neon-blue); color: #000; }
         
+        button.ready-btn { border-color: var(--neon-yellow); background: #3a3a2a; }
+        button.ready-btn:hover { background: var(--neon-yellow); }
+
         button.start-btn { border-color: var(--neon-green); background: #2a3a2a; }
         button.start-btn:hover { background: var(--neon-green); }
-
-        button.end-btn { border-color: var(--neon-red); background: #3a2a2a; }
-        button.end-btn:hover { background: var(--neon-red); }
 
         #tiu-watermark {
             position: fixed; bottom: 20px; right: 20px;
@@ -245,14 +237,20 @@
             <input type="text" id="inp-yt-url" placeholder="https://youtube.com/watch?v=..." onchange="loadVideoByUrl()">
             <div id="video-status" style="font-size:12px; color:var(--neon-blue); margin-bottom:10px;">No video loaded</div>
 
-            <p id="player-count" style="font-size:16px; color:white; font-weight:bold;">1 Player(s) Ready</p>
+            <p id="player-count" style="font-size:16px; color:white; font-weight:bold;">1 Player(s) Connected</p>
             <button class="start-btn" onclick="hostStartGame()">START GAME</button>
         </div>
 
         <div class="menu-box hidden" id="menu-client">
             <h3 style="color: var(--neon-blue)">CONNECTED</h3>
-            <p>Waiting for host to select song...</p>
-            <div id="client-status" style="color:var(--neon-yellow); font-size:14px; font-weight:bold;">Synced</div>
+            <div id="client-wait-text" style="color:#ccc; margin-bottom:20px;">Waiting for host to choose song...</div>
+            
+            <div id="client-ready-area" class="hidden">
+                <p style="color:var(--neon-yellow); font-size:14px;">Song received!</p>
+                <button class="ready-btn" onclick="clientReadyUp()">CLICK TO READY UP</button>
+            </div>
+            
+            <div id="client-status" style="color:var(--neon-green); font-size:14px; font-weight:bold; display:none;">READY & SYNCED</div>
         </div>
 
         <div class="menu-box hidden" id="menu-gameover">
@@ -260,12 +258,7 @@
             <div style="font-size: 14px; color: #aaa;">WINNER</div>
             <div id="winner-name" style="font-size:40px; color:var(--neon-green);">NAME</div>
             <div id="winner-score" style="font-size:50px; font-weight:bold; color:white;">0</div>
-            
-            <div id="host-controls" class="hidden">
-                <button class="start-btn" onclick="hostRestartGame()">PLAY AGAIN</button>
-                <button class="end-btn" onclick="hostEndSession()">END SESSION</button>
-            </div>
-            <div id="client-wait-msg" class="hidden"><p>Waiting for host...</p></div>
+            <button class="end-btn" onclick="location.reload()">MAIN MENU</button>
         </div>
     </div>
 
@@ -273,57 +266,42 @@
         // --- YOUTUBE API SETUP ---
         let ytPlayer;
         let videoDuration = 0;
-        let currentVideoId = "dQw4w9WgXcQ"; // Default fallback
+        let currentVideoId = "dQw4w9WgXcQ"; 
         
         function onYouTubeIframeAPIReady() {
             ytPlayer = new YT.Player('yt-player', {
-                height: '100%',
-                width: '100%',
-                videoId: '', // Start empty
+                height: '100%', width: '100%',
+                videoId: '',
                 playerVars: { 
-                    'autoplay': 0, 
-                    'controls': 0, 
-                    'showinfo': 0, 
-                    'mute': 1 // Mute initially to allow autoplay policy
-                },
-                events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange
+                    'autoplay': 0, 'controls': 0, 'showinfo': 0, 
+                    'disablekb': 1, 'fs': 0, 'iv_load_policy': 3 
                 }
             });
         }
 
-        function onPlayerReady(event) {
-            // Player loaded
-        }
-
-        function onPlayerStateChange(event) {
-            if (event.data == YT.PlayerState.ENDED) {
-                // Video finished logic is handled by game loop timer
-            }
-        }
-
         function loadVideoByUrl() {
             const url = document.getElementById('inp-yt-url').value;
-            // Extract ID
             const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
             const match = url.match(regExp);
             if (match && match[2].length === 11) {
                 currentVideoId = match[2];
-                document.getElementById('video-status').innerText = "Video Loaded! Ready to start.";
-                // Host loads it locally to check duration
+                document.getElementById('video-status').innerText = "Video ID: " + currentVideoId;
+                // Pre-load locally for host
                 ytPlayer.loadVideoById(currentVideoId);
-                ytPlayer.pauseVideo();
+                setTimeout(() => ytPlayer.pauseVideo(), 1000); 
+                
+                // Send "PRELOAD" command to all clients
+                broadcastPreload(currentVideoId);
             } else {
                 document.getElementById('video-status').innerText = "Invalid URL";
             }
         }
 
         // --- GAME ENGINE ---
-        const SPAWN_AHEAD_MS = 3000; 
+        // SPAWN_AHEAD: How long (in ms) before the note hits the button does it spawn?
+        const SPAWN_AHEAD_MS = 2500; 
         
         let gameRunning = false;
-        let localStartTime = 0;
         let songData = [];
         let score = 0;
         let combo = 0;
@@ -337,110 +315,97 @@
         let players = {};     
         let hostConn = null;
 
-        // --- AUDIO ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playHitSound() {
-            // Simple click sound, since music is from YouTube
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.frequency.value = 800;
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.1);
-        }
-
         function generateSong(durationSeconds) {
             let notes = [];
-            // Generate notes based on duration
-            // Approx 2 notes per second for difficulty
-            const totalNotes = Math.floor(durationSeconds * 2.5); 
+            // Safe fallback if duration is missing
+            if(!durationSeconds || durationSeconds < 10) durationSeconds = 180;
+            
+            const bpm = 120; // Simulated BPM
+            const totalNotes = Math.floor(durationSeconds * (bpm / 60) * 2); // 2 notes per second density
             
             for(let i=0; i<totalNotes; i++) {
                 const lane = Math.floor(Math.random() * 4);
-                // Spread notes out over the duration
-                const time = 3000 + (i * (durationSeconds * 1000 / totalNotes)); 
-                notes.push({ lane, time, hit: false, element: null });
+                // Notes start appearing after 2 seconds
+                const time = 2000 + (i * 500); 
+                if(time < (durationSeconds * 1000)) {
+                    notes.push({ lane, time, hit: false, element: null });
+                }
             }
             return notes;
         }
 
-        function initializeGameEngine(vidId, duration) {
+        function startGameEngine() {
             document.getElementById('menu-overlay').style.display = 'none';
             document.getElementById('menu-gameover').classList.add('hidden');
             
-            // Sync Video
-            videoDuration = duration;
-            ytPlayer.loadVideoById(vidId);
-            ytPlayer.unMute();
-            ytPlayer.playVideo();
-
+            // Get duration directly from player now that it's loaded
+            const duration = ytPlayer.getDuration();
             songData = generateSong(duration);
+            
             score = 0;
             combo = 0;
             updateUI();
             
             document.querySelectorAll('.note').forEach(n => n.remove());
 
-            localStartTime = performance.now();
+            // PLAY VIDEO
+            ytPlayer.playVideo();
             gameRunning = true;
             
             requestAnimationFrame(gameLoop);
         }
 
-        function gameLoop(timestamp) {
+        function gameLoop() {
             if (!gameRunning) return;
             
-            // We use the YouTube player time for sync if available, fallback to performance.now
+            // CRITICAL: We depend on YouTube time. 
+            // If video buffers, currentTime stops, notes stop.
             let currentTimeMs = 0;
-            if (ytPlayer && ytPlayer.getCurrentTime) {
+            
+            if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
                 currentTimeMs = ytPlayer.getCurrentTime() * 1000;
-            } else {
-                currentTimeMs = timestamp - localStartTime; 
             }
 
             // End Condition
-            if (currentTimeMs / 1000 >= videoDuration && videoDuration > 0) {
+            if (ytPlayer.getPlayerState() === 0) { // 0 = Ended
                 gameRunning = false;
-                setTimeout(() => {
-                     broadcastScore();
-                     if (isHost) hostTriggerGameOver();
-                }, 2000); // Wait a bit after song ends
+                broadcastScore();
+                if(isHost) hostTriggerGameOver();
                 return;
             }
 
-            // Game Logic using currentTimeMs (Video Time) + SPAWN_AHEAD_MS (Latency buffer)
-            // We shift the "Song Data" logic. 
-            // Note Time 5000ms means it should be hit when video is at 5000ms.
-            // It should SPAWN when video is at 2000ms (if Spawn Ahead is 3000).
-
+            // DRAW NOTES
+            // Note Hit Time = The time in the song when it should be hit.
+            // Current Time = Where the song is now.
+            // If Note Hit Time is 5000ms, and Current Time is 2500ms...
+            // Diff = 2500ms. If SPAWN_AHEAD is 2500ms, spawn it now.
+            
             songData.forEach(note => {
-                if (note.hit) return;
+                if (note.hit) return; // Already processed
 
-                const timeDiff = note.time - currentTimeMs; 
+                const timeUntilHit = note.time - currentTimeMs; 
 
-                // Missed
-                if (timeDiff < -300) {
+                // Missed Logic (Passed the hit zone by 300ms)
+                if (timeUntilHit < -300) {
                     note.hit = true; 
                     if(note.element) note.element.remove();
                     breakCombo();
                     return;
                 }
 
-                // Spawn
-                if (!note.element && timeDiff <= SPAWN_AHEAD_MS && timeDiff > -200) {
+                // Spawn Logic
+                if (!note.element && timeUntilHit <= SPAWN_AHEAD_MS && timeUntilHit > -200) {
                     const el = document.createElement('div');
                     el.className = `note lane-${note.lane}`;
                     document.getElementById('game-container').appendChild(el);
                     note.element = el;
                 }
 
-                // Move
+                // Movement Logic
                 if (note.element) {
-                    const percent = 90 - (timeDiff / (SPAWN_AHEAD_MS / 90));
+                    // 0ms difference = 90% (Hit Zone)
+                    // SPAWN_AHEAD_MS difference = 0% (Top of screen)
+                    const percent = 90 - (timeUntilHit / (SPAWN_AHEAD_MS / 90));
                     note.element.style.top = `${percent}%`;
                 }
             });
@@ -449,22 +414,43 @@
         }
 
         // --- HOST LOGIC ---
-        function hostStartGame() {
-            if(gameRunning) return;
-            // Get duration from loaded player
-            const duration = ytPlayer.getDuration();
-            
-            // Broadcast
+        function broadcastPreload(vidId) {
             Object.values(connections).forEach(c => c.send({ 
-                type: 'START_GAME', 
-                vidId: currentVideoId,
-                duration: duration 
+                type: 'PRELOAD_VIDEO', 
+                vidId: vidId 
             }));
-            
-            initializeGameEngine(currentVideoId, duration);
         }
 
-        // --- SHARED NETWORK LOGIC (Abbreviated for length, same structure as before) ---
+        function hostStartGame() {
+            // Send START command to everyone
+            Object.values(connections).forEach(c => c.send({ type: 'START_GAME' }));
+            // Start Host Game
+            startGameEngine();
+        }
+
+        // --- CLIENT LOGIC ---
+        function clientReadyUp() {
+            // Player clicks this to allow video to load/mute/pause
+            // This bypasses browser autoplay blocking
+            ytPlayer.loadVideoById(currentVideoId);
+            ytPlayer.mute(); 
+            ytPlayer.playVideo(); // Start playing
+            
+            // Immediately pause after 1 sec to buffer
+            setTimeout(() => {
+                ytPlayer.pauseVideo();
+                ytPlayer.seekTo(0);
+                ytPlayer.unMute(); // Unmute so it's ready for game start
+                
+                document.getElementById('client-ready-area').style.display = 'none';
+                document.getElementById('client-status').style.display = 'block';
+                
+                // Tell host we are ready (Optional feature, simplifed here)
+                if(hostConn) hostConn.send({ type: 'PLAYER_READY' });
+            }, 1000);
+        }
+
+        // --- NETWORK SETUP ---
         function attemptHost() {
             const data = getInputs(); if(!data) return;
             myName = data.name;
@@ -481,6 +467,10 @@
                 conn.on('open', () => {
                     connections[conn.peer] = conn;
                     conn.send({ type: 'REGISTER_ACK', players: players }); 
+                    // If video is already selected, send it to new joiner
+                    if(currentVideoId !== "dQw4w9WgXcQ") {
+                        conn.send({ type: 'PRELOAD_VIDEO', vidId: currentVideoId });
+                    }
                 });
                 conn.on('data', (d) => {
                     if(d.type === 'REGISTER') { 
@@ -507,11 +497,14 @@
                     hostConn.send({ type: 'REGISTER', name: myName });
                 });
                 hostConn.on('data', (d) => {
-                    if(d.type === 'START_GAME') { initializeGameEngine(d.vidId, d.duration); }
+                    if(d.type === 'PRELOAD_VIDEO') { 
+                        currentVideoId = d.vidId;
+                        document.getElementById('client-wait-text').style.display = 'none';
+                        document.getElementById('client-ready-area').classList.remove('hidden');
+                    }
+                    if(d.type === 'START_GAME') { startGameEngine(); }
                     if(d.type === 'SYNC_PLAYERS') { players = d.data; renderLeaderboard(); }
                     if(d.type === 'GAME_OVER') { showGameOver(d.results); }
-                    if(d.type === 'RESTART') { document.getElementById('menu-gameover').classList.add('hidden'); document.getElementById('menu-client').classList.remove('hidden'); }
-                    if(d.type === 'SESSION_END') { location.reload(); }
                 });
             });
         }
@@ -554,15 +547,7 @@
             document.getElementById('menu-gameover').classList.remove('hidden');
             document.getElementById('winner-name').innerText = res.name;
             document.getElementById('winner-score').innerText = res.score;
-            if(isHost) document.getElementById('host-controls').classList.remove('hidden');
         }
-        function hostRestartGame() {
-            // Reset logic
-            document.getElementById('menu-gameover').classList.add('hidden');
-            document.getElementById('menu-host').classList.remove('hidden');
-            Object.values(connections).forEach(c => c.send({ type: 'RESTART' }));
-        }
-        function hostEndSession() { Object.values(connections).forEach(c => c.send({ type: 'SESSION_END' })); location.reload(); }
 
         // INPUTS
         const keys = { 'a':0, 's':1, 'd':2, 'f':3 };
@@ -570,14 +555,16 @@
             if(!gameRunning || !keys.hasOwnProperty(e.key.toLowerCase())) return;
             const lane = keys[e.key.toLowerCase()];
             document.getElementById(`btn-${lane}`).classList.add('pressed');
-            // Check Hit
+            
+            // Check Hit using Video Time
             let hit = false;
             let vidTime = ytPlayer.getCurrentTime() * 1000;
+            
             songData.forEach(n => {
                 if(!n.hit && n.lane === lane && Math.abs(n.time - vidTime) < 150) {
                     n.hit = true; if(n.element) n.element.remove();
                     score += 100 + (combo*10); combo++;
-                    playHitSound(); showFeedback("HIT"); updateUI(); broadcastScore(); hit = true;
+                    showFeedback("HIT"); updateUI(); broadcastScore(); hit = true;
                 }
             });
             if(!hit && combo>0) { combo=0; showFeedback("MISS"); updateUI(); }
