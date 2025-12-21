@@ -3,337 +3,506 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Classroom Quiz 7.0 (Diagnostic)</title>
-    
+    <title>TIU Quiz Master 9.0</title>
     <script src="peerjs.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     
     <style>
-        :root { --primary: #4f46e5; --bg: #f3f4f6; }
-        body { font-family: monospace; background: var(--bg); padding: 20px; text-align: center; }
+        :root { 
+            --primary: #4f46e5; --accent: #8b5cf6; 
+            --bg: #f8fafc; --text: #1e293b; 
+            --success: #22c55e; --danger: #ef4444; 
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; overflow-x: hidden; }
         
-        .container { max-width: 800px; margin: 0 auto; }
-        
-        /* DIAGNOSTIC LOG BOX */
-        .debug-box { 
-            background: #000; 
-            color: #00ff00; 
-            padding: 15px; 
-            border-radius: 8px; 
-            text-align: left; 
-            height: 150px; 
-            overflow-y: auto; 
-            margin-bottom: 20px;
-            border: 2px solid #333;
-            font-size: 0.9rem;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        /* TIU WATERMARK */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 8rem;
+            font-weight: 900;
+            color: rgba(0, 0, 0, 0.03); /* Very subtle */
+            pointer-events: none;
+            z-index: 0;
+            user-select: none;
+            font-family: 'Courier New', monospace;
         }
 
-        .card { background: white; padding: 2rem; border-radius: 1rem; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: sans-serif; }
-        .active { display: block; }
-
-        button { background: var(--primary); color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; margin: 10px; width: 80%; max-width: 300px; }
-        button:hover { opacity: 0.9; }
-        button:disabled { background: #9ca3af; cursor: not-allowed; }
-
-        input { padding: 15px; font-size: 1.5rem; text-align: center; width: 60%; border: 2px solid #ccc; border-radius: 8px; text-transform: uppercase; letter-spacing: 3px; }
-
-        .big-code { font-size: 4rem; font-weight: bold; color: var(--primary); letter-spacing: 5px; margin: 10px 0; font-family: monospace; }
+        .container { max-width: 800px; width: 100%; margin: 0 auto; z-index: 1; position: relative; }
+        .card { background: white; padding: 2rem; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); text-align: center; display: none; }
+        .active { display: block; animation: slideUp 0.4s ease; }
         
-        /* Game Elements */
-        .timer-bar { height: 10px; background: #ddd; margin: 20px 0; border-radius: 5px; }
+        h1 { color: var(--primary); margin-bottom: 10px; }
+        button { background: linear-gradient(135deg, var(--primary), var(--accent)); color: white; border: none; padding: 15px 30px; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin: 10px; width: 100%; max-width: 300px; transition: transform 0.1s; }
+        button:hover { transform: translateY(-3px); }
+        button:active { transform: scale(0.98); }
+        
+        input, select { padding: 15px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1.2rem; width: 100%; max-width: 300px; margin-bottom: 15px; text-align: center; }
+        
+        /* Game UI */
+        .room-code { font-size: 4rem; font-weight: 900; color: var(--primary); font-family: monospace; letter-spacing: 8px; margin: 20px 0; background: #f1f5f9; padding: 10px; border-radius: 15px; border: 3px dashed #cbd5e1; }
+        .timer-bar { height: 12px; background: #e2e8f0; border-radius: 6px; overflow: hidden; margin: 20px 0; }
         .timer-fill { height: 100%; background: var(--primary); width: 100%; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
-        .opt-btn { background: #e0e7ff; color: #3730a3; padding: 20px; font-size: 1.1rem; border: none; cursor: pointer; border-radius: 5px; }
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .opt-btn { background: white; border: 2px solid #e2e8f0; color: var(--text); padding: 20px; font-size: 1.2rem; border-radius: 12px; cursor: pointer; min-height: 80px; transition: all 0.2s; }
+        .opt-btn:hover { border-color: var(--primary); background: #f5f3ff; }
+        .opt-btn.correct { background: var(--success); color: white; border-color: var(--success); }
+        .opt-btn.wrong { background: var(--danger); color: white; border-color: var(--danger); }
+        
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
+<div class="watermark">TIU</div>
+
 <div class="container">
-    <h1>🛠️ Quiz 7.0 (Diagnostic)</h1>
-
-    <div class="debug-box" id="log">Waiting for system check...<br></div>
-
+    
     <div id="s-menu" class="card active">
-        <p>System Status: <span id="sys-status">Checking...</span></p>
-        <button onclick="initHost()" id="btn-host" disabled>Host Game</button>
-        <button onclick="showJoin()" id="btn-join" disabled>Join Game</button>
+        <h1>🎓 TIU Quiz 9.0</h1>
+        <p>Select your role:</p>
+        <button onclick="setupHost()">👑 Host (Teacher)</button>
+        <button onclick="setupJoin()" style="background:white; border:2px solid var(--primary); color:var(--primary)">👤 Join (Student)</button>
     </div>
 
-    <div id="s-host" class="card">
-        <h2>Host Lobby</h2>
-        <div class="big-code" id="room-code">...</div>
-        <p>Ask students to enter this code.</p>
-        <div style="background:#f8fafc; padding:10px; text-align:left;">
-            <strong>Players:</strong> <span id="p-list">Waiting...</span>
-        </div>
-        <br>
-        <button onclick="startGame()">Start Game</button>
+    <div id="s-host-lobby" class="card">
+        <h2>Teacher Lobby</h2>
+        <div class="room-code" id="room-code-display">...</div>
+        
+        <label>Select Grade Level:</label>
+        <select id="grade-select">
+            <option value="g1">1st Grade</option>
+            <option value="g2">2nd Grade</option>
+            <option value="g3">3rd Grade</option>
+            <option value="g4">4th Grade</option>
+            <option value="g5">5th Grade</option>
+            <option value="g6">6th Grade</option>
+            <option value="g7">7th Grade</option>
+            <option value="g8">8th Grade</option>
+            <option value="hs">High School</option>
+        </select>
+
+        <p>Students Joined: <span id="p-count" style="font-weight:bold">0</span></p>
+        <button onclick="startGame()">🚀 Start Game</button>
     </div>
 
     <div id="s-join" class="card">
-        <h2>Enter 4-Letter Code</h2>
-        <input type="text" id="join-input" maxlength="4" placeholder="ABCD">
-        <input type="text" id="name-input" placeholder="Your Name" style="font-size:1rem; margin-top:10px; text-transform:none;">
-        <button onclick="joinGame()">Connect</button>
+        <h2>Join Class</h2>
+        <input type="text" id="join-code" placeholder="CODE" maxlength="4" style="text-transform:uppercase; font-weight:bold; letter-spacing:5px;">
+        <input type="text" id="join-name" placeholder="Your Name">
+        <button onclick="joinGame()">Enter</button>
+        <p id="join-status" style="min-height:20px;"></p>
     </div>
 
     <div id="s-game" class="card">
-        <div class="timer-bar"><div id="timer" class="timer-fill"></div></div>
-        <h2 id="q-text">Loading...</h2>
-        <div id="opts" class="grid"></div>
-        <h3 id="feedback"></h3>
+        <div style="display:flex; justify-content:space-between; font-weight:bold; color:#64748b;">
+            <span id="q-counter">Q 1/10</span>
+            <span id="score-display">Score: 0</span>
+        </div>
+        <div class="timer-bar"><div id="timer-fill" class="timer-fill"></div></div>
+        <h2 id="q-text" style="font-size:1.8rem; min-height:80px;">...</h2>
+        <div id="options-area" class="options-grid"></div>
     </div>
 
-    <div id="s-result" class="card">
-        <h2>🏆 Results</h2>
-        <div id="lb-list" style="text-align:left;"></div>
-        <div id="host-controls" style="display:none; margin-top:20px;">
-            <button onclick="nextQ()">Next Question</button>
+    <div id="s-results" class="card">
+        <h2>🏆 Leaderboard</h2>
+        <div id="lb-list" style="text-align:left; margin:20px 0;"></div>
+        <div id="host-controls" style="display:none;">
+            <button onclick="nextQuestion()">Next Question ➡️</button>
         </div>
         <p id="wait-msg" style="display:none;">Waiting for teacher...</p>
     </div>
+
 </div>
 
 <script>
-// --- LOGGER ---
-function log(msg, color='#00ff00') {
-    const box = document.getElementById('log');
-    const time = new Date().toLocaleTimeString().split(' ')[0];
-    box.innerHTML += `<div style="color:${color}">[${time}] ${msg}</div>`;
-    box.scrollTop = box.scrollHeight;
+/* --- SOUND ENGINE (Synthesized, no files needed) --- */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(type) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    if (type === 'correct') {
+        // Ding! (High Sine Wave)
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.1); // A6
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+    } else if (type === 'wrong') {
+        // Buzz! (Low Sawtooth)
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+    } else if (type === 'end') {
+        // Fanfare
+        [440, 554, 659, 880].forEach((freq, i) => {
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.connect(g); g.connect(audioCtx.destination);
+            o.frequency.value = freq;
+            g.gain.value = 0.2;
+            o.start(audioCtx.currentTime + i*0.1);
+            o.stop(audioCtx.currentTime + i*0.1 + 0.4);
+        });
+    }
 }
 
-// --- INITIAL CHECK ---
-window.onload = function() {
-    log("Checking for PeerJS library...", "white");
-    if (typeof Peer === 'undefined') {
-        log("❌ CRITICAL: 'peerjs.min.js' MISSING or BLOCKED.", "red");
-        log("Ensure file is in the same folder.", "orange");
-        document.getElementById('sys-status').innerText = "Library Missing";
-        document.getElementById('sys-status').style.color = "red";
-    } else {
-        log("✅ Library found. System Ready.", "cyan");
-        document.getElementById('btn-host').disabled = false;
-        document.getElementById('btn-join').disabled = false;
-        document.getElementById('sys-status').innerText = "Ready";
-        document.getElementById('sys-status').style.color = "green";
-    }
-};
-
-// --- GLOBALS ---
-let peer, conn, players={}, myName="", isHost=false, qList=[], qIdx=0;
-const Q_TIME=15;
+/* --- GAME LOGIC --- */
+const Q_TIME = 20;
+let peer, conn, myName="", isHost=false, score=0;
+let players={}, qList=[], qIdx=0, timerInt, timeRem;
 
 // --- HOST ---
-function initHost() {
-    // Generate Random 4-Letter Code
+function setupHost() {
     const code = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".split('').sort(()=>0.5-Math.random()).slice(0,4).join('');
+    document.getElementById('room-code-display').innerText = "Loading...";
     
-    log(`Attempting to create Room: ${code}`, "yellow");
-    document.getElementById('btn-host').innerText = "Creating...";
-
-    try {
-        peer = new Peer(code);
-        
-        peer.on('open', (id) => {
-            log(`✅ Server Created! Room Code: ${id}`, "#00ff00");
-            isHost = true;
-            document.getElementById('room-code').innerText = id;
-            show('s-host');
-        });
-
-        peer.on('error', (err) => {
-            log(`❌ Error: ${err.type}`, "red");
-            if(err.type === 'unavailable') {
-                log("Code taken, retrying...", "orange");
-                setTimeout(initHost, 500); // Retry automatically
+    peer = new Peer(code);
+    peer.on('open', (id) => {
+        isHost = true;
+        document.getElementById('room-code-display').innerText = id;
+        show('s-host-lobby');
+    });
+    peer.on('error', () => { peer.destroy(); setupHost(); }); // Retry if taken
+    
+    peer.on('connection', (c) => {
+        c.on('data', (d) => {
+            if(d.type==='JOIN') { players[c.peer] = {conn:c, name:d.name, score:0}; updateLobby(); }
+            if(d.type==='ANS') {
+                if(players[c.peer] && qList[qIdx] && d.idx === qList[qIdx].a) {
+                    players[c.peer].score += Math.floor(1000 * (d.rem/Q_TIME));
+                }
             }
         });
-
-        peer.on('connection', (c) => {
-            log(`Student connecting: ${c.peer}`, "cyan");
-            c.on('open', () => {
-                log(`✅ Student ${c.peer} Joined`, "#00ff00");
-                c.send({type:'WELCOME'});
-            });
-            c.on('data', (d) => handleData(c, d));
-        });
-        
-    } catch(e) {
-        log("❌ Crash: " + e, "red");
-    }
-}
-
-// --- JOIN ---
-function showJoin() { show('s-join'); }
-
-function joinGame() {
-    const code = document.getElementById('join-input').value.toUpperCase();
-    myName = document.getElementById('name-input').value || "Student";
-    
-    if(code.length !== 4) return log("⚠️ Code must be 4 letters", "orange");
-    
-    log(`Connecting to Room ${code}...`, "yellow");
-    
-    peer = new Peer(); // Auto ID for student
-    
-    peer.on('open', (myId) => {
-        log(`My Student ID: ${myId}`, "cyan");
-        conn = peer.connect(code);
-        
-        conn.on('open', () => {
-            log("✅ Connected to Teacher!", "#00ff00");
-            conn.send({type:'JOIN', name: myName});
-            document.getElementById('join-input').style.borderColor = "green";
-        });
-        
-        conn.on('data', clientHandle);
-        
-        conn.on('error', (e) => log("Connection Fail: "+e, "red"));
-        
-        // Timeout check
-        setTimeout(() => {
-            if(!conn.open) log("⚠️ Connection timed out. Check Code or Firewall.", "orange");
-        }, 4000);
     });
-    
-    peer.on('error', (e) => log("Peer Error: " + e.type, "red"));
 }
 
-// --- DATA HANDLERS ---
-function handleData(c, d) {
-    if(d.type === 'JOIN') {
-        players[c.peer] = { conn: c, name: d.name, score: 0 };
-        log(`${d.name} joined the lobby.`, "white");
-        updateLobby();
-    }
-    if(d.type === 'ANSWER') {
-        // Scoring logic
-        const p = players[c.peer];
-        if(p && qList[qIdx] && d.idx === qList[qIdx].a) {
-            p.score += Math.floor(1000 * (d.time / Q_TIME));
-        }
-    }
+function updateLobby() {
+    document.getElementById('p-count').innerText = Object.keys(players).length;
 }
-
-function clientHandle(d) {
-    if(d.type === 'Q') {
-        log("Received Question", "cyan");
-        renderQ(d.q, d.opts, d.num, d.total);
-        show('s-game');
-        runTimer();
-    }
-    if(d.type === 'LB') {
-        log("Round Over. Showing Results.", "white");
-        renderLB(d.data);
-        show('s-result');
-        document.getElementById('host-controls').style.display = 'none';
-        document.getElementById('wait-msg').style.display = 'block';
-    }
-}
-
-// --- GAME LOGIC ---
-const QUESTIONS = [
-    {q:"5 x 8 = ?", opts:["35","40","45","42"], a:1},
-    {q:"Capital of France?", opts:["London","Berlin","Paris","Rome"], a:2},
-    {q:"H2O is?", opts:["Gold","Water","Air","Fire"], a:1},
-    {q:"Fastest Animal?", opts:["Cheetah","Lion","Horse","Eagle"], a:0}
-];
 
 function startGame() {
-    log("Starting Game...", "yellow");
-    qList = QUESTIONS;
+    const grade = document.getElementById('grade-select').value;
+    qList = DB[grade].sort(()=>0.5-Math.random()).slice(0, 50); // Random 50 Qs
     qIdx = 0;
     runRound();
 }
 
 function runRound() {
-    if(qIdx >= qList.length) return finishGame();
-    
+    if(qIdx >= qList.length) return endGame();
     const q = qList[qIdx];
+    
     // Host UI
-    renderQ(q.q, q.opts, qIdx+1, qList.length);
+    renderQ(q, qIdx+1, qList.length);
     show('s-game');
-    document.getElementById('host-controls').style.display = 'none';
+    document.getElementById('host-controls').style.display='none';
     
-    // Broadcast
-    const payload = { type:'Q', q:q.q, opts:q.opts, num:qIdx+1, total:qList.length };
-    Object.values(players).forEach(p => p.conn.send(payload));
+    // Send to Students
+    const data = { type:'Q', q:q.q, opts:q.o, n:qIdx+1, t:qList.length };
+    Object.values(players).forEach(p => p.conn.send(data));
     
-    runTimer(() => showScores());
+    startTimer(Q_TIME, () => {
+        showResults();
+        playSound('end');
+    });
 }
 
-function showScores() {
-    const sorted = Object.values(players).sort((a,b) => b.score - a.score);
-    const data = sorted.map(p => ({name:p.name, score:p.score}));
-    
+function showResults() {
+    const data = Object.values(players).map(p=>({name:p.name, score:p.score})).sort((a,b)=>b.score-a.score);
     renderLB(data);
-    show('s-result');
-    document.getElementById('host-controls').style.display = 'block';
-    
+    show('s-results');
+    document.getElementById('host-controls').style.display='block';
     Object.values(players).forEach(p => p.conn.send({type:'LB', data:data}));
 }
 
-function nextQ() { qIdx++; runRound(); }
-function finishGame() {
-    showScores();
-    log("Game Over", "cyan");
-    document.getElementById('lb-list').innerHTML = "<h2>🎉 Game Over!</h2>" + document.getElementById('lb-list').innerHTML;
-    document.getElementById('host-controls').style.display = 'none';
-}
+function nextQuestion() { qIdx++; runRound(); }
+function endGame() { showResults(); document.getElementById('lb-list').innerHTML = "<h1>🏁 GAME OVER</h1>" + document.getElementById('lb-list').innerHTML; document.getElementById('host-controls').style.display='none'; }
 
-// --- SHARED UI ---
-function show(id) {
-    document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-}
-
-function updateLobby() {
-    const names = Object.values(players).map(p => p.name).join(', ');
-    document.getElementById('p-list').innerText = names || "Waiting...";
-}
-
-function renderQ(txt, opts, n, t) {
-    document.getElementById('q-text').innerText = txt;
-    const div = document.getElementById('opts');
-    div.innerHTML = '';
-    opts.forEach((o, i) => {
-        div.innerHTML += `<button class="opt-btn" onclick="submitAns(${i})">${o}</button>`;
+// --- CLIENT ---
+function setupJoin() { show('s-join'); }
+function joinGame() {
+    const code = document.getElementById('join-code').value.toUpperCase();
+    myName = document.getElementById('join-name').value || "Guest";
+    if(code.length!==4) return;
+    document.getElementById('join-status').innerText = "Connecting...";
+    
+    peer = new Peer();
+    peer.on('open', () => {
+        conn = peer.connect(code);
+        conn.on('open', () => {
+            document.getElementById('join-status').innerText = "Connected!";
+            conn.send({type:'JOIN', name:myName});
+        });
+        conn.on('data', (d) => {
+            if(d.type==='Q') { renderQ({q:d.q, o:d.opts}, d.n, d.t); show('s-game'); startTimer(Q_TIME); }
+            if(d.type==='LB') { renderLB(d.data); show('s-results'); document.getElementById('wait-msg').style.display='block'; document.getElementById('host-controls').style.display='none'; }
+        });
     });
 }
 
 function submitAns(i) {
-    document.querySelectorAll('.opt-btn')[i].style.background = "#4f46e5";
-    document.querySelectorAll('.opt-btn')[i].style.color = "white";
-    if(!isHost) conn.send({type:'ANSWER', idx:i, time:timeLeft});
+    document.querySelectorAll('.opt-btn').forEach(b => b.style.opacity='0.5');
+    document.querySelectorAll('.opt-btn')[i].style.opacity='1';
+    document.querySelectorAll('.opt-btn')[i].style.border='3px solid var(--primary)';
+    if(!isHost) conn.send({type:'ANS', idx:i, rem:timeRem});
+    
+    // Immediate Feedback (Guess) - Actual check is server side, but we can guess for sound
+    // Note: In secure mode we don't send answer to client, but for sound we can play a neutral 'click' or optimistic sound
+}
+
+// --- SHARED UI ---
+function show(id) { document.querySelectorAll('.card').forEach(c=>c.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+
+function renderQ(q, n, t) {
+    document.getElementById('q-counter').innerText = `Q ${n}/${t}`;
+    document.getElementById('q-text').innerText = q.q;
+    const div = document.getElementById('options-area'); div.innerHTML='';
+    q.o.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'opt-btn'; btn.innerText = opt;
+        btn.onclick = () => submitAns(i);
+        div.appendChild(btn);
+    });
 }
 
 function renderLB(data) {
-    let html = '';
-    data.forEach((p, i) => {
-        html += `<div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #ddd; ${p.name===myName?'background:#e0e7ff':''}">
-            <span>#${i+1} ${p.name}</span><span>${p.score} pts</span></div>`;
-    });
-    document.getElementById('lb-list').innerHTML = html;
+    document.getElementById('lb-list').innerHTML = data.map((p,i) => 
+        `<div style="display:flex; justify-content:space-between; padding:15px; border-bottom:1px solid #eee; ${p.name===myName?'background:#e0e7ff; font-weight:bold;':''}">
+            <span>${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}#${i+1} ${p.name}</span><span>${p.score}</span>
+        </div>`
+    ).join('');
 }
 
-let timeLeft, timerInt;
-function runTimer(cb) {
-    clearInterval(timerInt);
-    timeLeft = Q_TIME;
-    document.getElementById('timer').style.width = '100%';
-    document.getElementById('timer').style.transition = `width ${Q_TIME}s linear`;
-    setTimeout(()=>document.getElementById('timer').style.width='0%', 50);
-    
-    timerInt = setInterval(() => {
-        timeLeft -= 1;
-        if(timeLeft <= 0) {
-            clearInterval(timerInt);
-            if(cb) cb();
-        }
+function startTimer(s, cb) {
+    clearInterval(timerInt); timeRem = s;
+    const bar = document.getElementById('timer-fill');
+    bar.style.transition='none'; bar.style.width='100%';
+    setTimeout(()=> { bar.style.transition=`width ${s}s linear`; bar.style.width='0%'; }, 50);
+    timerInt = setInterval(()=> {
+        timeRem -= 1;
+        if(timeRem <= 0) { clearInterval(timerInt); if(cb) cb(); }
     }, 1000);
 }
+
+/* --- 📚 MEGA QUESTION DATABASE (Compressed Format) --- */
+/* Format: { q: "Question", o: ["Opt1","Opt2","Opt3","Opt4"], a: IndexCorrect } */
+const DB = {
+    g1: [
+        {q:"5 + 5 = ?", o:["9","10","11","12"], a:1},
+        {q:"Which animal says Moo?", o:["Pig","Cow","Sheep","Dog"], a:1},
+        {q:"What color is a strawberry?", o:["Blue","Green","Red","Yellow"], a:2},
+        {q:"How many legs does a dog have?", o:["2","4","6","8"], a:1},
+        {q:"Which is a shape?", o:["Blue","Circle","Soft","Loud"], a:1},
+        {q:"Opposite of Up?", o:["Left","Right","Down","Over"], a:2},
+        {q:"Spell: C _ T", o:["A","E","I","O"], a:0},
+        {q:"Sun comes out in the...?", o:["Night","Day","Moon","Star"], a:1},
+        {q:"Apples grow on...?", o:["Vines","Ground","Trees","Water"], a:2},
+        {q:"10 - 2 = ?", o:["6","7","8","9"], a:2},
+        {q:"Which is a fruit?", o:["Carrot","Banana","Potato","Bread"], a:1},
+        {q:"Ice is...?", o:["Hot","Cold","Warm","Dry"], a:1},
+        {q:"Number after 9?", o:["8","10","11","7"], a:1},
+        {q:"What do fish do?", o:["Fly","Walk","Swim","Run"], a:2},
+        {q:"Color of the sky?", o:["Green","Blue","Red","Purple"], a:1},
+        {q:"2 + 2 = ?", o:["3","4","5","6"], a:1},
+        {q:"Opposite of Big?", o:["Large","Huge","Small","Tall"], a:2},
+        {q:"Bees make...?", o:["Milk","Honey","Jam","Juice"], a:1},
+        {q:"Cars have 4...?", o:["Legs","Eyes","Wheels","Ears"], a:2},
+        {q:"Sleep in a...?", o:["Table","Chair","Bed","Sink"], a:2}
+    ],
+    g2: [
+        {q:"15 + 10 = ?", o:["20","25","30","35"], a:1},
+        {q:"Which is a solid?", o:["Water","Milk","Rock","Air"], a:2},
+        {q:"Days in a week?", o:["5","6","7","8"], a:2},
+        {q:"Baby cat is called?", o:["Puppy","Kitten","Cub","Foal"], a:1},
+        {q:"Month after January?", o:["March","April","May","February"], a:3},
+        {q:"Penny is worth?", o:["1 cent","5 cents","10 cents","25 cents"], a:0},
+        {q:"Red + Yellow = ?", o:["Green","Purple","Orange","Brown"], a:2},
+        {q:"Earth is a...?", o:["Star","Planet","Moon","Comet"], a:1},
+        {q:"Opposite of Fast?", o:["Quick","Slow","Run","Speed"], a:1},
+        {q:"Sides on a Triangle?", o:["3","4","5","6"], a:0},
+        {q:"Book has many...?", o:["Screens","Pages","Buttons","Wires"], a:1},
+        {q:"Who fixes teeth?", o:["Doctor","Dentist","Vet","Chef"], a:1},
+        {q:"100 - 1 = ?", o:["90","99","101","98"], a:1},
+        {q:"Water freezes into?", o:["Steam","Ice","Fog","Rain"], a:1},
+        {q:"Season with snow?", o:["Summer","Spring","Winter","Fall"], a:2},
+        {q:"Ants are...?", o:["Mammals","Insects","Fish","Birds"], a:1},
+        {q:"50 cents is...?", o:["Quarter","Dime","Half Dollar","Nickel"], a:2},
+        {q:"Write with a...?", o:["Spoon","Pencil","Fork","Stick"], a:1},
+        {q:"Lunch is at?", o:["Morning","Noon","Night","Midnight"], a:1},
+        {q:"King of the jungle?", o:["Tiger","Bear","Lion","Wolf"], a:2}
+    ],
+    g3: [
+        {q:"5 x 5 = ?", o:["20","25","30","35"], a:1},
+        {q:"Planet we live on?", o:["Mars","Venus","Earth","Jupiter"], a:2},
+        {q:"Noun is a...?", o:["Action","Person/Place/Thing","Describe","Link"], a:1},
+        {q:"3 digits: 5, 2, 9. Biggest?", o:["529","925","952","295"], a:2},
+        {q:"Tadpole becomes a?", o:["Fish","Frog","Lizard","Bird"], a:1},
+        {q:"Hours in a day?", o:["12","20","24","48"], a:2},
+        {q:"Capital letter for?", o:["dog","run","america","blue"], a:2},
+        {q:"Gas we breathe?", o:["Oxygen","Helium","Carbon","Neon"], a:0},
+        {q:"Dozen means?", o:["6","10","12","20"], a:2},
+        {q:"Opposite of multiplication?", o:["Addition","Subtraction","Division","Sum"], a:2},
+        {q:"Continents count?", o:["5","6","7","8"], a:2},
+        {q:"Liquid rock?", o:["Lava","Sand","Soil","Clay"], a:0},
+        {q:"Past tense of Run?", o:["Running","Ran","Runs","Runned"], a:1},
+        {q:"Which is a verb?", o:["Blue","Jump","Table","Soft"], a:1},
+        {q:"Shape with 4 equal sides?", o:["Rectangle","Square","Triangle","Circle"], a:1},
+        {q:"Skeleton is made of?", o:["Skin","Muscle","Bones","Blood"], a:2},
+        {q:"Money for work?", o:["Tax","Salary","Gift","Loan"], a:1},
+        {q:"Clock hand for minutes?", o:["Short","Long","Red","Thin"], a:1},
+        {q:"9 x 2 = ?", o:["16","18","20","22"], a:1},
+        {q:"Largest ocean?", o:["Atlantic","Indian","Arctic","Pacific"], a:3}
+    ],
+    g4: [
+        {q:"Capital of USA?", o:["NY","LA","DC","Chicago"], a:2},
+        {q:"40 / 8 = ?", o:["4","5","6","8"], a:1},
+        {q:"State of Matter: Rain?", o:["Solid","Liquid","Gas","Plasma"], a:1},
+        {q:"Who discovered gravity (apple)?", o:["Einstein","Newton","Tesla","Edison"], a:1},
+        {q:"Top of a fraction?", o:["Denominator","Numerator","Whole","Part"], a:1},
+        {q:"Plants need...?", o:["Soda","Sunlight","Candy","Milk"], a:1},
+        {q:"How many states in USA?", o:["48","50","52","13"], a:1},
+        {q:"Author of Harry Potter?", o:["Rowling","Dahl","Dr Seuss","White"], a:0},
+        {q:"Triangle with equal sides?", o:["Isosceles","Scalene","Equilateral","Right"], a:2},
+        {q:"Freeze point of water (C)?", o:["0","32","100","-10"], a:0},
+        {q:"Herbivore eats?", o:["Meat","Plants","Both","Bugs"], a:1},
+        {q:"Double of 15?", o:["20","25","30","40"], a:2},
+        {q:"Which is a conductor?", o:["Wood","Plastic","Metal","Rubber"], a:2},
+        {q:"Main idea of a story?", o:["Plot","Theme","Setting","Character"], a:1},
+        {q:"Prefix 'Re' means?", o:["Not","Again","Before","After"], a:1},
+        {q:"Closest star?", o:["Alpha","Sun","Polaris","Sirius"], a:1},
+        {q:"1 cm = ? mm", o:["10","100","1000","0.1"], a:0},
+        {q:"Largest mammal?", o:["Elephant","Blue Whale","Giraffe","Rhino"], a:1},
+        {q:"Compass points?", o:["N,S","E,W","All 4","Up/Down"], a:2},
+        {q:"Decade is?", o:["5 yrs","10 yrs","20 yrs","100 yrs"], a:1}
+    ],
+    g5: [
+        {q:"Prime number?", o:["4","6","7","9"], a:2},
+        {q:"Civil War President?", o:["Washington","Lincoln","Jefferson","Obama"], a:1},
+        {q:"H2O stands for?", o:["Hydrogen","Oxygen","Water","Helium"], a:2},
+        {q:"Angle < 90 deg?", o:["Obtuse","Right","Acute","Straight"], a:2},
+        {q:"Vertebrates have?", o:["Shells","Backbones","Wings","Scales"], a:1},
+        {q:"0.5 as a fraction?", o:["1/4","1/2","3/4","1/3"], a:1},
+        {q:"First amendment is?", o:["Speech","Arms","Vote","Trial"], a:0},
+        {q:"Photosynthesis needs?", o:["Oxygen","Nitrogen","CO2","Argon"], a:2},
+        {q:"Capital of France?", o:["London","Rome","Berlin","Paris"], a:3},
+        {q:"Area of Rectangle?", o:["L+W","2L+2W","L x W","L/W"], a:2},
+        {q:"Synonym for Happy?", o:["Sad","Joyful","Angry","Tired"], a:1},
+        {q:"Planets in Solar System?", o:["7","8","9","10"], a:1},
+        {q:"Which is an adjective?", o:["Run","Dog","Blue","Quickly"], a:2},
+        {q:"Great Lakes count?", o:["3","4","5","6"], a:2},
+        {q:"Mixture of metals?", o:["Alloy","Compound","Element","Ion"], a:0},
+        {q:"5 squared?", o:["10","15","25","50"], a:2},
+        {q:"Root of a plant?", o:["Makes seeds","Absorbs water","Photosynthesis","Protects"], a:1},
+        {q:"Declaration of Independence?", o:["1776","1789","1812","1492"], a:0},
+        {q:"Opposite of 'Divide'?", o:["Add","Subtract","Multiply","Fraction"], a:2},
+        {q:"Largest organ?", o:["Heart","Liver","Brain","Skin"], a:3}
+    ],
+    g6: [
+        {q:"Formula for Density?", o:["M/V","V/M","MxV","M+V"], a:0},
+        {q:"Ancient Egyptian writing?", o:["Cuneiform","Hieroglyphs","Latin","Sanskrit"], a:1},
+        {q:"Mean of 2, 4, 6?", o:["2","3","4","5"], a:2},
+        {q:"Center of an atom?", o:["Electron","Nucleus","Proton","Shell"], a:1},
+        {q:"Greek god of sea?", o:["Zeus","Hades","Poseidon","Apollo"], a:2},
+        {q:"3/4 as percent?", o:["50%","60%","70%","75%"], a:3},
+        {q:"Earth's crust plates?", o:["Tectonic","Sonic","Magnetic","Solar"], a:0},
+        {q:"PEMDAS: P is?", o:["Plus","Power","Parentheses","Point"], a:2},
+        {q:"Warm blooded?", o:["Snake","Frog","Shark","Bear"], a:3},
+        {q:"Roman numeral V?", o:["1","5","10","50"], a:1},
+        {q:"River in Egypt?", o:["Amazon","Nile","Mississippi","Danube"], a:1},
+        {q:"Lowest prime number?", o:["0","1","2","3"], a:2},
+        {q:"Meteorology studies?", o:["Meteors","Weather","Rocks","Stars"], a:1},
+        {q:"Simile uses?", o:["Like/As","Is/Are","Was/Were","Not"], a:0},
+        {q:"Perimeter of square (side 4)?", o:["8","12","16","20"], a:2},
+        {q:"Renewable energy?", o:["Coal","Gas","Solar","Oil"], a:2},
+        {q:"Dictator rule?", o:["Democracy","Monarchy","Tyranny","Republic"], a:2},
+        {q:"Magma vs Lava?", o:["Color","Temp","Location","Speed"], a:2},
+        {q:"Percent of 50 is 10?", o:["10%","20%","25%","50%"], a:1},
+        {q:"Cell powerhouse?", o:["Nucleus","Mitochondria","Ribosome","Wall"], a:1}
+    ],
+    g7: [
+        {q:"Evaluate: 2x + 5 = 15", o:["2","3","4","5"], a:3},
+        {q:"Cell division type?", o:["Mitosis","Osmosis","Fusion","Fission"], a:0},
+        {q:"Start of WWI?", o:["1914","1918","1939","1945"], a:0},
+        {q:"Slope formula?", o:["y=mx+b","Rise/Run","Run/Rise","ax+by"], a:1},
+        {q:"Newton's 1st Law?", o:["Action/Reaction","F=ma","Inertia","Gravity"], a:2},
+        {q:"Integers include?", o:["Fractions","Negatives","Decimals","Pi"], a:1},
+        {q:"Author of 'The Outsiders'?", o:["Hinton","Twain","Lee","Steinbeck"], a:0},
+        {q:"Charge of Proton?", o:["Positive","Negative","Neutral","Variable"], a:0},
+        {q:"Renaissance began in?", o:["France","England","Italy","Spain"], a:2},
+        {q:"Prob. of flipping heads?", o:["25%","50%","75%","100%"], a:1},
+        {q:"Universal solvent?", o:["Acid","Oil","Water","Alcohol"], a:2},
+        {q:"Square root of 81?", o:["7","8","9","10"], a:2},
+        {q:"Which is abiotic?", o:["Tree","Bacteria","Rock","Dog"], a:2},
+        {q:"Bill of Rights count?", o:["5","10","15","20"], a:1},
+        {q:"Complementary angles sum?", o:["45","90","180","360"], a:1},
+        {q:"DNA shape?", o:["Circle","Single Helix","Double Helix","Ladder"], a:2},
+        {q:"Feudalism system?", o:["Land","Money","Trade","Votes"], a:0},
+        {q:"Absolute value |-5|?", o:["-5","5","0","10"], a:1},
+        {q:"Hardest mineral?", o:["Gold","Iron","Diamond","Quartz"], a:2},
+        {q:"Preposition example?", o:["Run","Blue","Under","She"], a:2}
+    ],
+    g8: [
+        {q:"Pythagorean Theorem?", o:["E=mc2","a2+b2=c2","F=ma","y=mx+b"], a:1},
+        {q:"Atomic number of Carbon?", o:["6","8","12","14"], a:0},
+        {q:"Written by Anne Frank?", o:["Poem","Novel","Diary","Play"], a:2},
+        {q:"Slope intercept form?", o:["Ax+By=C","y=mx+b","y-y1=m","x=a"], a:1},
+        {q:"Constitution writer?", o:["Washington","Madison","Hamilton","Adams"], a:1},
+        {q:"Force unit?", o:["Joule","Watt","Newton","Pascal"], a:2},
+        {q:"Scientific notation: 3000?", o:["3x10^2","3x10^3","3x10^4","30x10"], a:1},
+        {q:"Genetic grid?", o:["Punnett Sq","Venn Diag","Bar Graph","Pie Chart"], a:0},
+        {q:"Civil War dates?", o:["1776-83","1812-14","1861-65","1914-18"], a:2},
+        {q:"Irrational number?", o:["4","0.5","Pi","-10"], a:2},
+        {q:"Periodic Table rows?", o:["Groups","Periods","Families","Metals"], a:1},
+        {q:"Industrial Rev started?", o:["USA","France","Germany","UK"], a:3},
+        {q:"Volume of Cylinder?", o:["2pir","pir^2","pir^2h","lbh"], a:2},
+        {q:"Chemical change?", o:["Melting","Rusting","Cutting","Boiling"], a:1},
+        {q:"Right to bear arms?", o:["1st","2nd","4th","5th"], a:1},
+        {q:"Graph of x^2 is?", o:["Line","Circle","Parabola","Wave"], a:2},
+        {q:"Speed of light (approx)?", o:["300k km/s","Sound","100k km/s","Infinite"], a:0},
+        {q:"MLK 'I Have a Dream'?", o:["1950","1963","1968","1970"], a:1},
+        {q:"Function test?", o:["Horizontal Line","Vertical Line","Slope","Origin"], a:1},
+        {q:"Layers of Earth?", o:["3","4","5","6"], a:1}
+    ],
+    hs: [
+        {q:"Derivative of x^2?", o:["x","2x","2","x^2"], a:1},
+        {q:"Start of WWII?", o:["1914","1939","1941","1945"], a:1},
+        {q:"Hamlet's question?", o:["Where art thou","To be or not","Et tu Brute","All world stage"], a:1},
+        {q:"Mitochondria function?", o:["Storage","ATP Production","DNA","Support"], a:1},
+        {q:"Sin(90) degrees?", o:["0","0.5","1","-1"], a:2},
+        {q:"Atomic mass is?", o:["Protons","Neutrons","P+N","Electrons"], a:2},
+        {q:"Gatsby's love?", o:["Daisy","Jordan","Myrtle","Pam"], a:0},
+        {q:"Capital of Australia?", o:["Sydney","Melbourne","Canberra","Perth"], a:2},
+        {q:"Molar mass of H2O?", o:["16","17","18","20"], a:2},
+        {q:"Quadratic formula start?", o:["-b","b^2","2a","4ac"], a:0},
+        {q:"Stock market crash?", o:["1919","1929","1939","1945"], a:1},
+        {q:"Speed of Sound?", o:["343 m/s","3x10^8 m/s","100 m/s","1000 m/s"], a:0},
+        {q:"Who wrote 1984?", o:["Huxley","Bradbury","Orwell","Golding"], a:2},
+        {q:"Log base 10 of 100?", o:["1","2","10","100"], a:1},
+        {q:"Hardest substance?", o:["Steel","Diamond","Graphene","Titanium"], a:1}, /* Graphene technically but usually Diamond in trivia */
+        {q:"Cold War opponents?", o:["US/UK","US/USSR","UK/France","US/China"], a:1},
+        {q:"Avogadro's Number?", o:["6.02 x 10^23","3.14","9.8","1.6 x 10^-19"], a:0},
+        {q:"Integral of 2x?", o:["x^2+C","2x^2","x","2"], a:0},
+        {q:"Paint 'Starry Night'?", o:["Monet","Dali","Van Gogh","Picasso"], a:2},
+        {q:"Power is measured in?", o:["Joules","Newtons","Watts","Volts"], a:2},
+        {q:"Macbeth is called?", o:["Scottish Play","Tragedy King","Dark Play","Witch Tale"], a:0},
+        {q:"pH of Acid?", o:["7",">7","<7","0 only"], a:2},
+        {q:"D-Day date?", o:["June 6 1944","Dec 7 1941","May 8 1945","Aug 6 1945"], a:0},
+        {q:"Unit of Resistance?", o:["Amp","Volt","Ohm","Watt"], a:2},
+        {q:"First element?", o:["Helium","Hydrogen","Lithium","Carbon"], a:1}
+    ]
+};
 </script>
 </body>
 </html>
