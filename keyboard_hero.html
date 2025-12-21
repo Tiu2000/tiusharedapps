@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyboard Hero - TIU Edition</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff00ff;
+            --neon-green: #00ff00;
+            --neon-red: #ff0000;
+            --bg-color: #111;
+            --lane-color: #222;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-color);
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+        }
+
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .score-box {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border: 1px solid white;
+            border-radius: 8px;
+        }
+
+        #p2-score-box {
+            display: none; /* Hidden until multiplayer */
+            color: var(--neon-red);
+        }
+
+        /* The Highway (Game Board) */
+        #game-container {
+            position: relative;
+            width: 400px;
+            height: 100vh;
+            background: linear-gradient(180deg, #000 0%, #1a1a1a 100%);
+            transform: perspective(600px) rotateX(40deg);
+            transform-origin: bottom center;
+            border-left: 2px solid white;
+            border-right: 2px solid white;
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.2);
+        }
+
+        .lane {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 25%;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            box-sizing: border-box;
+        }
+        .lane:last-child { border-right: none; }
+
+        /* The Hit Zone (Buttons at bottom) */
+        .hit-zone {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+        }
+
+        .button-target {
+            width: 25%;
+            height: 20px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid white;
+            border-radius: 50%;
+            margin: 0 5px;
+            box-shadow: 0 0 10px white;
+            transition: transform 0.1s;
+        }
+
+        .button-target.pressed {
+            background: white;
+            transform: scale(0.9);
+        }
+
+        /* Falling Notes */
+        .note {
+            position: absolute;
+            width: 20%;
+            height: 10px;
+            border-radius: 5px;
+            left: 2.5%; /* Centers it in the 25% lane */
+            box-shadow: 0 0 10px currentColor;
+        }
+        
+        .note.lane-0 { background-color: var(--neon-green); color: var(--neon-green); left: 2.5%; }
+        .note.lane-1 { background-color: var(--neon-red); color: var(--neon-red); left: 27.5%; }
+        .note.lane-2 { background-color: var(--neon-blue); color: var(--neon-blue); left: 52.5%; }
+        .note.lane-3 { background-color: var(--neon-pink); color: var(--neon-pink); left: 77.5%; }
+
+        /* Menus */
+        #menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        button {
+            background: transparent;
+            color: white;
+            border: 2px solid var(--neon-blue);
+            padding: 15px 30px;
+            font-size: 20px;
+            margin: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: 0.3s;
+            font-family: inherit;
+        }
+
+        button:hover {
+            background: var(--neon-blue);
+            color: black;
+            box-shadow: 0 0 20px var(--neon-blue);
+        }
+
+        #p2p-panel {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+            border: 1px solid #444;
+            padding: 20px;
+        }
+
+        input {
+            background: #222;
+            border: 1px solid #555;
+            color: white;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-family: inherit;
+            width: 250px;
+            text-align: center;
+        }
+
+        /* Subtle TIU Watermark */
+        #tiu-watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 48px;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.05); /* Very subtle opacity */
+            pointer-events: none;
+            z-index: 100;
+            user-select: none;
+        }
+        
+        /* Feedback text */
+        #feedback {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 15;
+            text-shadow: 0 0 10px black;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="tiu-watermark">TIU</div>
+
+    <div id="game-container">
+        <div class="lane" style="left: 0%"></div>
+        <div class="lane" style="left: 25%"></div>
+        <div class="lane" style="left: 50%"></div>
+        <div class="lane" style="left: 75%"></div>
+
+        <div class="hit-zone">
+            <div class="button-target" id="btn-0"></div> <div class="button-target" id="btn-1"></div> <div class="button-target" id="btn-2"></div> <div class="button-target" id="btn-3"></div> </div>
+        
+        </div>
+
+    <div id="ui-layer">
+        <div class="score-box">
+            <div>PLAYER 1</div>
+            <div id="score" style="font-size: 24px;">0</div>
+            <div id="combo" style="font-size: 14px; color: #aaa;">Combo: 0</div>
+        </div>
+        
+        <div id="feedback">PERFECT</div>
+
+        <div class="score-box" id="p2-score-box">
+            <div>OPPONENT</div>
+            <div id="p2-score" style="font-size: 24px;">0</div>
+            <div id="p2-status" style="font-size: 12px;">Waiting...</div>
+        </div>
+    </div>
+
+    <div id="menu-overlay">
+        <h1 style="text-shadow: 0 0 20px var(--neon-pink);">KEYBOARD HERO</h1>
+        <p>Controls: A | S | D | F</p>
+        <button onclick="startGame()">Single Player</button>
+        <button onclick="showMultiplayer()">Multiplayer (P2P)</button>
+
+        <div id="p2p-panel">
+            <p style="font-size: 12px; color: #888;">Peer-to-Peer Mode</p>
+            <div id="my-id-display" style="font-size: 14px; margin-bottom: 10px; color: var(--neon-green);">Connecting to network...</div>
+            <input type="text" id="opponent-id" placeholder="Enter Opponent ID to Join">
+            <button onclick="connectToPeer()">Join Game</button>
+            <p style="font-size: 10px; max-width: 300px; text-align: center; color: #666;">
+                Instruction: One player copies their ID and sends it to the other. The other pastes it and clicks Join.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME CONFIG ---
+        const SONG_BPM = 120;
+        const NOTE_SPEED = 300; // Pixels per second
+        const HIT_ZONE_Y = window.innerHeight - 80; // Approximate location of hit zone in transformed space
+        // Simple song pattern generator
+        const generateSong = () => {
+            let notes = [];
+            for(let i=0; i<100; i++) {
+                // Random lane 0-3
+                const lane = Math.floor(Math.random() * 4); 
+                // Time in ms
+                const time = 2000 + (i * 400) + (Math.random() * 200); 
+                notes.push({ lane, time, hit: false, element: null });
+            }
+            return notes;
+        };
+
+        // --- GLOBAL STATE ---
+        let gameRunning = false;
+        let startTime = 0;
+        let score = 0;
+        let combo = 0;
+        let songData = [];
+        let peer = null;
+        let conn = null;
+        let isHost = false;
+
+        // --- AUDIO ENGINE (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(lane) {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            // Different frequencies for lanes
+            const freqs = [261.63, 293.66, 329.63, 349.23]; // C4, D4, E4, F4
+            osc.frequency.value = freqs[lane];
+            osc.type = 'sawtooth';
+            
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        // --- INPUT HANDLING ---
+        const keys = { 'a': 0, 's': 1, 'd': 2, 'f': 3 };
+        
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning) return;
+            const key = e.key.toLowerCase();
+            if (keys.hasOwnProperty(key)) {
+                const lane = keys[key];
+                document.getElementById(`btn-${lane}`).classList.add('pressed');
+                checkHit(lane);
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (keys.hasOwnProperty(key)) {
+                document.getElementById(`btn-${keys[key]}`).classList.remove('pressed');
+            }
+        });
+
+        // --- GAME LOGIC ---
+
+        function startGame(isMultiplayer = false) {
+            document.getElementById('menu-overlay').style.display = 'none';
+            score = 0;
+            combo = 0;
+            updateScoreUI();
+            
+            // Clean up old notes
+            document.querySelectorAll('.note').forEach(n => n.remove());
+            
+            // If multiplayer host or single player, generate song.
+            // If multiplayer client, we wait for start signal (simplified for demo: everyone gen same seed or just random)
+            songData = generateSong();
+            
+            gameRunning = true;
+            startTime = performance.now();
+            
+            if(isMultiplayer && conn) {
+                conn.send({ type: 'START' });
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function gameLoop(timestamp) {
+            if (!gameRunning) return;
+
+            const timeElapsed = timestamp - startTime;
+
+            songData.forEach(note => {
+                if (note.hit) return;
+
+                // Create element if it doesn't exist and is coming up
+                if (!note.element && timeElapsed >= note.time - 2000) {
+                    const el = document.createElement('div');
+                    el.className = `note lane-${note.lane}`;
+                    document.getElementById('game-container').appendChild(el);
+                    note.element = el;
+                }
+
+                // Move Note
+                if (note.element) {
+                    // Calculate position based on time difference
+                    // We want the note to hit 90% down the container at note.time
+                    const timeDiff = note.time - timeElapsed; 
+                    
+                    // Simple linear movement for demo (top: 0% to top: 100%)
+                    // Map timeDiff (2000ms -> 0ms) to position (-10% -> 90%)
+                    const percent = 90 - (timeDiff / 20); 
+                    
+                    note.element.style.top = `${percent}%`;
+
+                    // Miss detection
+                    if (percent > 105) {
+                        note.hit = true; // technically a miss, but stop processing
+                        note.element.remove();
+                        breakCombo();
+                    }
+                }
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function checkHit(lane) {
+            const currentTime = performance.now() - startTime;
+            // Find the closest unhit note in this lane
+            const hitWindow = 150; // ms tolerance
+
+            // Sort notes by time to find the earliest relevant one
+            const relevantNotes = songData.filter(n => 
+                n.lane === lane && 
+                !n.hit && 
+                Math.abs(n.time - currentTime) < hitWindow
+            );
+
+            if (relevantNotes.length > 0) {
+                // HIT!
+                const note = relevantNotes[0];
+                note.hit = true;
+                if(note.element) note.element.remove();
+                
+                score += 100 + (combo * 10);
+                combo++;
+                
+                playSound(lane);
+                showFeedback("HIT!");
+                updateScoreUI();
+                
+                // Send score to peer
+                if (conn) {
+                    conn.send({ type: 'SCORE_UPDATE', score: score });
+                }
+            } else {
+                // Misfire / Miss
+                // Optional: Penalty
+            }
+        }
+
+        function breakCombo() {
+            combo = 0;
+            showFeedback("MISS");
+            updateScoreUI();
+        }
+
+        function updateScoreUI() {
+            document.getElementById('score').innerText = score;
+            document.getElementById('combo').innerText = `Combo: ${combo}`;
+        }
+
+        function showFeedback(text) {
+            const f = document.getElementById('feedback');
+            f.innerText = text;
+            f.style.opacity = 1;
+            f.style.color = text === "MISS" ? "red" : "white";
+            setTimeout(() => { f.style.opacity = 0; }, 300);
+        }
+
+        // --- P2P NETWORKING (PeerJS) ---
+
+        function showMultiplayer() {
+            document.getElementById('p2p-panel').style.display = 'flex';
+            initializePeer();
+        }
+
+        function initializePeer() {
+            if (peer) return;
+
+            // Connect to PeerJS cloud server (free public server)
+            peer = new Peer(); 
+
+            peer.on('open', (id) => {
+                document.getElementById('my-id-display').innerText = `Your ID: ${id}`;
+            });
+
+            // Handle incoming connections
+            peer.on('connection', (c) => {
+                setupConnection(c);
+                alert("Opponent Connected! Press Start.");
+            });
+            
+            peer.on('error', (err) => {
+                console.error(err);
+                document.getElementById('my-id-display').innerText = "Connection Error (Try Refreshing)";
+            });
+        }
+
+        function connectToPeer() {
+            const opponentId = document.getElementById('opponent-id').value;
+            if (!opponentId) return;
+            
+            const c = peer.connect(opponentId);
+            setupConnection(c);
+        }
+
+        function setupConnection(c) {
+            conn = c;
+            
+            // Show P2 UI
+            document.getEle<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyboard Hero - TIU Admin Edition</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff00ff;
+            --neon-green: #00ff00;
+            --neon-red: #ff0000;
+            --bg-color: #050505;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-color);
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+        }
+
+        /* --- UI LAYER --- */
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .hud-panel {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            border: 1px solid #444;
+            border-radius: 8px;
+            min-width: 220px;
+            pointer-events: auto; /* Allow clicking kick buttons */
+        }
+
+        #score-display { font-size: 32px; color: white; }
+        
+        /* Leaderboard Styles */
+        #leaderboard { text-align: right; border-color: var(--neon-blue); max-height: 300px; overflow-y: auto; }
+        .lb-entry {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 5px; font-size: 14px;
+            border-bottom: 1px solid #333; padding-bottom: 4px;
+        }
+        .lb-name-group { display: flex; align-items: center; gap: 8px; }
+        .kick-btn {
+            background: var(--neon-red); color: white; border: none;
+            border-radius: 4px; cursor: pointer; font-size: 10px;
+            padding: 2px 5px; font-weight: bold;
+        }
+        .kick-btn:hover { background: #ff4444; }
+
+        /* --- THE HIGHWAY (GAME VIEW) --- */
+        #game-container {
+            position: relative; width: 400px; height: 100vh;
+            background: linear-gradient(180deg, #000 0%, #1a1a1a 100%);
+            transform: perspective(600px) rotateX(40deg);
+            transform-origin: bottom center;
+            border-left: 2px solid white; border-right: 2px solid white;
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.1);
+        }
+
+        .lane {
+            position: absolute; top: 0; height: 100%; width: 25%;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            box-sizing: border-box;
+        }
+        .lane:last-child { border-right: none; }
+
+        .hit-zone {
+            position: absolute; bottom: 20px; width: 100%; display: flex;
+        }
+
+        .button-target {
+            width: 25%; height: 20px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid white; border-radius: 50%;
+            margin: 0 5px;
+            box-shadow: 0 0 10px white;
+            transition: transform 0.05s;
+        }
+        .button-target.pressed { background: white; transform: scale(0.9); }
+
+        /* Notes */
+        .note {
+            position: absolute; width: 20%; height: 15px;
+            border-radius: 4px; left: 2.5%; 
+            box-shadow: 0 0 10px currentColor;
+        }
+        .note.lane-0 { background-color: var(--neon-green); color: var(--neon-green); left: 2.5%; }
+        .note.lane-1 { background-color: var(--neon-red); color: var(--neon-red); left: 27.5%; }
+        .note.lane-2 { background-color: var(--neon-blue); color: var(--neon-blue); left: 52.5%; }
+        .note.lane-3 { background-color: var(--neon-pink); color: var(--neon-pink); left: 77.5%; }
+
+        /* --- MENUS --- */
+        #menu-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 20;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+
+        .menu-box {
+            width: 320px; padding: 25px;
+            border: 1px solid #444; text-align: center;
+            background: #111;
+        }
+
+        input {
+            background: #222; border: 1px solid #555; color: white;
+            padding: 12px; margin-bottom: 15px; width: 100%;
+            text-align: center; box-sizing: border-box;
+            font-family: inherit; font-size: 16px;
+            text-transform: uppercase;
+        }
+
+        button {
+            background: transparent; color: white;
+            border: 2px solid var(--neon-blue);
+            padding: 12px; width: 100%;
+            font-size: 16px; cursor: pointer;
+            text-transform: uppercase; font-family: inherit;
+            margin-bottom: 10px; transition: 0.2s;
+        }
+        button:hover { background: var(--neon-blue); color: black; }
+        
+        button.start-btn { border-color: var(--neon-green); }
+        button.start-btn:hover { background: var(--neon-green); }
+
+        /* TIU Watermark */
+        #tiu-watermark {
+            position: fixed; bottom: 20px; right: 20px;
+            font-size: 48px; font-weight: 900;
+            color: rgba(255, 255, 255, 0.05);
+            pointer-events: none; z-index: 100;
+            user-select: none;
+        }
+
+        #feedback {
+            position: absolute; top: 40%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px; font-weight: bold;
+            opacity: 0; transition: opacity 0.1s;
+            z-index: 15; text-shadow: 0 0 10px black;
+        }
+        
+        .error-msg { color: var(--neon-red); font-size: 12px; margin-bottom: 10px; display: none; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="tiu-watermark">TIU</div>
+
+    <div id="ui-layer">
+        <div class="hud-panel">
+            <div style="color: #888; font-size: 12px;">SCORE</div>
+            <div id="score-display">0</div>
+            <div id="combo-display" style="color: var(--neon-blue);">Combo: 0</div>
+            <div id="room-info" style="margin-top:10px; font-size:10px; color:#666;"></div>
+        </div>
+        
+        <div id="feedback">PERFECT</div>
+
+        <div class="hud-panel" id="leaderboard">
+            <div style="border-bottom: 1px solid white; margin-bottom: 10px; font-weight: bold; color: var(--neon-blue);">LEADERBOARD</div>
+            <div id="lb-content">
+                <div class="lb-entry">Waiting...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div class="lane" style="left: 0%"></div>
+        <div class="lane" style="left: 25%"></div>
+        <div class="lane" style="left: 50%"></div>
+        <div class="lane" style="left: 75%"></div>
+        <div class="hit-zone">
+            <div class="button-target" id="btn-0"></div>
+            <div class="button-target" id="btn-1"></div>
+            <div class="button-target" id="btn-2"></div>
+            <div class="button-target" id="btn-3"></div>
+        </div>
+    </div>
+
+    <div id="menu-overlay">
+        <h1 style="text-shadow: 0 0 20px var(--neon-pink);">KEYBOARD HERO</h1>
+        
+        <div class="menu-box" id="menu-login">
+            <label style="font-size:12px; color:#888;">NICKNAME</label>
+            <input type="text" id="inp-name" placeholder="Name" maxlength="8">
+            
+            <label style="font-size:12px; color:#888;">ROOM ID (e.g. TIU1)</label>
+            <input type="text" id="inp-room" placeholder="Room Name">
+            
+            <div id="error-msg" class="error-msg"></div>
+
+            <button onclick="attemptHost()">CREATE ROOM (HOST)</button>
+            <button onclick="attemptJoin()">JOIN ROOM</button>
+        </div>
+
+        <div class="menu-box hidden" id="menu-host">
+            <h3 style="color:var(--neon-green)">ROOM CREATED</h3>
+            <p style="font-size:14px;">Tell students to join room:</p>
+            <div id="host-room-display" style="font-size:24px; font-weight:bold; margin:10px 0; color:white;">...</div>
+            <p id="player-count" style="font-size:12px; color:#888;">1 Player(s) Ready</p>
+            <button class="start-btn" onclick="hostStartGame()">START GAME</button>
+            <p style="font-size:10px; color:#555;">(You can still kick players after starting)</p>
+        </div>
+
+        <div class="menu-box hidden" id="menu-client">
+            <h3>CONNECTED</h3>
+            <p>Waiting for host to start...</p>
+            <div id="client-status" style="color:var(--neon-yellow); font-size:12px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIG ---
+        const SONG_LENGTH = 300; // Number of notes
+        
+        // --- GLOBAL STATE ---
+        let gameRunning = false;
+        let localStartTime = 0; // When *I* started (or when song should have started)
+        let songData = [];
+        let score = 0;
+        let combo = 0;
+        
+        // --- NETWORKING STATE ---
+        let peer = null;
+        let myId = null;
+        let myName = "Guest";
+        let roomId = "";
+        let isHost = false;
+        
+        // Host Data
+        let connections = {}; // { peerId: DataConnection }
+        let players = {};     // { peerId: { name, score, isHost } }
+        let hostStartTime = 0; // Absolute timestamp when host pressed start
+
+        // Client Data
+        let hostConn = null;
+
+        // --- AUDIO ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(lane) {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const freqs = [261.63, 293.66, 329.63, 349.23];
+            osc.frequency.value = freqs[lane];
+            osc.type = 'triangle';
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        // --- GAME LOGIC ---
+
+        function generateSong() {
+            // deterministic "random" for sync (simplified)
+            let notes = [];
+            for(let i=0; i<SONG_LENGTH; i++) {
+                const lane = Math.floor((Math.sin(i)*100) % 4); 
+                const safeLane = Math.abs(lane);
+                const time = 2000 + (i * 300); 
+                notes.push({ lane: safeLane, time, hit: false, element: null });
+            }
+            return notes;
+        }
+
+        // The Start Function (Called by Host or via Network Signal)
+        function initializeGameEngine(timeOffset = 0) {
+            document.getElementById('menu-overlay').style.display = 'none';
+            
+            // Generate content
+            songData = generateSong();
+            
+            // Reset State
+            score = 0;
+            combo = 0;
+            updateUI();
+            
+            // Clean DOM
+            document.querySelectorAll('.note').forEach(n => n.remove());
+
+            // Set Timing
+            // If timeOffset > 0, it means we joined late. We pretend we started X ms ago.
+            localStartTime = performance.now() - timeOffset;
+            gameRunning = true;
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        function gameLoop(timestamp) {
+            if (!gameRunning) return;
+            
+            const timeElapsed = timestamp - localStartTime;
+
+            songData.forEach(note => {
+                if (note.hit) return;
+
+                // Time diff: Positive = Future, Negative = Past
+                const timeDiff = note.time - timeElapsed;
+
+                // 1. Note has passed completely (Miss)
+                if (timeDiff < -300) {
+                    note.hit = true; // Mark handled
+                    if(note.element) note.element.remove();
+                    breakCombo();
+                    return;
+                }
+
+                // 2. Note is visible window (spawn it)
+                // Spawn 2 seconds before arrival
+                if (!note.element && timeDiff <= 2000 && timeDiff > -200) {
+                    const el = document.createElement('div');
+                    el.className = `note lane-${note.lane}`;
+                    document.getElementById('game-container').appendChild(el);
+                    note.element = el;
+                }
+
+                // 3. Move Note
+                if (note.element) {
+                    // Map time (2000ms -> 0ms) to position (-10% -> 90%)
+                    // 2000ms = -10% (top)
+                    // 0ms = 90% (hit line)
+                    const percent = 90 - (timeDiff / 20);
+                    note.element.style.top = `${percent}%`;
+                }
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Input Handling
+        const keys = { 'a': 0, 's': 1, 'd': 2, 'f': 3 };
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning) return;
+            const k = e.key.toLowerCase();
+            if (keys.hasOwnProperty(k)) {
+                const lane = keys[k];
+                document.getElementById(`btn-${lane}`).classList.add('pressed');
+                checkHit(lane);
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            const k = e.key.toLowerCase();
+            if (keys.hasOwnProperty(k)) document.getElementById(`btn-${keys[k]}`).classList.remove('pressed');
+        });
+
+        function checkHit(lane) {
+            const currentTime = performance.now() - localStartTime;
+            const hitWindow = 120; // tight window
+
+            // Find closest note in lane
+            const note = songData.find(n => n.lane === lane && !n.hit && Math.abs(n.time - currentTime) < hitWindow);
+
+            if (note) {
+                note.hit = true;
+                if(note.element) note.element.remove();
+                score += 100 + (combo * 10);
+                combo++;
+                playTone(lane);
+                showFeedback("HIT");
+                updateUI();
+                broadcastScore();
+            } else {
+                // Optional penalty for spamming
+            }
+        }
+
+        function breakCombo() {
+            if(combo > 0) {
+                combo = 0;
+                showFeedback("MISS");
+                updateUI();
+                broadcastScore();
+            }
+        }
+
+        function showFeedback(txt) {
+            const f = document.getElementById('feedback');
+            f.innerText = txt;
+            f.style.opacity = 1;
+            f.style.color = txt === "MISS" ? "red" : "white";
+            setTimeout(() => f.style.opacity = 0, 200);
+        }
+
+        function updateUI() {
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('combo-display').innerText = "Combo: " + combo;
+        }
+
+        // --- NETWORKING & MENU ---
+
+        function showError(msg) {
+            const el = document.getElementById('error-msg');
+            el.innerText = msg;
+            el.style.display = 'block';
+        }
+
+        function getInputs() {
+            const name = document.getElementById('inp-name').value.trim() || "Guest";
+            let room = document.getElementById('inp-room').value.trim();
+            room = room.replace(/[^a-zA-Z0-9_-]/g, ''); // sanitize
+            if(room.length < 3) {
+                showError("Room ID must be 3+ chars");
+                return null;
+            }
+            return { name, room };
+        }
+
+        // --- HOST LOGIC ---
+
+        function attemptHost() {
+            const data = getInputs();
+            if(!data) return;
+            myName = data.name;
+            roomId = data.room;
+
+            peer = new Peer(roomId); // Try to register this specific ID
+
+            peer.on('open', (id) => {
+                isHost = true;
+                myId = id;
+                players[myId] = { name: myName, score: 0, isHost: true };
+                
+                // UI Switch
+                document.getElementById('menu-login').classList.add('hidden');
+                document.getElementById('menu-host').classList.remove('hidden');
+                document.getElementById('host-room-display').innerText = roomId;
+                document.getElementById('room-info').innerText = "Room: " + roomId;
+                
+                renderLeaderboard();
+            });
+
+            peer.on('error', (err) => {
+                showError("Room ID taken. Try another.");
+            });
+
+            peer.on('connection', (conn) => {
+                handleIncomingConnection(conn);
+            });
+        }
+
+        function handleIncomingConnection(conn) {
+            conn.on('open', () => {
+                connections[conn.peer] = conn;
+                
+                // Ask for name
+                conn.send({ type: 'REQUEST_INFO' });
+                
+                // If game already running, late join logic!
+                if(gameRunning) {
+                    const currentOffset = performance.now() - hostStartTime;
+                    conn.send({ type: 'START_GAME', offset: currentOffset });
+                }
+            });
+
+            conn.on('data', (data) => {
+                if(data.type === 'REGISTER') {
+                    // Add player
+                    players[conn.peer] = { name: data.name, score: 0, isHost: false };
+                    syncLeaderboard();
+                    updateHostMenuCount();
+                }
+                if(data.type === 'SCORE_UPDATE') {
+                    if(players[conn.peer]) {
+                        players[conn.peer].score = data.score;
+                        syncLeaderboard();
+                    }
+                }
+            });
+
+            conn.on('close', () => {
+                delete players[conn.peer];
+                delete connections[conn.peer];
+                syncLeaderboard();
+                updateHostMenuCount();
+            });
+        }
+
+        function updateHostMenuCount() {
+            const count = Object.keys(players).length;
+            document.getElementById('player-count').innerText = `${count} Player(s) in Lobby`;
+        }
+
+        function hostStartGame() {
+            if(gameRunning) return;
+            hostStartTime = performance.now();
+            
+            // Broadcast start
+            Object.values(connections).forEach(c => c.send({ type: 'START_GAME', offset: 0 }));
+            
+            // Start Local
+            initializeGameEngine(0);
+        }
+
+        function kickPlayer(peerId) {
+            if(connections[peerId]) {
+                connections[peerId].send({ type: 'KICKED' });
+                setTimeout(() => {
+                    connections[peerId].close(); // Force close
+                }, 100);
+            }
+            // Cleanup local
+            delete players[peerId];
+            delete connections[peerId];
+            syncLeaderboard();
+        }
+
+        // --- CLIENT LOGIC ---
+
+        function attemptJoin() {
+            const data = getInputs();
+            if(!data) return;
+            myName = data.name;
+            const targetRoom = data.room;
+
+            peer = new Peer(); // Random ID for client
+
+            peer.on('open', (id) => {
+                myId = id;
+                hostConn = peer.connect(targetRoom);
+                
+                hostConn.on('open', () => {
+                    document.getElementById('menu-login').classList.add('hidden');
+                    document.getElementById('menu-client').classList.remove('hidden');
+                    document.getElementById('room-info').innerText = "Room: " + targetRoom;
+                });
+
+                hostConn.on('data', handleHostData);
+                
+                hostConn.on('close', () => {
+                    alert("Disconnected from Host");
+                    location.reload();
+                });
+                
+                // PeerJS Error on connect usually means ID not found
+                peer.on('error', () => {
+                    showError("Room not found.");
+                    document.getElementById('menu-login').classList.remove('hidden');
+                    document.getElementById('menu-client').classList.add('hidden');
+                });
+            });
+        }
+
+        function handleHostData(data) {
+            if (data.type === 'REQUEST_INFO') {
+                hostConn.send({ type: 'REGISTER', name: myName });
+            }
+            if (data.type === 'START_GAME') {
+                document.getElementById('menu-client').classList.add('hidden');
+                initializeGameEngine(data.offset);
+            }
+            if (data.type === 'SYNC_PLAYERS') {
+                players = data.data;
+                renderLeaderboard();
+            }
+            if (data.type === 'KICKED') {
+                alert("You have been kicked by the host.");
+                location.reload();
+            }
+        }
+
+        // --- SHARED NETWORK LOGIC ---
+
+        function broadcastScore() {
+            if(isHost) {
+                players[myId].score = score;
+                syncLeaderboard();
+            } else if (hostConn) {
+                hostConn.send({ type: 'SCORE_UPDATE', score: score });
+            }
+        }
+
+        function syncLeaderboard() {
+            // Host calls this to update everyone
+            if(!isHost) return;
+            renderLeaderboard();
+            Object.values(connections).forEach(c => c.send({ type: 'SYNC_PLAYERS', data: players }));
+        }
+
+        function renderLeaderboard() {
+            const el = document.getElementById('lb-content');
+            el.innerHTML = '';
+            
+            // Sort by score
+            const sorted = Object.entries(players).sort((a,b) => b[1].score - a[1].score);
+            
+            sorted.forEach(([pid, pData]) => {
+                const row = document.createElement('div');
+                row.className = 'lb-entry';
+                
+                // Colors
+                let color = 'white';
+                if(pid === myId) color = 'var(--neon-green)';
+                else if(pData.isHost) color = 'var(--neon-pink)';
+
+                // Kick Button (Only for Host, and not for self)
+                let kickHtml = '';
+                if(isHost && pid !== myId) {
+                    kickHtml = `<button class="kick-btn" onclick="kickPlayer('${pid}')">X</button>`;
+                }
+
+                row.innerHTML = `
+                    <div class="lb-name-group">
+                        ${kickHtml}
+                        <span style="color:${color}">${pData.name}</span>
+                    </div>
+                    <span>${pData.score}</span>
+                `;
+                el.appendChild(row);
+            });
+        }
+    </script>
+</body>
+</html>mentById('p2-score-box').style.display = 'block';
+            document.getElementById('p2-status').innerText = "Connected";
+
+            conn.on('data', (data) => {
+                handlePeerData(data);
+            });
+
+            conn.on('open', () => {
+                document.getElementById('p2-status').innerText = "Ready";
+            });
+        }
+
+        function handlePeerData(data) {
+            if (data.type === 'SCORE_UPDATE') {
+                document.getElementById('p2-score').innerText = data.score;
+            }
+            if (data.type === 'START') {
+                startGame(true);
+            }
+        }
+
+    </script>
+</body>
+</html>
