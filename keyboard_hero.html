@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Keyboard Hero - Final Fix</title>
+    <title>Keyboard Hero - Fixed Scoreboard</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
@@ -25,16 +25,11 @@
 
         /* --- WATERMARK --- */
         .watermark {
-            position: fixed;
-            bottom: 15px;
-            right: 20px;
-            font-size: 24px;
-            font-weight: 900;
-            color: rgba(255, 255, 255, 0.15); /* Subtle opacity */
-            z-index: 9999;
-            pointer-events: none; /* Allows clicking through it */
-            letter-spacing: 2px;
-            user-select: none;
+            position: fixed; bottom: 15px; right: 20px;
+            font-size: 24px; font-weight: 900;
+            color: rgba(255, 255, 255, 0.15);
+            z-index: 9999; pointer-events: none;
+            letter-spacing: 2px; user-select: none;
         }
 
         /* --- VIDEO LAYER --- */
@@ -53,7 +48,7 @@
         .hud-panel {
             background: rgba(30, 30, 36, 0.9); padding: 20px;
             border: 2px solid #444; border-radius: 10px;
-            min-width: 200px; pointer-events: auto;
+            min-width: 240px; pointer-events: auto;
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
             height: fit-content;
         }
@@ -93,7 +88,7 @@
         .note.lane-2 { background: var(--neon-blue); left: 52.5%; }
         .note.lane-3 { background: var(--neon-pink); left: 77.5%; }
 
-        /* --- MENUS (CENTERED) --- */
+        /* --- MENUS --- */
         #menu-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(15, 15, 20, 0.98); z-index: 50;
@@ -103,7 +98,7 @@
         .menu-box {
             background: #252530; padding: 40px; border-radius: 16px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-            width: 400px; text-align: center; border: 1px solid #444;
+            width: 450px; text-align: center; border: 1px solid #444;
             display: flex; flex-direction: column; gap: 15px;
         }
 
@@ -123,16 +118,22 @@
         .btn-ready { background: var(--neon-yellow); color: black; animation: pulse 2s infinite; }
         .btn-start { background: var(--neon-green); color: black; }
 
-        @keyframes pulse { 0% {box-shadow: 0 0 0 0 rgba(255, 255, 0, 0.4);} 70% {box-shadow: 0 0 0 10px rgba(255, 255, 0, 0);} 100% {box-shadow: 0 0 0 0 rgba(255, 255, 0, 0);} }
-
-        /* LOBBY LIST */
-        #lobby-list {
-            background: #111; border-radius: 6px; padding: 10px;
-            max-height: 150px; overflow-y: auto; text-align: left;
+        /* KICK BUTTON */
+        .btn-kick {
+            background: var(--neon-red); color: white; padding: 4px 10px;
+            font-size: 12px; margin-left: 10px; border-radius: 4px;
+            cursor: pointer; border: none; font-weight: bold;
         }
-        .lobby-player {
-            display: flex; justify-content: space-between; padding: 8px;
-            border-bottom: 1px solid #333;
+        .btn-kick:hover { background: white; color: red; }
+
+        /* LISTS */
+        #lobby-list, #leaderboard-content {
+            background: #111; border-radius: 6px; padding: 10px;
+            max-height: 200px; overflow-y: auto; text-align: left;
+        }
+        .lobby-player, .leaderboard-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px; border-bottom: 1px solid #333;
         }
         .status-ready { color: var(--neon-green); font-weight: bold; }
         .status-wait { color: #777; }
@@ -149,7 +150,6 @@
 <body>
 
     <div id="video-background"><div id="yt-player"></div></div>
-
     <div class="watermark">TIU</div>
 
     <div id="ui-layer">
@@ -231,7 +231,7 @@
         let connections = {};
         let hostConn = null;
         let isHost = false;
-        let players = {}; // { id: { name, score, ready } }
+        let players = {}; 
         let currentVideoId = "";
         
         let ytPlayer;
@@ -255,23 +255,35 @@
             peer = new Peer(room);
             peer.on('open', id => {
                 isHost = true; myId = id;
-                players[myId] = { name: myName, score: 0, ready: true }; // Host always ready
+                players[myId] = { name: myName, score: 0, ready: true }; 
                 showScreen('screen-host');
                 document.getElementById('host-room-id').innerText = room;
                 renderLobby();
+                updateLeaderboard();
             });
             peer.on('connection', conn => {
                 connections[conn.peer] = conn;
                 conn.on('open', () => {
-                    // IMMEDIATELY Send Welcome Packet (Video ID + Players)
+                    // Send Welcome Packet
                     conn.send({ 
                         type: 'WELCOME', 
                         vid: currentVideoId, 
-                        players: players 
+                        players: players,
+                        gameState: {
+                            running: gameRunning,
+                            time: (gameRunning && ytPlayer) ? ytPlayer.getCurrentTime() : 0
+                        }
                     });
                 });
                 conn.on('data', data => handleHostData(conn.peer, data));
-                conn.on('close', () => { delete players[conn.peer]; delete connections[conn.peer]; renderLobby(); });
+                conn.on('close', () => { 
+                    if(players[conn.peer]) {
+                        delete players[conn.peer]; 
+                        delete connections[conn.peer]; 
+                        renderLobby(); 
+                        updateLeaderboard();
+                    }
+                });
             });
             peer.on('error', err => document.getElementById('login-status').innerText = "Room Name Unavailable");
         }
@@ -280,6 +292,7 @@
             if(data.type === 'JOIN') {
                 players[id] = { name: data.name, score: 0, ready: false };
                 renderLobby();
+                updateLeaderboard();
                 broadcast({ type: 'UPDATE_PLAYERS', players: players });
             }
             if(data.type === 'READY') {
@@ -289,9 +302,22 @@
             }
             if(data.type === 'SCORE') {
                 if(players[id]) players[id].score = data.score;
-                updateLeaderboard(); // Host sees live scores
-                broadcast({ type: 'UPDATE_PLAYERS', players: players }); // Sync scores
+                updateLeaderboard(); 
+                broadcast({ type: 'UPDATE_PLAYERS', players: players }); 
             }
+        }
+
+        function kickPlayer(id) {
+            if(!isHost || !connections[id]) return;
+            connections[id].send({ type: 'KICKED' });
+            setTimeout(() => {
+                connections[id].close();
+                delete connections[id];
+                delete players[id];
+                renderLobby();
+                updateLeaderboard();
+                broadcast({ type: 'UPDATE_PLAYERS', players: players });
+            }, 100);
         }
 
         /* --- NETWORK SETUP (CLIENT) --- */
@@ -307,38 +333,56 @@
                     hostConn.send({ type: 'JOIN', name: myName });
                 });
                 hostConn.on('data', handleClientData);
-                hostConn.on('close', () => alert("Host Disconnected"));
+                hostConn.on('close', () => {
+                    if(!gameRunning) alert("Disconnected from Host");
+                });
             });
             peer.on('error', err => document.getElementById('login-status').innerText = "Connection Error");
         }
 
         function handleClientData(data) {
             if(data.type === 'WELCOME') {
-                // If video already exists, show ready button immediately
-                if(data.vid) {
+                players = data.players;
+                updateLeaderboard();
+
+                if(data.gameState && data.gameState.running) {
+                    currentVideoId = data.vid;
+                    document.getElementById('client-status-text').innerText = "Game in progress! Joining...";
+                    if(ytPlayer) {
+                        ytPlayer.loadVideoById(currentVideoId);
+                        ytPlayer.mute(); ytPlayer.playVideo();
+                        setTimeout(() => {
+                            ytPlayer.unMute();
+                            runGame(data.gameState.time);
+                        }, 1000);
+                    }
+                } else if(data.vid) {
                     currentVideoId = data.vid;
                     document.getElementById('client-status-text').innerText = "Host selected a song!";
                     document.getElementById('btn-client-ready').classList.remove('hidden');
                 }
-                players = data.players;
             }
             if(data.type === 'NEW_VIDEO') {
                 currentVideoId = data.vid;
                 document.getElementById('client-status-text').innerText = "Host changed song!";
                 document.getElementById('btn-client-ready').classList.remove('hidden');
-                // Reset ready state UI
                 document.getElementById('btn-client-ready').style.display = 'block';
                 document.getElementById('client-ready-confirm').classList.add('hidden');
             }
             if(data.type === 'UPDATE_PLAYERS') {
                 players = data.players;
+                renderLobby();
                 updateLeaderboard();
             }
             if(data.type === 'START_GAME') {
-                runGame();
+                runGame(0);
             }
             if(data.type === 'GAME_OVER') {
                 showGameOver(data.winner);
+            }
+            if(data.type === 'KICKED') {
+                alert("You have been kicked by the host.");
+                location.reload();
             }
         }
 
@@ -350,21 +394,17 @@
                 currentVideoId = match[1];
                 document.getElementById('video-info').innerText = "Loaded ID: " + currentVideoId;
                 ytPlayer.loadVideoById(currentVideoId);
-                setTimeout(() => ytPlayer.pauseVideo(), 1000); // Host Preload
-                
-                // Tell clients
+                setTimeout(() => ytPlayer.pauseVideo(), 1000); 
                 broadcast({ type: 'NEW_VIDEO', vid: currentVideoId });
             }
         }
 
         function clientReady() {
-            // Unblock Autoplay
             if(!ytPlayer) return;
             ytPlayer.loadVideoById(currentVideoId);
             ytPlayer.mute(); 
             ytPlayer.playVideo();
             
-            // Wait 1s, then pause and signal ready
             setTimeout(() => {
                 ytPlayer.pauseVideo();
                 ytPlayer.seekTo(0);
@@ -379,13 +419,30 @@
         function renderLobby() {
             const list = document.getElementById('lobby-list');
             list.innerHTML = '';
-            Object.values(players).forEach(p => {
+            Object.keys(players).forEach(id => {
+                const p = players[id];
                 const div = document.createElement('div');
                 div.className = 'lobby-player';
-                div.innerHTML = `
-                    <span>${p.name}</span>
-                    <span class="${p.ready ? 'status-ready' : 'status-wait'}">${p.ready ? 'READY' : 'WAITING'}</span>
-                `;
+                
+                // Construct inner HTML
+                let html = `<div style="display:flex; align-items:center; width:100%; justify-content:space-between;">
+                        <span>${p.name}</span>
+                        <div>
+                            <span class="${p.ready ? 'status-ready' : 'status-wait'}">${p.ready ? 'READY' : 'WAITING'}</span>
+                        </div>
+                    </div>`;
+                
+                div.innerHTML = html;
+
+                // Add Kick Button safely
+                if(isHost && id !== myId) {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-kick';
+                    btn.innerText = 'X';
+                    btn.onclick = () => kickPlayer(id);
+                    div.querySelector('div > div').appendChild(btn);
+                }
+
                 list.appendChild(div);
             });
         }
@@ -393,13 +450,13 @@
         /* --- GAME ENGINE --- */
         function hostStartGame() {
             broadcast({ type: 'START_GAME' });
-            runGame();
+            runGame(0);
         }
 
-        function runGame() {
+        function runGame(startTime = 0) {
             document.getElementById('menu-overlay').style.display = 'none';
+            updateLeaderboard(); // Ensure leaderboard is visible and fresh on game start
             
-            // SAFETY CHECK: If duration is 0 (lag), default to 180 seconds so game works
             let dur = ytPlayer.getDuration();
             if(!dur || dur === 0) dur = 180; 
 
@@ -407,19 +464,20 @@
             score = 0; combo = 0;
             document.querySelectorAll('.note').forEach(n => n.remove());
             
+            ytPlayer.seekTo(startTime);
             ytPlayer.playVideo();
+            
             gameRunning = true;
             requestAnimationFrame(gameLoop);
         }
 
         function generateNotes(duration) {
             let notes = [];
-            // Create notes from 2s to end
             const totalNotes = Math.floor(duration * 2); 
             for(let i=0; i<totalNotes; i++) {
                 notes.push({
                     lane: Math.floor(Math.random()*4),
-                    time: 2000 + (i * 500), // Note every 500ms
+                    time: 2000 + (i * 500), 
                     hit: false,
                     el: null
                 });
@@ -430,7 +488,6 @@
         function gameLoop() {
             if(!gameRunning) return;
 
-            // Check if song ended
             if(ytPlayer.getPlayerState() === 0) {
                 gameRunning = false;
                 if(isHost) finishGame();
@@ -438,14 +495,12 @@
             }
 
             const currTime = ytPlayer.getCurrentTime() * 1000;
-            const SPAWN_AHEAD = 2000; // ms notes appear before hit
+            const SPAWN_AHEAD = 2000; 
 
             songData.forEach(note => {
                 if(note.hit) return;
-
                 const diff = note.time - currTime;
 
-                // Create Note DOM
                 if(!note.el && diff < SPAWN_AHEAD && diff > -200) {
                     const el = document.createElement('div');
                     el.className = `note lane-${note.lane}`;
@@ -453,15 +508,14 @@
                     note.el = el;
                 }
 
-                // Move Note
                 if(note.el) {
                     const percent = 90 - (diff / (SPAWN_AHEAD/90));
                     note.el.style.top = percent + "%";
-
-                    // Auto Miss
                     if(diff < -200) {
                         note.hit = true; note.el.remove();
-                        combo = 0; updateScoreUI(); showFeedback("MISS");
+                        if(currTime > 3000) {
+                            combo = 0; updateScoreUI(); showFeedback("MISS");
+                        }
                     }
                 }
             });
@@ -474,7 +528,6 @@
         document.addEventListener('keydown', e => {
             if(!gameRunning || keys[e.key.toLowerCase()] === undefined) return;
             if(e.repeat) return;
-
             const lane = keys[e.key.toLowerCase()];
             document.getElementById(`btn-${lane}`).classList.add('pressed');
             checkHit(lane);
@@ -487,11 +540,10 @@
         function checkHit(lane) {
             const currTime = ytPlayer.getCurrentTime() * 1000;
             let hit = false;
-
             for(let note of songData) {
                 if(!note.hit && note.lane === lane) {
                     const diff = Math.abs(note.time - currTime);
-                    if(diff < 200) { // 200ms window
+                    if(diff < 200) { 
                         note.hit = true; if(note.el) note.el.remove();
                         score += 100 + (combo*10);
                         combo++;
@@ -524,17 +576,37 @@
             document.getElementById('score-display').innerText = score;
             document.getElementById('combo-display').innerText = "Combo: " + combo;
         }
+        
         function updateLeaderboard() {
             const el = document.getElementById('leaderboard-content');
             el.innerHTML = '';
-            Object.values(players)
-                .sort((a,b) => b.score - a.score)
-                .forEach(p => {
-                    el.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                        <span>${p.name}</span><span>${p.score}</span>
-                    </div>`;
+            
+            Object.keys(players)
+                .sort((a,b) => players[b].score - players[a].score)
+                .forEach(pid => {
+                    const p = players[pid];
+                    const row = document.createElement('div');
+                    row.className = 'leaderboard-row';
+                    
+                    let html = `<span style="font-size:14px;">${p.name}</span>
+                                <div style="display:flex; align-items:center;">
+                                    <span style="font-weight:bold; margin-right:5px;">${p.score}</span>
+                                </div>`;
+                    row.innerHTML = html;
+
+                    // Add Kick Button logic safely
+                    if(isHost && pid !== myId) {
+                        const btn = document.createElement('button');
+                        btn.className = 'btn-kick';
+                        btn.innerText = 'X';
+                        btn.onclick = () => kickPlayer(pid);
+                        row.querySelector('div').appendChild(btn);
+                    }
+                    
+                    el.appendChild(row);
                 });
         }
+
         function sendScoreUpdate() {
             if(isHost) { players[myId].score = score; updateLeaderboard(); broadcast({type:'UPDATE_PLAYERS', players}); }
             else if(hostConn) { hostConn.send({type:'SCORE', score}); }
@@ -544,7 +616,6 @@
             f.innerText = txt; f.style.opacity = 1;
             setTimeout(() => f.style.opacity = 0, 300);
         }
-        
         function finishGame() {
             let winner = { name: "None", score: -1 };
             Object.values(players).forEach(p => { if(p.score > winner.score) winner = p; });
