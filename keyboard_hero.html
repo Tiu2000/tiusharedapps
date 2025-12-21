@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Keyboard Hero - Sync Fix Edition</title>
+    <title>Keyboard Hero - Ready Status Edition</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
@@ -56,7 +56,7 @@
             padding: 20px;
             border: 2px solid #555;
             border-radius: 12px;
-            min-width: 240px;
+            min-width: 260px;
             pointer-events: auto;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
@@ -64,11 +64,20 @@
         #score-display { font-size: 36px; font-weight: bold; color: white; text-shadow: 2px 2px 0 #000; }
         
         #leaderboard { text-align: right; border-color: var(--neon-blue); max-height: 300px; overflow-y: auto; }
+        
         .lb-entry {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 8px; font-size: 15px;
             border-bottom: 1px solid #444; padding-bottom: 4px;
         }
+
+        /* Status Tags in Leaderboard */
+        .status-tag {
+            font-size: 10px; padding: 2px 5px; border-radius: 4px;
+            margin-right: 8px; font-weight: bold; display: inline-block;
+        }
+        .status-wait { background: #555; color: #ccc; }
+        .status-ready { background: var(--neon-green); color: black; }
 
         /* --- THE HIGHWAY --- */
         #game-container {
@@ -106,7 +115,6 @@
         }
         .button-target.pressed { background: white; transform: scale(0.9); box-shadow: 0 0 25px white; }
 
-        /* Notes */
         .note {
             position: absolute; width: 20%; height: 20px;
             border-radius: 6px; left: 2.5%; 
@@ -198,7 +206,7 @@
         <div id="feedback">PERFECT</div>
 
         <div class="hud-panel" id="leaderboard">
-            <div style="border-bottom: 2px solid white; margin-bottom: 10px; font-weight: bold; color: var(--neon-blue);">LEADERBOARD</div>
+            <div style="border-bottom: 2px solid white; margin-bottom: 10px; font-weight: bold; color: var(--neon-blue);">PLAYERS</div>
             <div id="lb-content">
                 <div class="lb-entry">Waiting...</div>
             </div>
@@ -237,7 +245,7 @@
             <input type="text" id="inp-yt-url" placeholder="https://youtube.com/watch?v=..." onchange="loadVideoByUrl()">
             <div id="video-status" style="font-size:12px; color:var(--neon-blue); margin-bottom:10px;">No video loaded</div>
 
-            <p id="player-count" style="font-size:16px; color:white; font-weight:bold;">1 Player(s) Connected</p>
+            <p style="font-size:14px; color:#ccc;">Check the 'PLAYERS' panel on the right.<br>Start when everyone is <span style="color:var(--neon-green)">READY</span>.</p>
             <button class="start-btn" onclick="hostStartGame()">START GAME</button>
         </div>
 
@@ -286,10 +294,14 @@
             if (match && match[2].length === 11) {
                 currentVideoId = match[2];
                 document.getElementById('video-status').innerText = "Video ID: " + currentVideoId;
-                // Pre-load locally for host
+                // Host loads locally
                 ytPlayer.loadVideoById(currentVideoId);
                 setTimeout(() => ytPlayer.pauseVideo(), 1000); 
                 
+                // Host is automatically Ready
+                if(players[myId]) players[myId].isReady = true;
+                syncLeaderboard();
+
                 // Send "PRELOAD" command to all clients
                 broadcastPreload(currentVideoId);
             } else {
@@ -298,7 +310,6 @@
         }
 
         // --- GAME ENGINE ---
-        // SPAWN_AHEAD: How long (in ms) before the note hits the button does it spawn?
         const SPAWN_AHEAD_MS = 2500; 
         
         let gameRunning = false;
@@ -317,15 +328,11 @@
 
         function generateSong(durationSeconds) {
             let notes = [];
-            // Safe fallback if duration is missing
             if(!durationSeconds || durationSeconds < 10) durationSeconds = 180;
-            
-            const bpm = 120; // Simulated BPM
-            const totalNotes = Math.floor(durationSeconds * (bpm / 60) * 2); // 2 notes per second density
-            
+            const bpm = 120; 
+            const totalNotes = Math.floor(durationSeconds * (bpm / 60) * 2); 
             for(let i=0; i<totalNotes; i++) {
                 const lane = Math.floor(Math.random() * 4);
-                // Notes start appearing after 2 seconds
                 const time = 2000 + (i * 500); 
                 if(time < (durationSeconds * 1000)) {
                     notes.push({ lane, time, hit: false, element: null });
@@ -338,54 +345,38 @@
             document.getElementById('menu-overlay').style.display = 'none';
             document.getElementById('menu-gameover').classList.add('hidden');
             
-            // Get duration directly from player now that it's loaded
             const duration = ytPlayer.getDuration();
             songData = generateSong(duration);
-            
             score = 0;
             combo = 0;
             updateUI();
             
             document.querySelectorAll('.note').forEach(n => n.remove());
 
-            // PLAY VIDEO
             ytPlayer.playVideo();
             gameRunning = true;
-            
             requestAnimationFrame(gameLoop);
         }
 
         function gameLoop() {
             if (!gameRunning) return;
             
-            // CRITICAL: We depend on YouTube time. 
-            // If video buffers, currentTime stops, notes stop.
             let currentTimeMs = 0;
-            
             if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
                 currentTimeMs = ytPlayer.getCurrentTime() * 1000;
             }
 
-            // End Condition
-            if (ytPlayer.getPlayerState() === 0) { // 0 = Ended
+            if (ytPlayer.getPlayerState() === 0) { // Ended
                 gameRunning = false;
                 broadcastScore();
                 if(isHost) hostTriggerGameOver();
                 return;
             }
 
-            // DRAW NOTES
-            // Note Hit Time = The time in the song when it should be hit.
-            // Current Time = Where the song is now.
-            // If Note Hit Time is 5000ms, and Current Time is 2500ms...
-            // Diff = 2500ms. If SPAWN_AHEAD is 2500ms, spawn it now.
-            
             songData.forEach(note => {
-                if (note.hit) return; // Already processed
-
+                if (note.hit) return;
                 const timeUntilHit = note.time - currentTimeMs; 
 
-                // Missed Logic (Passed the hit zone by 300ms)
                 if (timeUntilHit < -300) {
                     note.hit = true; 
                     if(note.element) note.element.remove();
@@ -393,7 +384,6 @@
                     return;
                 }
 
-                // Spawn Logic
                 if (!note.element && timeUntilHit <= SPAWN_AHEAD_MS && timeUntilHit > -200) {
                     const el = document.createElement('div');
                     el.className = `note lane-${note.lane}`;
@@ -401,10 +391,7 @@
                     note.element = el;
                 }
 
-                // Movement Logic
                 if (note.element) {
-                    // 0ms difference = 90% (Hit Zone)
-                    // SPAWN_AHEAD_MS difference = 0% (Top of screen)
                     const percent = 90 - (timeUntilHit / (SPAWN_AHEAD_MS / 90));
                     note.element.style.top = `${percent}%`;
                 }
@@ -422,30 +409,27 @@
         }
 
         function hostStartGame() {
-            // Send START command to everyone
+            // Check readiness (Optional: alert if someone isn't ready)
+            // But allowing start anyway is better for flow
             Object.values(connections).forEach(c => c.send({ type: 'START_GAME' }));
-            // Start Host Game
             startGameEngine();
         }
 
         // --- CLIENT LOGIC ---
         function clientReadyUp() {
-            // Player clicks this to allow video to load/mute/pause
-            // This bypasses browser autoplay blocking
             ytPlayer.loadVideoById(currentVideoId);
             ytPlayer.mute(); 
-            ytPlayer.playVideo(); // Start playing
+            ytPlayer.playVideo(); 
             
-            // Immediately pause after 1 sec to buffer
             setTimeout(() => {
                 ytPlayer.pauseVideo();
                 ytPlayer.seekTo(0);
-                ytPlayer.unMute(); // Unmute so it's ready for game start
+                ytPlayer.unMute(); 
                 
                 document.getElementById('client-ready-area').style.display = 'none';
                 document.getElementById('client-status').style.display = 'block';
                 
-                // Tell host we are ready (Optional feature, simplifed here)
+                // SEND READY STATUS TO HOST
                 if(hostConn) hostConn.send({ type: 'PLAYER_READY' });
             }, 1000);
         }
@@ -457,7 +441,7 @@
             peer = new Peer(data.room);
             peer.on('open', (id) => {
                 isHost = true; myId = id;
-                players[myId] = { name: myName, score: 0, isHost: true };
+                players[myId] = { name: myName, score: 0, isReady: false };
                 document.getElementById('menu-login').classList.add('hidden');
                 document.getElementById('menu-host').classList.remove('hidden');
                 document.getElementById('host-room-display').innerText = data.room;
@@ -467,16 +451,18 @@
                 conn.on('open', () => {
                     connections[conn.peer] = conn;
                     conn.send({ type: 'REGISTER_ACK', players: players }); 
-                    // If video is already selected, send it to new joiner
                     if(currentVideoId !== "dQw4w9WgXcQ") {
                         conn.send({ type: 'PRELOAD_VIDEO', vidId: currentVideoId });
                     }
                 });
                 conn.on('data', (d) => {
                     if(d.type === 'REGISTER') { 
-                        players[conn.peer] = { name: d.name, score: 0 }; 
+                        players[conn.peer] = { name: d.name, score: 0, isReady: false }; 
                         syncLeaderboard(); 
-                        document.getElementById('player-count').innerText = Object.keys(players).length + " Player(s)";
+                    }
+                    if(d.type === 'PLAYER_READY') {
+                        if(players[conn.peer]) players[conn.peer].isReady = true;
+                        syncLeaderboard();
                     }
                     if(d.type === 'SCORE') { players[conn.peer].score = d.score; syncLeaderboard(); }
                 });
@@ -521,19 +507,34 @@
             if(isHost) { players[myId].score = score; syncLeaderboard(); }
             else if(hostConn) hostConn.send({ type: 'SCORE', score: score });
         }
+
         function syncLeaderboard() {
             if(!isHost) return;
             renderLeaderboard();
             Object.values(connections).forEach(c => c.send({ type: 'SYNC_PLAYERS', data: players }));
         }
+
         function renderLeaderboard() {
             const el = document.getElementById('lb-content'); el.innerHTML = '';
+            
             Object.entries(players).sort((a,b)=>b[1].score-a[1].score).forEach(([id,p]) => {
                 const div = document.createElement('div'); div.className='lb-entry';
-                div.innerHTML = `<span style="color:${id===myId?'var(--neon-green)':'white'}">${p.name}</span><span>${p.score}</span>`;
+                
+                // Status Badge
+                let statusClass = p.isReady ? 'status-ready' : 'status-wait';
+                let statusText = p.isReady ? 'READY' : 'WAIT';
+                
+                div.innerHTML = `
+                    <div style="display:flex; align-items:center;">
+                        <span class="status-tag ${statusClass}">${statusText}</span>
+                        <span style="color:${id===myId?'var(--neon-green)':'white'}">${p.name}</span>
+                    </div>
+                    <span>${p.score}</span>
+                `;
                 el.appendChild(div);
             });
         }
+
         function hostTriggerGameOver() {
             let max = -1, winner = "None";
             if(players[myId]) players[myId].score = score;
@@ -542,6 +543,7 @@
             showGameOver(res);
             Object.values(connections).forEach(c => c.send({ type: 'GAME_OVER', results: res }));
         }
+
         function showGameOver(res) {
             document.getElementById('menu-overlay').style.display='flex';
             document.getElementById('menu-gameover').classList.remove('hidden');
@@ -556,7 +558,6 @@
             const lane = keys[e.key.toLowerCase()];
             document.getElementById(`btn-${lane}`).classList.add('pressed');
             
-            // Check Hit using Video Time
             let hit = false;
             let vidTime = ytPlayer.getCurrentTime() * 1000;
             
