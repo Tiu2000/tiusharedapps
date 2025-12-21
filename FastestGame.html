@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Quiz 11.0 (Teacher Display Edition)</title>
+    <title>TIU Quiz 12.0 (Kindergarten + Late Join)</title>
     <script src="peerjs.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     
@@ -23,10 +23,27 @@
         input, select, textarea { padding: 15px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1.1rem; width: 100%; max-width: 400px; margin-bottom: 15px; }
         textarea { font-family: monospace; text-align: left; height: 150px; width: 90%; max-width: 90%; resize: vertical; }
 
-        /* HOST SPECIFIC UI */
+        /* HOST UI */
         .room-code { font-size: 5rem; font-weight: 900; color: var(--primary); font-family: monospace; letter-spacing: 8px; margin: 20px 0; background: #f1f5f9; padding: 20px; border-radius: 20px; border: 3px dashed #cbd5e1; }
         
-        /* STUDENT MANAGER (Persistent) */
+        /* PERSISTENT CODE DISPLAY (For Late Joiners) */
+        .persistent-code {
+            position: absolute;
+            top: -50px;
+            right: 0;
+            background: #1e293b;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            display: none; /* Hidden until game starts */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* STUDENT MANAGER */
         #student-manager { position: fixed; bottom: 20px; left: 20px; z-index: 100; text-align: left; }
         #mgr-toggle { background: #1e293b; width: auto; font-size: 0.9rem; padding: 10px 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
         #mgr-panel { display: none; background: white; border-radius: 12px; padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 250px; max-height: 400px; overflow-y: auto; margin-bottom: 10px; border: 1px solid #e2e8f0; }
@@ -34,17 +51,15 @@
         .mgr-kick { color: var(--danger); cursor: pointer; font-weight: bold; padding: 4px 8px; border-radius: 4px; }
         .mgr-kick:hover { background: #fee2e2; }
 
-        /* Game UI */
+        /* HOST GAME BOARD */
         .timer-bar { height: 15px; background: #e2e8f0; border-radius: 10px; overflow: hidden; margin: 20px 0; }
         .timer-fill { height: 100%; background: var(--primary); width: 100%; }
         
-        /* HOST DISPLAY BOARD (Non-interactive) */
         .host-q-text { font-size: 2.5rem; font-weight: 800; margin-bottom: 30px; color: #1e293b; }
         .host-opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; text-align: left; }
         .host-opt { background: #f8fafc; padding: 25px; border-radius: 15px; border: 3px solid #e2e8f0; font-size: 1.5rem; font-weight: 600; color: #64748b; }
-        .host-opt.highlight { border-color: var(--primary); color: var(--primary); background: #e0e7ff; }
-
-        /* PLAYER INTERACTIVE BOARD */
+        
+        /* PLAYER GAMEPAD */
         .player-opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
         .opt-btn { background: white; border: 2px solid #e2e8f0; color: var(--text); padding: 20px; font-size: 1.2rem; border-radius: 12px; cursor: pointer; min-height: 80px; transition: all 0.2s; }
         .opt-btn:active { transform: scale(0.95); }
@@ -66,9 +81,10 @@
 </div>
 
 <div class="container">
-    
+    <div id="live-code" class="persistent-code">CODE: <span id="live-code-val"></span></div>
+
     <div id="s-menu" class="card active">
-        <h1>🎓 TIU Quiz 11.0</h1>
+        <h1>🎓 TIU Quiz 12.0</h1>
         <p>Select your role:</p>
         <button onclick="setupHost()">👑 Host (Teacher)</button>
         <button onclick="setupJoin()" style="background:white; border:2px solid var(--primary); color:var(--primary)">👤 Join (Student)</button>
@@ -80,6 +96,7 @@
         
         <label>Select Grade Level:</label><br>
         <select id="grade-select" onchange="toggleCustomArea()">
+            <option value="kg">🧸 Kindergarten (New)</option>
             <option value="g1">1st Grade</option>
             <option value="g2">2nd Grade</option>
             <option value="g3">3rd Grade</option>
@@ -147,8 +164,7 @@
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playSound(type) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
     osc.connect(gain); gain.connect(audioCtx.destination);
     if (type === 'end') {
         [440, 554, 659, 880].forEach((freq, i) => {
@@ -160,20 +176,21 @@ function playSound(type) {
 
 /* --- STATE --- */
 const Q_TIME = 20;
-let peer, conn, myName="", isHost=false;
+let peer, conn, myName="", isHost=false, roomCode="";
 let players={}, qList=[], qIdx=0, timerInt, timeRem;
-let gameState = "LOBBY"; // LOBBY, QUESTION, LEADERBOARD
+let gameState = "LOBBY";
 
 // --- HOST LOGIC ---
 function setupHost() {
-    const code = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".split('').sort(()=>0.5-Math.random()).slice(0,4).join('');
+    roomCode = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".split('').sort(()=>0.5-Math.random()).slice(0,4).join('');
     document.getElementById('room-code-display').innerText = "Loading...";
-    peer = new Peer(code);
+    peer = new Peer(roomCode);
     
     peer.on('open', (id) => {
         isHost = true;
         document.getElementById('room-code-display').innerText = id;
-        document.getElementById('student-manager').style.display = 'block'; // Show Manager
+        document.getElementById('live-code-val').innerText = id; // Set persistent code
+        document.getElementById('student-manager').style.display = 'block';
         show('s-host-lobby');
     });
     
@@ -182,7 +199,7 @@ function setupHost() {
             if(d.type==='JOIN') { 
                 players[c.peer] = {conn:c, name:d.name, score:0, id:c.peer}; 
                 updateMgr(); 
-                // LATE JOIN LOGIC: Sync new player immediately
+                // AUTO LATE JOIN: Sync immediately
                 if(gameState === "QUESTION") {
                     c.send({type:'Q', q:qList[qIdx].q, opts:qList[qIdx].o, n:qIdx+1, t:qList.length});
                 } else if(gameState === "LEADERBOARD") {
@@ -205,10 +222,7 @@ function updateMgr() {
     const div = document.getElementById('mgr-list');
     div.innerHTML = '';
     list.forEach(p => {
-        div.innerHTML += `<div class="mgr-item">
-            <span>👤 ${p.name}</span>
-            <span class="mgr-kick" onclick="kickPlayer('${p.id}')">KICK ✕</span>
-        </div>`;
+        div.innerHTML += `<div class="mgr-item"><span>👤 ${p.name}</span><span class="mgr-kick" onclick="kickPlayer('${p.id}')">KICK ✕</span></div>`;
     });
 }
 
@@ -245,6 +259,8 @@ function startGame() {
         qList = DB[grade].sort(()=>0.5-Math.random()).slice(0, 50);
     }
     qIdx = 0;
+    // Show persistent code now that we are leaving the lobby
+    document.getElementById('live-code').style.display = 'block';
     runRound();
 }
 
@@ -253,7 +269,7 @@ function runRound() {
     gameState = "QUESTION";
     const q = qList[qIdx];
     
-    // HOST DISPLAY (No interaction)
+    // HOST DISPLAY
     document.getElementById('h-counter').innerText = `Question ${qIdx+1}/${qList.length}`;
     document.getElementById('h-q-text').innerText = q.q;
     const hOptDiv = document.getElementById('h-options');
@@ -263,7 +279,7 @@ function runRound() {
     });
     show('s-host-game');
     
-    // SEND TO PLAYERS
+    // PLAYERS
     const data = { type:'Q', q:q.q, opts:q.o, n:qIdx+1, t:qList.length };
     Object.values(players).forEach(p => p.conn.send(data));
     
@@ -277,11 +293,9 @@ function showResults() {
     gameState = "LEADERBOARD";
     const data = Object.values(players).map(p=>({name:p.name, score:p.score})).sort((a,b)=>b.score-a.score);
     renderLB(data);
-    
     document.getElementById('res-title').innerText = "📊 Round Results";
     document.getElementById('host-controls').style.display='block';
     show('s-results');
-    
     Object.values(players).forEach(p => p.conn.send({type:'LB', data:data}));
 }
 
@@ -292,7 +306,7 @@ function endGame() {
     document.getElementById('host-controls').style.display='none'; 
 }
 
-// --- CLIENT LOGIC ---
+// --- CLIENT ---
 function setupJoin() { show('s-join'); }
 function joinGame() {
     const code = document.getElementById('join-code').value.toUpperCase();
@@ -351,8 +365,9 @@ function startTimer(s, cb) {
     timerInt = setInterval(()=> { timeRem -= 1; if(timeRem <= 0) { clearInterval(timerInt); if(cb) cb(); } }, 1000);
 }
 
-// --- DB (Mini Set) ---
+// --- DB (With Kindergarten) ---
 const DB = {
+    kg: [{q:"1 + 1 = ?", o:["1","2","3","4"], a:1}, {q:"What color is the sky?", o:["Green","Blue","Red","Purple"], a:1}, {q:"What sound does a cow make?", o:["Meow","Woof","Moo","Quack"], a:2}, {q:"Which is a fruit?", o:["Carrot","Apple","Bread","Chicken"], a:1}],
     g1: [{q:"5 + 5 = ?", o:["9","10","11","12"], a:1}, {q:"Sun color?", o:["Blue","Yellow","Green","Red"], a:1}],
     g2: [{q:"15 + 10 = ?", o:["20","25","30","35"], a:1}, {q:"Solid?", o:["Water","Rock","Air","Steam"], a:1}],
     g3: [{q:"5 x 5 = ?", o:["20","25","30","35"], a:1}, {q:"Verb?", o:["Run","Blue","Table","Hot"], a:0}],
