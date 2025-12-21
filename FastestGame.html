@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Quiz 12.0 (Kindergarten + Late Join)</title>
+    <title>TIU Quiz 13.0 (Fixed Display)</title>
     <script src="peerjs.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     
@@ -12,7 +12,7 @@
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; overflow-x: hidden; }
         
         .watermark { position: fixed; bottom: 20px; right: 20px; font-size: 8rem; font-weight: 900; color: rgba(0,0,0,0.03); pointer-events: none; z-index: 0; user-select: none; font-family: 'Courier New', monospace; }
-        .container { max-width: 900px; width: 100%; margin: 0 auto; z-index: 1; position: relative; }
+        .container { max-width: 900px; width: 100%; margin: 0 auto; z-index: 1; position: relative; margin-top: 50px; /* Space for code at top */ }
         .card { background: white; padding: 2rem; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); text-align: center; display: none; }
         .active { display: block; animation: slideUp 0.4s ease; }
         
@@ -26,21 +26,23 @@
         /* HOST UI */
         .room-code { font-size: 5rem; font-weight: 900; color: var(--primary); font-family: monospace; letter-spacing: 8px; margin: 20px 0; background: #f1f5f9; padding: 20px; border-radius: 20px; border: 3px dashed #cbd5e1; }
         
-        /* PERSISTENT CODE DISPLAY (For Late Joiners) */
+        /* PERSISTENT CODE DISPLAY (FIXED POSITION) */
         .persistent-code {
-            position: absolute;
-            top: -50px;
-            right: 0;
+            position: fixed;      /* Sticks to the viewport */
+            top: 15px;            /* 15px from top */
+            right: 15px;          /* 15px from right */
             background: #1e293b;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 12px;
             font-family: monospace;
-            font-weight: bold;
-            font-size: 1.2rem;
-            letter-spacing: 2px;
-            display: none; /* Hidden until game starts */
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            font-weight: 900;
+            font-size: 1.5rem;
+            letter-spacing: 3px;
+            z-index: 9999;        /* Always on top */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: none;        /* Hidden in lobby */
+            border: 2px solid #fff;
         }
 
         /* STUDENT MANAGER */
@@ -80,11 +82,12 @@
     <button id="mgr-toggle" onclick="toggleMgr()">👥 Students (<span id="mgr-count">0</span>)</button>
 </div>
 
+<div id="live-code" class="persistent-code">CODE: <span id="live-code-val">----</span></div>
+
 <div class="container">
-    <div id="live-code" class="persistent-code">CODE: <span id="live-code-val"></span></div>
 
     <div id="s-menu" class="card active">
-        <h1>🎓 TIU Quiz 12.0</h1>
+        <h1>🎓 TIU Quiz 13.0</h1>
         <p>Select your role:</p>
         <button onclick="setupHost()">👑 Host (Teacher)</button>
         <button onclick="setupJoin()" style="background:white; border:2px solid var(--primary); color:var(--primary)">👤 Join (Student)</button>
@@ -96,7 +99,7 @@
         
         <label>Select Grade Level:</label><br>
         <select id="grade-select" onchange="toggleCustomArea()">
-            <option value="kg">🧸 Kindergarten (New)</option>
+            <option value="kg">🧸 Kindergarten</option>
             <option value="g1">1st Grade</option>
             <option value="g2">2nd Grade</option>
             <option value="g3">3rd Grade</option>
