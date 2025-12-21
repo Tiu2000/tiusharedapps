@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fantasy Hoops Edge | Final Fix</title>
+    <title>Fantasy Hoops Edge | Real Data Only</title>
     <style>
         :root { --primary: #f97316; --bg-dark: #111827; --bg-card: #1f2937; --text-light: #f3f4f6; --text-gray: #9ca3af; --success: #10b981; --danger: #ef4444; --border: #374151; }
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -41,16 +41,16 @@
 
 <header>
     <h1>Fantasy <span>Hoops Edge</span></h1>
-    <button class="refresh-btn" onclick="app.fetchLiveStats()">↻ Fetch Live Stats (Final Fix)</button>
+    <button class="refresh-btn" onclick="app.fetchLiveStats()">↻ Fetch Real Data</button>
 </header>
 
 <div id="error-log"></div>
 
 <div class="tabs">
     <button class="tab-btn active" onclick="app.switchTab('rankings')">Top Players</button>
+    <button class="tab-btn" onclick="app.switchTab('trade')">Trade Calculator</button>
     <button class="tab-btn" onclick="app.switchTab('waiver')">Waiver Wire</button>
     <button class="tab-btn" onclick="app.switchTab('injury')">Injury Report</button>
-    <button class="tab-btn" onclick="app.switchTab('trade')">Trade Calculator</button>
 </div>
 
 <div id="rankings" class="section active">
@@ -58,34 +58,10 @@
         <div class="controls"><span>Sorted by Fantasy Avg (Basketball Ref)</span></div>
         <div class="table-container">
             <table>
-                <thead><tr><th>Rank</th><th>Player</th><th>Team</th><th>FPts</th><th>Status</th></tr></thead>
-                <tbody id="rankings-body"><tr><td colspan="5">Click "Fetch Live Stats" to load data...</td></tr></tbody>
+                <thead><tr><th>Rank</th><th>Player</th><th>Team</th><th>FPts</th></tr></thead>
+                <tbody id="rankings-body"><tr><td colspan="4">Click "Fetch Real Data" to load.</td></tr></tbody>
             </table>
         </div>
-    </div>
-</div>
-
-<div id="waiver" class="section">
-    <div class="card">
-        <div class="controls"><h3>Available Free Agents (Simulated)</h3></div>
-        <table>
-            <thead><tr><th>Player</th><th>Team</th><th>FPts</th><th>Action</th></tr></thead>
-            <tbody id="waiver-body"></tbody>
-        </table>
-    </div>
-</div>
-
-<div id="injury" class="section">
-    <div class="card">
-        <div class="controls">
-            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                <input type="checkbox" id="sort-return-date" onchange="app.renderInjured()"> <strong>Sort by Earliest Return</strong>
-            </label>
-        </div>
-        <table>
-            <thead><tr><th>Player</th><th>Status</th><th>FPts</th><th>Est. Return</th></tr></thead>
-            <tbody id="injury-body"></tbody>
-        </table>
     </div>
 </div>
 
@@ -111,15 +87,32 @@
     </div>
 </div>
 
+<div id="waiver" class="section">
+    <div class="card">
+        <div class="controls"><h3>Waiver Wire</h3></div>
+        <table>
+            <thead><tr><th>Player</th><th>Team</th><th>FPts</th><th>Action</th></tr></thead>
+            <tbody id="waiver-body"><tr><td colspan="4">No Waiver data in Sheet.</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="injury" class="section">
+    <div class="card">
+        <div class="controls"><h3>Injury Report</h3></div>
+        <table>
+            <thead><tr><th>Player</th><th>Status</th><th>FPts</th></tr></thead>
+            <tbody id="injury-body"><tr><td colspan="3">No Injury data in Sheet.</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
 <script>
 // --------------------------------------------------------
 // CONFIGURATION: THIS IS YOUR LINK
 // --------------------------------------------------------
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRjXx4Qj9T0pewiLLDUqrPZCwJDaxjuWZSwq6zwjmBgrkREOTEkDyNal-87_YR-_6JokM-R2ywkLDcu/pub?output=csv";
 
-// --------------------------------------------------------
-// APP LOGIC
-// --------------------------------------------------------
 const app = {
     data: [],
     tradeState: { A: [], B: [] },
@@ -128,11 +121,11 @@ const app = {
         const btn = document.querySelector('.refresh-btn');
         const errBox = document.getElementById('error-log');
         errBox.style.display = 'none';
-        btn.textContent = "Fetching via Proxy...";
+        btn.textContent = "Fetching...";
         btn.disabled = true;
 
         try {
-            // THE FIX: Route through a CORS Proxy to bypass "Failed to Fetch" error
+            // Use Proxy to allow Google Sheet CSV access
             const proxy = "https://corsproxy.io/?";
             const response = await fetch(proxy + encodeURIComponent(SHEET_CSV_URL));
 
@@ -141,7 +134,6 @@ const app = {
             const csvText = await response.text();
             
             // --- PARSING BASKETBALL REFERENCE CSV ---
-            // Headers usually: Rk,Player,Pos,Age,Tm,G,GS,MP,FG... [PTS is last]
             const rows = csvText.split('\n');
             const headers = rows[0].split(',');
             
@@ -156,11 +148,10 @@ const app = {
             const idxBLK = findCol("BLK");
             const idxTOV = findCol("TOV");
 
-            if(idxName === -1 || idxPTS === -1) throw new Error("Could not find stat headers. Did you paste the data into the sheet?");
+            if(idxName === -1 || idxPTS === -1) throw new Error("Could not find headers. Check Google Sheet.");
 
             const parsedData = rows.slice(1).map((row, i) => {
                 const cols = row.split(',');
-                // Skip empty rows or repeated headers
                 if(cols.length < 10 || cols[idxName] === "Player") return null;
 
                 const getVal = (idx) => parseFloat(cols[idx]) || 0;
@@ -169,55 +160,33 @@ const app = {
                 const fpts = (getVal(idxPTS) * 1) + (getVal(idxTRB) * 1.2) + (getVal(idxAST) * 1.5) + 
                              (getVal(idxSTL) * 3) + (getVal(idxBLK) * 3) - (getVal(idxTOV) * 1);
 
-                const isInjured = Math.random() < 0.15; // Simulating injury data
-                const isFA = Math.random() < 0.2; 
-
-                // Simple simulated return date
-                let rDate = null;
-                if(isInjured) {
-                    const d = new Date(); d.setDate(d.getDate() + Math.floor(Math.random() * 20));
-                    rDate = d.toISOString().split('T')[0];
-                }
-
                 return {
                     id: i,
                     name: cols[idxName].replace('*', '').replace(/"/g, ''),
                     team: cols[idxTm],
                     fpts: parseFloat(fpts.toFixed(1)),
-                    status: isFA ? "FA" : "ROSTERED",
-                    injured: isInjured,
-                    returnDate: rDate
+                    // No simulated status/injury. Default to Active.
+                    status: "ROSTERED", 
+                    injured: false
                 };
             }).filter(p => p !== null && p.fpts > 0);
 
-            this.data = parsedData.sort((a, b) => b.fpts - a.fpts).slice(0, 150); // Top 150
+            this.data = parsedData.sort((a, b) => b.fpts - a.fpts).slice(0, 200);
 
-            if(this.data.length === 0) throw new Error("Sheet appears empty. Paste B-Ref stats into A1.");
+            if(this.data.length === 0) throw new Error("Sheet is empty.");
 
             this.renderAll();
             this.populateTradeDropdowns();
-            btn.textContent = "✔ Data Loaded";
+            btn.textContent = "✔ Loaded";
 
         } catch (error) {
             console.error(error);
             errBox.style.display = 'block';
-            errBox.innerHTML = `<strong>Connection Error:</strong> ${error.message}<br><small>Trying to load mock data instead...</small>`;
-            // Fallback so the app doesn't break completely
-            this.loadMockFallback();
+            errBox.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            btn.textContent = "⚠ Failed";
         } finally {
             btn.disabled = false;
         }
-    },
-
-    loadMockFallback: function() {
-         const mock = [
-            {id:1, name:"Jokic (Mock)", team:"DEN", fpts:60.5, status:"ROSTERED", injured:false},
-            {id:2, name:"Luka (Mock)", team:"DAL", fpts:58.2, status:"ROSTERED", injured:false},
-            {id:3, name:"Embiid (Mock)", team:"PHI", fpts:57.0, status:"ROSTERED", injured:true, returnDate:"2024-11-20"}
-         ];
-         this.data = mock;
-         this.renderAll();
-         this.populateTradeDropdowns();
     },
 
     // UI Functions
@@ -229,30 +198,24 @@ const app = {
         btns.forEach(b => { if(b.getAttribute('onclick').includes(tabId)) b.classList.add('active'); });
     },
     renderAll: function() { this.renderRankings(); this.renderWaiver(); this.renderInjured(); },
+    
     renderRankings: function() {
         const tbody = document.getElementById('rankings-body'); tbody.innerHTML = '';
         this.data.forEach((p, i) => {
-            const statusClass = p.status === 'FA' ? 'badge-fa' : 'badge-ros';
-            const injHtml = p.injured ? '<span class="badge badge-inj">INJ</span>' : '';
-            tbody.innerHTML += `<tr><td>#${i+1}</td><td>${p.name} ${injHtml}</td><td>${p.team}</td><td style="font-weight:bold; color:var(--primary)">${p.fpts}</td><td><span class="badge ${statusClass}">${p.status}</span></td></tr>`;
+            tbody.innerHTML += `<tr><td>#${i+1}</td><td>${p.name}</td><td>${p.team}</td><td style="font-weight:bold; color:var(--primary)">${p.fpts}</td></tr>`;
         });
     },
+    
+    // Waiver & Injury will remain empty because we removed the fake data
     renderWaiver: function() {
-        const tbody = document.getElementById('waiver-body'); tbody.innerHTML = '';
-        const av = this.data.filter(p => p.status === 'FA');
-        if(!av.length) { tbody.innerHTML = '<tr><td colspan="4">No FAs in top 150.</td></tr>'; return; }
-        av.forEach(p => tbody.innerHTML += `<tr><td>${p.name}</td><td>${p.team}</td><td style="font-weight:bold">${p.fpts}</td><td><button style="padding:4px 8px;">Claim</button></td></tr>`);
+        // Real logic: We don't know who is FA from just stats, so we show nothing to avoid lying.
+        document.getElementById('waiver-body').innerHTML = '<tr><td colspan="4">No waiver info in current data source.</td></tr>';
     },
     renderInjured: function() {
-        const tbody = document.getElementById('injury-body'); tbody.innerHTML = '';
-        let inj = this.data.filter(p => p.injured);
-        if(document.getElementById('sort-return-date').checked && inj.length) inj.sort((a,b) => new Date(a.returnDate) - new Date(b.returnDate));
-        if(!inj.length) { tbody.innerHTML = '<tr><td colspan="4">No injuries in top 150.</td></tr>'; return; }
-        inj.forEach(p => {
-             const diff = Math.ceil(Math.abs(new Date(p.returnDate) - new Date()) / (86400000));
-             tbody.innerHTML += `<tr><td>${p.name}</td><td><span class="badge badge-inj">OUT</span></td><td>${p.fpts}</td><td>${p.returnDate} (${diff}d)</td></tr>`;
-        });
+        // Real logic: We don't know who is injured from just stats, so we show nothing.
+        document.getElementById('injury-body').innerHTML = '<tr><td colspan="3">No injury info in current data source.</td></tr>';
     },
+
     populateTradeDropdowns: function() {
         const opts = `<option value="">+ Add Player</option>` + this.data.map(p => `<option value="${p.id}">${p.name} (${p.fpts})</option>`).join('');
         document.getElementById('team-a-select').innerHTML = opts; document.getElementById('team-b-select').innerHTML = opts;
