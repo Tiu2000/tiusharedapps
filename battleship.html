@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNES Battleship - Instant Action</title>
+    <title>SNES Battleship - Fixed</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     
@@ -92,6 +92,7 @@
             width: 80%; max-width: 600px; text-align: center;
             background: #000; border: 2px solid #555; padding: 10px;
             color: #0f0; font-size: 12px; margin-bottom: 10px; min-height: 20px;
+            line-height: 1.5;
         }
 
         #game-area {
@@ -110,6 +111,7 @@
             box-sizing: border-box; position: relative; cursor: crosshair;
         }
 
+        /* Visual States */
         .cell.ship { background-color: var(--ship-color); box-shadow: inset 3px 3px 0 rgba(255,255,255,0.4); }
         .cell.hit { background-color: var(--hit-color); }
         .cell.miss { background-color: var(--water-color); }
@@ -120,7 +122,10 @@
         .cell.preview-invalid { background-color: #ff0000; opacity: 0.5; }
 
         #rotate-btn { display: none; background: #0044aa; margin-bottom: 10px; }
-        #enemy-grid.disabled { opacity: 0.5; pointer-events: none; filter: grayscale(1); }
+        
+        /* Turn Indication */
+        #enemy-grid { transition: opacity 0.2s; }
+        #enemy-grid.disabled { opacity: 0.5; pointer-events: none; filter: grayscale(1); cursor: not-allowed; }
 
         #overlay {
             display: none; position: fixed; top: 50%; left: 50%;
@@ -130,7 +135,6 @@
     </style>
 </head>
 <body>
-
 
 <div class="scanlines"></div>
 <div class="watermark">TIU</div>
@@ -201,6 +205,10 @@
     let gameState = 'LOBBY'; 
     let myHits = 0, enemyHits = 0;
     const totalHits = SHIPS.reduce((a,b)=>a+b,0);
+    
+    // SYNC STATE
+    let iAmReady = false;
+    let opponentIsReady = false;
 
     // --- AUDIO ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -252,7 +260,7 @@
 
     // --- NETWORK LOGIC ---
 
-    // 1. HOST: Creates room, enters UI IMMEDIATELY
+    // 1. HOST
     document.getElementById('btn-create').addEventListener('click', () => {
         let room = cleanId(document.getElementById('host-room').value);
         if(room.length < 3) return alert("Room name too short");
@@ -260,14 +268,9 @@
         
         peer = new Peer(APP_PREFIX + room);
         
-        // Show UI immediately (Don't wait for open/connection)
         isHost = true;
         enterGameUI(room);
         setConnectionStatus("WAITING FOR P2...", "#ffcc00");
-
-        peer.on('open', (id) => {
-            console.log("Host ID active");
-        });
 
         peer.on('connection', (c) => {
             conn = c;
@@ -275,12 +278,12 @@
         });
 
         peer.on('error', (err) => {
-            alert("Error: Room name likely taken.");
+            alert("Room name likely taken.");
             location.reload();
         });
     });
 
-    // 2. JOINER: Joins room
+    // 2. JOINER
     document.getElementById('btn-join').addEventListener('click', () => {
         let room = cleanId(document.getElementById('join-room').value);
         if(room.length < 3) return alert("Room name too short");
@@ -289,22 +292,18 @@
         const status = document.getElementById('join-status');
         status.innerText = "Connecting...";
         
-        peer = new Peer(); // Random ID for joiner
+        peer = new Peer(); 
 
         peer.on('open', () => {
             conn = peer.connect(APP_PREFIX + room);
             
-            // If connection opens, enter game
             conn.on('open', () => {
                 enterGameUI(room);
                 handleConnectionOpen();
             });
 
-            // If it fails or takes too long
             setTimeout(() => {
-                if(!conn.open) {
-                    status.innerText = "Room not found (or Host busy).";
-                }
+                if(!conn.open) status.innerText = "Room not found (or Host busy).";
             }, 3000);
         });
     });
@@ -313,20 +312,18 @@
         setConnectionStatus("CONNECTED", "#00ff00");
         document.getElementById('game-log').innerText = "Opponent Connected!";
         
-        // Setup data listener
         conn.on('data', handleData);
 
-        // If Host was already waiting (finished placement), send READY now
-        if(gameState === 'WAITING') {
-             conn.send({type:'READY'});
-             document.getElementById('game-log').innerText = "Opponent connected. Waiting for them...";
+        // SYNC: If I am already ready, tell the new person immediately.
+        if (iAmReady) {
+            safeSend({type:'READY'});
         }
     }
 
     function handleData(data) {
         if(data.type === 'READY') {
-            if(gameState === 'WAITING') startGame();
-            else document.getElementById('game-log').innerText = "Opponent is Ready!";
+            opponentIsReady = true;
+            checkStart();
         }
         if(data.type === 'FIRE') receiveFire(data.x, data.y);
         if(data.type === 'RESULT') handleResult(data.x, data.y, data.hit);
@@ -335,6 +332,17 @@
     function safeSend(data) {
         if(conn && conn.open) {
             conn.send(data);
+        }
+    }
+
+    function checkStart() {
+        // Only start if I am done placing AND opponent is done placing
+        if (iAmReady && opponentIsReady && gameState !== 'PLAYING') {
+            startGame();
+        } else if (iAmReady && !opponentIsReady) {
+            document.getElementById('game-log').innerText = "Waiting for Opponent to finish placing ships...";
+        } else if (!iAmReady && opponentIsReady) {
+            document.getElementById('game-log').innerText = "Opponent is ready! Finish deploying your fleet.";
         }
     }
 
@@ -400,45 +408,45 @@
             });
             shipsToPlace.shift();
             
-            // Check if more ships needed
             if(shipsToPlace.length) {
                 currentShip = shipsToPlace[0];
                 log.innerText = `Place Ship (Size ${currentShip})`;
             } else {
-                // All ships placed
-                gameState = 'WAITING';
+                // FINISHED PLACEMENT
                 document.getElementById('rotate-btn').style.display = 'none';
-                
-                if(conn && conn.open) {
-                    log.innerText = "Waiting for opponent...";
-                    safeSend({type:'READY'});
-                } else {
-                    log.innerText = "Fleet Deployed. Waiting for P2 to connect...";
-                }
+                iAmReady = true;
+                safeSend({type:'READY'});
+                checkStart();
             }
         }
     }
 
     function startGame() {
         gameState = 'PLAYING';
-        isMyTurn = isHost;
+        isMyTurn = isHost; // HOST GOES FIRST
         updateTurn();
     }
 
     function updateTurn() {
         if(isMyTurn) {
             log.innerText = "YOUR TURN: Select target on Radar";
-            log.style.color = "#0f0";
+            log.style.color = "#00ff00"; // Green
             enemyGrid.classList.remove('disabled');
         } else {
-            log.innerText = "ENEMY TURN: Brace for impact";
-            log.style.color = "#f00";
+            log.innerText = "ENEMY TURN: Brace for impact!";
+            log.style.color = "#ff3333"; // Red
             enemyGrid.classList.add('disabled');
         }
     }
 
     function fire(x, y) {
-        if(gameState!=='PLAYING' || !isMyTurn || enemyView[y][x]!==0) return;
+        if(gameState!=='PLAYING') return;
+        if(!isMyTurn) {
+             // Visual shake or feedback that it's not turn could go here
+             return; 
+        }
+        if(enemyView[y][x]!==0) return; // Already clicked
+        
         playTone('click');
         enemyView[y][x] = 2; 
         enemyGrid.children[y*10+x].style.backgroundColor = '#555'; 
