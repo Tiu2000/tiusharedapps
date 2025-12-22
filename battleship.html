@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNES Battleship - Fixed</title>
+    <title>SNES Battleship - Logic Fixed</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     
@@ -90,9 +90,9 @@
 
         #game-log {
             width: 80%; max-width: 600px; text-align: center;
-            background: #000; border: 2px solid #555; padding: 10px;
-            color: #0f0; font-size: 12px; margin-bottom: 10px; min-height: 20px;
-            line-height: 1.5;
+            background: #000; border: 2px solid #555; padding: 15px;
+            color: #0f0; font-size: 14px; margin-bottom: 15px; min-height: 20px;
+            line-height: 1.5; text-shadow: 2px 2px 0 #000;
         }
 
         #game-area {
@@ -124,7 +124,7 @@
         #rotate-btn { display: none; background: #0044aa; margin-bottom: 10px; }
         
         /* Turn Indication */
-        #enemy-grid { transition: opacity 0.2s; }
+        #enemy-grid { transition: opacity 0.2s, filter 0.2s; }
         #enemy-grid.disabled { opacity: 0.5; pointer-events: none; filter: grayscale(1); cursor: not-allowed; }
 
         #overlay {
@@ -135,6 +135,8 @@
     </style>
 </head>
 <body>
+
+
 
 <div class="scanlines"></div>
 <div class="watermark">TIU</div>
@@ -278,7 +280,7 @@
         });
 
         peer.on('error', (err) => {
-            alert("Room name likely taken.");
+            alert("Room name likely taken or network blocked.");
             location.reload();
         });
     });
@@ -314,18 +316,20 @@
         
         conn.on('data', handleData);
 
-        // SYNC: If I am already ready, tell the new person immediately.
+        // Sync check: If I am already ready, tell the new person immediately.
         if (iAmReady) {
             safeSend({type:'READY'});
         }
     }
 
     function handleData(data) {
+        // IMPORTANT: Process FIRE even if not 'PLAYING' yet, to fix race condition
+        if(data.type === 'FIRE') receiveFire(data.x, data.y);
+        
         if(data.type === 'READY') {
             opponentIsReady = true;
             checkStart();
         }
-        if(data.type === 'FIRE') receiveFire(data.x, data.y);
         if(data.type === 'RESULT') handleResult(data.x, data.y, data.hit);
     }
 
@@ -336,8 +340,7 @@
     }
 
     function checkStart() {
-        // Only start if I am done placing AND opponent is done placing
-        if (iAmReady && opponentIsReady && gameState !== 'PLAYING') {
+        if (iAmReady && opponentIsReady) {
             startGame();
         } else if (iAmReady && !opponentIsReady) {
             document.getElementById('game-log').innerText = "Waiting for Opponent to finish placing ships...";
@@ -422,6 +425,9 @@
     }
 
     function startGame() {
+        // Prevent resetting turn logic if we are already playing (Fix for Race Condition)
+        if(gameState === 'PLAYING') return;
+
         gameState = 'PLAYING';
         isMyTurn = isHost; // HOST GOES FIRST
         updateTurn();
@@ -429,34 +435,39 @@
 
     function updateTurn() {
         if(isMyTurn) {
-            log.innerText = "YOUR TURN: Select target on Radar";
-            log.style.color = "#00ff00"; // Green
+            log.innerText = "YOUR TURN: Fire on Enemy Radar!";
+            log.style.color = "#00ff00"; 
             enemyGrid.classList.remove('disabled');
         } else {
             log.innerText = "ENEMY TURN: Brace for impact!";
-            log.style.color = "#ff3333"; // Red
+            log.style.color = "#ff3333"; 
             enemyGrid.classList.add('disabled');
         }
     }
 
     function fire(x, y) {
         if(gameState!=='PLAYING') return;
-        if(!isMyTurn) {
-             // Visual shake or feedback that it's not turn could go here
-             return; 
-        }
+        if(!isMyTurn) return; 
         if(enemyView[y][x]!==0) return; // Already clicked
         
         playTone('click');
-        enemyView[y][x] = 2; 
+        enemyView[y][x] = 2; // Mark as pending
         enemyGrid.children[y*10+x].style.backgroundColor = '#555'; 
+        
+        // Lock turn immediately
         isMyTurn = false;
-        enemyGrid.classList.add('disabled');
-        log.innerText = "Firing...";
+        updateTurn();
+        
+        log.innerText = "Firing Cannons...";
         safeSend({type:'FIRE', x, y});
     }
 
     function receiveFire(x, y) {
+        // If we receive fire, the game is ON. Force state to PLAYING.
+        if (gameState !== 'PLAYING') {
+            gameState = 'PLAYING';
+        }
+
         let hit = myBoard[y][x] === 1;
         myBoard[y][x] = hit ? 3 : 2;
         let cell = myGrid.children[y*10+x];
@@ -473,7 +484,11 @@
         } else {
             playTone('miss');
         }
+        
+        // Send result back
         safeSend({type:'RESULT', hit, x, y});
+        
+        // IT IS NOW MY TURN
         isMyTurn = true;
         updateTurn();
     }
@@ -483,15 +498,18 @@
         let cell = enemyGrid.children[y*10+x];
         cell.style.backgroundColor = ''; 
         cell.classList.add(hit?'hit':'miss');
+        
         if(hit) {
             playTone('hit');
             enemyHits++;
             if(enemyHits >= totalHits) gameOver(true);
-            else log.innerText = "DIRECT HIT!";
+            else log.innerText = "DIRECT HIT! Waiting for enemy...";
         } else {
             playTone('miss');
-            log.innerText = "Missed.";
+            log.innerText = "MISSED. Waiting for enemy...";
         }
+        
+        // Note: Turn remains locked (false) until we receive a FIRE command
     }
 
     function gameOver(win) {
