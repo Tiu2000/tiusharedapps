@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROM File - Web Player</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #222;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #game-container {
+            width: 640px;
+            height: 480px;
+            background: #000;
+            border: 2px solid #444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #controls {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        h1 { margin-top: 0; }
+        .btn {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+        .btn:hover { background-color: #218838; }
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="controls">
+        <h1>Rom File Web Player</h1>
+        <p>Select your <strong>.sfc</strong> file to begin playing.</p>
+        <button class="btn" onclick="document.getElementById('romInput').click()">Select ROM File</button>
+        <input type="file" id="romInput" accept=".sfc,.smc,.zip" onchange="loadGame(this)">
+    </div>
+
+    <div id="game-container">
+        <div id="emulator"></div>
+    </div>
+
+    <script>
+        // Define EmulatorJS variables
+        var EJS_player = '#emulator';
+        var EJS_core = 'snes'; // Force SNES core
+        var EJS_gameName = 'Madden NFL 97';
+        var EJS_color = '#0064ff';
+        var EJS_startOnLoaded = true;
+        var EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';
+        var EJS_gameUrl = ''; // Will be set dynamically
+
+        function loadGame(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            // Create a local URL for the selected file (bypasses security blocks)
+            const fileUrl = URL.createObjectURL(file);
+            EJS_gameUrl = fileUrl;
+
+            // Hide the controls to focus on the game
+            document.getElementById('controls').style.display = 'none';
+
+            // Load the EmulatorJS script dynamically
+            const script = document.createElement('script');
+            script.src = 'https://cdn.emulatorjs.org/stable/data/loader.js';
+            document.body.appendChild(script);
+        }
+    </script>
+</body>
+</html>
