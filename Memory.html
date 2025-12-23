@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIU Memory Match P2P</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --card-bg: #16213e;
+            --card-back: #0f3460;
+            --accent: #e94560;
+            --text: #ffffff;
+            --watermark: rgba(255, 255, 255, 0.03);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* WATERMARK */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 8rem;
+            font-weight: 900;
+            color: var(--watermark);
+            pointer-events: none;
+            z-index: 0;
+            transform: rotate(-15deg);
+        }
+
+        /* LOBBY UI */
+        #lobby {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        input {
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            margin-bottom: 10px;
+            width: 200px;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: transform 0.1s;
+            margin: 5px;
+        }
+
+        button:active { transform: scale(0.95); }
+        .btn-host { background-color: var(--accent); color: white; }
+        .btn-join { background-color: var(--card-back); color: white; }
+
+        /* GAME UI */
+        #game-container {
+            display: none; /* Hidden until game starts */
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        .player-score {
+            padding: 10px 20px;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.3);
+            border: 2px solid transparent;
+        }
+
+        .active-turn {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        #status-msg {
+            margin-bottom: 15px;
+            font-style: italic;
+            color: #ccc;
+        }
+
+        /* CARD GRID */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            perspective: 1000px; /* Essential for 3D flip */
+        }
+
+        .card {
+            width: 80px;
+            height: 110px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+            cursor: default;
+        }
+
+        .card.matched {
+            transform: rotateY(180deg) scale(0.95);
+            opacity: 0.7;
+            cursor: default;
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .card-front {
+            background-color: var(--card-back);
+            border: 2px solid #2a4a7f;
+        }
+        
+        /* Pattern for back of card */
+        .card-front::after {
+            content: "TIU";
+            font-size: 1rem;
+            color: rgba(255,255,255,0.1);
+            transform: rotate(-45deg);
+        }
+
+        .card-back {
+            background-color: white;
+            color: #333;
+            transform: rotateY(180deg);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 500px) {
+            .grid { grid-template-columns: repeat(4, 1fr); gap: 10px; }
+            .card { width: 60px; height: 80px; }
+            .card-face { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <div id="lobby">
+        <h2>TIU Memory P2P</h2>
+        <p>Enter a simple room name (e.g., "room1")</p>
+        <input type="text" id="room-input" placeholder="Room Name" maxlength="15">
+        <br>
+        <button class="btn-host" onclick="createRoom()">Create Room</button>
+        <button class="btn-join" onclick="joinRoom()">Join Room</button>
+        <p id="lobby-status" style="margin-top: 10px; font-size: 0.9rem; color: #aaa;"></p>
+    </div>
+
+    <div id="game-container">
+        <div class="hud">
+            <div id="p1-score-box" class="player-score active-turn">
+                You: <span id="my-score">0</span>
+            </div>
+            <div id="status-msg">Waiting for opponent...</div>
+            <div id="p2-score-box" class="player-score">
+                Opponent: <span id="op-score">0</span>
+            </div>
+        </div>
+        <div class="grid" id="grid">
+            </div>
+    </div>
+
+    <script>
+        // --- GAME CONFIG & STATE ---
+        const EMOJIS = ['🚀', '🍕', '🐱', '🌵', '🎸', '🍦', '💎', '🔥'];
+        let deck = [];
+        let flippedCards = []; // {index, value}
+        let matchedPairs = [];
+        let myScore = 0;
+        let opScore = 0;
+        let isMyTurn = false;
+        let isHost = false;
+        let canInteract = false;
+
+        // --- NETWORKING VARIABLES ---
+        let peer;
+        let conn;
+        const PREFIX = 'tiu-mem-game-v1-'; // Prefix to avoid collisions on public PeerJS server
+
+        // --- AUDIO ENGINE (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'flip') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'match') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.setValueAtTime(800, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'nomatch') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.linearRampToValueAtTime(150, now + 0.2);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'win') {
+                osc.type = 'square';
+                // Simple Arpeggio
+                osc.frequency.setValueAtTime(523.25, now); // C
+                osc.frequency.setValueAtTime(659.25, now + 0.1); // E
+                osc.frequency.setValueAtTime(783.99, now + 0.2); // G
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.setValueAtTime(0, now + 0.6);
+                osc.start(now);
+                osc.stop(now + 0.6);
+            }
+        }
+
+        // --- LOBBY LOGIC ---
+        function getRoomId() {
+            const input = document.getElementById('room-input').value.trim().toLowerCase();
+            if (!input) {
+                alert("Please enter a room name!");
+                return null;
+            }
+            return PREFIX + input;
+        }
+
+        function createRoom() {
+            const id = getRoomId();
+            if (!id) return;
+
+            document.getElementById('lobby-status').innerText = "Creating room...";
+            
+            // Initialize Peer with specific ID
+            peer = new Peer(id);
+
+            peer.on('open', (id) => {
+                document.getElementById('lobby-status').innerText = "Room created! Waiting for player...";
+                isHost = true;
+                isMyTurn = true; // Host goes first
+            });
+
+            peer.on('error', (err) => {
+                if(err.type === 'unavailable-id') {
+                    alert("Room name taken. Try another or join this one.");
+                } else {
+                    alert("Connection Error: " + err.type);
+                }
+                document.getElementById('lobby-status').innerText = "";
+            });
+
+            peer.on('connection', (connection) => {
+                conn = connection;
+                setupConnection();
+                startGameAsHost();
+            });
+        }
+
+        function joinRoom() {
+            const id = getRoomId();
+            if (!id) return;
+
+            document.getElementById('lobby-status').innerText = "Connecting...";
+            peer = new Peer(); // Let server assign random ID for the guest
+
+            peer.on('open', () => {
+                conn = peer.connect(id);
+                conn.on('open', () => {
+                    document.getElementById('lobby-status').innerText = "Connected!";
+                    isHost = false;
+                    isMyTurn = false;
+                    setupConnection();
+                });
+                // Handle connection failure usually happens on 'error'
+            });
+
+            peer.on('error', (err) => {
+                alert("Could not find that room. Check the name.");
+                document.getElementById('lobby-status').innerText = "";
+            });
+        }
+
+        function setupConnection() {
+            // Hide lobby, show game
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('game-container').style.display = 'flex';
+            updateTurnUI();
+
+            conn.on('data', (data) => {
+                handleNetworkMessage(data);
+            });
+
+            conn.on('close', () => {
+                alert("Opponent disconnected!");
+                location.reload();
+            });
+        }
+
+        // --- GAME SETUP ---
+        function startGameAsHost() {
+            // 1. Create Deck
+            deck = [...EMOJIS, ...EMOJIS];
+            // Shuffle
+            deck.sort(() => Math.random() - 0.5);
+            
+            // 2. Render Locally
+            renderGrid();
+
+            // 3. Send Deck to Peer
+            conn.send({
+                type: 'INIT',
+                deck: deck
+            });
+
+            setStatus("Your Turn");
+            canInteract = true;
+        }
+
+        function handleNetworkMessage(data) {
+            switch (data.type) {
+                case 'INIT':
+                    deck = data.deck;
+                    renderGrid();
+                    setStatus("Opponent's Turn");
+                    break;
+                case 'FLIP':
+                    // Opponent flipped a card
+                    flipCardLocally(data.index, false); // false = not my click
+                    break;
+                case 'TURN_CHANGE':
+                    isMyTurn = data.yourTurn;
+                    canInteract = isMyTurn;
+                    updateTurnUI();
+                    break;
+            }
+        }
+
+        // --- UI RENDERING ---
+        function renderGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            
+            deck.forEach((emoji, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.dataset.index = index;
+                card.dataset.value = emoji;
+                
+                // Front (Cover)
+                const front = document.createElement('div');
+                front.className = 'card-face card-front';
+                
+                // Back (Emoji)
+                const back = document.createElement('div');
+                back.className = 'card-face card-back';
+                back.innerText = emoji;
+
+                card.appendChild(front);
+                card.appendChild(back);
+                
+                card.addEventListener('click', () => handleCardClick(index));
+                grid.appendChild(card);
+            });
+        }
+
+        function updateTurnUI() {
+            const p1Box = document.getElementById('p1-score-box');
+            const p2Box = document.getElementById('p2-score-box');
+            const status = document.getElementById('status-msg');
+
+            if (isMyTurn) {
+                p1Box.classList.add('active-turn');
+                p2Box.classList.remove('active-turn');
+                status.innerText = "Your Turn";
+                status.style.color = "#4ade80";
+            } else {
+                p1Box.classList.remove('active-turn');
+                p2Box.classList.add('active-turn');
+                status.innerText = "Opponent's Turn";
+                status.style.color = "#ccc";
+            }
+        }
+
+        function setStatus(msg) {
+            document.getElementById('status-msg').innerText = msg;
+        }
+
+        // --- GAME PLAY LOGIC ---
+        function handleCardClick(index) {
+            // Validation
+            if (!canInteract) return;
+            if (!isMyTurn) return;
+            
+            // Cannot click already matched or already flipped cards
+            if (matchedPairs.includes(index)) return;
+            if (flippedCards.some(c => c.index === index)) return;
+            if (flippedCards.length >= 2) return;
+
+            // Perform Flip
+            flipCardLocally(index, true);
+
+            // Notify Peer
+            conn.send({ type: 'FLIP', index: index });
+        }
+
+        function flipCardLocally(index, isMe) {
+            const cards = document.querySelectorAll('.card');
+            const card = cards[index];
+            const val = deck[index];
+
+            playSound('flip');
+            card.classList.add('flipped');
+            flippedCards.push({ index, value: val });
+
+            if (flippedCards.length === 2) {
+                checkMatch(isMe);
+            }
+        }
+
+        function checkMatch(currentPlayerIsMe) {
+            canInteract = false; // Block input while checking
+            const [c1, c2] = flippedCards;
+
+            if (c1.value === c2.value) {
+                // MATCH!
+                setTimeout(() => {
+                    playSound('match');
+                    const cards = document.querySelectorAll('.card');
+                    cards[c1.index].classList.add('matched');
+                    cards[c2.index].classList.add('matched');
+                    matchedPairs.push(c1.index, c2.index);
+
+                    // Update Score
+                    if (currentPlayerIsMe) {
+                        myScore++;
+                        document.getElementById('my-score').innerText = myScore;
+                        canInteract = true; // Keep turn
+                    } else {
+                        opScore++;
+                        document.getElementById('op-score').innerText = opScore;
+                    }
+
+                    flippedCards = [];
+                    checkWin();
+                }, 600);
+            } else {
+                // NO MATCH
+                setTimeout(() => {
+                    playSound('nomatch');
+                    const cards = document.querySelectorAll('.card');
+                    cards[c1.index].classList.remove('flipped');
+                    cards[c2.index].classList.remove('flipped');
+                    
+                    flippedCards = [];
+                    
+                    // Switch Turn
+                    if (currentPlayerIsMe) {
+                        isMyTurn = false;
+                        conn.send({ type: 'TURN_CHANGE', yourTurn: true });
+                    } else {
+                        isMyTurn = true;
+                        canInteract = true;
+                    }
+                    updateTurnUI();
+                }, 1200);
+            }
+        }
+
+        function checkWin() {
+            if (matchedPairs.length === deck.length) {
+                playSound('win');
+                let msg = "";
+                if (myScore > opScore) msg = "YOU WIN!";
+                else if (opScore > myScore) msg = "YOU LOSE!";
+                else msg = "IT'S A TIE!";
+                
+                document.getElementById('status-msg').innerText = msg;
+                document.getElementById('status-msg').style.fontWeight = "bold";
+                document.getElementById('status-msg').style.color = "gold";
+            }
+        }
+    </script>
+</body>
+</html>
