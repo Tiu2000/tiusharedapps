@@ -139,12 +139,14 @@
 
                 c.on('data', data => {
                     flashHeartbeat();
+                    log(`📥 Received: ${data.type}${data.index !== undefined ? ' [card '+data.index+']' : ''}`);
+                    
                     if(data.type === 'CLICK') {
-                        log(`📥 Guest clicked card ${data.index}`);
                         if(gameState.turn === 'guest') {
+                            log(`✅ Processing guest's click on card ${data.index}`);
                             processMove(data.index);
                         } else {
-                            log("⚠️ Guest clicked out of turn - resyncing");
+                            log(`⚠️ Guest clicked out of turn (current: ${gameState.turn}) - resyncing`);
                             c.send({ type: 'STATE', state: cloneState(gameState) });
                         }
                     }
@@ -313,23 +315,41 @@
                 return;
             }
 
+            // Check if card is already flipped or matched
+            if(gameState.matched.includes(i) || gameState.flipped.includes(i)) {
+                log(`⚠️ Card ${i} already in play`);
+                return;
+            }
+
+            // Check if game is locked
+            if(gameState.locked) {
+                log("🔒 Game locked - wait for evaluation");
+                return;
+            }
+
             if(myRole === 'host') {
                 if(gameState.turn === 'host') {
                     processMove(i);
                 } else {
-                    log("⏸️ Not your turn");
+                    log("⏸️ Wait for guest's turn");
                 }
             } 
             else if(myRole === 'guest') {
                 if(gameState.turn === 'guest') {
                     if(conn && conn.open) {
+                        log(`📤 Sending click ${i} to host...`);
+                        
+                        // Optimistic update: show the card flip immediately
+                        gameState.flipped.push(i);
+                        render();
+                        
                         conn.send({ type: 'CLICK', index: i });
-                        log(`📤 Sent click: ${i}`);
                     } else {
-                        log("❌ Not connected");
+                        log("❌ Connection lost!");
+                        requestSync();
                     }
                 } else {
-                    log("⏸️ Not your turn");
+                    log("⏸️ Wait for host's turn");
                 }
             }
         }
