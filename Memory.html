@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Memory (V25 Server Fix)</title>
+    <title>TIU Memory (V26 Render Fix)</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root { --bg: #121212; --surface: #1e1e1e; --primary: #03dac6; --text: #fff; }
@@ -68,7 +68,7 @@
 <body onclick="resumeAudio()">
 
     <div id="lobby">
-        <h2>MEMORY V25</h2>
+        <h2>MEMORY V26</h2>
         <button class="btn-host" onclick="initHost()">HOST GAME</button>
         <div style="margin: 15px 0; color:#666">- OR -</div>
         <input type="text" id="code-input" placeholder="CODE" maxlength="4">
@@ -98,7 +98,7 @@
 
     <script>
         // --- CONFIG ---
-        const APP_ID = "tiu-mem-v25-server-";
+        const APP_ID = "tiu-mem-v26-renderfix-";
         const EMOJIS = ['🚀','🍕','🐱','🌵','🎸','🍦','💎','🔥'];
         const logBox = document.getElementById('console-log');
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -145,7 +145,6 @@
                 conn = c;
                 log("Guest Connected!");
                 setupConn();
-                // Send state immediately on connection
                 setTimeout(() => sendState('init'), 500);
             });
             peer.on('error', e => log("Peer Error: " + e.type));
@@ -164,7 +163,7 @@
             peer.on('open', () => {
                 conn = peer.connect(APP_ID + code, { reliable: true });
                 conn.on('open', () => {
-                    log("Connected! Waiting for state...");
+                    log("Connected! Requesting State...");
                     requestSync();
                 });
                 setupConn();
@@ -180,19 +179,11 @@
                 // HOST LOGIC (SERVER)
                 if(myRole === 'host') {
                     if(data.type === 'CLICK') {
-                        log("Guest clicked card " + data.index);
-                        // Validate Guest Turn
-                        if(gameState.turn === 'guest') {
-                            processMove(data.index);
-                        } else {
-                            log("Ignored Guest click (Not their turn)");
-                            sendState(); // Resync them so they know it's not their turn
-                        }
+                        log("Guest clicked " + data.index);
+                        if(gameState.turn === 'guest') processMove(data.index);
+                        else sendState(); // Resync guest if they clicked out of turn
                     }
-                    if(data.type === 'REQ_SYNC') {
-                        log("Guest asked for Sync");
-                        sendState();
-                    }
+                    if(data.type === 'REQ_SYNC') sendState();
                 }
 
                 // GUEST LOGIC (CLIENT)
@@ -215,7 +206,6 @@
 
         function requestSync() {
             if(conn && conn.open) conn.send({ type: 'REQ_SYNC' });
-            else log("Cannot sync: Offline");
         }
 
         // --- GAME LOGIC (HOST ONLY) ---
@@ -223,12 +213,13 @@
             if(gameState.locked) return;
             if(gameState.matched.includes(i) || gameState.flipped.includes(i)) return;
 
-            // Flip
+            // 1. Flip Card
             gameState.flipped.push(i);
             playTone(400, 'sine');
-            sendState('flip');
+            render(); // <--- FIX: Update Host Screen Immediately!
+            sendState('flip'); // Update Guest
 
-            // Check Match
+            // 2. Check Match
             if(gameState.flipped.length === 2) {
                 gameState.locked = true;
                 const [a, b] = gameState.flipped;
@@ -248,8 +239,9 @@
                     
                     gameState.flipped = [];
                     gameState.locked = false;
+                    
+                    render(); // <--- FIX: Update Host Screen After Resolution!
                     sendState(snd);
-                    // Play sound locally on host too
                     playTone(snd==='match'?880:200, snd==='match'?'triangle':'sawtooth');
                 }, 1000);
             }
@@ -258,18 +250,12 @@
         // --- USER INPUT ---
         function onCardClick(i) {
             if(myRole === 'host') {
-                if(gameState.turn === 'host') {
-                    processMove(i);
-                } else {
-                    log("Not your turn!");
-                }
+                if(gameState.turn === 'host') processMove(i);
+                else log("Not your turn!");
             } 
             else if(myRole === 'guest') {
-                if(gameState.turn === 'guest') {
-                    conn.send({ type: 'CLICK', index: i });
-                } else {
-                    log("Not your turn!");
-                }
+                if(gameState.turn === 'guest') conn.send({ type: 'CLICK', index: i });
+                else log("Not your turn!");
             }
         }
 
@@ -291,35 +277,26 @@
         }
 
         function render() {
-            // Update Turn Banner
             const banner = document.getElementById('turn-banner');
             const isMyTurn = gameState.turn === myRole;
             banner.innerText = isMyTurn ? "YOUR TURN" : `${gameState.turn.toUpperCase()}'S TURN`;
             banner.style.color = isMyTurn ? "#00e676" : "#888";
 
-            // Update Scores
             document.getElementById('s-host').innerText = gameState.scores.host;
             document.getElementById('s-guest').innerText = gameState.scores.guest;
             document.getElementById('p-host').className = gameState.turn === 'host' ? 'p-card active' : 'p-card';
             document.getElementById('p-guest').className = gameState.turn === 'guest' ? 'p-card active' : 'p-card';
 
-            // Update Cards
             const cards = document.getElementsByClassName('card');
             for(let i=0; i<cards.length; i++) {
                 const card = cards[i];
-                const backFace = card.querySelector('.back');
+                card.querySelector('.back').innerText = gameState.deck[i];
+                const isFlipped = gameState.flipped.includes(i) || gameState.matched.includes(i);
                 
-                // Only write emoji if flipped/matched to prevent cheating via Inspect Element
-                // (Actually for this simple version we just write it always to ensure sync visual, but hidden via CSS)
-                backFace.innerText = gameState.deck[i];
-
-                const isFlipped = gameState.flipped.includes(i);
-                const isMatched = gameState.matched.includes(i);
-                
-                if(isFlipped || isMatched) card.classList.add('flipped');
+                if(isFlipped) card.classList.add('flipped');
                 else card.classList.remove('flipped');
                 
-                if(isMatched) card.classList.add('matched');
+                if(gameState.matched.includes(i)) card.classList.add('matched');
             }
         }
 
