@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TIU Memory V32 (Host Authority)</title>
+<title>TIU Memory V33 (Final Fix)</title>
 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 <style>
     :root {
-        --bg: #121212;
-        --panel: #1e1e1e;
-        --neon: #00ff88;
-        --warn: #ff3333;
+        --bg: #050505;
+        --panel: #1a1a1a;
+        --neon: #00ffcc;
+        --warn: #ff3366;
         --text: #ffffff;
     }
     body {
@@ -26,62 +26,83 @@
         user-select: none;
     }
 
-    /* MENU */
+    /* MENU PANEL */
     #menu-panel {
         background: var(--panel);
         padding: 40px;
         border-radius: 20px;
         text-align: center;
         border: 2px solid #333;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.6);
         max-width: 400px;
         width: 100%;
+        margin-top: 50px;
     }
-    h1 { margin: 0 0 20px 0; color: var(--neon); letter-spacing: 2px; }
+    h1 { margin: 0 0 20px 0; color: var(--neon); letter-spacing: 2px; text-transform: uppercase; }
+    
     input {
         background: #000; border: 2px solid #444; color: var(--neon);
-        font-size: 2em; text-align: center; width: 100%; padding: 10px;
-        border-radius: 10px; margin: 10px 0; text-transform: uppercase;
-        font-family: monospace; letter-spacing: 5px;
+        font-size: 2em; text-align: center; width: 100%; padding: 12px;
+        border-radius: 12px; margin: 15px 0; text-transform: uppercase;
+        font-family: monospace; letter-spacing: 5px; outline: none;
     }
+    input:focus { border-color: var(--neon); }
+
     button {
         background: var(--neon); color: #000; border: none;
         padding: 15px 30px; font-size: 1.2em; font-weight: bold;
         border-radius: 50px; cursor: pointer; width: 100%; margin-top: 10px;
+        transition: transform 0.1s;
     }
-    button.btn-host { background: #444; color: white; border: 1px solid #666; }
+    button:active { transform: scale(0.98); }
+    button.btn-host { background: #333; color: white; border: 1px solid #555; }
+    button.btn-host:hover { border-color: white; }
 
     /* GAME UI */
-    #game-ui { display: none; width: 100%; max-width: 600px; }
+    #game-ui { display: none; width: 100%; max-width: 600px; flex-direction: column; align-items: center; }
     
     .header {
+        width: 100%;
         display: flex; justify-content: space-between; align-items: center;
-        background: var(--panel); padding: 15px; border-radius: 15px;
-        margin-bottom: 20px; border: 1px solid #333;
+        background: var(--panel); padding: 15px 25px; border-radius: 15px;
+        margin-bottom: 25px; border: 1px solid #333; box-sizing: border-box;
     }
     
-    .status-dot { width: 12px; height: 12px; border-radius: 50%; background: #555; display: inline-block; margin-right: 8px; }
-    .status-dot.ok { background: var(--neon); box-shadow: 0 0 10px var(--neon); }
+    .status-badge {
+        display: flex; align-items: center; gap: 8px; font-size: 0.9em; font-weight: bold; color: #888;
+    }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #555; }
+    .status-dot.online { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
+    .status-text.online { color: #00ff00; }
 
-    .scoreboard { display: flex; gap: 10px; margin-bottom: 20px; }
+    /* TURN BANNER */
+    #turn-msg {
+        text-align: center; font-size: 1.8em; font-weight: 900;
+        margin-bottom: 20px; color: #555; letter-spacing: 1px;
+    }
+    #turn-msg.my-turn { color: var(--neon); text-shadow: 0 0 10px rgba(0,255,204,0.3); }
+
+    /* SCOREBOARD */
+    .scoreboard { display: flex; gap: 15px; margin-bottom: 25px; width: 100%; }
     .score-box {
         flex: 1; background: var(--panel); padding: 15px; text-align: center;
-        border-radius: 10px; border: 2px solid transparent; transition: 0.3s;
+        border-radius: 12px; border: 2px solid transparent; transition: 0.3s;
     }
-    .score-box.active { border-color: var(--neon); background: #1a2e25; transform: scale(1.02); }
-    .score-num { font-size: 2em; font-weight: bold; display: block; }
+    .score-box.active { border-color: var(--neon); background: rgba(0,255,204,0.05); transform: translateY(-5px); }
+    .score-label { font-size: 0.8em; color: #aaa; margin-bottom: 5px; }
+    .score-num { font-size: 2.5em; font-weight: bold; display: block; line-height: 1; }
     
     /* GRID */
     .grid {
-        display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
-        perspective: 1000px; margin-bottom: 20px;
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+        perspective: 1000px; margin-bottom: 20px; width: 100%;
     }
     .card {
         aspect-ratio: 4/5; position: relative; cursor: pointer;
-        transform-style: preserve-3d; transition: transform 0.3s;
+        transform-style: preserve-3d; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     .card.flipped, .card.matched { transform: rotateY(180deg); }
-    .card.matched { opacity: 0.5; }
+    .card.matched { opacity: 0.4; filter: grayscale(1); }
     .card.shake { animation: shake 0.4s; }
 
     @keyframes shake {
@@ -92,39 +113,48 @@
     
     .face {
         position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
-        border-radius: 10px; display: flex; align-items: center; justify-content: center;
-        font-size: 2.5em; border: 2px solid #333; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        border-radius: 12px; display: flex; align-items: center; justify-content: center;
+        font-size: 2.5em; border: 2px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
     }
     .front { background: #222; }
-    .front::after { content: "?"; color: #444; font-weight: bold; font-size: 1.5rem; }
-    .back { background: #fff; transform: rotateY(180deg); }
+    .front::after { content: "❖"; color: #444; font-size: 1.5rem; }
+    .back { background: #fff; transform: rotateY(180deg); color: #000; }
 
-    #logs { font-family: monospace; font-size: 0.8em; color: #666; text-align: center; height: 30px; }
+    #logs { font-family: monospace; font-size: 0.8em; color: #666; margin-top: 10px; }
 </style>
 </head>
 <body onclick="enableAudio()">
 
     <div id="menu-panel">
-        <h1>MEMORY V32</h1>
+        <h1>TIU MEMORY V33</h1>
         <div id="guest-ui">
-            <input type="text" id="join-code" placeholder="CODE" maxlength="4">
+            <input type="text" id="join-code" placeholder="ENTER CODE" maxlength="4">
             <button onclick="joinGame()">JOIN GAME</button>
         </div>
-        <div style="margin: 20px 0; border-top: 1px solid #333;"></div>
+        <div style="margin: 25px 0; border-top: 1px solid #333;"></div>
         <button class="btn-host" onclick="hostGame()">HOST NEW GAME</button>
     </div>
 
     <div id="game-ui">
         <div class="header">
-            <div><div id="net-dot" class="status-dot"></div> <span id="room-tag">...</span></div>
-            <button style="width: auto; padding: 5px 15px; font-size: 0.8em;" onclick="location.reload()">EXIT</button>
+            <div class="status-badge">
+                <div id="net-dot" class="status-dot"></div>
+                <span id="room-tag">Connecting...</span>
+            </div>
+            <button style="width: auto; padding: 8px 20px; font-size: 0.8em; margin: 0; background: #333; color: #aaa;" onclick="location.reload()">EXIT</button>
         </div>
 
-        <div id="turn-msg" style="text-align:center; font-size:1.5em; font-weight:bold; margin-bottom:10px; color:#888;">WAITING...</div>
+        <div id="turn-msg">WAITING FOR PLAYER...</div>
 
         <div class="scoreboard">
-            <div id="p-host" class="score-box">HOST <span id="s-host" class="score-num">0</span></div>
-            <div id="p-guest" class="score-box">GUEST <span id="s-guest" class="score-num">0</span></div>
+            <div id="p-host" class="score-box">
+                <div class="score-label">HOST</div>
+                <span id="s-host" class="score-num">0</span>
+            </div>
+            <div id="p-guest" class="score-box">
+                <div class="score-label">GUEST</div>
+                <span id="s-guest" class="score-num">0</span>
+            </div>
         </div>
 
         <div id="grid" class="grid"></div>
@@ -133,7 +163,7 @@
 
 <script>
     // --- CONFIG ---
-    const APP_ID = "tiu-mem-v32-final-"; 
+    const APP_ID = "tiu-mem-v33-refresh-"; 
     const EMOJIS = ['🚀','🍕','🐱','🎮','🌟','🎨','🎭','🔥'];
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -163,9 +193,17 @@
 
     // --- LOGGING ---
     function log(msg) { document.getElementById('logs').innerText = msg; }
-    function setOnline(isOnline) {
+    function setOnline(isOnline, text) {
         const d = document.getElementById('net-dot');
-        if(isOnline) d.classList.add('ok'); else d.classList.remove('ok');
+        const t = document.getElementById('room-tag');
+        if(isOnline) {
+            d.classList.add('online');
+            t.classList.add('online');
+        } else {
+            d.classList.remove('online');
+            t.classList.remove('online');
+        }
+        if(text) t.innerText = text;
     }
 
     // --- HOST ---
@@ -175,21 +213,25 @@
         gameState.deck = [...EMOJIS, ...EMOJIS].sort(() => Math.random() - 0.5);
         
         setupUI();
-        document.getElementById('room-tag').innerText = `CODE: ${code}`;
-        log(`Host Ready: ${code}`);
+        setOnline(false, `CODE: ${code} (WAITING)`);
+        render(); // Initial Render
 
         peer = new Peer(APP_ID + code);
         
         peer.on('connection', (c) => {
             conn = c;
             log("Guest Joined!");
-            setOnline(true);
-            conn.on('open', () => sendState());
+            setOnline(true, `CODE: ${code} (ONLINE)`);
+            
+            conn.on('open', () => {
+                sendState();
+                render(); // FORCE REFRESH ON CONNECT
+            });
             conn.on('data', (data) => {
-                if(data.type === 'CLICK') handleMove(data.index, true); // Host validates everything
+                if(data.type === 'CLICK') handleMove(data.index, true); 
                 if(data.type === 'SYNC') sendState();
             });
-            conn.on('close', () => { setOnline(false); log("Guest Left"); });
+            conn.on('close', () => { setOnline(false, "DISCONNECTED"); });
         });
     }
 
@@ -200,8 +242,7 @@
         
         myRole = 'guest';
         setupUI();
-        document.getElementById('room-tag').innerText = `ROOM: ${code}`;
-        log(`Dialing ${code}...`);
+        setOnline(false, `DIALING ${code}...`);
 
         peer = new Peer();
         
@@ -209,9 +250,10 @@
             conn = peer.connect(APP_ID + code, { reliable: true });
             
             conn.on('open', () => {
-                setOnline(true);
-                log("Connected! Downloading...");
-                // Force sync request loop until we have deck
+                setOnline(true, `CONNECTED TO ${code}`);
+                log("Connected!");
+                
+                // Keep asking for state until we get the deck
                 const syncer = setInterval(() => {
                     if(gameState.deck.length > 0) clearInterval(syncer);
                     else conn.send({ type: 'SYNC' });
@@ -226,28 +268,24 @@
                 }
             });
 
-            conn.on('close', () => { setOnline(false); log("Host Left"); });
+            conn.on('close', () => { setOnline(false, "HOST LEFT"); });
         });
     }
 
-    // --- GAME LOGIC (HOST AUTHORITATIVE) ---
+    // --- GAME LOGIC ---
     function handleMove(i, isRemote = false) {
-        // 1. Validation Logic
         if(gameState.locked || gameState.matched.includes(i) || gameState.flipped.includes(i)) return;
         
-        // Strict Turn Check
-        const activePlayer = gameState.turn; // 'host' or 'guest'
+        const activePlayer = gameState.turn;
         const requestPlayer = isRemote ? 'guest' : 'host';
         
-        if(activePlayer !== requestPlayer) return; // Ignore out of turn clicks
+        if(activePlayer !== requestPlayer) return; 
 
-        // 2. Execute Move
         gameState.flipped.push(i);
         playTone('flip');
-        broadcast('flip'); // Send update
+        broadcast('flip'); 
         render();
 
-        // 3. Match Logic
         if(gameState.flipped.length === 2) {
             gameState.locked = true;
             const [a, b] = gameState.flipped;
@@ -276,10 +314,10 @@
     function broadcast(sfx) { if(conn && conn.open) conn.send({ type: 'STATE', state: gameState, sfx: sfx }); }
     function sendState() { broadcast(null); }
 
-    // --- UI & INTERACTION ---
+    // --- UI ---
     function setupUI() {
         document.getElementById('menu-panel').style.display = 'none';
-        document.getElementById('game-ui').style.display = 'block';
+        document.getElementById('game-ui').style.display = 'flex';
         const grid = document.getElementById('grid');
         grid.innerHTML = '';
         for(let i=0; i<16; i++) {
@@ -292,47 +330,43 @@
     }
 
     function onLocalClick(i, el) {
-        // Warning if not your turn
+        // Enforce turn locally with visual feedback
         if(myRole !== gameState.turn) {
             el.classList.add('shake');
             playTone('warn');
             setTimeout(() => el.classList.remove('shake'), 400);
             return;
         }
-
-        // Host handles locally, Guest sends packet
         if(myRole === 'host') handleMove(i, false);
         else if(conn && conn.open) conn.send({ type: 'CLICK', index: i });
     }
 
     function render() {
-        // Banner
         const banner = document.getElementById('turn-msg');
-        if(myRole === gameState.turn) {
+        
+        if(gameState.deck.length === 0) {
+            banner.innerText = "WAITING FOR PLAYER...";
+            banner.className = "";
+        } else if(myRole === gameState.turn) {
             banner.innerText = "YOUR TURN";
-            banner.style.color = "#00ff88";
+            banner.className = "my-turn";
         } else {
             banner.innerText = "OPPONENT'S TURN";
-            banner.style.color = "#555";
+            banner.className = "";
         }
 
-        // Scores
         document.getElementById('s-host').innerText = gameState.scores.host;
         document.getElementById('s-guest').innerText = gameState.scores.guest;
         document.getElementById('p-host').classList.toggle('active', gameState.turn === 'host');
         document.getElementById('p-guest').classList.toggle('active', gameState.turn === 'guest');
 
-        // Cards
         const cards = document.getElementsByClassName('card');
         if(gameState.deck.length > 0) {
             for(let i=0; i<16; i++) {
                 const card = cards[i];
                 card.querySelector('.back').innerText = gameState.deck[i];
-                
                 const isFlipped = gameState.flipped.includes(i) || gameState.matched.includes(i);
-                if(isFlipped) card.classList.add('flipped');
-                else card.classList.remove('flipped');
-                
+                if(isFlipped) card.classList.add('flipped'); else card.classList.remove('flipped');
                 if(gameState.matched.includes(i)) card.classList.add('matched');
             }
         }
