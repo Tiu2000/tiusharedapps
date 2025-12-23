@@ -3,64 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Memory (V20 Resilient)</title>
+    <title>TIU Memory (V21 Force Feed)</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
             --bg: #121212;
             --surface: #1e1e1e;
-            --primary: #00e676; 
-            --secondary: #2979ff;
-            --danger: #ff1744;
-            --text: #ffffff;
+            --primary: #03dac6;
+            --secondary: #bb86fc;
+            --error: #cf6679;
         }
         body {
-            font-family: 'Segoe UI', monospace;
+            font-family: 'Consolas', monospace;
             background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
+            color: white;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
+            margin: 0;
             user-select: none;
             overflow: hidden;
-        }
-
-        /* WATERMARK */
-        .watermark {
-            position: fixed; bottom: 20px; right: 20px;
-            font-size: 5rem; font-weight: 900; opacity: 0.05;
-            pointer-events: none; transform: rotate(-15deg);
         }
 
         /* LOBBY */
         #lobby {
             background: var(--surface);
-            padding: 40px;
-            border-radius: 20px;
+            padding: 2rem;
+            border-radius: 12px;
             text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            width: 320px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             display: flex; flex-direction: column; gap: 15px;
-            z-index: 10;
+            width: 300px;
         }
 
-        h2 { margin: 0 0 10px 0; letter-spacing: 1px; }
-
         input {
-            padding: 15px; font-size: 1.5rem; text-align: center;
-            border-radius: 10px; border: 2px solid #444; background: #111; color: white;
-            text-transform: uppercase; letter-spacing: 3px; font-weight: bold;
+            padding: 12px; font-size: 1.5rem; text-align: center;
+            border-radius: 6px; border: 2px solid #333; background: #000; color: white;
+            text-transform: uppercase; letter-spacing: 4px; font-weight: bold;
         }
 
         button {
             padding: 15px; font-size: 1.1rem; font-weight: bold; cursor: pointer;
-            border: none; border-radius: 10px; transition: transform 0.1s;
+            border: none; border-radius: 6px; transition: 0.1s;
         }
         button:active { transform: scale(0.98); }
-        .btn-host { background: var(--secondary); color: white; }
+        .btn-host { background: var(--secondary); color: #000; }
         .btn-join { background: var(--primary); color: #000; }
 
         /* GAME UI */
@@ -68,48 +57,30 @@
             display: none; flex-direction: column; align-items: center; width: 100%; max-width: 800px;
         }
 
-        /* TOP STATUS BAR */
-        .top-status {
+        /* STATUS HEADER */
+        .status-header {
             width: 100%; display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 10px; padding: 0 10px; box-sizing: border-box;
+            padding: 10px 20px; background: #222; border-radius: 8px; margin-bottom: 20px;
         }
-        .connection-indicator {
-            display: flex; align-items: center; font-size: 0.8rem; background: #333; padding: 5px 10px; border-radius: 20px;
-        }
-        .dot { width: 10px; height: 10px; border-radius: 50%; background: #555; margin-right: 8px; }
-        .dot.green { background: #00e676; box-shadow: 0 0 8px #00e676; }
-        .dot.red { background: #ff1744; box-shadow: 0 0 8px #ff1744; }
+        .conn-dot { width: 12px; height: 12px; border-radius: 50%; background: #555; display: inline-block; margin-right: 8px;}
+        .conn-dot.green { background: #00e676; box-shadow: 0 0 8px #00e676; }
+        .conn-dot.red { background: #ff1744; box-shadow: 0 0 8px #ff1744; }
 
         /* SCOREBOARD */
         .scoreboard {
             display: flex; justify-content: space-between; align-items: center; width: 100%;
             background: var(--surface); padding: 20px; border-radius: 15px; margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            border: 1px solid #333; position: relative;
+            border: 1px solid #333;
         }
-        .player-box { text-align: center; min-width: 100px; padding: 10px; border-radius: 8px; transition: 0.3s; }
-        .score-val { font-size: 2.5rem; font-weight: bold; display: block; }
+        .p-box { padding: 10px 20px; border-radius: 8px; text-align: center; background: #252525; }
+        .score-val { font-size: 2rem; font-weight: bold; display: block; }
         
-        .turn-host { background: rgba(41, 121, 255, 0.2); border: 2px solid var(--secondary); transform: scale(1.05); }
-        .turn-guest { background: rgba(0, 230, 118, 0.2); border: 2px solid var(--primary); transform: scale(1.05); }
-
-        #room-info {
-            display: flex; flex-direction: column; align-items: center;
-            background: #000; padding: 5px 15px; border-radius: 8px;
-        }
-        #room-code-display { font-family: monospace; font-size: 1.5rem; letter-spacing: 2px; color: #aaa; }
-
-        /* RECONNECT BUTTON */
-        #reconnect-btn {
-            display: none; position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
-            background: var(--danger); color: white; padding: 8px 16px; border-radius: 20px;
-            cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 50;
-        }
+        .active-p { border: 2px solid var(--primary); background: #2f2f2f; color: var(--primary); }
 
         /* GRID */
         .grid {
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;
-            perspective: 1000px; margin-bottom: 20px;
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+            perspective: 1000px; margin-bottom: 10px;
         }
         .card {
             width: 80px; height: 110px; position: relative;
@@ -121,14 +92,14 @@
         .face {
             position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
             display: flex; align-items: center; justify-content: center;
-            font-size: 2.5rem; border-radius: 10px; border: 2px solid #444;
+            font-size: 2.5rem; border-radius: 8px; border: 2px solid #444;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
         .front { background: #2c3e50; } 
-        .front::after { content: "TIU"; color: rgba(255,255,255,0.1); font-size: 0.9rem; transform: rotate(-45deg); }
         .back { background: #fff; transform: rotateY(180deg); color: #000; }
 
-        #status-bar { font-size: 1.2rem; font-style: italic; color: #888; min-height: 24px; }
+        /* FOOTER STATUS */
+        #status-bar { font-size: 1.1rem; color: #888; padding: 10px; min-height: 30px; }
 
         /* LOADING */
         #loading {
@@ -136,76 +107,50 @@
             background: rgba(0,0,0,0.95); flex-direction: column;
             justify-content: center; align-items: center; z-index: 999;
         }
-        .spinner {
-            width: 40px; height: 40px; border: 4px solid #333; border-top: 4px solid var(--secondary);
-            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body onclick="enableAudio()">
-
-    <div class="watermark">TIU</div>
+<body onclick="resumeAudio()">
 
     <div id="lobby">
-        <h2>TIU MEMORY</h2>
-        <button class="btn-host" onclick="startHost()">HOST NEW GAME</button>
-        <div style="color:#666; font-size:0.8rem;">- OR -</div>
+        <h2>TIU MEMORY V21</h2>
+        <button class="btn-host" onclick="startHost()">HOST GAME</button>
+        <div style="color:#666;">- OR -</div>
         <input type="text" id="code-input" placeholder="CODE" maxlength="4" oninput="this.value=this.value.toUpperCase()">
         <button class="btn-join" onclick="startGuest()">JOIN GAME</button>
     </div>
 
     <div id="game-view">
-        <div class="top-status">
-            <div class="connection-indicator">
-                <div id="conn-dot" class="dot red"></div>
-                <span id="conn-text">Disconnected</span>
+        <div class="status-header">
+            <div>
+                <span id="c-dot" class="conn-dot"></span>
+                <span id="c-text">Offline</span>
             </div>
-            <div id="role-display" style="font-size:0.8rem; color:#666;"></div>
+            <div id="room-display" style="font-family:monospace; color:#aaa; font-size:1.2rem;">----</div>
         </div>
 
         <div class="scoreboard">
-            <div id="reconnect-btn" onclick="manualReconnect()">⚠️ CONNECTION LOST - CLICK TO RECONNECT</div>
-            
-            <div id="p1-box" class="player-box">
-                <div style="font-size:0.8rem; color:var(--secondary);">HOST</div>
-                <span id="s1" class="score-val">0</span>
-            </div>
-            
-            <div id="room-info">
-                <span style="font-size:0.7rem; color:#666;">ROOM CODE</span>
-                <span id="room-code-display">----</span>
-            </div>
-
-            <div id="p2-box" class="player-box">
-                <div style="font-size:0.8rem; color:var(--primary);">GUEST</div>
-                <span id="s2" class="score-val">0</span>
-            </div>
+            <div id="p1" class="p-box">HOST<span id="s1" class="score-val">0</span></div>
+            <div id="p2" class="p-box">GUEST<span id="s2" class="score-val">0</span></div>
         </div>
         
         <div id="grid" class="grid"></div>
-        <div id="status-bar">Waiting...</div>
+        <div id="status-bar">Waiting for connection...</div>
     </div>
 
     <div id="loading">
-        <div class="spinner"></div>
-        <h2 id="loading-txt">Connecting...</h2>
-        <button onclick="location.reload()" style="background:transparent; border:1px solid #555; color:#888; width:auto; margin-top:20px;">Cancel</button>
+        <h2 id="load-msg">Connecting...</h2>
+        <button onclick="location.reload()" style="background:transparent; border:1px solid #555; color:#888; margin-top:20px;">Cancel</button>
     </div>
 
     <script>
         // --- CONFIG ---
-        const APP_ID = "tiu-mem-v20-robust-"; 
+        const APP_ID = "tiu-mem-v21-force-"; 
         const EMOJIS = ['🚀', '🍕', '🐱', '🌵', '🎸', '🍦', '💎', '🔥'];
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         // --- STATE ---
         let peer, conn;
         let myRole = ''; 
-        let roomCode = '';
-        let hostPeerId = '';
-        
-        // Game State
         let deck = [];
         let turn = 'host';
         let scores = { host: 0, guest: 0 };
@@ -214,9 +159,9 @@
         let locked = false;
 
         // --- AUDIO ---
-        function enableAudio() { if(audioCtx.state === 'suspended') audioCtx.resume(); }
+        function resumeAudio() { if(audioCtx.state === 'suspended') audioCtx.resume(); }
         function playSnd(type) {
-            enableAudio();
+            resumeAudio();
             const o = audioCtx.createOscillator();
             const g = audioCtx.createGain();
             o.connect(g); g.connect(audioCtx.destination);
@@ -231,130 +176,126 @@
                 g.gain.setValueAtTime(0.1,t); g.gain.linearRampToValueAtTime(0,t+0.3);
                 o.start(t); o.stop(t+0.3);
             } else if(type==='nomatch') {
-                o.type='sawtooth'; o.frequency.setValueAtTime(200,t); o.frequency.linearRampToValueAtTime(100,t+0.2);
+                o.type='sawtooth'; o.frequency.setValueAtTime(150,t); o.frequency.linearRampToValueAtTime(100,t+0.2);
                 g.gain.setValueAtTime(0.1,t); g.gain.linearRampToValueAtTime(0,t+0.2);
                 o.start(t); o.stop(t+0.2);
             }
         }
 
-        // --- CONNECTION HANDLERS ---
-        function updateConnectionStatus(isConnected) {
-            const dot = document.getElementById('conn-dot');
-            const txt = document.getElementById('conn-text');
-            const btn = document.getElementById('reconnect-btn');
-            
-            if(isConnected) {
-                dot.className = 'dot green';
-                txt.innerText = "Connected";
-                btn.style.display = 'none';
+        // --- CONNECTION UI ---
+        function setConn(connected) {
+            const d = document.getElementById('c-dot');
+            const t = document.getElementById('c-text');
+            if(connected) {
+                d.className = 'conn-dot green';
+                t.innerText = "Online";
+                t.style.color = "#00e676";
             } else {
-                dot.className = 'dot red';
-                txt.innerText = "Disconnected";
-                if(myRole === 'guest') btn.style.display = 'block';
-            }
-        }
-
-        function manualReconnect() {
-            if(myRole === 'guest' && hostPeerId) {
-                console.log("Attempting Reconnect...");
-                conn = peer.connect(hostPeerId, { reliable: true });
-                setupGuestConnection();
+                d.className = 'conn-dot red';
+                t.innerText = "Offline";
+                t.style.color = "#ff1744";
             }
         }
 
         // --- HOST ---
         function startHost() {
-            roomCode = Math.random().toString(36).substring(2,6).toUpperCase();
+            const code = Math.random().toString(36).substring(2,6).toUpperCase();
             myRole = 'host';
             deck = [...EMOJIS, ...EMOJIS].sort(() => Math.random() - 0.5);
             
-            showLoading("Creating " + roomCode);
-            peer = new Peer(APP_ID + roomCode);
+            setupGameUI(code);
+            setStatus("Waiting for Guest...");
+            
+            peer = new Peer(APP_ID + code);
             
             peer.on('open', () => {
-                startGame();
-                setStatus("Waiting for Guest...");
-                document.getElementById('role-display').innerText = "(YOU ARE HOST)";
+                setConn(true);
             });
 
             peer.on('connection', (c) => {
                 conn = c;
-                setupHostConnection();
+                conn.on('open', () => {
+                    setStatus("Guest Joined! Sending Data...");
+                    sendState(); // Send immediately
+                    // Heartbeat: Send state every 2s
+                    setInterval(() => { if(conn.open) sendState(); }, 2000);
+                });
+                conn.on('data', (data) => {
+                    if(data.type === 'CLICK') handleRemoteClick(data.index);
+                    if(data.type === 'SYNC') sendState();
+                });
+                conn.on('close', () => setConn(false));
             });
-            peer.on('error', err => { alert(err.type); location.reload(); });
-        }
-
-        function setupHostConnection() {
-            conn.on('open', () => {
-                updateConnectionStatus(true);
-                sendState();
-                setStatus("Guest Joined! Your Turn.");
-                // Keep Alive Heartbeat
-                setInterval(() => { if(conn.open) sendState(); }, 2000);
-            });
-            conn.on('data', (data) => {
-                // Host allows 'CLICK' from guest if it is guest's turn
-                if(data.type === 'CLICK' && turn === 'guest') processMove(data.index);
-                if(data.type === 'SYNC') sendState();
-            });
-            conn.on('close', () => updateConnectionStatus(false));
-            conn.on('error', () => updateConnectionStatus(false));
+            peer.on('error', e => alert("Host Error: " + e.type));
         }
 
         // --- GUEST ---
         function startGuest() {
-            const input = document.getElementById('code-input').value.trim().toUpperCase();
-            if(input.length !== 4) return alert("Enter 4-letter code");
-            roomCode = input;
+            const code = document.getElementById('code-input').value.trim().toUpperCase();
+            if(code.length !== 4) return alert("Code must be 4 letters");
             myRole = 'guest';
-            hostPeerId = APP_ID + roomCode;
             
-            showLoading("Joining " + roomCode);
+            setupGameUI(code);
+            setStatus("Connecting to Host...");
+            
             peer = new Peer();
             
             peer.on('open', () => {
-                conn = peer.connect(hostPeerId, { reliable: true });
-                setupGuestConnection();
+                conn = peer.connect(APP_ID + code, { reliable: true });
+                
+                conn.on('open', () => {
+                    setConn(true);
+                    setStatus("Connected - Downloading Cards...");
+                    // FORCE FEED: Ask for Sync every 1s until deck arrives
+                    const forceSync = setInterval(() => {
+                        if(deck.length > 0) {
+                            clearInterval(forceSync);
+                            setStatus("Game Ready!");
+                        } else {
+                            if(conn.open) conn.send({ type: 'SYNC' });
+                        }
+                    }, 1000);
+                });
+
+                conn.on('data', (data) => {
+                    if(data.type === 'STATE') {
+                        // Apply State
+                        deck = data.deck;
+                        turn = data.turn;
+                        scores = data.scores;
+                        flipped = data.flipped;
+                        matched = data.matched;
+                        
+                        render();
+                        if(data.snd) playSnd(data.snd);
+                    }
+                });
+                
+                conn.on('close', () => {
+                    setConn(false);
+                    setStatus("Host Disconnected");
+                });
             });
-            peer.on('error', () => { alert("Room not found"); location.reload(); });
+            peer.on('error', () => {
+                alert("Room not found");
+                location.reload();
+            });
         }
 
-        function setupGuestConnection() {
-            conn.on('open', () => {
-                updateConnectionStatus(true);
-                showLoading("Downloading...");
-                // Force Sync
-                conn.send({ type: 'SYNC' });
-                document.getElementById('role-display').innerText = "(YOU ARE GUEST)";
-            });
-            conn.on('data', (data) => {
-                if(data.type === 'STATE') {
-                    deck = data.deck;
-                    turn = data.turn;
-                    scores = data.scores;
-                    flipped = data.flipped;
-                    matched = data.matched;
-                    
-                    if(document.getElementById('grid').innerHTML === '') startGame();
-                    render();
-                    if(data.snd) playSnd(data.snd);
-                }
-            });
-            conn.on('close', () => {
-                updateConnectionStatus(false);
-                // Auto-reconnect attempt
-                setTimeout(manualReconnect, 1000);
-            });
-            conn.on('error', () => updateConnectionStatus(false));
-        }
-
-        // --- GAME LOGIC ---
+        // --- LOGIC ---
         function onCardClick(i) {
             if(myRole === 'host') {
                 if(turn === 'host') processMove(i);
-            } else {
-                if(conn && conn.open) conn.send({ type: 'CLICK', index: i });
+                else setStatus("NOT YOUR TURN", "red");
+            } 
+            else {
+                if(turn === 'guest') conn.send({ type: 'CLICK', index: i });
+                else setStatus("NOT YOUR TURN", "red");
             }
+        }
+
+        function handleRemoteClick(i) {
+            if(turn === 'guest') processMove(i);
         }
 
         function processMove(i) {
@@ -383,7 +324,7 @@
                     }
                     locked = false;
                     broadcast();
-                }, 1000);
+                }, 800);
             }
         }
 
@@ -403,50 +344,53 @@
             if(conn && conn.open) conn.send({ type: 'STATE', deck: deck, turn: turn, scores: scores, flipped: flipped, matched: matched });
         }
 
-        // --- UI ---
-        function showLoading(msg) {
+        // --- RENDER ---
+        function setupGameUI(code) {
             document.getElementById('lobby').style.display = 'none';
-            document.getElementById('loading').style.display = 'flex';
-            document.getElementById('loading-txt').innerText = msg;
-        }
-
-        function startGame() {
-            document.getElementById('loading').style.display = 'none';
             document.getElementById('game-view').style.display = 'flex';
-            document.getElementById('room-code-display').innerText = roomCode;
-            
-            const grid = document.getElementById('grid');
-            grid.innerHTML = ''; 
-            deck.forEach((emoji, i) => {
-                const el = document.createElement('div');
-                el.className = 'card';
-                el.onclick = () => onCardClick(i);
-                el.innerHTML = `<div class="face front"></div><div class="face back">${emoji}</div>`;
-                grid.appendChild(el);
-            });
-            render();
+            document.getElementById('room-display').innerText = code;
         }
 
-        function setStatus(msg) { document.getElementById('status-bar').innerText = msg; }
+        function setStatus(msg, color) {
+            const el = document.getElementById('status-bar');
+            el.innerText = msg;
+            el.style.color = color || "#888";
+            // If it's an error message, clear it after 2s
+            if(color === 'red') setTimeout(() => setStatus("Opponent's Turn"), 1500);
+        }
 
         function render() {
+            // 1. Build Grid if empty
+            const grid = document.getElementById('grid');
+            if(grid.innerHTML === '' && deck.length > 0) {
+                deck.forEach((emoji, i) => {
+                    const el = document.createElement('div');
+                    el.className = 'card';
+                    el.onclick = () => onCardClick(i);
+                    el.innerHTML = `<div class="face front"></div><div class="face back">${emoji}</div>`;
+                    grid.appendChild(el);
+                });
+            }
+
+            // 2. Update Scores
             document.getElementById('s1').innerText = scores.host;
             document.getElementById('s2').innerText = scores.guest;
             
-            const p1 = document.getElementById('p1-box');
-            const p2 = document.getElementById('p2-box');
+            const p1 = document.getElementById('p1');
+            const p2 = document.getElementById('p2');
             
-            p1.className = turn === 'host' ? 'player-box turn-host' : 'player-box';
-            p2.className = turn === 'guest' ? 'player-box turn-guest' : 'player-box';
+            p1.className = turn === 'host' ? 'p-box active-p' : 'p-box';
+            p2.className = turn === 'guest' ? 'p-box active-p' : 'p-box';
 
+            // 3. Update Status
             if(matched.length === deck.length) {
-                setStatus(scores.host > scores.guest ? "HOST WINS!" : "GUEST WINS!");
-            } else {
-                setStatus((turn === myRole) ? "YOUR TURN" : "OPPONENT'S TURN");
+                setStatus(scores.host > scores.guest ? "HOST WINS!" : "GUEST WINS!", "gold");
+            } else if (deck.length > 0) {
+                setStatus((turn === myRole) ? "YOUR TURN" : "OPPONENT'S TURN", (turn===myRole) ? "#00e676" : "#888");
             }
 
-            const grid = document.getElementById('grid');
-            if(grid.childElementCount === deck.length) {
+            // 4. Update Cards
+            if(grid.children.length === deck.length) {
                 deck.forEach((_, i) => {
                     const el = grid.children[i];
                     el.className = 'card';
