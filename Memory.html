@@ -3,532 +3,389 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>P2P Memory Match (V30 Direct Connect)</title>
+<title>TIU Memory V31 (Direct Link)</title>
 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #050505 0%, #1a1a2e 100%);
-  color: #00ffff;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
-  user-select: none;
-}
-.container { max-width: 600px; width: 100%; }
-h1 {
-  text-align: center;
-  margin-bottom: 20px;
-  text-shadow: 0 0 15px #00ffff;
-  font-size: 2.2em;
-  letter-spacing: 2px;
-}
+    :root {
+        --bg: #121212;
+        --panel: #1e1e1e;
+        --neon: #00ff88;
+        --text: #ffffff;
+    }
+    body {
+        font-family: 'Segoe UI', monospace;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+    }
 
-/* MENU */
-.menu {
-  background: rgba(26, 26, 46, 0.95);
-  padding: 40px;
-  border-radius: 20px;
-  border: 1px solid #00ffff;
-  box-shadow: 0 0 40px rgba(0, 255, 255, 0.15);
-  text-align: center;
-  backdrop-filter: blur(10px);
-}
-.btn {
-  background: #00ffff;
-  color: #000;
-  border: none;
-  padding: 15px 30px;
-  font-size: 1.1em;
-  font-weight: 800;
-  border-radius: 50px;
-  cursor: pointer;
-  margin: 10px 0;
-  transition: all 0.2s;
-  width: 100%;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-.btn:hover {
-  background: #fff;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 20px rgba(0, 255, 255, 0.4);
-}
-.btn-secondary {
-    background: transparent;
-    border: 2px solid #00ffff;
-    color: #00ffff;
-}
-.btn-secondary:hover {
-    background: rgba(0, 255, 255, 0.1);
-}
+    /* MAIN MENU */
+    #menu-panel {
+        background: var(--panel);
+        padding: 40px;
+        border-radius: 20px;
+        text-align: center;
+        border: 2px solid #333;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        max-width: 400px;
+        width: 100%;
+    }
+    
+    h1 { margin: 0 0 20px 0; color: var(--neon); letter-spacing: 2px; }
+    p { color: #888; font-size: 0.9em; margin-bottom: 20px; }
 
-.input-group { margin: 20px 0; }
-input {
-  background: #000;
-  border: 2px solid #333;
-  color: #00ffff;
-  padding: 15px;
-  font-size: 1.5em;
-  border-radius: 12px;
-  width: 100%;
-  text-align: center;
-  text-transform: uppercase;
-  font-family: monospace;
-  letter-spacing: 5px;
-  transition: 0.3s;
-}
-input:focus { border-color: #00ffff; outline: none; box-shadow: 0 0 15px rgba(0,255,255,0.2); }
+    input {
+        background: #000;
+        border: 2px solid #444;
+        color: var(--neon);
+        font-size: 2em;
+        text-align: center;
+        width: 100%;
+        padding: 10px;
+        border-radius: 10px;
+        margin: 10px 0;
+        text-transform: uppercase;
+        font-family: monospace;
+        letter-spacing: 5px;
+    }
+    
+    button {
+        background: var(--neon);
+        color: #000;
+        border: none;
+        padding: 15px 30px;
+        font-size: 1.2em;
+        font-weight: bold;
+        border-radius: 50px;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 10px;
+        transition: transform 0.1s;
+    }
+    button:active { transform: scale(0.98); }
+    button.btn-host { background: #444; color: white; border: 1px solid #666; }
 
-/* GAME UI */
-.game-view { display: none; }
-.status-bar {
-  background: rgba(26, 26, 46, 0.9);
-  padding: 15px;
-  border-radius: 15px;
-  border: 1px solid #333;
-  margin-bottom: 20px;
-}
+    /* GAME UI */
+    #game-ui { display: none; width: 100%; max-width: 600px; }
+    
+    .header {
+        display: flex; justify-content: space-between; align-items: center;
+        background: var(--panel); padding: 15px; border-radius: 15px;
+        margin-bottom: 20px; border: 1px solid #333;
+    }
+    
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #555; display: inline-block; margin-right: 8px; }
+    .status-dot.ok { background: var(--neon); box-shadow: 0 0 10px var(--neon); }
 
-.turn-banner {
-  text-align: center;
-  font-size: 1.2em;
-  font-weight: bold;
-  padding: 12px;
-  border-radius: 10px;
-  margin-bottom: 15px;
-  transition: 0.3s;
-}
-.your-turn { background: #00ffff; color: #000; box-shadow: 0 0 20px rgba(0,255,255,0.4); }
-.opponent-turn { background: #222; color: #666; border: 1px solid #444; }
+    .scoreboard { display: flex; gap: 10px; margin-bottom: 20px; }
+    .score-box {
+        flex: 1; background: var(--panel); padding: 15px; text-align: center;
+        border-radius: 10px; border: 2px solid transparent;
+    }
+    .score-box.active { border-color: var(--neon); background: #1a2e25; }
+    .score-num { font-size: 2em; font-weight: bold; display: block; }
+    
+    /* GRID */
+    .grid {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+        perspective: 1000px; margin-bottom: 20px;
+    }
+    .card {
+        aspect-ratio: 4/5; position: relative; cursor: pointer;
+        transform-style: preserve-3d; transition: transform 0.3s;
+    }
+    .card.flipped, .card.matched { transform: rotateY(180deg); }
+    .card.matched { opacity: 0.5; }
+    
+    .face {
+        position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+        border-radius: 10px; display: flex; align-items: center; justify-content: center;
+        font-size: 2.5em; border: 2px solid #333; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .front { background: #222; }
+    .front::after { content: "?"; color: #444; font-weight: bold; font-size: 1.5rem; }
+    .back { background: #fff; transform: rotateY(180deg); }
 
-.scoreboard { display: flex; gap: 10px; margin-bottom: 10px; }
-.player-card {
-  background: #0a0a0a;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid #333;
-  flex: 1;
-  text-align: center;
-  transition: 0.3s;
-}
-.player-card.active {
-  border-color: #00ffff;
-  background: rgba(0, 255, 255, 0.05);
-  box-shadow: 0 0 15px rgba(0,255,255,0.1);
-}
-.score { font-size: 2em; font-weight: bold; color: #fff; }
-.label { font-size: 0.8em; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-
-/* BOARD */
-.board {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
-  perspective: 1000px;
-}
-.card {
-  aspect-ratio: 4/5;
-  position: relative;
-  cursor: pointer;
-  transform-style: preserve-3d;
-  transition: transform 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
-}
-.card.flipped, .card.matched { transform: rotateY(180deg); }
-.card.matched { opacity: 0.5; cursor: default; }
-
-.face {
-  position: absolute; width: 100%; height: 100%;
-  backface-visibility: hidden;
-  border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 2.5em;
-  border: 2px solid #333;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-}
-.front { background: #16213e; }
-.front::after { content: "?"; color: #333; font-size: 1.5rem; font-weight: bold; }
-.back {
-  background: #fff;
-  transform: rotateY(180deg);
-  border-color: #fff;
-}
-
-/* DEBUG & CONTROLS */
-.debug-console {
-  background: #000;
-  border: 1px solid #333;
-  border-radius: 8px;
-  padding: 10px;
-  height: 80px;
-  overflow-y: auto;
-  font-family: monospace;
-  font-size: 0.7em;
-  color: #00ff9d;
-  margin-bottom: 15px;
-}
-.controls { display: flex; gap: 10px; }
-.btn-small { padding: 10px; font-size: 0.9em; margin: 0; }
-.btn-danger { background: #ff4444; border: none; color: white; }
-
-/* PULSE ANIMATION */
-@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(0, 255, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0); } }
-.network-dot { width: 10px; height: 10px; background: #333; border-radius: 50%; display: inline-block; margin-left: 10px; }
-.network-dot.connected { background: #00ff9d; box-shadow: 0 0 10px #00ff9d; }
+    /* DEBUG LOG */
+    #logs {
+        font-family: monospace; font-size: 0.8em; color: #666;
+        height: 60px; overflow: hidden; text-align: center;
+    }
 </style>
 </head>
-<body onclick="resumeAudio()">
+<body onclick="enableAudio()">
 
-<div class="container">
-  <h1>MEMORY V30</h1>
-  
-  <div id="menu" class="menu">
-    <button class="btn" onclick="createGame()">HOST GAME</button>
-    
-    <div style="margin: 20px 0; color: #666; font-size: 0.9em;">— OR JOIN FRIEND —</div>
-    
-    <div class="input-group">
-      <input type="text" id="roomCode" placeholder="ENTER 4-LETTER CODE" maxlength="4">
-    </div>
-    <button class="btn btn-secondary" onclick="joinGame()">JOIN GAME</button>
-  </div>
-
-  <div id="gameView" class="game-view">
-    <div class="status-bar">
-      <div id="turnBanner" class="turn-banner">WAITING FOR PLAYER...</div>
-      
-      <div class="scoreboard">
-        <div class="player-card" id="hostCard">
-          <div class="label">HOST</div>
-          <div class="score" id="hostScore">0</div>
+    <div id="menu-panel">
+        <h1>TIU MEMORY V31</h1>
+        <p>There is no server list. You must use codes.</p>
+        
+        <div id="guest-ui">
+            <input type="text" id="join-code" placeholder="CODE" maxlength="4">
+            <button onclick="joinGame()">JOIN GAME</button>
         </div>
-        <div class="player-card" id="guestCard">
-          <div class="label">GUEST</div>
-          <div class="score" id="guestScore">0</div>
+        
+        <div style="margin: 20px 0; border-top: 1px solid #333;"></div>
+        
+        <button class="btn-host" onclick="hostGame()">HOST NEW GAME</button>
+    </div>
+
+    <div id="game-ui">
+        <div class="header">
+            <div>
+                <div id="net-dot" class="status-dot"></div>
+                <span id="room-tag">Connecting...</span>
+            </div>
+            <button style="width: auto; padding: 5px 15px; font-size: 0.8em;" onclick="location.reload()">EXIT</button>
         </div>
-      </div>
 
-      <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8em; color:#666;">
-        <span id="roomDisplay">ROOM: ----</span>
-        <span>STATUS <div id="netDot" class="network-dot"></div></span>
-      </div>
+        <div id="turn-msg" style="text-align:center; font-size:1.5em; font-weight:bold; margin-bottom:10px; color:#888;">WAITING...</div>
+
+        <div class="scoreboard">
+            <div id="p-host" class="score-box">
+                HOST <span id="s-host" class="score-num">0</span>
+            </div>
+            <div id="p-guest" class="score-box">
+                GUEST <span id="s-guest" class="score-num">0</span>
+            </div>
+        </div>
+
+        <div id="grid" class="grid"></div>
+        <div id="logs">System Ready</div>
     </div>
-
-    <div class="board" id="board"></div>
-
-    <div class="debug-console" id="debugConsole"><div>System Ready.</div></div>
-
-    <div class="controls">
-      <button class="btn btn-small" onclick="forceSync()">🔄 RESYNC</button>
-      <button class="btn btn-small btn-danger" onclick="location.reload()">🛑 EXIT</button>
-    </div>
-  </div>
-</div>
 
 <script>
-// --- CONFIGURATION ---
-const APP_PREFIX = "neon-v30-direct-"; // Unique App ID
-const EMOJIS = ['🚀', '🍕', '🐱', '🎮', '🌟', '🎨', '🎭', '🔥'];
+    // --- CONFIG ---
+    const APP_ID = "tiu-mem-v31-final-"; 
+    const EMOJIS = ['🚀','🍕','🐱','🎮','🌟','🎨','🎭','🔥'];
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-// --- AUDIO SYSTEM ---
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function resumeAudio() { if (audioCtx.state === 'suspended') audioCtx.resume(); }
+    // --- STATE ---
+    let peer, conn;
+    let myRole;
+    let gameState = {
+        deck: [], flipped: [], matched: [],
+        turn: 'host', scores: { host: 0, guest: 0 }, locked: false
+    };
 
-function playSound(type) {
-  resumeAudio();
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  
-  const now = audioCtx.currentTime;
-  
-  if (type === 'flip') {
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(500, now);
-    osc.frequency.linearRampToValueAtTime(800, now + 0.1);
-  } else if (type === 'match') {
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(600, now);
-    osc.frequency.setValueAtTime(1200, now + 0.2);
-  } else {
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(200, now);
-    osc.frequency.linearRampToValueAtTime(100, now + 0.2);
-  }
-  
-  gain.gain.setValueAtTime(0.1, now);
-  gain.gain.linearRampToValueAtTime(0.001, now + 0.2);
-  
-  osc.start(now);
-  osc.stop(now + 0.2);
-}
-
-// --- GAME STATE ---
-let peer = null;
-let role = null; 
-let connections = []; // For Host
-let hostConn = null;  // For Guest
-let retryTimer = null;
-
-const gameState = {
-  deck: [], flipped: [], matched: [],
-  turn: 'host', scores: { host: 0, guest: 0 }, locked: false
-};
-
-// --- LOGGING ---
-function log(msg) {
-  const c = document.getElementById('debugConsole');
-  const d = document.createElement('div');
-  d.textContent = `> ${msg}`;
-  c.prepend(d);
-}
-
-function setNetStatus(connected) {
-  const d = document.getElementById('netDot');
-  if(connected) d.classList.add('connected');
-  else d.classList.remove('connected');
-}
-
-// --- HOST LOGIC ---
-function createGame() {
-  role = 'host';
-  const code = Math.random().toString(36).substring(2, 6).toUpperCase();
-  const peerId = APP_PREFIX + code; // Deterministic ID
-  
-  log(`Creating Room: ${code}...`);
-  
-  peer = new Peer(peerId);
-  
-  peer.on('open', (id) => {
-    log(`Room Created! Waiting for Guest...`);
-    document.getElementById('roomDisplay').textContent = `ROOM: ${code}`;
-    
-    // Init Game
-    gameState.deck = [...EMOJIS, ...EMOJIS].sort(() => Math.random() - 0.5);
-    gameState.flipped = [];
-    gameState.matched = [];
-    gameState.turn = 'host';
-    gameState.scores = { host: 0, guest: 0 };
-    
-    showGame();
-    renderBoard();
-    updateUI();
-  });
-  
-  peer.on('connection', (conn) => {
-    log(`Guest connecting...`);
-    connections.push(conn);
-    
-    conn.on('open', () => {
-      log("Guest Joined!");
-      setNetStatus(true);
-      broadcast(); // Send state immediately
-    });
-    
-    conn.on('data', (data) => {
-      if (data.type === 'CLICK') handleCardClick(data.index, true);
-      if (data.type === 'SYNC_REQ') broadcast();
-    });
-
-    conn.on('close', () => {
-      log("Guest disconnected");
-      setNetStatus(false);
-      connections = connections.filter(c => c !== conn);
-    });
-  });
-
-  peer.on('error', (err) => {
-    if(err.type === 'unavailable-id') {
-      alert("Error: Room code collision. Try again.");
-      location.reload();
-    } else {
-      log("Error: " + err.type);
+    // --- AUDIO ---
+    function enableAudio() { if(audioCtx.state === 'suspended') audioCtx.resume(); }
+    function playTone(type) {
+        enableAudio();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.connect(g); g.connect(audioCtx.destination);
+        const t = audioCtx.currentTime;
+        
+        if(type === 'flip') {
+            o.frequency.setValueAtTime(400, t);
+            o.frequency.linearRampToValueAtTime(600, t + 0.1);
+        } else if(type === 'match') {
+            o.type = 'triangle';
+            o.frequency.setValueAtTime(600, t);
+            o.frequency.setValueAtTime(1200, t + 0.2);
+        } else {
+            o.type = 'sawtooth';
+            o.frequency.setValueAtTime(200, t);
+            o.frequency.linearRampToValueAtTime(100, t + 0.2);
+        }
+        
+        g.gain.setValueAtTime(0.1, t);
+        g.gain.linearRampToValueAtTime(0, t + 0.2);
+        o.start(t); o.stop(t + 0.2);
     }
-  });
-}
 
-// --- GUEST LOGIC ---
-function joinGame() {
-  const code = document.getElementById('roomCode').value.trim().toUpperCase();
-  if (code.length !== 4) return alert("Please enter a 4-letter code");
-  
-  role = 'guest';
-  log(`Dialing Room ${code}...`);
-  
-  peer = new Peer(); 
-  
-  peer.on('open', () => {
-    const hostId = APP_PREFIX + code; // Connect DIRECTLY to calculated ID
-    connectToHost(hostId);
-  });
-
-  peer.on('error', (err) => log("Error: " + err.type));
-}
-
-function connectToHost(hostId) {
-  if(hostConn) hostConn.close();
-  
-  hostConn = peer.connect(hostId, { reliable: true });
-  
-  hostConn.on('open', () => {
-    log("Connected! Downloading...");
-    setNetStatus(true);
-    showGame();
-    requestSync();
-    
-    // Polling safety net
-    retryTimer = setInterval(() => {
-        if(gameState.deck.length === 0) requestSync();
-        else clearInterval(retryTimer);
-    }, 1000);
-  });
-
-  hostConn.on('data', (data) => {
-    if (data.type === 'STATE') {
-      Object.assign(gameState, data.data);
-      renderBoard();
-      updateUI();
-      if(data.sfx) playSound(data.sfx);
+    // --- LOGGING ---
+    function log(msg) { document.getElementById('logs').innerText = msg; }
+    function setOnline(isOnline) {
+        const d = document.getElementById('net-dot');
+        if(isOnline) d.classList.add('ok'); else d.classList.remove('ok');
     }
-  });
 
-  hostConn.on('close', () => {
-    setNetStatus(false);
-    log("Host Disconnected");
-  });
-  
-  // Retry if host isn't ready yet
-  setTimeout(() => {
-      if(!hostConn.open) {
-          log("Retrying connection...");
-          connectToHost(hostId);
-      }
-  }, 3000);
-}
+    // --- HOST ---
+    function hostGame() {
+        myRole = 'host';
+        const code = Math.random().toString(36).substring(2, 6).toUpperCase();
+        gameState.deck = [...EMOJIS, ...EMOJIS].sort(() => Math.random() - 0.5);
+        
+        setupUI();
+        document.getElementById('room-tag').innerText = `ROOM CODE: ${code}`;
+        log(`Created Room ${code}. Waiting for guest...`);
 
-// --- NETWORKING ---
-function broadcast(sfx = null) {
-  connections.forEach(c => {
-    if (c.open) c.send({ type: 'STATE', data: gameState, sfx: sfx });
-  });
-}
+        peer = new Peer(APP_ID + code);
+        
+        peer.on('connection', (c) => {
+            conn = c;
+            log("Guest Connected!");
+            setOnline(true);
+            
+            conn.on('open', () => {
+                sendState(); // Send Initial State
+            });
+            
+            conn.on('data', (data) => {
+                if(data.type === 'CLICK' && gameState.turn === 'guest') handleMove(data.index);
+                if(data.type === 'SYNC') sendState();
+            });
+            
+            conn.on('close', () => {
+                setOnline(false);
+                log("Guest Disconnected");
+            });
+        });
+    }
 
-function requestSync() {
-  if (hostConn && hostConn.open) hostConn.send({ type: 'SYNC_REQ' });
-}
+    // --- GUEST ---
+    function joinGame() {
+        const code = document.getElementById('join-code').value.trim().toUpperCase();
+        if(code.length !== 4) return alert("Code must be 4 letters");
+        
+        myRole = 'guest';
+        setupUI();
+        document.getElementById('room-tag').innerText = `ROOM: ${code}`;
+        log(`Connecting to ${code}...`);
 
-function forceSync() {
-  if (role === 'guest') requestSync();
-  else broadcast();
-  log("Manual Sync Triggered");
-}
+        peer = new Peer();
+        
+        peer.on('open', () => {
+            conn = peer.connect(APP_ID + code, { reliable: true });
+            
+            conn.on('open', () => {
+                setOnline(true);
+                log("Connected! Getting game data...");
+                
+                // Polling Loop to ensure we get state
+                const poll = setInterval(() => {
+                    if(gameState.deck.length > 0) clearInterval(poll);
+                    else if(conn.open) conn.send({ type: 'SYNC' });
+                }, 1000);
+            });
 
-// --- GAMEPLAY ---
-function handleCardClick(index, isRemote = false) {
-  if (gameState.locked) return;
-  if (gameState.matched.includes(index)) return;
-  if (gameState.flipped.includes(index)) return;
-  
-  // Turn Validation
-  if (role === 'host' && gameState.turn !== 'host') return;
-  if (role === 'guest' && gameState.turn !== 'guest' && !isRemote) return;
+            conn.on('data', (data) => {
+                if(data.type === 'STATE') {
+                    gameState = data.state;
+                    render();
+                    if(data.sfx) playTone(data.sfx);
+                }
+            });
 
-  // Guest: Send click
-  if (role === 'guest' && !isRemote) {
-    if (hostConn && hostConn.open) hostConn.send({ type: 'CLICK', index });
-    return;
-  }
+            conn.on('close', () => {
+                setOnline(false);
+                log("Host Disconnected");
+            });
+            
+            // Retry logic
+            setTimeout(() => {
+                if(!conn.open) {
+                    log("Retrying connection...");
+                    joinGame();
+                }
+            }, 3000);
+        });
+    }
 
-  // Host: Execute
-  playSound('flip');
-  gameState.flipped.push(index);
-  
-  // Update Screens
-  renderBoard();
-  broadcast('flip');
+    // --- GAME LOGIC (HOST) ---
+    function handleMove(i) {
+        if(gameState.locked || gameState.matched.includes(i) || gameState.flipped.includes(i)) return;
 
-  // Match Check
-  if (gameState.flipped.length === 2) {
-    gameState.locked = true;
-    const [a, b] = gameState.flipped;
-    const match = gameState.deck[a] === gameState.deck[b];
+        gameState.flipped.push(i);
+        playTone('flip');
+        broadcast('flip'); // Update Visuals
+        render();
 
-    setTimeout(() => {
-      if (match) {
-        playSound('match');
-        gameState.matched.push(a, b);
-        gameState.scores[gameState.turn]++;
-        broadcast('match');
-      } else {
-        playSound('fail');
-        gameState.turn = (gameState.turn === 'host' ? 'guest' : 'host');
-        broadcast('fail');
-      }
-      gameState.flipped = [];
-      gameState.locked = false;
-      
-      renderBoard();
-      updateUI();
-      broadcast();
-    }, 1000);
-  }
-}
+        if(gameState.flipped.length === 2) {
+            gameState.locked = true;
+            const [a, b] = gameState.flipped;
+            
+            setTimeout(() => {
+                let sfx = '';
+                if(gameState.deck[a] === gameState.deck[b]) {
+                    gameState.matched.push(a, b);
+                    gameState.scores[gameState.turn]++;
+                    sfx = 'match';
+                } else {
+                    gameState.turn = (gameState.turn === 'host' ? 'guest' : 'host');
+                    sfx = 'fail';
+                }
+                
+                gameState.flipped = [];
+                gameState.locked = false;
+                render();
+                broadcast(sfx);
+                playTone(sfx);
+            }, 1000);
+        }
+    }
 
-// --- RENDERING ---
-function renderBoard() {
-  const board = document.getElementById('board');
-  
-  if (board.children.length === 0 && gameState.deck.length > 0) {
-    gameState.deck.forEach((emoji, i) => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.onclick = () => handleCardClick(i);
-      card.innerHTML = `<div class="face front"></div><div class="face back">${emoji}</div>`;
-      board.appendChild(card);
-    });
-  }
+    // --- NETWORKING ---
+    function broadcast(sfx) {
+        if(conn && conn.open) conn.send({ type: 'STATE', state: gameState, sfx: sfx });
+    }
+    function sendState() { broadcast(null); }
 
-  const cards = board.children;
-  for (let i = 0; i < cards.length; i++) {
-    const card = cards[i];
-    const isFlipped = gameState.flipped.includes(i);
-    const isMatched = gameState.matched.includes(i);
-    
-    if (isFlipped || isMatched) card.classList.add('flipped');
-    else card.classList.remove('flipped');
-    
-    if (isMatched) card.classList.add('matched');
-  }
-}
+    // --- UI ---
+    function setupUI() {
+        document.getElementById('menu-panel').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'block';
+        
+        // Build Grid
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        // We create 16 placeholders first (Host fills them with real data later)
+        for(let i=0; i<16; i++) {
+            const el = document.createElement('div');
+            el.className = 'card';
+            el.onclick = () => cardClicked(i);
+            el.innerHTML = `<div class="face front"></div><div class="face back"></div>`;
+            grid.appendChild(el);
+        }
+    }
 
-function updateUI() {
-  const isMyTurn = (role === gameState.turn);
-  const banner = document.getElementById('turnBanner');
-  
-  if (isMyTurn) {
-    banner.textContent = '✨ YOUR TURN';
-    banner.className = 'turn-banner your-turn';
-  } else {
-    banner.textContent = `${gameState.turn.toUpperCase()}'S TURN`;
-    banner.className = 'turn-banner opponent-turn';
-  }
-  
-  document.getElementById('hostScore').textContent = gameState.scores.host;
-  document.getElementById('guestScore').textContent = gameState.scores.guest;
-  
-  document.getElementById('hostCard').classList.toggle('active', gameState.turn === 'host');
-  document.getElementById('guestCard').classList.toggle('active', gameState.turn === 'guest');
-}
+    function cardClicked(i) {
+        if(myRole === 'host' && gameState.turn === 'host') handleMove(i);
+        if(myRole === 'guest' && gameState.turn === 'guest') {
+            if(conn && conn.open) conn.send({ type: 'CLICK', index: i });
+        }
+    }
 
-function showGame() {
-  document.getElementById('menu').style.display = 'none';
-  document.getElementById('gameView').style.display = 'block';
-}
+    function render() {
+        // Banner
+        const banner = document.getElementById('turn-msg');
+        if(myRole === gameState.turn) {
+            banner.innerText = "YOUR TURN";
+            banner.style.color = "#00ff88";
+        } else {
+            banner.innerText = "OPPONENT'S TURN";
+            banner.style.color = "#555";
+        }
+
+        // Scores
+        document.getElementById('s-host').innerText = gameState.scores.host;
+        document.getElementById('s-guest').innerText = gameState.scores.guest;
+        document.getElementById('p-host').classList.toggle('active', gameState.turn === 'host');
+        document.getElementById('p-guest').classList.toggle('active', gameState.turn === 'guest');
+
+        // Cards
+        const cards = document.getElementsByClassName('card');
+        if(gameState.deck.length > 0) {
+            for(let i=0; i<16; i++) {
+                const card = cards[i];
+                // Update Emoji
+                card.querySelector('.back').innerText = gameState.deck[i];
+                
+                // Flip Logic
+                const isFlipped = gameState.flipped.includes(i) || gameState.matched.includes(i);
+                if(isFlipped) card.classList.add('flipped');
+                else card.classList.remove('flipped');
+                
+                if(gameState.matched.includes(i)) card.classList.add('matched');
+            }
+        }
+    }
 </script>
 </body>
 </html>
