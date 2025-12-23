@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Memory (Strict Sync)</title>
+    <title>TIU Memory (Synced ID)</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -11,7 +11,6 @@
             --surface: #1e1e1e;
             --primary: #bb86fc;
             --secondary: #03dac6;
-            --error: #cf6679;
         }
         body {
             font-family: 'Segoe UI', sans-serif;
@@ -20,7 +19,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             min-height: 100vh;
             margin: 0;
             overflow: hidden;
@@ -28,11 +26,13 @@
 
         /* LOBBY */
         #lobby {
+            margin-top: 100px;
             background: var(--surface);
             padding: 2rem;
             border-radius: 12px;
             text-align: center;
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            z-index: 20;
         }
         input {
             padding: 10px; font-size: 1rem; border-radius: 4px; border: none; text-align: center;
@@ -48,23 +48,24 @@
 
         /* GAME UI */
         #game-ui {
-            display: none;
+            display: none; /* Hidden until sync */
             flex-direction: column;
             align-items: center;
             width: 100%;
             max-width: 600px;
+            margin-top: 20px;
         }
 
         .header-bar {
             display: flex; justify-content: space-between; width: 100%; margin-bottom: 20px;
-            background: var(--surface); padding: 10px 20px; border-radius: 8px; box-sizing: border-box;
+            background: var(--surface); padding: 15px; border-radius: 8px; box-sizing: border-box;
+            border: 1px solid #333;
         }
-        .score-box { text-align: center; }
-        .score-val { font-size: 1.5rem; font-weight: bold; display: block;}
-        .active-p { color: var(--secondary); text-shadow: 0 0 10px var(--secondary); }
-        
-        #game-id-display {
-            position: absolute; top: 10px; right: 10px; font-family: monospace; opacity: 0.5; font-size: 0.8rem;
+
+        /* ID Display */
+        #game-id-box {
+            position: absolute; top: 10px; right: 10px; 
+            font-family: monospace; background: #333; padding: 5px 10px; border-radius: 4px; font-size: 0.8rem;
         }
 
         .grid {
@@ -82,17 +83,21 @@
             display: flex; align-items: center; justify-content: center;
             font-size: 2rem; border-radius: 8px; border: 2px solid #333;
         }
-        .front { background: #2c2c2c; } /* Back of card (visible initially) */
+        .front { background: #2c2c2c; } 
         .front::after { content: "?"; color: #555; }
-        .back { background: white; transform: rotateY(180deg); color: black; } /* Emoji side */
+        .back { background: white; transform: rotateY(180deg); color: black; }
 
-        #status-msg { margin-top: 15px; color: #aaa; font-style: italic; }
-
+        .active-turn { color: var(--secondary); font-weight: bold; text-shadow: 0 0 10px var(--secondary); }
+        
+        #loading-screen {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); flex-direction: column; justify-content: center; align-items: center; z-index: 50;
+        }
     </style>
 </head>
 <body>
 
-    <div id="game-id-display"></div>
+    <div id="game-id-box">ID: ???</div>
 
     <div id="lobby">
         <h2>TIU Memory P2P</h2>
@@ -103,276 +108,248 @@
         <div id="lobby-log" style="margin-top:10px; color:#888; font-size:0.9rem;"></div>
     </div>
 
+    <div id="loading-screen">
+        <h2 id="loading-text">Connecting...</h2>
+        <button onclick="requestSync()" style="background:#555; color:white; margin-top:20px;">Force Retry</button>
+    </div>
+
     <div id="game-ui">
         <div class="header-bar">
-            <div id="p1-ui" class="score-box active-p">HOST<span id="s1" class="score-val">0</span></div>
-            <div style="align-self:center; font-size: 0.8rem; color:#888;">VS</div>
-            <div id="p2-ui" class="score-box">GUEST<span id="s2" class="score-val">0</span></div>
+            <div id="p1-ui">HOST: <span id="s1">0</span></div>
+            <div id="status-msg" style="font-size: 0.9rem; color:#aaa; font-style:italic;">Initializing...</div>
+            <div id="p2-ui">GUEST: <span id="s2">0</span></div>
         </div>
         <div id="grid" class="grid"></div>
-        <div id="status-msg">Waiting for game start...</div>
     </div>
 
     <script>
-        // --- CONFIG ---
-        const PREFIX = "tiu_mem_v6_"; // Unique app ID
+        // --- CONSTANTS ---
+        const APP_ID = "tiu-mem-v7-final-"; 
         const EMOJIS = ['🚀', '🍕', '🐱', '🌵', '🎸', '🍦', '💎', '🔥'];
 
-        // --- STATE ---
+        // --- GLOBAL STATE ---
         let peer, conn;
-        let myRole = null; // 'host' or 'guest'
-        let deck = []; // Holds the emojis
-        
-        // Game Variables
+        let myRole = ''; 
+        let deck = []; 
         let turn = 'host';
         let scores = { host: 0, guest: 0 };
-        let flipped = []; // indices of currently flipped cards
-        let matched = []; // indices of matched cards
-        let locked = false; // Input lock during animations
+        let flipped = [];
+        let matched = [];
+        let locked = false;
 
-        // --- HELPER: HASH ---
-        // Generates a short code from the deck array. If decks match, this code matches.
+        // --- HELPER FUNCTIONS ---
+        function getRoom() { return document.getElementById('room-input').value.toLowerCase().trim(); }
+        function log(m) { document.getElementById('lobby-log').innerText = m; }
+        
+        // Generate a visual hash of the deck to prove sync
         function getDeckHash(arr) {
-            let str = arr.join("");
-            let hash = 0;
-            for (let i=0; i<str.length; i++) hash = ((hash<<5)-hash)+str.charCodeAt(i) | 0;
-            return "#" + Math.abs(hash).toString(16).substring(0,4).toUpperCase();
+            if(!arr || arr.length === 0) return "???";
+            let s = arr.join("");
+            let h = 0;
+            for(let i=0; i<s.length; i++) h = Math.imul(31, h) + s.charCodeAt(i) | 0;
+            return "#" + Math.abs(h).toString(16).substring(0,4).toUpperCase();
         }
-
-        function log(msg) { document.getElementById('lobby-log').innerText = msg; }
-        function setStatus(msg) { document.getElementById('status-msg').innerText = msg; }
 
         // --- HOST LOGIC ---
         function startHost() {
-            const room = document.getElementById('room-input').value.toLowerCase().trim();
-            if(!room) return alert("Enter room name");
-
+            const r = getRoom();
+            if(!r) return alert("Enter Name");
             myRole = 'host';
-            
-            // 1. HOST GENERATES DECK ONCE
+
+            // 1. Generate Deck IMMEDIATELY
             deck = [...EMOJIS, ...EMOJIS].sort(() => Math.random() - 0.5);
             
-            // 2. RENDER IMMEDIATELY
-            startGameUI(); 
+            // 2. Setup Peer
+            log("Starting Server...");
+            peer = new Peer(APP_ID + r);
 
-            log("Creating room...");
-            peer = new Peer(PREFIX + room);
-            
             peer.on('open', (id) => {
-                log("Room Open! Waiting for player...");
+                log("Room Ready! Waiting for Guest...");
+                renderGame(); // Host sees game immediately
             });
 
             peer.on('connection', (c) => {
                 conn = c;
                 log("Guest Connecting...");
+                
                 conn.on('open', () => {
                     log("Guest Connected!");
-                    // 3. SEND DECK TO GUEST
-                    send({ 
-                        type: 'INIT', 
-                        deck: deck, 
-                        turn: turn, 
-                        scores: scores 
-                    });
+                    // Wait for Guest to say "READY" before sending data
                 });
-                conn.on('data', handleData);
+
+                conn.on('data', (data) => {
+                    if (data.type === 'READY' || data.type === 'REQ_SYNC') {
+                        // Guest asked for data -> Send it
+                        send({ 
+                            type: 'SYNC', 
+                            deck: deck, 
+                            turn: turn, 
+                            scores: scores,
+                            flipped: flipped,
+                            matched: matched
+                        });
+                    } else if (data.type === 'CLICK') {
+                        handleCardClick(data.index);
+                    }
+                });
             });
-            peer.on('error', err => alert("Room taken or error: " + err.type));
+            peer.on('error', e => alert("Error: Room likely taken."));
         }
 
         // --- GUEST LOGIC ---
         function startGuest() {
-            const room = document.getElementById('room-input').value.toLowerCase().trim();
-            if(!room) return alert("Enter room name");
-
+            const r = getRoom();
+            if(!r) return alert("Enter Name");
             myRole = 'guest';
-            deck = []; // Guest has NO deck initially
-            
-            log("Connecting...");
-            peer = new Peer(); // Random ID for guest
-            
+
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('loading-screen').style.display = 'flex';
+            document.getElementById('loading-text').innerText = "Connecting to Host...";
+
+            peer = new Peer(); 
             peer.on('open', () => {
-                conn = peer.connect(PREFIX + room, { reliable: true });
-                
+                conn = peer.connect(APP_ID + r, { reliable: true });
+
                 conn.on('open', () => {
-                    log("Connected! Waiting for Host Data...");
-                    setStatus("Downloading Game State...");
-                    document.getElementById('lobby').style.display = 'none';
-                    document.getElementById('game-ui').style.display = 'flex';
-                    document.getElementById('grid').innerHTML = "<p>Syncing Cards...</p>";
+                    document.getElementById('loading-text').innerText = "Waiting for Game Data...";
+                    // Handshake: Tell Host we are ready
+                    requestSync();
                 });
 
-                conn.on('data', handleData);
-                
-                // Safety: Request sync if stuck
-                setTimeout(() => { if(deck.length===0) send({type: 'REQ_SYNC'}); }, 2000);
+                conn.on('data', (data) => {
+                    if (data.type === 'SYNC' || data.type === 'UPDATE') {
+                        applyState(data);
+                        // Remove loading screen once we have data
+                        document.getElementById('loading-screen').style.display = 'none';
+                        document.getElementById('game-ui').style.display = 'flex';
+                    }
+                });
+
+                conn.on('close', () => alert("Host Disconnected"));
             });
-            peer.on('error', () => alert("Room not found"));
+            peer.on('error', () => {
+                alert("Room not found");
+                location.reload();
+            });
         }
 
-        // --- SHARED NETWORK HANDLER ---
-        function handleData(data) {
-            console.log("RX:", data);
-            
-            if (data.type === 'INIT') {
-                // Guest receives deck here
-                deck = data.deck;
-                turn = data.turn;
-                scores = data.scores;
-                flipped = [];
-                matched = [];
-                startGameUI();
-            }
-            else if (data.type === 'REQ_SYNC' && myRole === 'host') {
-                // Host resends deck if requested
-                send({ type: 'INIT', deck: deck, turn: turn, scores: scores });
-            }
-            else if (data.type === 'CLICK') {
-                // Host receives click request from Guest
-                if (myRole === 'host') handleCardClick(data.index);
-            }
-            else if (data.type === 'STATE_UPDATE') {
-                // Guest receives full state update
-                flipped = data.flipped;
-                matched = data.matched;
-                scores = data.scores;
-                turn = data.turn;
-                renderBoardState(); // Update visuals
+        function requestSync() {
+            if(conn && conn.open) {
+                conn.send({ type: 'REQ_SYNC' });
+                console.log("Sent Sync Request");
             }
         }
 
+        // --- SHARED LOGIC ---
         function send(data) {
-            if (conn && conn.open) conn.send(data);
+            if(conn && conn.open) conn.send(data);
         }
 
-        // --- GAME UI & LOGIC ---
-        function startGameUI() {
+        function applyState(data) {
+            deck = data.deck;
+            turn = data.turn;
+            scores = data.scores;
+            flipped = data.flipped;
+            matched = data.matched;
+            renderGame();
+        }
+
+        function renderGame() {
             document.getElementById('lobby').style.display = 'none';
             document.getElementById('game-ui').style.display = 'flex';
             
-            // Show Hash for Verification
-            const hash = getDeckHash(deck);
-            document.getElementById('game-id-display').innerText = "Game ID: " + hash;
+            // 1. Verify IDs
+            document.getElementById('game-id-box').innerText = "ID: " + getDeckHash(deck);
 
-            // Build Grid
-            const grid = document.getElementById('grid');
-            grid.innerHTML = "";
-            deck.forEach((emoji, i) => {
-                const el = document.createElement('div');
-                el.className = 'card';
-                el.id = 'c-' + i;
-                el.onclick = () => onUserClick(i);
-                el.innerHTML = `
-                    <div class="face front"></div>
-                    <div class="face back">${emoji}</div>
-                `;
-                grid.appendChild(el);
-            });
-            renderBoardState();
-        }
-
-        function onUserClick(index) {
-            if (locked) return;
-            // If Host: Execute Logic
-            if (myRole === 'host') {
-                handleCardClick(index);
-            } 
-            // If Guest: Ask Host
-            else {
-                send({ type: 'CLICK', index: index });
-            }
-        }
-
-        // --- CENTRAL LOGIC (RUNS ON HOST ONLY) ---
-        function handleCardClick(index) {
-            // Validation
-            if (matched.includes(index)) return;
-            if (flipped.includes(index)) return;
-            
-            // Turn validation
-            if (turn !== 'host' && myRole === 'host' && turn !== 'guest') return; // Should not happen
-            
-            // Add to flipped
-            flipped.push(index);
-            broadcastState();
-
-            // Check Match
-            if (flipped.length === 2) {
-                locked = true; // Lock inputs
-                setTimeout(checkMatch, 600);
-            }
-        }
-
-        function checkMatch() {
-            const [i1, i2] = flipped;
-            const isMatch = deck[i1] === deck[i2];
-
-            if (isMatch) {
-                matched.push(i1, i2);
-                if (turn === 'host') scores.host++; else scores.guest++;
-                flipped = [];
-                checkWin();
-            } else {
-                flipped = [];
-                // Switch Turn
-                turn = (turn === 'host') ? 'guest' : 'host';
-            }
-            
-            locked = false;
-            broadcastState();
-        }
-
-        function checkWin() {
-            if (matched.length === deck.length) {
-                const winMsg = scores.host > scores.guest ? "HOST WINS!" : "GUEST WINS!";
-                setStatus(winMsg + " (Reload to play again)");
-            }
-        }
-
-        function broadcastState() {
-            renderBoardState(); // Update Host Screen
-            // Send to Guest
-            send({
-                type: 'STATE_UPDATE',
-                flipped: flipped,
-                matched: matched,
-                scores: scores,
-                turn: turn
-            });
-        }
-
-        // --- VISUAL RENDERER ---
-        function renderBoardState() {
-            // Update Cards
-            for (let i = 0; i < deck.length; i++) {
-                const card = document.getElementById('c-' + i);
-                if (!card) continue;
-                
-                // Remove classes first
-                card.classList.remove('flipped', 'matched');
-                
-                // Re-add based on state
-                if (flipped.includes(i)) card.classList.add('flipped');
-                if (matched.includes(i)) card.classList.add('matched');
-            }
-
-            // Update Scores & Turn
+            // 2. Render Scores
             document.getElementById('s1').innerText = scores.host;
             document.getElementById('s2').innerText = scores.guest;
             
             const p1 = document.getElementById('p1-ui');
             const p2 = document.getElementById('p2-ui');
+            const status = document.getElementById('status-msg');
+
+            p1.className = turn === 'host' ? 'active-turn' : '';
+            p2.className = turn === 'guest' ? 'active-turn' : '';
             
-            p1.classList.remove('active-p');
-            p2.classList.remove('active-p');
-            
-            if (turn === 'host') {
-                p1.classList.add('active-p');
-                setStatus(myRole === 'host' ? "Your Turn" : "Host's Turn");
+            if(matched.length === deck.length) {
+                status.innerText = scores.host > scores.guest ? "HOST WINS!" : "GUEST WINS!";
+                status.style.color = "gold";
             } else {
-                p2.classList.add('active-p');
-                setStatus(myRole === 'guest' ? "Your Turn" : "Guest's Turn");
+                status.innerText = (turn === myRole) ? "YOUR TURN" : "OPPONENT'S TURN";
             }
+
+            // 3. Render Grid
+            const grid = document.getElementById('grid');
+            // Only rebuild DOM if deck changed size (first load)
+            if(grid.childElementCount !== deck.length) {
+                grid.innerHTML = "";
+                deck.forEach((emoji, i) => {
+                    const el = document.createElement('div');
+                    el.className = 'card';
+                    el.id = 'c-' + i;
+                    el.onclick = () => onCardClick(i);
+                    el.innerHTML = `<div class="face front"></div><div class="face back">${emoji}</div>`;
+                    grid.appendChild(el);
+                });
+            }
+
+            // 4. Update Classes
+            deck.forEach((_, i) => {
+                const el = document.getElementById('c-'+i);
+                el.className = 'card'; // reset
+                if(flipped.includes(i)) el.classList.add('flipped');
+                if(matched.includes(i)) el.classList.add('matched');
+            });
+        }
+
+        // --- GAMEPLAY (HOST AUTHORITATIVE) ---
+        function onCardClick(i) {
+            if(myRole === 'host') handleCardClick(i);
+            else send({ type: 'CLICK', index: i });
+        }
+
+        function handleCardClick(i) {
+            // Validation (Host only)
+            if(matched.includes(i) || flipped.includes(i) || locked) return;
+            // Strict Turn Enforcement
+            if(turn === 'host' && myRole !== 'host') return;
+            if(turn === 'guest' && myRole !== 'guest') return; // (Technically handled by socket routing but good for safety)
+
+            flipped.push(i);
+            broadcast();
+
+            if(flipped.length === 2) {
+                locked = true;
+                setTimeout(checkMatch, 600);
+            }
+        }
+
+        function checkMatch() {
+            const [a, b] = flipped;
+            if(deck[a] === deck[b]) {
+                matched.push(a, b);
+                if(turn === 'host') scores.host++; else scores.guest++;
+                flipped = [];
+                // Turn stays with winner
+            } else {
+                flipped = [];
+                turn = turn === 'host' ? 'guest' : 'host';
+            }
+            locked = false;
+            broadcast();
+        }
+
+        function broadcast() {
+            renderGame(); // Update Host
+            send({ 
+                type: 'UPDATE', 
+                deck: deck, // Send deck again just to be safe
+                turn: turn, 
+                scores: scores, 
+                flipped: flipped, 
+                matched: matched 
+            });
         }
     </script>
 </body>
