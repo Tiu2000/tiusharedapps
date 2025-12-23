@@ -212,6 +212,7 @@
                     setStatus("Guest joined! Your turn.");
                 });
                 conn.on('data', (data) => {
+                    // CRITICAL FIX: Explicitly check which player is trying to move
                     if(data.type === 'CLICK') attemptMove(data.index, 'guest');
                     if(data.type === 'SYNC') sendState();
                 });
@@ -234,7 +235,12 @@
                 conn = peer.connect(APP_ID + roomCode, { reliable: true });
                 conn.on('open', () => {
                     showLoading("Connected! Downloading Cards...");
-                    conn.send({ type: 'SYNC' }); // Ask for cards
+                    // Retry loop to ensure data is received
+                    let retryCount = 0;
+                    const syncLoop = setInterval(() => {
+                         if(deck.length > 0) clearInterval(syncLoop);
+                         else if(conn.open) conn.send({ type: 'SYNC' });
+                    }, 500);
                 });
                 conn.on('data', (data) => {
                     if(data.type === 'STATE') {
@@ -263,7 +269,9 @@
             // Validation
             if(locked) return;
             if(matched.includes(i) || flipped.includes(i)) return;
-            if(turn !== player) return; // Strict turn check
+            
+            // STRICT TURN CHECK: Only allow move if it's that player's turn
+            if(turn !== player) return; 
 
             // Execute Flip
             flipped.push(i);
