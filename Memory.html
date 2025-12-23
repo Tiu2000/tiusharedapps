@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Memory (V27 Broadcast)</title>
+    <title>TIU Memory (V28 Poller)</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
-        :root { --bg: #050505; --surface: #1a1a1a; --primary: #00ff9d; --text: #eee; }
+        :root { --bg: #000000; --surface: #111; --primary: #00ffcc; --text: #eee; }
         body {
-            font-family: 'Courier New', monospace; background: var(--bg); color: var(--text);
+            font-family: monospace; background: var(--bg); color: var(--text);
             display: flex; flex-direction: column; align-items: center; min-height: 100vh;
             margin: 0; padding: 10px; box-sizing: border-box;
         }
@@ -16,12 +16,10 @@
         /* LOBBY */
         #lobby { background: var(--surface); padding: 25px; border-radius: 12px; width: 100%; max-width: 320px; text-align: center; border: 1px solid #333; }
         button {
-            padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;
-            font-family: inherit; text-transform: uppercase; margin-top: 10px; width: 100%; font-size: 1rem;
-            transition: 0.1s;
+            padding: 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;
+            font-family: inherit; text-transform: uppercase; margin-top: 10px; width: 100%; font-size: 1.1rem;
         }
-        button:active { transform: scale(0.98); }
-        .btn-host { background: #9d46ff; color: white; }
+        .btn-host { background: #8a2be2; color: white; }
         .btn-join { background: var(--primary); color: black; }
         .btn-resync { background: #ff3333; color: white; width: auto; padding: 6px 12px; font-size: 0.75rem; margin: 0; }
         
@@ -35,42 +33,38 @@
 
         /* HEADER */
         .header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #151515; padding: 10px; border-radius: 8px; border: 1px solid #333; box-sizing: border-box;}
-        .pulse { width: 8px; height: 8px; background: #444; border-radius: 50%; display: inline-block; margin-right: 8px; }
-        .pulse.active { background: #00ff9d; box-shadow: 0 0 8px #00ff9d; }
+        .pulse { width: 8px; height: 8px; background: #333; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .pulse.active { background: #00ffcc; box-shadow: 0 0 10px #00ffcc; }
 
         /* SCORES */
         .scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-bottom: 20px; }
         .p-card { background: #222; padding: 15px; text-align: center; border: 2px solid transparent; border-radius: 8px; }
-        .p-card.active { border-color: var(--primary); background: #1a2e25; color: var(--primary); }
+        .p-card.active { border-color: var(--primary); background: #111; color: var(--primary); }
         .score { font-size: 1.8rem; display: block; font-weight: bold; margin-top: 5px; }
 
         /* GRID */
-        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; aspect-ratio: 4/5; perspective: 1000px; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; aspect-ratio: 4/5; }
         .card {
-            background: #2c3e50; border-radius: 6px; position: relative; cursor: pointer;
-            transform-style: preserve-3d; transition: transform 0.25s;
+            background: #333; border-radius: 6px; position: relative; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 2rem;
+            border: 1px solid #444; transition: transform 0.1s;
         }
-        .card.flipped, .card.matched { transform: rotateY(180deg); }
-        .card.matched { opacity: 0.3; }
-        
-        .face {
-            position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
-            display: flex; align-items: center; justify-content: center; font-size: 2.2rem;
-        }
-        .back { background: #eee; transform: rotateY(180deg); color: #000; border-radius: 6px; }
+        .card.flipped { background: #eee; transform: scale(0.98); }
+        .card.flipped span { display: block; }
+        .card span { display: none; } /* Hide emoji by default */
+        .card.matched { opacity: 0.3; background: #000; border-color: #333; }
 
         /* LOGS */
         #console-log {
-            width: 100%; height: 100px; background: #080808; color: #00ff9d; font-size: 0.7rem;
+            width: 100%; height: 100px; background: #080808; color: #888; font-size: 0.7rem;
             overflow-y: scroll; margin-top: 20px; padding: 10px; border: 1px solid #333; box-sizing: border-box; font-family: monospace;
         }
-        .log-entry { margin-bottom: 2px; opacity: 0.8; }
     </style>
 </head>
 <body onclick="resumeAudio()">
 
     <div id="lobby">
-        <h3>TIU MEMORY V27</h3>
+        <h3>TIU MEMORY V28</h3>
         <button class="btn-host" onclick="initHost()">HOST GAME</button>
         <div style="margin: 15px 0; color:#555">- OR -</div>
         <input type="text" id="code-input" placeholder="CODE" maxlength="4">
@@ -83,10 +77,10 @@
                 <div id="hb" class="pulse"></div>
                 <span id="role-display" style="font-size:0.8rem; color:#aaa;"></span>
             </div>
-            <button class="btn-resync" onclick="requestSync()">🔄 RESYNC</button>
+            <button class="btn-resync" onclick="requestSync()">🔄 FORCE SYNC</button>
         </div>
 
-        <div id="turn-banner" style="font-size:1.1rem; font-weight:bold; margin-bottom:15px; color:#888; text-align:center; width:100%;">WAITING...</div>
+        <div id="turn-banner" style="font-size:1.1rem; font-weight:bold; margin-bottom:15px; color:#888; text-align:center; width:100%;">Waiting for Connection...</div>
 
         <div class="scoreboard">
             <div id="p-host" class="p-card">HOST <span id="s-host" class="score">0</span></div>
@@ -99,16 +93,16 @@
 
     <script>
         // --- CONFIG ---
-        const APP_ID = "tiu-mem-v27-bcast-";
+        const APP_ID = "tiu-mem-v28-poll-";
         const EMOJIS = ['🚀','🍕','🐱','🌵','🎸','🍦','💎','🔥'];
         const logBox = document.getElementById('console-log');
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         // --- STATE ---
-        let peer;
-        let connections = []; // ARRAY for all connections (Host side)
-        let guestConn; // Single connection (Guest side)
+        let peer, conn;
+        let connections = []; // Host list
         let myRole;
+        let syncInterval;
         
         let gameState = {
             deck: [], flipped: [], matched: [],
@@ -130,7 +124,6 @@
         // --- LOGGING ---
         function log(msg) {
             const div = document.createElement('div');
-            div.className = 'log-entry';
             div.innerText = `> ${msg}`;
             logBox.prepend(div);
         }
@@ -147,36 +140,30 @@
 
             peer = new Peer(APP_ID + code);
             peer.on('connection', c => {
-                connections.push(c); // Add to list!
-                log("Guest Connected! (Total: " + connections.length + ")");
+                connections.push(c);
+                log("Guest Connected!");
                 
                 c.on('open', () => {
-                    broadcast('init'); // Send immediate state
+                    // Send DIRECTLY to this specific connection immediately
+                    c.send({ type: 'STATE', state: gameState, snd: 'init' });
                 });
 
                 c.on('data', data => {
                     flashHeartbeat();
                     if(data.type === 'CLICK') {
-                        log("Guest clicked " + data.index);
                         if(gameState.turn === 'guest') processMove(data.index);
-                        else {
-                            log("Ignored (Not guest turn)");
-                            broadcast(); // Auto-resync them
-                        }
+                        else broadcast(); // Resync if they click out of turn
                     }
-                    if(data.type === 'REQ_SYNC') broadcast();
+                    if(data.type === 'REQ_SYNC') {
+                        // Respond directly to the requester if possible, or broadcast
+                        c.send({ type: 'STATE', state: gameState });
+                    }
                 });
 
                 c.on('close', () => {
-                    log("A connection closed.");
-                    connections = connections.filter(conn => conn !== c); // Remove dead
+                    connections = connections.filter(x => x !== c);
                 });
             });
-
-            // HEARTBEAT: Force broadcast every 2s to ensure sync
-            setInterval(() => {
-                if(connections.length > 0) broadcast(null, true); 
-            }, 2000);
         }
 
         // --- GUEST ---
@@ -187,58 +174,72 @@
             
             setupUI(code);
             log("Connecting to " + code + "...");
+            document.getElementById('turn-banner').innerText = "CONNECTING...";
             
             peer = new Peer();
             peer.on('open', () => {
-                guestConn = peer.connect(APP_ID + code, { reliable: true });
-                guestConn.on('open', () => {
-                    log("Connected! Waiting for state...");
-                    requestSync();
+                conn = peer.connect(APP_ID + code, { reliable: true });
+                
+                conn.on('open', () => {
+                    log("Connected! Polling for state...");
+                    document.getElementById('turn-banner').innerText = "SYNCING...";
+                    
+                    // START POLLING: Ask for state every 1s until we get a deck
+                    requestSync(); 
+                    syncInterval = setInterval(() => {
+                        if(gameState.deck.length === 0) {
+                            log("...Polling Host...");
+                            requestSync();
+                        } else {
+                            clearInterval(syncInterval);
+                            log("Sync Complete!");
+                        }
+                    }, 1000);
                 });
                 
-                guestConn.on('data', data => {
+                conn.on('data', data => {
                     flashHeartbeat();
+                    log("Recv: " + data.type); // Debug log
+                    
                     if(data.type === 'STATE') {
                         gameState = data.state;
                         render();
-                        if(data.snd) playTone(data.snd === 'match' ? 880 : 200, data.snd === 'match' ? 'triangle' : 'sawtooth');
+                        // If this was the first sync, stop polling
+                        if(gameState.deck.length > 0 && syncInterval) {
+                            clearInterval(syncInterval);
+                        }
+                        if(data.snd && data.snd !== 'init') {
+                            playTone(data.snd === 'match' ? 880 : 200, data.snd === 'match' ? 'triangle' : 'sawtooth');
+                        }
                     }
                 });
 
-                guestConn.on('close', () => log("Connection Lost"));
-                guestConn.on('error', e => log("Error: " + e));
+                conn.on('close', () => log("Connection Lost"));
+                conn.on('error', e => log("Error: " + e));
             });
         }
 
-        // --- NETWORKING (BROADCAST) ---
-        function broadcast(sndTag, silentLog) {
-            // Send to ALL active connections
-            let sentCount = 0;
+        // --- NETWORKING ---
+        function broadcast(sndTag) {
             connections.forEach(c => {
-                if(c.open) {
-                    c.send({ type: 'STATE', state: gameState, snd: sndTag });
-                    sentCount++;
-                }
+                if(c.open) c.send({ type: 'STATE', state: gameState, snd: sndTag });
             });
-            if(!silentLog && sentCount > 0) log("Sent update to " + sentCount + " peers");
         }
 
         function requestSync() {
-            if(guestConn && guestConn.open) guestConn.send({ type: 'REQ_SYNC' });
+            if(conn && conn.open) conn.send({ type: 'REQ_SYNC' });
         }
 
-        // --- GAME LOGIC (HOST ONLY) ---
+        // --- GAME LOGIC (HOST) ---
         function processMove(i) {
             if(gameState.locked) return;
             if(gameState.matched.includes(i) || gameState.flipped.includes(i)) return;
 
-            // 1. Flip
             gameState.flipped.push(i);
             playTone(400, 'sine');
             render(); 
             broadcast('flip'); 
 
-            // 2. Check
             if(gameState.flipped.length === 2) {
                 gameState.locked = true;
                 const [a, b] = gameState.flipped;
@@ -249,18 +250,14 @@
                         gameState.matched.push(a, b);
                         gameState.scores[gameState.turn]++;
                         snd = 'match';
-                        log("Match! Point: " + gameState.turn);
                     } else {
-                        log("No Match. Switch turn.");
                         gameState.turn = (gameState.turn === 'host' ? 'guest' : 'host');
                         snd = 'nomatch';
                     }
-                    
                     gameState.flipped = [];
                     gameState.locked = false;
-                    
                     render();
-                    broadcast(snd); // Broadcast result
+                    broadcast(snd);
                     playTone(snd==='match'?880:200, snd==='match'?'triangle':'sawtooth');
                 }, 1000);
             }
@@ -268,17 +265,19 @@
 
         // --- INPUT ---
         function onCardClick(i) {
+            if(gameState.deck.length === 0) {
+                // If clicked before synced, force a sync
+                if(myRole === 'guest') requestSync();
+                return;
+            }
+
             if(myRole === 'host') {
                 if(gameState.turn === 'host') processMove(i);
-                else log("Not your turn!");
+                else log("Wait for guest...");
             } 
             else if(myRole === 'guest') {
-                if(gameState.turn === 'guest') {
-                    if(guestConn && guestConn.open) guestConn.send({ type: 'CLICK', index: i });
-                    else log("Offline!");
-                } else {
-                    log("Not your turn!");
-                }
+                if(gameState.turn === 'guest') conn.send({ type: 'CLICK', index: i });
+                else log("Wait for host...");
             }
         }
 
@@ -294,16 +293,18 @@
                 const el = document.createElement('div');
                 el.className = 'card';
                 el.onclick = () => onCardClick(i);
-                el.innerHTML = `<div class="face front"></div><div class="face back"></div>`;
+                el.innerHTML = `<span></span>`;
                 grid.appendChild(el);
             }
         }
 
         function render() {
+            if(gameState.deck.length === 0) return; // Don't render empty state
+
             const banner = document.getElementById('turn-banner');
             const isMyTurn = gameState.turn === myRole;
             banner.innerText = isMyTurn ? "YOUR TURN" : `${gameState.turn.toUpperCase()}'S TURN`;
-            banner.style.color = isMyTurn ? "#00ff9d" : "#666";
+            banner.style.color = isMyTurn ? "#00ffcc" : "#666";
 
             document.getElementById('s-host').innerText = gameState.scores.host;
             document.getElementById('s-guest').innerText = gameState.scores.guest;
@@ -313,9 +314,10 @@
             const cards = document.getElementsByClassName('card');
             for(let i=0; i<cards.length; i++) {
                 const card = cards[i];
-                card.querySelector('.back').innerText = gameState.deck[i];
+                const span = card.querySelector('span');
+                span.innerText = gameState.deck[i]; // Update emoji
+
                 const isFlipped = gameState.flipped.includes(i) || gameState.matched.includes(i);
-                
                 if(isFlipped) card.classList.add('flipped');
                 else card.classList.remove('flipped');
                 
