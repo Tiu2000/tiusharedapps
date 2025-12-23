@@ -11,6 +11,7 @@
             --accent: #e74c3c;
             --highlight: #f1c40f;
             --light: #ecf0f1;
+            --dark: #1a252f;
         }
 
         body {
@@ -32,50 +33,89 @@
             background: rgba(255,255,255,0.1);
             padding: 40px;
             border-radius: 15px;
-            max-width: 400px;
+            max-width: 450px;
             margin: 50px auto;
             backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .input-group {
+            margin: 15px 0;
+        }
+
+        label {
+            display: block;
+            text-align: left;
+            margin-left: 12%;
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
         }
 
         input {
-            padding: 10px;
-            border-radius: 5px;
+            padding: 12px;
+            border-radius: 8px;
             border: none;
-            width: 80%;
-            margin: 10px 0;
-            font-size: 1rem;
+            width: 75%;
+            font-size: 1.1rem;
+            text-align: center;
+            text-transform: uppercase; /* Force uppercase for easier reading */
+            letter-spacing: 2px;
+            font-weight: bold;
+            color: var(--dark);
         }
 
         button {
-            padding: 10px 20px;
-            border-radius: 5px;
+            padding: 12px 25px;
+            border-radius: 8px;
             border: none;
             cursor: pointer;
             font-weight: bold;
             font-size: 1rem;
-            margin: 5px;
-            transition: transform 0.1s;
+            margin: 10px;
+            transition: transform 0.1s, filter 0.2s;
         }
 
+        button:hover { filter: brightness(1.1); }
         button:active { transform: scale(0.95); }
-        .btn-host { background-color: var(--accent); color: white; }
-        .btn-join { background-color: var(--highlight); color: var(--primary); }
-        .btn-draw { background-color: var(--highlight); color: var(--primary); font-size: 1.5rem; padding: 15px 40px; margin-top: 20px;}
+        .btn-host { background-color: var(--accent); color: white; width: 80%; }
+        .btn-join { background-color: var(--highlight); color: var(--primary); width: 80%; }
+        .btn-draw { background-color: var(--highlight); color: var(--primary); font-size: 1.5rem; padding: 15px 40px; margin-top: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+
+        /* --- Host Info --- */
+        .room-info {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        
+        .qr-container {
+            margin: 10px auto;
+            background: white;
+            padding: 10px;
+            width: 150px;
+            height: 150px;
+            border-radius: 5px;
+        }
+        
+        .qr-container img { width: 100%; height: 100%; }
 
         /* --- Bingo Ball Animation --- */
         #current-ball {
-            width: 150px;
-            height: 150px;
-            background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+            width: 160px;
+            height: 160px;
+            background: radial-gradient(circle at 30% 30%, #fff, #e0e0e0);
             border-radius: 50%;
             color: #333;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 4rem;
+            font-size: 4.5rem;
             font-weight: bold;
             margin: 20px auto;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: inset -10px -10px 20px rgba(0,0,0,0.2), 0 10px 30px rgba(0,0,0,0.5);
             border: 5px solid #fff;
             position: relative;
         }
@@ -90,39 +130,41 @@
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* --- Host Monitoring --- */
+        /* --- Player Lists --- */
         .player-list {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 10px;
+            gap: 15px;
             margin-top: 20px;
         }
         .player-card {
-            background: rgba(0,0,0,0.3);
-            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            padding: 10px 15px;
             border-radius: 8px;
-            min-width: 120px;
+            min-width: 100px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
         /* --- Player Bingo Card --- */
         .bingo-card {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 5px;
+            gap: 8px;
             max-width: 400px;
             margin: 0 auto;
-            background: #333;
-            padding: 10px;
-            border-radius: 10px;
+            background: var(--dark);
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
         .bingo-header {
-            background: var(--accent);
-            color: white;
-            font-weight: bold;
-            padding: 10px;
-            font-size: 1.2rem;
+            color: var(--highlight);
+            font-weight: 900;
+            padding: 5px;
+            font-size: 1.5rem;
+            text-shadow: 2px 2px 0 #000;
         }
 
         .bingo-cell {
@@ -132,36 +174,44 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
+            font-size: 1.3rem;
+            font-weight: bold;
             cursor: pointer;
-            border-radius: 4px;
+            border-radius: 6px;
             user-select: none;
+            transition: background 0.2s;
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2);
         }
 
+        .bingo-cell:active { transform: translateY(2px); box-shadow: none; }
+
         .bingo-cell.marked {
-            background: var(--highlight);
-            color: #333;
+            background: var(--accent);
+            color: white;
             position: relative;
-        }
-        
-        .bingo-cell.marked::after {
-            content: '✖';
-            font-size: 2rem;
-            color: rgba(0,0,0,0.2);
-            position: absolute;
+            box-shadow: inset 0 3px 5px rgba(0,0,0,0.2);
         }
 
         /* --- Watermark --- */
         .watermark {
             position: fixed;
-            bottom: 20px;
+            bottom: 15px;
             right: 20px;
-            font-size: 2rem;
+            font-size: 2.5rem;
             font-weight: 900;
-            color: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.03);
             pointer-events: none;
             z-index: 9999;
             font-family: 'Courier New', Courier, monospace;
+        }
+        
+        .copy-link {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            color: #fff;
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -170,36 +220,62 @@
     <div class="watermark">TIU</div>
 
     <div id="screen-login" class="screen active">
-        <h1>BINGO P2P</h1>
+        <h1 style="font-size: 3rem; margin-bottom: 0; color: var(--highlight);">BINGO P2P</h1>
+        <p style="opacity: 0.7; margin-top: 5px;">Multiplayer Classroom Bingo</p>
+        
         <div class="login-box">
-            <h3>Start or Join</h3>
-            <div style="border-bottom: 1px solid rgba(255,255,255,0.2); margin-bottom: 20px; padding-bottom: 20px;">
-                <button class="btn-host" onclick="initHost()">Host New Game</button>
+            <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 25px; margin-bottom: 25px;">
+                <h3>👨‍🏫 Teacher / Host</h3>
+                <div class="input-group">
+                    <input type="text" id="host-room-name" placeholder="CREATE ROOM NAME (e.g. MATH1)">
+                </div>
+                <button class="btn-host" onclick="initHost()">Start Room</button>
             </div>
+
             <div>
-                <input type="text" id="join-id" placeholder="Enter Room ID">
-                <input type="text" id="player-name" placeholder="Your Name">
+                <h3>👨‍🎓 Student / Player</h3>
+                <div class="input-group">
+                    <input type="text" id="join-id" placeholder="ENTER ROOM NAME">
+                </div>
+                <div class="input-group">
+                    <input type="text" id="player-name" placeholder="YOUR NAME" style="text-transform: none;">
+                </div>
                 <button class="btn-join" onclick="joinGame()">Join Game</button>
             </div>
         </div>
     </div>
 
     <div id="screen-host" class="screen">
-        <h2>Room ID: <span id="display-room-id" style="color:var(--highlight); user-select: text;">Loading...</span></h2>
+        <div class="room-info">
+            <h2 style="margin:0">Room: <span id="display-room-id" style="color:var(--highlight); font-family: monospace;">...</span></h2>
+            <button class="copy-link" onclick="copyLink()">🔗 Copy Link for Students</button>
+            <div class="qr-container">
+                <img id="qr-code" src="" alt="QR Code">
+            </div>
+        </div>
+
         <div id="current-ball">--</div>
         <button class="btn-draw" onclick="hostDrawBall()">DRAW BALL</button>
         
-        <h3 style="margin-top: 30px;">Called Numbers</h3>
-        <div id="host-history" style="font-size: 0.9rem; max-width: 600px; margin: 0 auto; opacity: 0.8; word-wrap: break-word;"></div>
+        <div style="background: rgba(0,0,0,0.2); margin-top: 20px; padding: 10px; border-radius: 8px;">
+            <h4 style="margin:5px 0; opacity: 0.8;">History</h4>
+            <div id="host-history" style="font-size: 0.9rem; letter-spacing: 1px; line-height: 1.4; color: var(--highlight);"></div>
+        </div>
 
-        <h3 style="margin-top: 30px;">Player Monitor</h3>
-        <div id="player-monitor" class="player-list">
-            </div>
+        <h3 style="margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+            Players (<span id="player-count">0</span>)
+        </h3>
+        <div id="player-monitor" class="player-list"></div>
     </div>
 
     <div id="screen-player" class="screen">
-        <h2 id="player-display-name">Player</h2>
-        <div style="margin-bottom: 10px;">Last Called: <span id="player-current-ball" style="font-weight:bold; color: var(--highlight); font-size: 1.5rem;">--</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: center; max-width: 400px; margin: 0 auto 10px auto;">
+            <h3 id="player-display-name" style="margin:0;">Player</h3>
+            <div style="text-align: right;">
+                <span style="font-size: 0.8rem; opacity: 0.7;">Current Call</span><br>
+                <span id="player-current-ball" style="font-weight:bold; color: var(--highlight); font-size: 1.8rem;">--</span>
+            </div>
+        </div>
         
         <div class="bingo-card" id="bingo-card">
             <div class="bingo-header">B</div>
@@ -208,11 +284,11 @@
             <div class="bingo-header">G</div>
             <div class="bingo-header">O</div>
             </div>
-        <p id="game-status" style="margin-top: 20px; opacity: 0.7;">Waiting for host...</p>
+        <p id="game-status" style="margin-top: 20px; font-style: italic; color: var(--highlight);">Waiting for host to start...</p>
     </div>
 
 <script>
-    // --- AUDIO SYSTEM (Web Audio API) ---
+    // --- AUDIO SYSTEM ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
     function playSound(type) {
@@ -221,64 +297,76 @@
         const gain = audioCtx.createGain();
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-
         const now = audioCtx.currentTime;
         
         if (type === 'pop') {
-            // High pitched 'pop' for ball reveal
-            osc.type = 'sine';
             osc.frequency.setValueAtTime(400, now);
             osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-            gain.gain.setValueAtTime(0.5, now);
+            gain.gain.setValueAtTime(0.3, now);
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-            osc.start(now);
-            osc.stop(now + 0.3);
+            osc.start(now); osc.stop(now + 0.3);
         } else if (type === 'click') {
-            // Short click
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(600, now);
-            gain.gain.setValueAtTime(0.3, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-            osc.start(now);
-            osc.stop(now + 0.1);
-        } else if (type === 'bingo') {
-            // Victory sound
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(400, now);
-            osc.frequency.setValueAtTime(500, now + 0.1);
-            osc.frequency.setValueAtTime(600, now + 0.2);
-            gain.gain.setValueAtTime(0.3, now);
-            gain.gain.linearRampToValueAtTime(0, now + 0.6);
-            osc.start(now);
-            osc.stop(now + 0.6);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+            osc.start(now); osc.stop(now + 0.05);
         }
     }
 
-    // --- GAME LOGIC ---
-
+    // --- GLOBAL STATE ---
     let peer = null;
-    let connections = []; // For Host
-    let hostConn = null;  // For Player
+    let connections = [];
+    let hostConn = null;
     let myName = "";
-    
-    // Bingo State
     let calledNumbers = [];
-    let myCard = []; // 25 values, 12 is 'FREE'
-    
+    // Prefix helps prevent collisions with other PeerJS apps
+    const APP_PREFIX = "tiu-bingo-v1-"; 
+
+    // --- URL PARAMETER HANDLING (Auto-fill Room) ---
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomParam = urlParams.get('room');
+        if(roomParam) {
+            document.getElementById('join-id').value = roomParam;
+        }
+    };
+
     function switchScreen(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
     }
 
-    // --- HOST FUNCTIONS ---
-
+    // --- HOST LOGIC ---
     function initHost() {
+        let roomName = document.getElementById('host-room-name').value.trim().toUpperCase();
+        if(!roomName) return alert("Please create a Room Name (e.g. MATH1)");
+        
+        // Sanitize
+        roomName = roomName.replace(/[^A-Z0-9]/g, '');
+        const fullId = APP_PREFIX + roomName;
+
+        document.getElementById('display-room-id').innerText = roomName;
         switchScreen('screen-host');
-        // Initialize PeerJS
-        peer = new Peer(); 
+
+        // Generate QR Code (using goqr.me API for simplicity)
+        // This encodes the current URL + ?room=ROOMNAME
+        const joinUrl = window.location.href.split('?')[0] + "?room=" + roomName;
+        document.getElementById('qr-code').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
+
+        peer = new Peer(fullId); 
 
         peer.on('open', (id) => {
-            document.getElementById('display-room-id').innerText = id;
+            console.log("Room created: " + id);
+        });
+
+        peer.on('error', (err) => {
+            if(err.type === 'unavailable-id') {
+                alert("Room Name '" + roomName + "' is already taken! Please try another.");
+                window.location.reload();
+            } else {
+                console.error(err);
+            }
         });
 
         peer.on('connection', (conn) => {
@@ -291,18 +379,20 @@
         conn.on('data', (data) => {
             if(data.type === 'JOIN') {
                 updatePlayerMonitor(conn.peer, data.name, 0);
+                updatePlayerCount();
+                // Send current history to new joiner so they are up to speed
+                conn.send({ type: 'SYNC', called: calledNumbers });
             }
             if(data.type === 'UPDATE_SCORE') {
-                // Player telling host how many matches they have
                 updatePlayerMonitor(conn.peer, data.name, data.matches);
             }
         });
 
         conn.on('close', () => {
-            // Handle disconnect if needed
             const el = document.getElementById('p-' + conn.peer);
             if(el) el.remove();
             connections = connections.filter(c => c !== conn);
+            updatePlayerCount();
         });
     }
 
@@ -310,29 +400,23 @@
         if(calledNumbers.length >= 75) return;
 
         let num;
-        do {
-            num = Math.floor(Math.random() * 75) + 1;
-        } while (calledNumbers.includes(num));
-
+        do { num = Math.floor(Math.random() * 75) + 1; } while (calledNumbers.includes(num));
         calledNumbers.push(num);
         
-        // Format Ball (e.g., B 5, I 20)
         let letter = getLetter(num);
         let displayTxt = letter + " " + num;
 
-        // Animate Host UI
+        // Animate Host
         const ballEl = document.getElementById('current-ball');
         ballEl.classList.remove('ball-anim');
-        void ballEl.offsetWidth; // trigger reflow
-        ballEl.innerText = num; // Just number for circle
+        void ballEl.offsetWidth; 
+        ballEl.innerText = num; 
         ballEl.classList.add('ball-anim');
         
-        document.getElementById('host-history').innerText = calledNumbers.join(', ');
+        document.getElementById('host-history').innerText = calledNumbers.map(n => getLetter(n)+n).join(', ');
         playSound('pop');
 
-        // Broadcast to players
-        const payload = { type: 'BALL', number: num, display: displayTxt };
-        connections.forEach(conn => conn.send(payload));
+        connections.forEach(conn => conn.send({ type: 'BALL', number: num, display: displayTxt }));
     }
 
     function updatePlayerMonitor(id, name, matches) {
@@ -343,122 +427,116 @@
             el.className = 'player-card';
             document.getElementById('player-monitor').appendChild(el);
         }
-        
-        // Visual indicator if they are close to bingo (e.g. > 4 matches? 
-        // Real bingo logic is complex to validate host-side without sending full card, 
-        // so we track "marked cells" as a simple proxy for activity).
-        let statusColor = matches > 20 ? '#f1c40f' : '#ecf0f1';
-        el.innerHTML = `<strong>${name}</strong><br><span style="color:${statusColor}">Marked: ${matches}</span>`;
+        let statusColor = matches >= 5 ? '#f1c40f' : 'rgba(255,255,255,0.7)'; // Highlight if they have 5+ matches
+        el.innerHTML = `<div style="font-weight:bold">${name}</div><div style="color:${statusColor}; font-size:0.9rem;">Marked: ${matches}</div>`;
     }
 
-    // --- PLAYER FUNCTIONS ---
+    function updatePlayerCount() {
+        document.getElementById('player-count').innerText = connections.length;
+    }
 
+    function copyLink() {
+        const roomName = document.getElementById('display-room-id').innerText;
+        const url = window.location.href.split('?')[0] + "?room=" + roomName;
+        navigator.clipboard.writeText(url).then(() => {
+            alert("Link copied to clipboard!");
+        });
+    }
+
+    // --- PLAYER LOGIC ---
     function joinGame() {
-        const roomId = document.getElementById('join-id').value;
-        myName = document.getElementById('player-name').value || "Anonymous";
+        let roomName = document.getElementById('join-id').value.trim().toUpperCase();
+        myName = document.getElementById('player-name').value || "Student";
         
-        if(!roomId) return alert("Please enter a Room ID");
+        if(!roomName) return alert("Please enter a Room Name");
+
+        // Sanitize to match host logic
+        roomName = roomName.replace(/[^A-Z0-9]/g, '');
+        const fullId = APP_PREFIX + roomName;
 
         switchScreen('screen-player');
         document.getElementById('player-display-name').innerText = myName;
         generateBingoCard();
 
-        peer = new Peer();
+        peer = new Peer(); // Auto-id for player is fine
         peer.on('open', () => {
-            hostConn = peer.connect(roomId);
+            hostConn = peer.connect(fullId);
             
             hostConn.on('open', () => {
-                document.getElementById('game-status').innerText = "Connected to Host!";
+                document.getElementById('game-status').innerText = "✅ Connected to Room: " + roomName;
                 hostConn.send({ type: 'JOIN', name: myName });
             });
 
+            hostConn.on('error', (err) => {
+                alert("Could not find room: " + roomName);
+                window.location.reload();
+            });
+
             hostConn.on('data', (data) => {
-                if(data.type === 'BALL') {
-                    handleNewBall(data);
+                if(data.type === 'BALL') handleNewBall(data);
+                if(data.type === 'SYNC') {
+                    // Host sent previous numbers (late join support)
+                    // Currently purely visual on player side (player must still mark them)
                 }
             });
             
             hostConn.on('close', () => alert("Host disconnected"));
         });
+        
+        // PeerJS generic connection error
+        peer.on('error', (err) => {
+            console.log(err);
+            alert("Connection Error. Check Room Name.");
+            location.reload();
+        });
     }
 
     function generateBingoCard() {
         const cardContainer = document.getElementById('bingo-card');
-        // Clear old cells (keep headers)
-        while(cardContainer.children.length > 5) {
-            cardContainer.removeChild(cardContainer.lastChild);
-        }
+        while(cardContainer.children.length > 5) cardContainer.removeChild(cardContainer.lastChild);
 
-        // Generate columns
-        // B: 1-15, I: 16-30, N: 31-45, G: 46-60, O: 61-75
         let cols = [
-            getUniqueRandoms(1, 15, 5),
-            getUniqueRandoms(16, 30, 5),
-            getUniqueRandoms(31, 45, 5),
-            getUniqueRandoms(46, 60, 5),
+            getUniqueRandoms(1, 15, 5), getUniqueRandoms(16, 30, 5),
+            getUniqueRandoms(31, 45, 5), getUniqueRandoms(46, 60, 5),
             getUniqueRandoms(61, 75, 5)
         ];
 
-        // Transpose to rows for grid rendering
         for(let r=0; r<5; r++) {
             for(let c=0; c<5; c++) {
                 let cellDiv = document.createElement('div');
                 cellDiv.className = 'bingo-cell';
-                
                 if(r===2 && c===2) {
-                    // Free Space
-                    cellDiv.innerText = "FREE";
+                    cellDiv.innerText = "★";
                     cellDiv.classList.add('marked');
-                    cellDiv.dataset.value = "FREE";
                 } else {
                     let val = cols[c][r];
                     cellDiv.innerText = val;
-                    cellDiv.dataset.value = val;
-                    cellDiv.onclick = () => toggleCell(cellDiv, val);
+                    cellDiv.onclick = () => {
+                        cellDiv.classList.toggle('marked');
+                        playSound('click');
+                        const markedCount = document.querySelectorAll('.bingo-cell.marked').length;
+                        if(hostConn) hostConn.send({ type: 'UPDATE_SCORE', name: myName, matches: markedCount });
+                    };
                 }
                 cardContainer.appendChild(cellDiv);
             }
         }
     }
 
-    function toggleCell(el, val) {
-        // Only allow marking if number has been called (Optional rule, usually relaxed in casual apps, 
-        // but here we allow user to manage their own card).
-        
-        el.classList.toggle('marked');
-        playSound('click');
-        
-        // Count matches and report to host
-        const markedCount = document.querySelectorAll('.bingo-cell.marked').length;
-        if(hostConn) {
-            hostConn.send({ type: 'UPDATE_SCORE', name: myName, matches: markedCount });
-        }
-    }
-
     function handleNewBall(data) {
         playSound('pop');
-        const display = document.getElementById('player-current-ball');
-        display.innerText = data.display; // e.g. "B 5"
-        
-        // Optional: Auto-highlight valid numbers logic could go here, 
-        // but traditional bingo requires the user to look!
+        document.getElementById('player-current-ball').innerText = data.display;
     }
 
-    // --- UTILITIES ---
-
+    // --- UTILS ---
     function getLetter(num) {
-        if(num <= 15) return 'B';
-        if(num <= 30) return 'I';
-        if(num <= 45) return 'N';
-        if(num <= 60) return 'G';
-        return 'O';
+        if(num<=15) return 'B'; if(num<=30) return 'I'; if(num<=45) return 'N'; if(num<=60) return 'G'; return 'O';
     }
-
     function getUniqueRandoms(min, max, count) {
         let arr = [];
         while(arr.length < count) {
             let r = Math.floor(Math.random() * (max - min + 1)) + min;
-            if(arr.indexOf(r) === -1) arr.push(r);
+            if(!arr.includes(r)) arr.push(r);
         }
         return arr;
     }
