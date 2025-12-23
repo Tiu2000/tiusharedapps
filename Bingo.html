@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto-Mark Bingo</title>
+    <title>Auto-Win Bingo</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         :root {
             --primary: #2c3e50;
@@ -119,7 +120,6 @@
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         
-        /* New Match Pulse Animation */
         @keyframes pulseMatch {
             0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
             50% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
@@ -182,11 +182,40 @@
         }
 
         .bingo-cell.marked {
-            background: var(--success); /* Green for auto-match */
+            background: var(--success); 
             color: white;
             position: relative;
             box-shadow: inset 0 3px 5px rgba(0,0,0,0.2);
         }
+
+        /* --- Winner Overlay --- */
+        #winner-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 10000;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--highlight);
+        }
+
+        .winner-text {
+            font-size: 4rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            animation: zoomIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin-bottom: 20px;
+        }
+
+        .winner-name {
+            font-size: 3rem;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        @keyframes zoomIn { from { transform: scale(0); } to { transform: scale(1); } }
 
         /* --- Watermark --- */
         .watermark {
@@ -215,9 +244,15 @@
 
     <div class="watermark">TIU</div>
 
+    <div id="winner-overlay">
+        <div class="winner-text">BINGO!</div>
+        <div class="winner-name" id="winner-display-name">...</div>
+        <button class="btn-host" onclick="closeOverlay()">Close</button>
+    </div>
+
     <div id="screen-login" class="screen active">
         <h1 style="font-size: 3rem; margin-bottom: 0; color: var(--highlight);">BINGO P2P</h1>
-        <p style="opacity: 0.7; margin-top: 5px;">Auto-Marking Enabled</p>
+        <p style="opacity: 0.7; margin-top: 5px;">Auto-Mark & Auto-Win</p>
         
         <div class="login-box">
             <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 25px; margin-bottom: 25px;">
@@ -296,22 +331,41 @@
         const now = audioCtx.currentTime;
         
         if (type === 'pop') {
-            // Ball Reveal (Thump/Pop)
+            // Ball Reveal
             osc.frequency.setValueAtTime(300, now);
             osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
             gain.gain.setValueAtTime(0.3, now);
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
             osc.start(now); osc.stop(now + 0.3);
-
         } else if (type === 'match') {
-            // Success Chime (High Sine) - PLAYS ON AUTO MARK
+            // Success Chime
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(880, now); // A5
-            osc.frequency.exponentialRampToValueAtTime(1760, now + 0.1); // A6
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(1760, now + 0.1);
             gain.gain.setValueAtTime(0.1, now);
             gain.gain.linearRampToValueAtTime(0.4, now + 0.05);
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
             osc.start(now); osc.stop(now + 0.6);
+        } else if (type === 'victory') {
+            // VICTORY FANFARE
+            // Creates a chord arpeggio
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C Major
+            notes.forEach((freq, i) => {
+                const oscV = audioCtx.createOscillator();
+                const gainV = audioCtx.createGain();
+                oscV.type = 'triangle';
+                oscV.connect(gainV);
+                gainV.connect(audioCtx.destination);
+                
+                const start = now + (i * 0.1);
+                oscV.frequency.setValueAtTime(freq, start);
+                gainV.gain.setValueAtTime(0, start);
+                gainV.gain.linearRampToValueAtTime(0.3, start + 0.1);
+                gainV.gain.exponentialRampToValueAtTime(0.01, start + 2);
+                
+                oscV.start(start);
+                oscV.stop(start + 2);
+            });
         }
     }
 
@@ -321,7 +375,8 @@
     let hostConn = null;
     let myName = "";
     let calledNumbers = [];
-    const APP_PREFIX = "tiu-bingo-v2-"; 
+    const APP_PREFIX = "tiu-bingo-v3-"; 
+    let hasWon = false; // Prevent double sending
 
     window.onload = function() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -332,6 +387,12 @@
     function switchScreen(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
+    }
+
+    function closeOverlay() {
+        document.getElementById('winner-overlay').style.display = 'none';
+        // Reset winner flag so game can continue if desired
+        hasWon = false; 
     }
 
     // --- HOST LOGIC ---
@@ -367,6 +428,9 @@
                 if(data.type === 'UPDATE_SCORE') {
                     updatePlayerMonitor(conn.peer, data.name, data.matches);
                 }
+                if(data.type === 'BINGO_WIN') {
+                    handleWin(data.name);
+                }
             });
             conn.on('close', () => {
                 const el = document.getElementById('p-' + conn.peer);
@@ -375,6 +439,23 @@
                 updatePlayerCount();
             });
         });
+    }
+
+    function handleWin(winnerName) {
+        // 1. Show Host Overlay
+        showWinnerOverlay(winnerName);
+        
+        // 2. Broadcast to all players
+        connections.forEach(conn => conn.send({ type: 'GAME_OVER', winner: winnerName }));
+    }
+
+    function showWinnerOverlay(name) {
+        document.getElementById('winner-display-name').innerText = name;
+        document.getElementById('winner-overlay').style.display = 'flex';
+        playSound('victory');
+        
+        // Confetti effect
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
     }
 
     function hostDrawBall() {
@@ -443,10 +524,8 @@
 
             hostConn.on('data', (data) => {
                 if(data.type === 'BALL') handleNewBall(data);
-                if(data.type === 'SYNC') {
-                    // Sync history (auto-mark past numbers)
-                    data.called.forEach(num => autoMarkNumber(num, false)); 
-                }
+                if(data.type === 'SYNC') data.called.forEach(num => autoMarkNumber(num, false)); 
+                if(data.type === 'GAME_OVER') showWinnerOverlay(data.winner);
             });
             
             hostConn.on('error', () => { alert("Room not found!"); location.reload(); });
@@ -463,6 +542,7 @@
             getUniqueRandoms(61, 75, 5)
         ];
 
+        // Transpose for row rendering
         for(let r=0; r<5; r++) {
             for(let c=0; c<5; c++) {
                 let cellDiv = document.createElement('div');
@@ -474,13 +554,7 @@
                 } else {
                     let val = cols[c][r];
                     cellDiv.innerText = val;
-                    cellDiv.dataset.value = val; // Store value for auto-lookup
-                    
-                    // Optional manual click (kept just in case)
-                    cellDiv.onclick = () => {
-                        // Usually disabled in auto-mark, but allowed here if player misses sound
-                        // No sound on manual click to differentiate
-                    };
+                    cellDiv.dataset.value = val; 
                 }
                 cardContainer.appendChild(cellDiv);
             }
@@ -489,27 +563,55 @@
 
     function handleNewBall(data) {
         document.getElementById('player-current-ball').innerText = data.display;
-        autoMarkNumber(data.number, true); // True = play sound
+        autoMarkNumber(data.number, true); 
     }
 
     function autoMarkNumber(number, withSound) {
-        // Find cell with this number
         const cell = document.querySelector(`.bingo-cell[data-value='${number}']`);
         
         if (cell && !cell.classList.contains('marked')) {
-            // MATCH FOUND!
             cell.classList.add('marked');
-            cell.classList.add('match-anim'); // Add visual pulse
+            cell.classList.add('match-anim'); 
             
-            if(withSound) playSound('match'); // Play Chime
-            else playSound('pop'); // Just pop if syncing
+            if(withSound) playSound('match'); 
+            else playSound('pop');
             
-            // Notify Host
+            // Check for Win immediately after marking
+            checkForBingo();
+
+            // Notify Host of Score
             const markedCount = document.querySelectorAll('.bingo-cell.marked').length;
             if(hostConn) hostConn.send({ type: 'UPDATE_SCORE', name: myName, matches: markedCount });
         } else {
-            // No match, just standard pop
             if(withSound) playSound('pop');
+        }
+    }
+
+    // --- WIN DETECTION LOGIC ---
+    function checkForBingo() {
+        if(hasWon) return; // Don't check if already won
+
+        const cells = Array.from(document.querySelectorAll('.bingo-cell'));
+        // Convert to boolean matrix (true if marked)
+        // Note: Headers are children 0-4, cells are 5-29.
+        // We only want the 25 actual cells.
+        const grid = cells.slice(5).map(c => c.classList.contains('marked'));
+
+        const winningCombos = [
+            // Rows
+            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
+            // Cols
+            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
+            // Diagonals
+            [0,6,12,18,24], [4,8,12,16,20]
+        ];
+
+        let bingo = winningCombos.some(combo => combo.every(index => grid[index]));
+
+        if (bingo) {
+            hasWon = true;
+            // Notify Host
+            hostConn.send({ type: 'BINGO_WIN', name: myName });
         }
     }
 
