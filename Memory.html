@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Memory (V28 Poller)</title>
+    <title>TIU Memory (V29 Fixed)</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root { --bg: #000000; --surface: #111; --primary: #00ffcc; --text: #eee; }
@@ -13,7 +13,6 @@
             margin: 0; padding: 10px; box-sizing: border-box;
         }
 
-        /* LOBBY */
         #lobby { background: var(--surface); padding: 25px; border-radius: 12px; width: 100%; max-width: 320px; text-align: center; border: 1px solid #333; }
         button {
             padding: 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;
@@ -28,21 +27,17 @@
             box-sizing: border-box; margin-bottom: 10px; background: #000; color: white; border: 1px solid #444; border-radius: 6px;
         }
 
-        /* GAME UI */
         #game-view { display: none; width: 100%; max-width: 500px; flex-direction: column; align-items: center; }
 
-        /* HEADER */
         .header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #151515; padding: 10px; border-radius: 8px; border: 1px solid #333; box-sizing: border-box;}
         .pulse { width: 8px; height: 8px; background: #333; border-radius: 50%; display: inline-block; margin-right: 8px; }
         .pulse.active { background: #00ffcc; box-shadow: 0 0 10px #00ffcc; }
 
-        /* SCORES */
         .scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-bottom: 20px; }
         .p-card { background: #222; padding: 15px; text-align: center; border: 2px solid transparent; border-radius: 8px; }
         .p-card.active { border-color: var(--primary); background: #111; color: var(--primary); }
         .score { font-size: 1.8rem; display: block; font-weight: bold; margin-top: 5px; }
 
-        /* GRID */
         .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; aspect-ratio: 4/5; }
         .card {
             background: #333; border-radius: 6px; position: relative; cursor: pointer;
@@ -51,10 +46,9 @@
         }
         .card.flipped { background: #eee; transform: scale(0.98); }
         .card.flipped span { display: block; }
-        .card span { display: none; } /* Hide emoji by default */
+        .card span { display: none; }
         .card.matched { opacity: 0.3; background: #000; border-color: #333; }
 
-        /* LOGS */
         #console-log {
             width: 100%; height: 100px; background: #080808; color: #888; font-size: 0.7rem;
             overflow-y: scroll; margin-top: 20px; padding: 10px; border: 1px solid #333; box-sizing: border-box; font-family: monospace;
@@ -64,7 +58,7 @@
 <body onclick="resumeAudio()">
 
     <div id="lobby">
-        <h3>TIU MEMORY V28</h3>
+        <h3>TIU MEMORY V29</h3>
         <button class="btn-host" onclick="initHost()">HOST GAME</button>
         <div style="margin: 15px 0; color:#555">- OR -</div>
         <input type="text" id="code-input" placeholder="CODE" maxlength="4">
@@ -92,15 +86,13 @@
     </div>
 
     <script>
-        // --- CONFIG ---
-        const APP_ID = "tiu-mem-v28-poll-";
-        const EMOJIS = ['🚀','🍕','🐱','🌵','🎸','🍦','💎','🔥'];
+        const APP_ID = "tiu-mem-v29-fix-";
+        const EMOJIS = ['🚀','🍕','🐱','🌵','🎸','🦄','💎','🔥'];
         const logBox = document.getElementById('console-log');
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        // --- STATE ---
         let peer, conn;
-        let connections = []; // Host list
+        let connections = [];
         let myRole;
         let syncInterval;
         
@@ -109,7 +101,6 @@
             turn: 'host', scores: { host: 0, guest: 0 }, locked: false
         };
 
-        // --- AUDIO ---
         function resumeAudio() { if(audioCtx.state==='suspended') audioCtx.resume(); }
         function playTone(freq, type) {
             resumeAudio();
@@ -121,14 +112,12 @@
             o.stop(audioCtx.currentTime + 0.2);
         }
 
-        // --- LOGGING ---
         function log(msg) {
             const div = document.createElement('div');
-            div.innerText = `> ${msg}`;
+            div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
             logBox.prepend(div);
         }
 
-        // --- HOST ---
         function initHost() {
             const code = Math.random().toString(36).substring(2,6).toUpperCase();
             myRole = 'host';
@@ -136,44 +125,49 @@
             
             setupUI(code);
             render();
-            log("Hosting Room: " + code);
+            log("🟣 Hosting Room: " + code);
 
             peer = new Peer(APP_ID + code);
             peer.on('connection', c => {
                 connections.push(c);
-                log("Guest Connected!");
+                log("✅ Guest Connected!");
                 
                 c.on('open', () => {
-                    // Send DIRECTLY to this specific connection immediately
-                    c.send({ type: 'STATE', state: gameState, snd: 'init' });
+                    c.send({ type: 'STATE', state: cloneState(gameState), snd: 'init' });
+                    log("📤 Sent initial state to guest");
                 });
 
                 c.on('data', data => {
                     flashHeartbeat();
                     if(data.type === 'CLICK') {
-                        if(gameState.turn === 'guest') processMove(data.index);
-                        else broadcast(); // Resync if they click out of turn
+                        log(`📥 Guest clicked card ${data.index}`);
+                        if(gameState.turn === 'guest') {
+                            processMove(data.index);
+                        } else {
+                            log("⚠️ Guest clicked out of turn - resyncing");
+                            c.send({ type: 'STATE', state: cloneState(gameState) });
+                        }
                     }
                     if(data.type === 'REQ_SYNC') {
-                        // Respond directly to the requester if possible, or broadcast
-                        c.send({ type: 'STATE', state: gameState });
+                        log("📥 Guest requested sync");
+                        c.send({ type: 'STATE', state: cloneState(gameState) });
                     }
                 });
 
                 c.on('close', () => {
                     connections = connections.filter(x => x !== c);
+                    log("❌ Guest Disconnected");
                 });
             });
         }
 
-        // --- GUEST ---
         function initGuest() {
             const code = document.getElementById('code-input').value.trim().toUpperCase();
             if(code.length !== 4) return alert("Enter 4-letter code");
             myRole = 'guest';
             
             setupUI(code);
-            log("Connecting to " + code + "...");
+            log("🔵 Connecting to " + code + "...");
             document.getElementById('turn-banner').innerText = "CONNECTING...";
             
             peer = new Peer();
@@ -181,67 +175,101 @@
                 conn = peer.connect(APP_ID + code, { reliable: true });
                 
                 conn.on('open', () => {
-                    log("Connected! Polling for state...");
+                    log("✅ Connected! Requesting state...");
                     document.getElementById('turn-banner').innerText = "SYNCING...";
                     
-                    // START POLLING: Ask for state every 1s until we get a deck
                     requestSync(); 
                     syncInterval = setInterval(() => {
                         if(gameState.deck.length === 0) {
-                            log("...Polling Host...");
+                            log("⏳ Polling host...");
                             requestSync();
                         } else {
                             clearInterval(syncInterval);
-                            log("Sync Complete!");
+                            syncInterval = null;
+                            log("✅ Sync Complete!");
                         }
                     }, 1000);
                 });
                 
                 conn.on('data', data => {
                     flashHeartbeat();
-                    log("Recv: " + data.type); // Debug log
                     
                     if(data.type === 'STATE') {
-                        gameState = data.state;
+                        // CRITICAL FIX: Deep clone the received state
+                        gameState = cloneState(data.state);
+                        
+                        log(`📥 State: turn=${gameState.turn}, flip=${gameState.flipped.length}, match=${gameState.matched.length}/16, lock=${gameState.locked}`);
+                        
                         render();
-                        // If this was the first sync, stop polling
+                        
                         if(gameState.deck.length > 0 && syncInterval) {
                             clearInterval(syncInterval);
+                            syncInterval = null;
                         }
+                        
                         if(data.snd && data.snd !== 'init') {
                             playTone(data.snd === 'match' ? 880 : 200, data.snd === 'match' ? 'triangle' : 'sawtooth');
                         }
                     }
                 });
 
-                conn.on('close', () => log("Connection Lost"));
-                conn.on('error', e => log("Error: " + e));
+                conn.on('close', () => log("❌ Connection Lost"));
+                conn.on('error', e => log("❌ Error: " + e));
             });
         }
 
-        // --- NETWORKING ---
+        // CRITICAL FIX: Deep clone function to prevent reference issues
+        function cloneState(state) {
+            return {
+                deck: [...state.deck],
+                flipped: [...state.flipped],
+                matched: [...state.matched],
+                turn: state.turn,
+                scores: { host: state.scores.host, guest: state.scores.guest },
+                locked: state.locked
+            };
+        }
+
         function broadcast(sndTag) {
+            const cloned = cloneState(gameState);
             connections.forEach(c => {
-                if(c.open) c.send({ type: 'STATE', state: gameState, snd: sndTag });
+                if(c.open) {
+                    c.send({ type: 'STATE', state: cloned, snd: sndTag });
+                }
             });
+            log(`📤 Broadcast: ${sndTag || 'state'}`);
         }
 
         function requestSync() {
-            if(conn && conn.open) conn.send({ type: 'REQ_SYNC' });
+            if(conn && conn.open) {
+                conn.send({ type: 'REQ_SYNC' });
+            }
         }
 
-        // --- GAME LOGIC (HOST) ---
         function processMove(i) {
-            if(gameState.locked) return;
-            if(gameState.matched.includes(i) || gameState.flipped.includes(i)) return;
+            if(gameState.locked) {
+                log("🔒 Locked - ignoring click");
+                return;
+            }
+            if(gameState.matched.includes(i) || gameState.flipped.includes(i)) {
+                log("⚠️ Card already flipped/matched");
+                return;
+            }
 
             gameState.flipped.push(i);
             playTone(400, 'sine');
+            log(`🃏 Flipped card ${i} (${gameState.deck[i]})`);
+            
             render(); 
             broadcast('flip'); 
 
             if(gameState.flipped.length === 2) {
                 gameState.locked = true;
+                log("🔒 Locked - evaluating pair...");
+                
+                // CRITICAL FIX: Broadcast the locked state with both cards visible
+                broadcast('flip');
+                
                 const [a, b] = gameState.flipped;
                 
                 setTimeout(() => {
@@ -250,38 +278,62 @@
                         gameState.matched.push(a, b);
                         gameState.scores[gameState.turn]++;
                         snd = 'match';
+                        log(`✅ MATCH! ${gameState.turn} scores (${gameState.scores[gameState.turn]})`);
                     } else {
+                        const oldTurn = gameState.turn;
                         gameState.turn = (gameState.turn === 'host' ? 'guest' : 'host');
                         snd = 'nomatch';
+                        log(`❌ No match. Turn: ${oldTurn} → ${gameState.turn}`);
                     }
+                    
                     gameState.flipped = [];
                     gameState.locked = false;
+                    
                     render();
                     broadcast(snd);
+                    
                     playTone(snd==='match'?880:200, snd==='match'?'triangle':'sawtooth');
+                    
+                    // Check for game end
+                    if(gameState.matched.length === 16) {
+                        const winner = gameState.scores.host > gameState.scores.guest ? 'HOST' : 
+                                      gameState.scores.guest > gameState.scores.host ? 'GUEST' : 'TIE';
+                        log(`🏆 GAME OVER! Winner: ${winner}`);
+                    }
                 }, 1000);
             }
         }
 
-        // --- INPUT ---
         function onCardClick(i) {
             if(gameState.deck.length === 0) {
-                // If clicked before synced, force a sync
-                if(myRole === 'guest') requestSync();
+                if(myRole === 'guest') {
+                    log("⚠️ No deck yet - requesting sync");
+                    requestSync();
+                }
                 return;
             }
 
             if(myRole === 'host') {
-                if(gameState.turn === 'host') processMove(i);
-                else log("Wait for guest...");
+                if(gameState.turn === 'host') {
+                    processMove(i);
+                } else {
+                    log("⏸️ Not your turn");
+                }
             } 
             else if(myRole === 'guest') {
-                if(gameState.turn === 'guest') conn.send({ type: 'CLICK', index: i });
-                else log("Wait for host...");
+                if(gameState.turn === 'guest') {
+                    if(conn && conn.open) {
+                        conn.send({ type: 'CLICK', index: i });
+                        log(`📤 Sent click: ${i}`);
+                    } else {
+                        log("❌ Not connected");
+                    }
+                } else {
+                    log("⏸️ Not your turn");
+                }
             }
         }
 
-        // --- UI ---
         function setupUI(code) {
             document.getElementById('lobby').style.display = 'none';
             document.getElementById('game-view').style.display = 'flex';
@@ -299,7 +351,7 @@
         }
 
         function render() {
-            if(gameState.deck.length === 0) return; // Don't render empty state
+            if(gameState.deck.length === 0) return;
 
             const banner = document.getElementById('turn-banner');
             const isMyTurn = gameState.turn === myRole;
@@ -315,11 +367,13 @@
             for(let i=0; i<cards.length; i++) {
                 const card = cards[i];
                 const span = card.querySelector('span');
-                span.innerText = gameState.deck[i]; // Update emoji
+                span.innerText = gameState.deck[i];
 
+                // CRITICAL FIX: Always reset classes first
+                card.classList.remove('flipped', 'matched');
+                
                 const isFlipped = gameState.flipped.includes(i) || gameState.matched.includes(i);
                 if(isFlipped) card.classList.add('flipped');
-                else card.classList.remove('flipped');
                 
                 if(gameState.matched.includes(i)) card.classList.add('matched');
             }
