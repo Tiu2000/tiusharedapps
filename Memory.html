@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Memory Match P2P</title>
+    <title>TIU Memory Match P2P (Stable)</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -75,6 +75,7 @@
         button:active { transform: scale(0.95); }
         .btn-host { background-color: var(--accent); color: white; }
         .btn-join { background-color: var(--card-back); color: white; }
+        .btn-retry { background-color: #ffa500; color: white; display: none; margin-top: 10px;}
 
         #game-container {
             display: none;
@@ -107,7 +108,7 @@
             box-shadow: 0 0 15px var(--accent);
         }
 
-        #status-msg { margin-bottom: 15px; font-style: italic; color: #ccc; }
+        #status-msg { margin-bottom: 15px; font-style: italic; color: #ccc; min-height: 24px; }
 
         .grid {
             display: grid;
@@ -183,14 +184,15 @@
     <div id="game-container">
         <div class="hud">
             <div id="p1-score-box" class="player-score active-turn">You: <span id="my-score">0</span></div>
-            <div id="status-msg">Waiting for opponent...</div>
+            <div id="status-msg">Initializing...</div>
             <div id="p2-score-box" class="player-score">Opponent: <span id="op-score">0</span></div>
         </div>
         <div class="grid" id="grid"></div>
+        <button class="btn-retry" id="force-sync-btn" onclick="requestGameData()">Stuck? Click to Sync</button>
     </div>
 
     <script>
-        // --- GAME CONFIG ---
+        // --- GAME CONSTANTS & STATE ---
         const EMOJIS = ['🚀', '🍕', '🐱', '🌵', '🎸', '🍦', '💎', '🔥'];
         let deck = [];
         let flippedCards = []; 
@@ -201,12 +203,8 @@
         let isHost = false;
         let canInteract = false;
 
-        // --- NETWORKING ---
-        let peer;
-        let conn;
-        const PREFIX = 'tiu-mem-game-v2-'; // Changed version to prevent cached issues
+        // --- AUDIO SYSTEM ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
         function playSound(type) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator();
@@ -226,6 +224,13 @@
             }
         }
 
+        // --- NETWORKING VARIABLES ---
+        let peer;
+        let conn;
+        // Bump version to ignore cached connections
+        const PREFIX = 'tiu-mem-game-v3-'; 
+        let syncInterval = null;
+
         function getRoomId() {
             const input = document.getElementById('room-input').value.trim().toLowerCase();
             return input ? PREFIX + input : null;
@@ -237,7 +242,7 @@
             if (!id) return alert("Enter a room name!");
             document.getElementById('lobby-status').innerText = "Creating room...";
             
-            peer = new Peer(id);
+            peer = new Peer(id, { debug: 2 });
 
             peer.on('open', (id) => {
                 document.getElementById('lobby-status').innerText = "Room created! Waiting for player...";
@@ -251,8 +256,7 @@
 
             peer.on('connection', (connection) => {
                 conn = connection;
-                setupConnection(); 
-                // Wait for 'READY' signal from guest before sending cards
+                setupConnectionHandlers();
             });
         }
 
@@ -262,45 +266,75 @@
             if (!id) return alert("Enter a room name!");
             document.getElementById('lobby-status').innerText = "Connecting...";
             
-            peer = new Peer(); 
+            peer = new Peer(null, { debug: 2 }); 
 
             peer.on('open', () => {
-                conn = peer.connect(id);
-                conn.on('open', () => {
-                    isHost = false;
-                    isMyTurn = false;
-                    setupConnection();
-                    // Tell Host we are ready to receive cards
-                    conn.send({ type: 'READY' });
-                });
+                // Ensure reliability is ON
+                conn = peer.connect(id, { reliable: true });
+                setupConnectionHandlers();
             });
 
             peer.on('error', () => alert("Room not found or connection failed."));
         }
 
-        function setupConnection() {
-            document.getElementById('lobby').style.display = 'none';
-            document.getElementById('game-container').style.display = 'flex';
-            updateTurnUI();
+        function setupConnectionHandlers() {
+            conn.on('open', () => {
+                document.getElementById('lobby').style.display = 'none';
+                document.getElementById('game-container').style.display = 'flex';
+                
+                if (isHost) {
+                    // Host initializes game immediately
+                    startGameAsHost();
+                } else {
+                    // Guest waits for data, but starts a safety loop to ask for it
+                    isHost = false;
+                    isMyTurn = false;
+                    setStatus("Syncing Game Data...", "#ffcc00");
+                    // Start requesting data every 1 second until we get it
+                    syncInterval = setInterval(requestGameData, 1000);
+                }
+                updateTurnUI();
+            });
 
             conn.on('data', handleNetworkMessage);
             conn.on('close', () => { alert("Opponent disconnected!"); location.reload(); });
         }
 
+        function requestGameData() {
+            // Guest function: Asks host for the deck
+            if (conn && conn.open) {
+                console.log("Requesting game data...");
+                conn.send({ type: 'REQUEST_INIT' });
+            }
+        }
+
         function handleNetworkMessage(data) {
-            console.log("Received:", data.type);
+            console.log("Received Data:", data);
+
             switch (data.type) {
-                case 'READY':
-                    if (isHost) startGameAsHost();
+                case 'REQUEST_INIT':
+                    // Host received request, send deck
+                    if (isHost && deck.length > 0) {
+                        conn.send({ type: 'INIT', deck: deck });
+                    }
                     break;
+
                 case 'INIT':
-                    deck = data.deck;
-                    renderGrid();
-                    setStatus("Opponent's Turn");
+                    // Guest received deck
+                    if (!isHost) {
+                        deck = data.deck;
+                        renderGrid();
+                        // Stop asking for data
+                        if (syncInterval) clearInterval(syncInterval);
+                        document.getElementById('force-sync-btn').style.display = 'none';
+                        setStatus("Opponent's Turn");
+                    }
                     break;
+
                 case 'FLIP':
                     flipCardLocally(data.index, false);
                     break;
+
                 case 'TURN_CHANGE':
                     isMyTurn = data.yourTurn;
                     canInteract = isMyTurn;
@@ -312,29 +346,41 @@
         function startGameAsHost() {
             deck = [...EMOJIS, ...EMOJIS].sort(() => Math.random() - 0.5);
             renderGrid();
-            // Now we know guest is ready, send the deck
-            conn.send({ type: 'INIT', deck: deck });
+            // Send initial payload (might fail if guest isn't ready, but REQUEST_INIT catches it)
+            setTimeout(() => {
+                conn.send({ type: 'INIT', deck: deck });
+            }, 500);
             setStatus("Your Turn");
             canInteract = true;
         }
 
-        // --- GAMEPLAY ---
+        // --- GAMEPLAY RENDER & LOGIC ---
         function renderGrid() {
             const grid = document.getElementById('grid');
-            grid.innerHTML = '';
+            grid.innerHTML = ''; // Clear existing
+            
+            if (deck.length === 0) {
+                console.error("Deck is empty, cannot render.");
+                return;
+            }
+
             deck.forEach((emoji, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
-                // HTML structure
                 card.innerHTML = `<div class="card-face card-front"></div><div class="card-face card-back">${emoji}</div>`;
                 card.addEventListener('click', () => handleCardClick(index));
                 grid.appendChild(card);
             });
+            console.log("Grid rendered with " + deck.length + " cards.");
         }
 
         function updateTurnUI() {
             const p1 = document.getElementById('p1-score-box');
             const p2 = document.getElementById('p2-score-box');
+            
+            // If deck isn't loaded yet on guest, keep Syncing status
+            if (!isHost && deck.length === 0) return; 
+
             if (isMyTurn) {
                 p1.classList.add('active-turn'); p2.classList.remove('active-turn');
                 setStatus("Your Turn", "#4ade80");
@@ -361,6 +407,8 @@
 
         function flipCardLocally(index, isMe) {
             const cards = document.querySelectorAll('.card');
+            if (!cards[index]) return; // Safety check
+            
             playSound('flip');
             cards[index].classList.add('flipped');
             flippedCards.push({ index, value: deck[index] });
