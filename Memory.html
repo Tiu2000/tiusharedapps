@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Memory (Sound + Retry Fix)</title>
+    <title>TIU Memory (Strict Sync)</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -11,7 +11,6 @@
             --surface: #1e1e1e;
             --primary: #bb86fc;
             --secondary: #03dac6;
-            --error: #cf6679;
         }
         body {
             font-family: 'Segoe UI', sans-serif;
@@ -20,7 +19,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             min-height: 100vh;
             margin: 0;
             overflow: hidden;
@@ -29,6 +27,7 @@
 
         /* LOBBY */
         #lobby {
+            margin-top: 10vh;
             background: var(--surface);
             padding: 2rem;
             border-radius: 12px;
@@ -48,15 +47,15 @@
         .btn-host { background: var(--primary); color: #000; }
         .btn-join { background: var(--secondary); color: #000; }
 
-        /* LOADING OVERLAY */
-        #loading {
-            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
-            background: rgba(0,0,0,0.9); flex-direction: column;
-            align-items: center; justify-content: center; z-index: 200;
+        /* LOADING */
+        #loading-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); flex-direction: column; justify-content: center; align-items: center;
+            z-index: 200;
         }
         .spinner {
             width: 40px; height: 40px; border: 4px solid #333; border-top: 4px solid var(--secondary);
-            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
@@ -67,22 +66,26 @@
             align-items: center;
             width: 100%;
             max-width: 600px;
+            margin-top: 20px;
         }
 
-        .hud {
+        .header {
             display: flex; justify-content: space-between; width: 100%; margin-bottom: 20px;
             background: var(--surface); padding: 15px; border-radius: 8px; box-sizing: border-box;
-            border: 1px solid #333;
-        }
-        .score-box { text-align: center; min-width: 80px; }
-        .score-val { font-size: 1.5rem; font-weight: bold; display: block; }
-        .active-turn { color: var(--secondary); text-shadow: 0 0 10px var(--secondary); border-bottom: 2px solid var(--secondary); }
-        
-        #game-id-display {
-            position: absolute; top: 10px; right: 10px; font-family: monospace; 
-            background: #333; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; opacity: 0.7;
+            border: 1px solid #333; position: relative;
         }
 
+        /* GAME ID TAG */
+        #game-id-tag {
+            position: absolute; top: -15px; right: 0; 
+            background: #333; padding: 2px 8px; font-size: 0.75rem; 
+            border-radius: 4px 4px 0 0; font-family: monospace; color: #aaa;
+        }
+
+        .score-box { text-align: center; width: 80px; }
+        .score-val { font-size: 1.5rem; font-weight: bold; display: block; }
+        .active-turn { color: var(--secondary); text-shadow: 0 0 10px var(--secondary); font-weight: bold; }
+        
         .grid {
             display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
         }
@@ -96,134 +99,104 @@
         .face {
             position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
             display: flex; align-items: center; justify-content: center;
-            font-size: 2rem; border-radius: 8px; border: 2px solid #333; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            font-size: 2rem; border-radius: 8px; border: 2px solid #333;
         }
         .front { background: #2c2c2c; } 
-        .front::after { content: "?"; color: #555; }
         .back { background: white; transform: rotateY(180deg); color: black; }
 
         #status-msg { margin-top: 15px; color: #aaa; font-style: italic; min-height: 20px;}
-
     </style>
 </head>
 <body>
 
-    <div id="game-id-display"></div>
-
     <div id="lobby">
-        <h2>TIU Memory</h2>
-        <input type="text" id="room-input" placeholder="Room Name (e.g. apple)" maxlength="10">
+        <h2>TIU Memory P2P</h2>
+        <input type="text" id="room-input" placeholder="Room Name (e.g. game1)" maxlength="12">
         <br>
-        <button class="btn-host" onclick="initHost()">Host Game</button>
-        <button class="btn-join" onclick="initGuest()">Join Game</button>
+        <button class="btn-host" onclick="startHost()">Host Game</button>
+        <button class="btn-join" onclick="startGuest()">Join Game</button>
         <div id="lobby-log" style="margin-top:10px; color:#888; font-size:0.8rem;"></div>
     </div>
 
-    <div id="loading">
+    <div id="loading-overlay">
         <div class="spinner"></div>
         <div id="loading-text">Connecting...</div>
-        <button onclick="forceSyncRequest()" style="margin-top:20px; font-size:0.8rem; background:#444; color:#ccc;">Stuck? Click Here</button>
+        <button onclick="sendSyncRequest()" style="margin-top:20px; font-size:0.8rem; background:#444; color:#ccc; border:none; padding:5px 10px; cursor:pointer;">Force Retry</button>
     </div>
 
     <div id="game-ui">
-        <div class="hud">
+        <div class="header">
+            <div id="game-id-tag">ID: ???</div>
             <div id="p1-ui" class="score-box">HOST<span id="s1" class="score-val">0</span></div>
-            <div id="turn-indicator" style="align-self:center; font-size: 0.9rem; color:#888;">VS</div>
+            <div style="align-self:center; color:#555;">VS</div>
             <div id="p2-ui" class="score-box">GUEST<span id="s2" class="score-val">0</span></div>
         </div>
         <div id="grid" class="grid"></div>
-        <div id="status-msg">Waiting for game start...</div>
+        <div id="status-msg"></div>
     </div>
 
     <script>
-        // --- SOUND ENGINE ---
+        // --- SOUNDS ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
-        function playSound(type) {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
+        function playTone(type) {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            
-            const now = audioCtx.currentTime;
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            const t = audioCtx.currentTime;
 
-            if (type === 'flip') {
-                // High blip
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(600, now);
-                osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.1);
-                osc.start(now); osc.stop(now + 0.1);
-            } 
-            else if (type === 'match') {
-                // Pleasant ding
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(523.25, now); // C5
-                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.4);
-                osc.start(now); osc.stop(now + 0.4);
-            } 
-            else if (type === 'nomatch') {
-                // Low buzz
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(150, now);
-                osc.frequency.linearRampToValueAtTime(100, now + 0.2);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.2);
-                osc.start(now); osc.stop(now + 0.2);
-            }
-            else if (type === 'win') {
-                // Victory Arpeggio
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(523, now);
-                osc.frequency.setValueAtTime(659, now + 0.1);
-                osc.frequency.setValueAtTime(784, now + 0.2);
-                osc.frequency.setValueAtTime(1046, now + 0.3);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.8);
-                osc.start(now); osc.stop(now + 0.8);
+            if(type==='flip'){
+                osc.frequency.setValueAtTime(400,t); osc.frequency.linearRampToValueAtTime(600,t+0.1);
+                gain.gain.setValueAtTime(0.1,t); gain.gain.linearRampToValueAtTime(0,t+0.1);
+                osc.start(t); osc.stop(t+0.1);
+            } else if(type==='match'){
+                osc.type='triangle'; osc.frequency.setValueAtTime(500,t); osc.frequency.setValueAtTime(800,t+0.2);
+                gain.gain.setValueAtTime(0.1,t); gain.gain.linearRampToValueAtTime(0,t+0.3);
+                osc.start(t); osc.stop(t+0.3);
+            } else if(type==='nomatch'){
+                osc.type='sawtooth'; osc.frequency.setValueAtTime(200,t); osc.frequency.linearRampToValueAtTime(100,t+0.2);
+                gain.gain.setValueAtTime(0.1,t); gain.gain.linearRampToValueAtTime(0,t+0.2);
+                osc.start(t); osc.stop(t+0.2);
             }
         }
 
-        // --- CONFIG & STATE ---
-        const APP_ID = "tiu_mem_v8_audio_"; 
+        // --- CONFIG ---
+        const APP_ID = "tiu-memory-fixed-v9-"; 
         const EMOJIS = ['🚀', '🍕', '🐱', '🌵', '🎸', '🍦', '💎', '🔥'];
 
+        // --- STATE ---
         let peer, conn;
         let myRole = ''; 
-        let deck = []; 
+        let deck = []; // Guest starts with EMPTY deck
         let turn = 'host';
         let scores = { host: 0, guest: 0 };
         let flipped = [];
         let matched = [];
-        let inputLocked = false;
-        let syncInterval = null; // The fix for "stuck" peers
+        let isLocked = false;
+        let syncInterval = null;
 
-        // --- HELPER FUNCTIONS ---
+        // --- UTILS ---
         function getRoom() { return document.getElementById('room-input').value.toLowerCase().trim(); }
         function log(m) { document.getElementById('lobby-log').innerText = m; }
-        function getHash(arr) { 
+        
+        // This Hash MUST match on both screens
+        function getHash(arr) {
+            if(!arr || arr.length===0) return "WAITING";
             let s = arr.join(""), h = 0;
             for(let i=0; i<s.length; i++) h = Math.imul(31, h) + s.charCodeAt(i) | 0;
             return "#" + Math.abs(h).toString(16).substring(0,4).toUpperCase();
         }
 
-        // --- HOST LOGIC ---
-        function initHost() {
+        // --- HOST ---
+        function startHost() {
             const r = getRoom();
             if(!r) return alert("Enter Room Name");
             
-            // Activate Audio Context
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-
             myRole = 'host';
+            // Host creates the authoritative deck ONCE
             deck = [...EMOJIS, ...EMOJIS].sort(() => Math.random() - 0.5);
             
-            renderGame(); // Host sees game immediately
+            renderGame(); // Show game immediately
 
             log("Starting Server...");
             peer = new Peer(APP_ID + r);
@@ -233,35 +206,33 @@
             peer.on('connection', (c) => {
                 conn = c;
                 log("Guest Connecting...");
+                
                 conn.on('data', (data) => {
-                    // Host responds to ALL requests for data
+                    // Host responds to Sync Requests
                     if (data.type === 'REQ_SYNC' || data.type === 'CLICK') {
                         handleIncoming(data);
                     }
                 });
             });
-            peer.on('error', () => alert("Room ID taken. Try another name."));
+            peer.on('error', () => alert("Room Name Taken."));
         }
 
-        // --- GUEST LOGIC ---
-        function initGuest() {
+        // --- GUEST ---
+        function startGuest() {
             const r = getRoom();
             if(!r) return alert("Enter Room Name");
-            
-            // Activate Audio Context
-            if (audioCtx.state === 'suspended') audioCtx.resume();
 
             myRole = 'guest';
             document.getElementById('lobby').style.display = 'none';
-            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('loading-overlay').style.display = 'flex';
 
             peer = new Peer(); 
             peer.on('open', () => {
                 conn = peer.connect(APP_ID + r, { reliable: true });
 
                 conn.on('open', () => {
-                    document.getElementById('loading-text').innerText = "Requesting Game Data...";
-                    // THE FIX: Ask repeatedly until we get an answer
+                    document.getElementById('loading-text').innerText = "Downloading Game Data...";
+                    // Start the nagging loop
                     startSyncLoop();
                 });
 
@@ -269,135 +240,132 @@
                 conn.on('close', () => alert("Host Disconnected"));
             });
             peer.on('error', () => {
-                alert("Room not found");
+                alert("Room Not Found");
                 location.reload();
             });
         }
 
-        // --- THE FIX: SYNC LOOP ---
         function startSyncLoop() {
-            // Send a request immediately
-            conn.send({ type: 'REQ_SYNC' });
-            
-            // Keep sending every 500ms until 'deck' is populated
-            if (syncInterval) clearInterval(syncInterval);
+            // Ask for data every 1 second until we have a deck
+            sendSyncRequest();
+            if(syncInterval) clearInterval(syncInterval);
             syncInterval = setInterval(() => {
-                if (deck.length > 0) {
-                    clearInterval(syncInterval); // Stop asking, we have data
+                if(deck.length > 0) {
+                    clearInterval(syncInterval);
                 } else {
-                    console.log("Retrying sync request...");
-                    if(conn.open) conn.send({ type: 'REQ_SYNC' });
+                    console.log("Retrying Sync...");
+                    sendSyncRequest();
                 }
-            }, 500);
+            }, 1000);
         }
 
-        function forceSyncRequest() {
-            if(conn && conn.open) conn.send({type: 'REQ_SYNC'});
+        function sendSyncRequest() {
+            if(conn && conn.open) conn.send({ type: 'REQ_SYNC' });
         }
 
-        // --- SHARED DATA HANDLER ---
+        // --- SHARED LOGIC ---
         function handleIncoming(data) {
-            console.log("RX:", data.type);
-
-            if (data.type === 'REQ_SYNC' && myRole === 'host') {
-                // Host sends everything
-                conn.send({ 
-                    type: 'STATE_UPDATE', 
-                    deck: deck, 
-                    turn: turn, 
-                    scores: scores, 
-                    flipped: flipped, 
-                    matched: matched 
-                });
+            // HOST LOGIC
+            if (myRole === 'host') {
+                if (data.type === 'REQ_SYNC') {
+                    // Send entire state
+                    conn.send({ 
+                        type: 'STATE', 
+                        deck: deck, 
+                        turn: turn, 
+                        scores: scores, 
+                        flipped: flipped, 
+                        matched: matched 
+                    });
+                } 
+                else if (data.type === 'CLICK') {
+                    processClick(data.index);
+                }
             }
-            else if (data.type === 'STATE_UPDATE') {
-                // Guest receives everything
-                deck = data.deck;
-                turn = data.turn;
-                scores = data.scores;
-                flipped = data.flipped;
-                matched = data.matched;
-                
-                // Clear the loading screen if it's the first load
-                document.getElementById('loading').style.display = 'none';
-                if(deck.length > 0) renderGame();
+            
+            // GUEST LOGIC
+            else if (myRole === 'guest') {
+                if (data.type === 'STATE') {
+                    // Overwrite local state with Host state
+                    deck = data.deck;
+                    turn = data.turn;
+                    scores = data.scores;
+                    flipped = data.flipped;
+                    matched = data.matched;
+                    
+                    document.getElementById('loading-overlay').style.display = 'none';
+                    renderGame();
 
-                // Play sounds triggered by Host
-                if (data.sound) playSound(data.sound);
-            }
-            else if (data.type === 'CLICK' && myRole === 'host') {
-                // Host processes guest click
-                processClick(data.index);
+                    // Sound Triggers
+                    if(data.sound) playTone(data.sound);
+                }
             }
         }
 
         // --- GAMEPLAY (HOST AUTHORITATIVE) ---
-        function cardClicked(i) {
-            if (myRole === 'host') processClick(i);
-            else if (myRole === 'guest') conn.send({ type: 'CLICK', index: i });
+        function onCardClick(i) {
+            if(myRole === 'host') processClick(i);
+            else if(myRole === 'guest') conn.send({ type: 'CLICK', index: i });
         }
 
         function processClick(i) {
-            // Validation
-            if (inputLocked || matched.includes(i) || flipped.includes(i)) return;
-            if (turn !== 'host' && myRole === 'host') return; // Strict turn enforcement (optional)
+            if(isLocked || matched.includes(i) || flipped.includes(i)) return;
+            if(turn !== 'host' && myRole === 'host') return; // Enforce turn
 
             flipped.push(i);
-            broadcast('flip'); // Sound: Flip
+            broadcast('flip');
 
-            if (flipped.length === 2) {
-                inputLocked = true;
+            if(flipped.length === 2) {
+                isLocked = true;
                 setTimeout(checkMatch, 600);
             }
         }
 
         function checkMatch() {
             const [a, b] = flipped;
-            if (deck[a] === deck[b]) {
+            if(deck[a] === deck[b]) {
                 matched.push(a, b);
-                if (turn === 'host') scores.host++; else scores.guest++;
+                if(turn === 'host') scores.host++; else scores.guest++;
                 flipped = [];
-                broadcast('match'); // Sound: Match
+                broadcast('match');
                 checkWin();
             } else {
                 flipped = [];
                 turn = (turn === 'host') ? 'guest' : 'host';
-                broadcast('nomatch'); // Sound: Fail
+                broadcast('nomatch');
             }
-            inputLocked = false;
+            isLocked = false;
         }
 
         function checkWin() {
-            if (matched.length === deck.length) {
-                setTimeout(() => broadcast('win'), 500); // Sound: Win
-            }
+            if(matched.length === deck.length) broadcast('match'); // Just reuse match sound for win
         }
 
-        function broadcast(soundName) {
-            renderGame(); // Update Host UI
-            // Send to Guest
-            if (conn && conn.open) {
+        function broadcast(snd) {
+            renderGame();
+            if(snd) playTone(snd);
+            if(conn && conn.open) {
                 conn.send({
-                    type: 'STATE_UPDATE',
+                    type: 'STATE',
                     deck: deck,
                     turn: turn,
                     scores: scores,
                     flipped: flipped,
                     matched: matched,
-                    sound: soundName
+                    sound: snd
                 });
             }
-            // Host plays sound locally too
-            if(soundName) playSound(soundName);
         }
 
         // --- RENDERER ---
         function renderGame() {
             document.getElementById('lobby').style.display = 'none';
             document.getElementById('game-ui').style.display = 'flex';
-            document.getElementById('game-id-display').innerText = "ID: " + getHash(deck);
+            
+            // ID Check
+            document.getElementById('game-id-tag').innerText = "ID: " + getHash(deck);
 
-            // Scores & Turn
+            // Scores
             document.getElementById('s1').innerText = scores.host;
             document.getElementById('s2').innerText = scores.guest;
             
@@ -405,32 +373,31 @@
             const p2 = document.getElementById('p2-ui');
             const msg = document.getElementById('status-msg');
 
-            p1.className = 'score-box' + (turn === 'host' ? ' active-turn' : '');
-            p2.className = 'score-box' + (turn === 'guest' ? ' active-turn' : '');
-            
-            if (matched.length === deck.length) {
+            p1.className = 'score-box ' + (turn==='host' ? 'active-turn' : '');
+            p2.className = 'score-box ' + (turn==='guest' ? 'active-turn' : '');
+
+            if(matched.length === deck.length) {
                 msg.innerText = scores.host > scores.guest ? "HOST WINS!" : "GUEST WINS!";
                 msg.style.color = "gold";
             } else {
                 msg.innerText = (turn === myRole) ? "Your Turn" : "Opponent's Turn";
-                msg.style.color = "#aaa";
             }
 
             // Grid
             const grid = document.getElementById('grid');
-            if (grid.childElementCount !== deck.length) {
+            if(grid.childElementCount !== deck.length) {
                 grid.innerHTML = "";
                 deck.forEach((emoji, i) => {
-                    const el = document.createElement('div');
-                    el.className = 'card';
-                    el.id = 'c-' + i;
-                    el.onclick = () => cardClicked(i);
-                    el.innerHTML = `<div class="face front"></div><div class="face back">${emoji}</div>`;
-                    grid.appendChild(el);
+                    const d = document.createElement('div');
+                    d.className = 'card';
+                    d.id = 'c-'+i;
+                    d.onclick = () => onCardClick(i);
+                    d.innerHTML = `<div class="face front"></div><div class="face back">${emoji}</div>`;
+                    grid.appendChild(d);
                 });
             }
 
-            // Card States
+            // Classes
             deck.forEach((_, i) => {
                 const el = document.getElementById('c-'+i);
                 el.className = 'card';
