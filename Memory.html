@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Memory (V21 Force Feed)</title>
+    <title>TIU Memory (V22 Instant Host)</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -72,10 +72,11 @@
             background: var(--surface); padding: 20px; border-radius: 15px; margin-bottom: 20px;
             border: 1px solid #333;
         }
-        .p-box { padding: 10px 20px; border-radius: 8px; text-align: center; background: #252525; }
+        .p-box { padding: 10px 20px; border-radius: 8px; text-align: center; background: #252525; min-width: 80px; }
         .score-val { font-size: 2rem; font-weight: bold; display: block; }
         
         .active-p { border: 2px solid var(--primary); background: #2f2f2f; color: var(--primary); }
+        .my-role { color: gold; font-size: 0.8rem; letter-spacing: 1px; margin-bottom: 5px; display: block; }
 
         /* GRID */
         .grid {
@@ -112,7 +113,7 @@
 <body onclick="resumeAudio()">
 
     <div id="lobby">
-        <h2>TIU MEMORY V21</h2>
+        <h2>TIU MEMORY V22</h2>
         <button class="btn-host" onclick="startHost()">HOST GAME</button>
         <div style="color:#666;">- OR -</div>
         <input type="text" id="code-input" placeholder="CODE" maxlength="4" oninput="this.value=this.value.toUpperCase()">
@@ -129,8 +130,16 @@
         </div>
 
         <div class="scoreboard">
-            <div id="p1" class="p-box">HOST<span id="s1" class="score-val">0</span></div>
-            <div id="p2" class="p-box">GUEST<span id="s2" class="score-val">0</span></div>
+            <div id="p1" class="p-box">
+                <span id="role-tag-1" class="my-role" style="display:none;">(YOU)</span>
+                HOST
+                <span id="s1" class="score-val">0</span>
+            </div>
+            <div id="p2" class="p-box">
+                <span id="role-tag-2" class="my-role" style="display:none;">(YOU)</span>
+                GUEST
+                <span id="s2" class="score-val">0</span>
+            </div>
         </div>
         
         <div id="grid" class="grid"></div>
@@ -144,7 +153,7 @@
 
     <script>
         // --- CONFIG ---
-        const APP_ID = "tiu-mem-v21-force-"; 
+        const APP_ID = "tiu-mem-v22-instant-"; 
         const EMOJIS = ['🚀', '🍕', '🐱', '🌵', '🎸', '🍦', '💎', '🔥'];
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -203,9 +212,15 @@
             myRole = 'host';
             deck = [...EMOJIS, ...EMOJIS].sort(() => Math.random() - 0.5);
             
+            // 1. SETUP UI IMMEDIATELY
             setupGameUI(code);
-            setStatus("Waiting for Guest...");
+            document.getElementById('role-tag-1').style.display = 'block'; // Mark Host as YOU
             
+            // 2. RENDER CARDS IMMEDIATELY
+            render(); 
+            setStatus("Waiting for Guest...");
+
+            // 3. START NETWORK IN BACKGROUND
             peer = new Peer(APP_ID + code);
             
             peer.on('open', () => {
@@ -215,10 +230,9 @@
             peer.on('connection', (c) => {
                 conn = c;
                 conn.on('open', () => {
-                    setStatus("Guest Joined! Sending Data...");
+                    setStatus("Guest Joined! Your Turn.");
                     sendState(); // Send immediately
-                    // Heartbeat: Send state every 2s
-                    setInterval(() => { if(conn.open) sendState(); }, 2000);
+                    setInterval(() => { if(conn.open) sendState(); }, 2000); // Heartbeat
                 });
                 conn.on('data', (data) => {
                     if(data.type === 'CLICK') handleRemoteClick(data.index);
@@ -236,6 +250,7 @@
             myRole = 'guest';
             
             setupGameUI(code);
+            document.getElementById('role-tag-2').style.display = 'block'; // Mark Guest as YOU
             setStatus("Connecting to Host...");
             
             peer = new Peer();
@@ -246,7 +261,7 @@
                 conn.on('open', () => {
                     setConn(true);
                     setStatus("Connected - Downloading Cards...");
-                    // FORCE FEED: Ask for Sync every 1s until deck arrives
+                    // FORCE SYNC LOOP
                     const forceSync = setInterval(() => {
                         if(deck.length > 0) {
                             clearInterval(forceSync);
@@ -259,14 +274,12 @@
 
                 conn.on('data', (data) => {
                     if(data.type === 'STATE') {
-                        // Apply State
                         deck = data.deck;
                         turn = data.turn;
                         scores = data.scores;
                         flipped = data.flipped;
                         matched = data.matched;
-                        
-                        render();
+                        render(); // Guest Render
                         if(data.snd) playSnd(data.snd);
                     }
                 });
@@ -284,6 +297,7 @@
 
         // --- LOGIC ---
         function onCardClick(i) {
+            // Local check first
             if(myRole === 'host') {
                 if(turn === 'host') processMove(i);
                 else setStatus("NOT YOUR TURN", "red");
@@ -355,7 +369,6 @@
             const el = document.getElementById('status-bar');
             el.innerText = msg;
             el.style.color = color || "#888";
-            // If it's an error message, clear it after 2s
             if(color === 'red') setTimeout(() => setStatus("Opponent's Turn"), 1500);
         }
 
@@ -394,8 +407,8 @@
                 deck.forEach((_, i) => {
                     const el = grid.children[i];
                     el.className = 'card';
-                    if(flipped.includes(i)) el.classList.add('flipped');
-                    if(matched.includes(i)) el.classList.add('matched');
+                    el.classList.toggle('flipped', flipped.includes(i));
+                    el.classList.toggle('matched', matched.includes(i));
                 });
             }
         }
