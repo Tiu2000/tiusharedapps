@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TIU Memory V31 (Direct Link)</title>
+<title>TIU Memory V32 (Host Authority)</title>
 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 <style>
     :root {
         --bg: #121212;
         --panel: #1e1e1e;
         --neon: #00ff88;
+        --warn: #ff3333;
         --text: #ffffff;
     }
     body {
@@ -22,9 +23,10 @@
         min-height: 100vh;
         margin: 0;
         padding: 20px;
+        user-select: none;
     }
 
-    /* MAIN MENU */
+    /* MENU */
     #menu-panel {
         background: var(--panel);
         padding: 40px;
@@ -35,39 +37,18 @@
         max-width: 400px;
         width: 100%;
     }
-    
     h1 { margin: 0 0 20px 0; color: var(--neon); letter-spacing: 2px; }
-    p { color: #888; font-size: 0.9em; margin-bottom: 20px; }
-
     input {
-        background: #000;
-        border: 2px solid #444;
-        color: var(--neon);
-        font-size: 2em;
-        text-align: center;
-        width: 100%;
-        padding: 10px;
-        border-radius: 10px;
-        margin: 10px 0;
-        text-transform: uppercase;
-        font-family: monospace;
-        letter-spacing: 5px;
+        background: #000; border: 2px solid #444; color: var(--neon);
+        font-size: 2em; text-align: center; width: 100%; padding: 10px;
+        border-radius: 10px; margin: 10px 0; text-transform: uppercase;
+        font-family: monospace; letter-spacing: 5px;
     }
-    
     button {
-        background: var(--neon);
-        color: #000;
-        border: none;
-        padding: 15px 30px;
-        font-size: 1.2em;
-        font-weight: bold;
-        border-radius: 50px;
-        cursor: pointer;
-        width: 100%;
-        margin-top: 10px;
-        transition: transform 0.1s;
+        background: var(--neon); color: #000; border: none;
+        padding: 15px 30px; font-size: 1.2em; font-weight: bold;
+        border-radius: 50px; cursor: pointer; width: 100%; margin-top: 10px;
     }
-    button:active { transform: scale(0.98); }
     button.btn-host { background: #444; color: white; border: 1px solid #666; }
 
     /* GAME UI */
@@ -79,15 +60,15 @@
         margin-bottom: 20px; border: 1px solid #333;
     }
     
-    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #555; display: inline-block; margin-right: 8px; }
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; background: #555; display: inline-block; margin-right: 8px; }
     .status-dot.ok { background: var(--neon); box-shadow: 0 0 10px var(--neon); }
 
     .scoreboard { display: flex; gap: 10px; margin-bottom: 20px; }
     .score-box {
         flex: 1; background: var(--panel); padding: 15px; text-align: center;
-        border-radius: 10px; border: 2px solid transparent;
+        border-radius: 10px; border: 2px solid transparent; transition: 0.3s;
     }
-    .score-box.active { border-color: var(--neon); background: #1a2e25; }
+    .score-box.active { border-color: var(--neon); background: #1a2e25; transform: scale(1.02); }
     .score-num { font-size: 2em; font-weight: bold; display: block; }
     
     /* GRID */
@@ -101,6 +82,13 @@
     }
     .card.flipped, .card.matched { transform: rotateY(180deg); }
     .card.matched { opacity: 0.5; }
+    .card.shake { animation: shake 0.4s; }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
     
     .face {
         position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
@@ -111,47 +99,32 @@
     .front::after { content: "?"; color: #444; font-weight: bold; font-size: 1.5rem; }
     .back { background: #fff; transform: rotateY(180deg); }
 
-    /* DEBUG LOG */
-    #logs {
-        font-family: monospace; font-size: 0.8em; color: #666;
-        height: 60px; overflow: hidden; text-align: center;
-    }
+    #logs { font-family: monospace; font-size: 0.8em; color: #666; text-align: center; height: 30px; }
 </style>
 </head>
 <body onclick="enableAudio()">
 
     <div id="menu-panel">
-        <h1>TIU MEMORY V31</h1>
-        <p>There is no server list. You must use codes.</p>
-        
+        <h1>MEMORY V32</h1>
         <div id="guest-ui">
             <input type="text" id="join-code" placeholder="CODE" maxlength="4">
             <button onclick="joinGame()">JOIN GAME</button>
         </div>
-        
         <div style="margin: 20px 0; border-top: 1px solid #333;"></div>
-        
         <button class="btn-host" onclick="hostGame()">HOST NEW GAME</button>
     </div>
 
     <div id="game-ui">
         <div class="header">
-            <div>
-                <div id="net-dot" class="status-dot"></div>
-                <span id="room-tag">Connecting...</span>
-            </div>
+            <div><div id="net-dot" class="status-dot"></div> <span id="room-tag">...</span></div>
             <button style="width: auto; padding: 5px 15px; font-size: 0.8em;" onclick="location.reload()">EXIT</button>
         </div>
 
         <div id="turn-msg" style="text-align:center; font-size:1.5em; font-weight:bold; margin-bottom:10px; color:#888;">WAITING...</div>
 
         <div class="scoreboard">
-            <div id="p-host" class="score-box">
-                HOST <span id="s-host" class="score-num">0</span>
-            </div>
-            <div id="p-guest" class="score-box">
-                GUEST <span id="s-guest" class="score-num">0</span>
-            </div>
+            <div id="p-host" class="score-box">HOST <span id="s-host" class="score-num">0</span></div>
+            <div id="p-guest" class="score-box">GUEST <span id="s-guest" class="score-num">0</span></div>
         </div>
 
         <div id="grid" class="grid"></div>
@@ -160,13 +133,12 @@
 
 <script>
     // --- CONFIG ---
-    const APP_ID = "tiu-mem-v31-final-"; 
+    const APP_ID = "tiu-mem-v32-final-"; 
     const EMOJIS = ['🚀','🍕','🐱','🎮','🌟','🎨','🎭','🔥'];
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
     // --- STATE ---
-    let peer, conn;
-    let myRole;
+    let peer, conn, myRole;
     let gameState = {
         deck: [], flipped: [], matched: [],
         turn: 'host', scores: { host: 0, guest: 0 }, locked: false
@@ -176,27 +148,17 @@
     function enableAudio() { if(audioCtx.state === 'suspended') audioCtx.resume(); }
     function playTone(type) {
         enableAudio();
-        const o = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
+        const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
         o.connect(g); g.connect(audioCtx.destination);
         const t = audioCtx.currentTime;
         
-        if(type === 'flip') {
-            o.frequency.setValueAtTime(400, t);
-            o.frequency.linearRampToValueAtTime(600, t + 0.1);
-        } else if(type === 'match') {
-            o.type = 'triangle';
-            o.frequency.setValueAtTime(600, t);
-            o.frequency.setValueAtTime(1200, t + 0.2);
-        } else {
-            o.type = 'sawtooth';
-            o.frequency.setValueAtTime(200, t);
-            o.frequency.linearRampToValueAtTime(100, t + 0.2);
-        }
+        if(type === 'flip') { o.frequency.setValueAtTime(400, t); o.frequency.linearRampToValueAtTime(600, t+0.1); }
+        else if(type === 'match') { o.type='triangle'; o.frequency.setValueAtTime(600, t); o.frequency.setValueAtTime(1200, t+0.2); }
+        else if(type === 'fail') { o.type='sawtooth'; o.frequency.setValueAtTime(200, t); o.frequency.linearRampToValueAtTime(100, t+0.2); }
+        else if(type === 'warn') { o.type='square'; o.frequency.setValueAtTime(150, t); o.frequency.linearRampToValueAtTime(100, t+0.1); }
         
-        g.gain.setValueAtTime(0.1, t);
-        g.gain.linearRampToValueAtTime(0, t + 0.2);
-        o.start(t); o.stop(t + 0.2);
+        g.gain.setValueAtTime(0.1, t); g.gain.linearRampToValueAtTime(0, t+0.2);
+        o.start(t); o.stop(t+0.2);
     }
 
     // --- LOGGING ---
@@ -213,29 +175,21 @@
         gameState.deck = [...EMOJIS, ...EMOJIS].sort(() => Math.random() - 0.5);
         
         setupUI();
-        document.getElementById('room-tag').innerText = `ROOM CODE: ${code}`;
-        log(`Created Room ${code}. Waiting for guest...`);
+        document.getElementById('room-tag').innerText = `CODE: ${code}`;
+        log(`Host Ready: ${code}`);
 
         peer = new Peer(APP_ID + code);
         
         peer.on('connection', (c) => {
             conn = c;
-            log("Guest Connected!");
+            log("Guest Joined!");
             setOnline(true);
-            
-            conn.on('open', () => {
-                sendState(); // Send Initial State
-            });
-            
+            conn.on('open', () => sendState());
             conn.on('data', (data) => {
-                if(data.type === 'CLICK' && gameState.turn === 'guest') handleMove(data.index);
+                if(data.type === 'CLICK') handleMove(data.index, true); // Host validates everything
                 if(data.type === 'SYNC') sendState();
             });
-            
-            conn.on('close', () => {
-                setOnline(false);
-                log("Guest Disconnected");
-            });
+            conn.on('close', () => { setOnline(false); log("Guest Left"); });
         });
     }
 
@@ -247,7 +201,7 @@
         myRole = 'guest';
         setupUI();
         document.getElementById('room-tag').innerText = `ROOM: ${code}`;
-        log(`Connecting to ${code}...`);
+        log(`Dialing ${code}...`);
 
         peer = new Peer();
         
@@ -256,12 +210,11 @@
             
             conn.on('open', () => {
                 setOnline(true);
-                log("Connected! Getting game data...");
-                
-                // Polling Loop to ensure we get state
-                const poll = setInterval(() => {
-                    if(gameState.deck.length > 0) clearInterval(poll);
-                    else if(conn.open) conn.send({ type: 'SYNC' });
+                log("Connected! Downloading...");
+                // Force sync request loop until we have deck
+                const syncer = setInterval(() => {
+                    if(gameState.deck.length > 0) clearInterval(syncer);
+                    else conn.send({ type: 'SYNC' });
                 }, 1000);
             });
 
@@ -273,30 +226,28 @@
                 }
             });
 
-            conn.on('close', () => {
-                setOnline(false);
-                log("Host Disconnected");
-            });
-            
-            // Retry logic
-            setTimeout(() => {
-                if(!conn.open) {
-                    log("Retrying connection...");
-                    joinGame();
-                }
-            }, 3000);
+            conn.on('close', () => { setOnline(false); log("Host Left"); });
         });
     }
 
-    // --- GAME LOGIC (HOST) ---
-    function handleMove(i) {
+    // --- GAME LOGIC (HOST AUTHORITATIVE) ---
+    function handleMove(i, isRemote = false) {
+        // 1. Validation Logic
         if(gameState.locked || gameState.matched.includes(i) || gameState.flipped.includes(i)) return;
+        
+        // Strict Turn Check
+        const activePlayer = gameState.turn; // 'host' or 'guest'
+        const requestPlayer = isRemote ? 'guest' : 'host';
+        
+        if(activePlayer !== requestPlayer) return; // Ignore out of turn clicks
 
+        // 2. Execute Move
         gameState.flipped.push(i);
         playTone('flip');
-        broadcast('flip'); // Update Visuals
+        broadcast('flip'); // Send update
         render();
 
+        // 3. Match Logic
         if(gameState.flipped.length === 2) {
             gameState.locked = true;
             const [a, b] = gameState.flipped;
@@ -322,34 +273,36 @@
     }
 
     // --- NETWORKING ---
-    function broadcast(sfx) {
-        if(conn && conn.open) conn.send({ type: 'STATE', state: gameState, sfx: sfx });
-    }
+    function broadcast(sfx) { if(conn && conn.open) conn.send({ type: 'STATE', state: gameState, sfx: sfx }); }
     function sendState() { broadcast(null); }
 
-    // --- UI ---
+    // --- UI & INTERACTION ---
     function setupUI() {
         document.getElementById('menu-panel').style.display = 'none';
         document.getElementById('game-ui').style.display = 'block';
-        
-        // Build Grid
         const grid = document.getElementById('grid');
         grid.innerHTML = '';
-        // We create 16 placeholders first (Host fills them with real data later)
         for(let i=0; i<16; i++) {
             const el = document.createElement('div');
             el.className = 'card';
-            el.onclick = () => cardClicked(i);
+            el.onclick = () => onLocalClick(i, el);
             el.innerHTML = `<div class="face front"></div><div class="face back"></div>`;
             grid.appendChild(el);
         }
     }
 
-    function cardClicked(i) {
-        if(myRole === 'host' && gameState.turn === 'host') handleMove(i);
-        if(myRole === 'guest' && gameState.turn === 'guest') {
-            if(conn && conn.open) conn.send({ type: 'CLICK', index: i });
+    function onLocalClick(i, el) {
+        // Warning if not your turn
+        if(myRole !== gameState.turn) {
+            el.classList.add('shake');
+            playTone('warn');
+            setTimeout(() => el.classList.remove('shake'), 400);
+            return;
         }
+
+        // Host handles locally, Guest sends packet
+        if(myRole === 'host') handleMove(i, false);
+        else if(conn && conn.open) conn.send({ type: 'CLICK', index: i });
     }
 
     function render() {
@@ -374,10 +327,8 @@
         if(gameState.deck.length > 0) {
             for(let i=0; i<16; i++) {
                 const card = cards[i];
-                // Update Emoji
                 card.querySelector('.back').innerText = gameState.deck[i];
                 
-                // Flip Logic
                 const isFlipped = gameState.flipped.includes(i) || gameState.matched.includes(i);
                 if(isFlipped) card.classList.add('flipped');
                 else card.classList.remove('flipped');
