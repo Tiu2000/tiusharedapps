@@ -1,409 +1,593 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Memory (V29 Fixed)</title>
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-    <style>
-        :root { --bg: #000000; --surface: #111; --primary: #00ffcc; --text: #eee; }
-        body {
-            font-family: monospace; background: var(--bg); color: var(--text);
-            display: flex; flex-direction: column; align-items: center; min-height: 100vh;
-            margin: 0; padding: 10px; box-sizing: border-box;
-        }
-
-        #lobby { background: var(--surface); padding: 25px; border-radius: 12px; width: 100%; max-width: 320px; text-align: center; border: 1px solid #333; }
-        button {
-            padding: 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;
-            font-family: inherit; text-transform: uppercase; margin-top: 10px; width: 100%; font-size: 1.1rem;
-        }
-        .btn-host { background: #8a2be2; color: white; }
-        .btn-join { background: var(--primary); color: black; }
-        .btn-resync { background: #ff3333; color: white; width: auto; padding: 6px 12px; font-size: 0.75rem; margin: 0; }
-        
-        input { 
-            padding: 12px; font-size: 1.4rem; text-align: center; width: 100%; 
-            box-sizing: border-box; margin-bottom: 10px; background: #000; color: white; border: 1px solid #444; border-radius: 6px;
-        }
-
-        #game-view { display: none; width: 100%; max-width: 500px; flex-direction: column; align-items: center; }
-
-        .header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #151515; padding: 10px; border-radius: 8px; border: 1px solid #333; box-sizing: border-box;}
-        .pulse { width: 8px; height: 8px; background: #333; border-radius: 50%; display: inline-block; margin-right: 8px; }
-        .pulse.active { background: #00ffcc; box-shadow: 0 0 10px #00ffcc; }
-
-        .scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-bottom: 20px; }
-        .p-card { background: #222; padding: 15px; text-align: center; border: 2px solid transparent; border-radius: 8px; }
-        .p-card.active { border-color: var(--primary); background: #111; color: var(--primary); }
-        .score { font-size: 1.8rem; display: block; font-weight: bold; margin-top: 5px; }
-
-        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; aspect-ratio: 4/5; }
-        .card {
-            background: #333; border-radius: 6px; position: relative; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; font-size: 2rem;
-            border: 1px solid #444; transition: transform 0.1s;
-        }
-        .card.flipped { background: #eee; transform: scale(0.98); }
-        .card.flipped span { display: block; }
-        .card span { display: none; }
-        .card.matched { opacity: 0.3; background: #000; border-color: #333; }
-
-        #console-log {
-            width: 100%; height: 100px; background: #080808; color: #888; font-size: 0.7rem;
-            overflow-y: scroll; margin-top: 20px; padding: 10px; border: 1px solid #333; box-sizing: border-box; font-family: monospace;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P2P Memory Match</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Arial', sans-serif;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+  color: #00ffff;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+.container { max-width: 600px; width: 100%; }
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  text-shadow: 0 0 20px #00ffff;
+  font-size: 2em;
+}
+.menu {
+  background: #1a1a2e;
+  padding: 30px;
+  border-radius: 15px;
+  border: 2px solid #00ffff;
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+  text-align: center;
+}
+.btn {
+  background: #00ffff;
+  color: #000;
+  border: none;
+  padding: 15px 30px;
+  font-size: 1.2em;
+  font-weight: bold;
+  border-radius: 8px;
+  cursor: pointer;
+  margin: 10px;
+  transition: all 0.3s;
+}
+.btn:hover {
+  background: #00cccc;
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+}
+.input-group {
+  margin: 20px 0;
+}
+.input-group input {
+  background: #0a0a0a;
+  border: 2px solid #00ffff;
+  color: #00ffff;
+  padding: 12px;
+  font-size: 1.1em;
+  border-radius: 8px;
+  width: 200px;
+  text-align: center;
+  text-transform: uppercase;
+}
+.game-view {
+  display: none;
+}
+.status-bar {
+  background: #1a1a2e;
+  padding: 20px;
+  border-radius: 15px;
+  border: 2px solid #00ffff;
+  margin-bottom: 20px;
+}
+.turn-banner {
+  text-align: center;
+  font-size: 1.5em;
+  font-weight: bold;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+.your-turn { background: #00ff00; color: #000; }
+.opponent-turn { background: #444; color: #999; }
+.scoreboard {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 15px;
+}
+.player-card {
+  background: #0a0a0a;
+  padding: 15px;
+  border-radius: 10px;
+  border: 2px solid #555;
+  flex: 1;
+  margin: 0 10px;
+  text-align: center;
+}
+.player-card.active {
+  border-color: #00ffff;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+}
+.player-card h3 {
+  font-size: 1em;
+  margin-bottom: 10px;
+}
+.player-card .score {
+  font-size: 2em;
+  font-weight: bold;
+}
+.network-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9em;
+}
+.pulse {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #555;
+  display: inline-block;
+  margin-left: 5px;
+}
+.pulse.active {
+  background: #00ff00;
+  animation: pulse 0.5s;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+}
+.card {
+  aspect-ratio: 1;
+  background: #1a1a2e;
+  border: 3px solid #00ffff;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3em;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+}
+.card:hover:not(.matched):not(.flipped) {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+}
+.card.flipped {
+  background: #2a2a4e;
+  border-color: #ffff00;
+}
+.card.matched {
+  background: #004400;
+  border-color: #00ff00;
+  cursor: default;
+  opacity: 0.7;
+}
+.card-back {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #00ffff 0%, #0088ff 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2em;
+}
+.card.flipped .card-back,
+.card.matched .card-back {
+  display: none;
+}
+.debug-console {
+  background: #0a0a0a;
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  padding: 15px;
+  height: 150px;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85em;
+}
+.debug-console div {
+  margin-bottom: 5px;
+  color: #00ff00;
+}
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+.btn-small {
+  padding: 10px 20px;
+  font-size: 1em;
+}
+</style>
 </head>
-<body onclick="resumeAudio()">
+<body>
 
-    <div id="lobby">
-        <h3>TIU MEMORY V29</h3>
-        <button class="btn-host" onclick="initHost()">HOST GAME</button>
-        <div style="margin: 15px 0; color:#555">- OR -</div>
-        <input type="text" id="code-input" placeholder="CODE" maxlength="4">
-        <button class="btn-join" onclick="initGuest()">JOIN GAME</button>
+<div class="container">
+  <h1>🎮 P2P MEMORY MATCH</h1>
+  
+  <div id="menu" class="menu">
+    <h2 style="margin-bottom: 20px;">Choose Mode</h2>
+    <button class="btn" onclick="createGame()">🏠 HOST GAME</button>
+    <div class="input-group">
+      <input type="text" id="roomCode" placeholder="ROOM CODE" maxlength="4">
+    </div>
+    <button class="btn" onclick="joinGame()">🚀 JOIN GAME</button>
+  </div>
+
+  <div id="gameView" class="game-view">
+    <div class="status-bar">
+      <div id="turnBanner" class="turn-banner">WAITING...</div>
+      
+      <div class="scoreboard">
+        <div class="player-card" id="hostCard">
+          <h3>🏠 HOST</h3>
+          <div class="score" id="hostScore">0</div>
+        </div>
+        <div class="player-card" id="guestCard">
+          <h3>🚀 GUEST</h3>
+          <div class="score" id="guestScore">0</div>
+        </div>
+      </div>
+
+      <div class="network-info">
+        <span id="roomInfo">Room: ----</span>
+        <span>Connection: <span class="pulse" id="pulse"></span></span>
+      </div>
     </div>
 
-    <div id="game-view">
-        <div class="header">
-            <div style="display:flex; align-items:center;">
-                <div id="hb" class="pulse"></div>
-                <span id="role-display" style="font-size:0.8rem; color:#aaa;"></span>
-            </div>
-            <button class="btn-resync" onclick="requestSync()">🔄 FORCE SYNC</button>
-        </div>
+    <div class="board" id="board"></div>
 
-        <div id="turn-banner" style="font-size:1.1rem; font-weight:bold; margin-bottom:15px; color:#888; text-align:center; width:100%;">Waiting for Connection...</div>
+    <div class="debug-console" id="debugConsole"></div>
 
-        <div class="scoreboard">
-            <div id="p-host" class="p-card">HOST <span id="s-host" class="score">0</span></div>
-            <div id="p-guest" class="p-card">GUEST <span id="s-guest" class="score">0</span></div>
-        </div>
-
-        <div id="grid" class="grid"></div>
-        <div id="console-log">Logs initialized...</div>
+    <div class="controls">
+      <button class="btn btn-small" onclick="forceSync()">🔄 FORCE SYNC</button>
+      <button class="btn btn-small" onclick="resetGame()">🔙 MAIN MENU</button>
     </div>
+  </div>
+</div>
 
-    <script>
-        const APP_ID = "tiu-mem-v29-fix-";
-        const EMOJIS = ['🚀','🍕','🐱','🌵','🎸','🦄','💎','🔥'];
-        const logBox = document.getElementById('console-log');
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+<script>
+// Audio System
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        let peer, conn;
-        let connections = [];
-        let myRole;
-        let syncInterval;
+function playSound(type) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  
+  const now = audioCtx.currentTime;
+  gain.gain.setValueAtTime(0.3, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+  
+  switch(type) {
+    case 'flip':
+      osc.type = 'sine';
+      osc.frequency.value = 400;
+      break;
+    case 'match':
+      osc.type = 'triangle';
+      osc.frequency.value = 880;
+      break;
+    case 'fail':
+      osc.type = 'sawtooth';
+      osc.frequency.value = 200;
+      break;
+  }
+  
+  osc.start(now);
+  osc.stop(now + 0.2);
+}
+
+// Game State
+let peer = null;
+let role = null; // 'host' or 'guest'
+let myId = null;
+let connections = [];
+let syncInterval = null;
+
+const gameState = {
+  deck: [],
+  flipped: [],
+  matched: [],
+  turn: 'host',
+  scores: { host: 0, guest: 0 },
+  locked: false
+};
+
+const emojis = ['🚀', '🍕', '🐱', '🎮', '🌟', '🎨', '🎭', '🎪'];
+
+// Debug Logging
+function log(msg) {
+  const console = document.getElementById('debugConsole');
+  const div = document.createElement('div');
+  div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  console.appendChild(div);
+  console.scrollTop = console.scrollHeight;
+}
+
+function flashPulse() {
+  const pulse = document.getElementById('pulse');
+  pulse.classList.add('active');
+  setTimeout(() => pulse.classList.remove('active'), 500);
+}
+
+// Initialize Deck
+function shuffleDeck() {
+  const pairs = [...emojis, ...emojis];
+  for (let i = pairs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+  }
+  return pairs;
+}
+
+// Create Game (Host)
+function createGame() {
+  role = 'host';
+  peer = new Peer();
+  
+  peer.on('open', (id) => {
+    myId = id;
+    const roomCode = id.substring(0, 4).toUpperCase();
+    document.getElementById('roomInfo').textContent = `Room: ${roomCode}`;
+    log(`> Host created. Room: ${roomCode}`);
+    
+    gameState.deck = shuffleDeck();
+    gameState.flipped = [];
+    gameState.matched = [];
+    gameState.turn = 'host';
+    gameState.scores = { host: 0, guest: 0 };
+    
+    showGame();
+    renderBoard();
+    updateUI();
+  });
+  
+  peer.on('connection', (conn) => {
+    connections.push(conn);
+    log(`> Guest connected: ${conn.peer}`);
+    
+    conn.on('open', () => {
+      broadcast({ type: 'STATE', data: gameState });
+    });
+    
+    conn.on('data', (data) => {
+      flashPulse();
+      handleMessage(data, conn);
+    });
+  });
+}
+
+// Join Game (Guest)
+function joinGame() {
+  const code = document.getElementById('roomCode').value.trim().toLowerCase();
+  if (!code || code.length !== 4) {
+    alert('Please enter a valid 4-letter room code');
+    return;
+  }
+  
+  role = 'guest';
+  peer = new Peer();
+  
+  peer.on('open', (id) => {
+    myId = id;
+    log(`> Connecting to room: ${code.toUpperCase()}`);
+    
+    // Find host by trying to connect with the code prefix
+    peer.listAllPeers((peers) => {
+      const hostPeer = peers.find(p => p.startsWith(code));
+      if (hostPeer) {
+        const conn = peer.connect(hostPeer);
+        connections.push(conn);
         
-        let gameState = {
-            deck: [], flipped: [], matched: [],
-            turn: 'host', scores: { host: 0, guest: 0 }, locked: false
-        };
-
-        function resumeAudio() { if(audioCtx.state==='suspended') audioCtx.resume(); }
-        function playTone(freq, type) {
-            resumeAudio();
-            const o = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            o.type = type || 'sine'; o.frequency.value = freq;
-            o.connect(g); g.connect(audioCtx.destination);
-            o.start(); g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.15);
-            o.stop(audioCtx.currentTime + 0.2);
-        }
-
-        function log(msg) {
-            const div = document.createElement('div');
-            div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            logBox.prepend(div);
-        }
-
-        function initHost() {
-            const code = Math.random().toString(36).substring(2,6).toUpperCase();
-            myRole = 'host';
-            gameState.deck = [...EMOJIS, ...EMOJIS].sort(()=>Math.random()-0.5);
-            
-            setupUI(code);
-            render();
-            log("🟣 Hosting Room: " + code);
-
-            peer = new Peer(APP_ID + code);
-            peer.on('connection', c => {
-                connections.push(c);
-                log("✅ Guest Connected!");
-                
-                c.on('open', () => {
-                    c.send({ type: 'STATE', state: cloneState(gameState), snd: 'init' });
-                    log("📤 Sent initial state to guest");
-                });
-
-                c.on('data', data => {
-                    flashHeartbeat();
-                    log(`📥 Received: ${data.type}${data.index !== undefined ? ' [card '+data.index+']' : ''}`);
-                    
-                    if(data.type === 'CLICK') {
-                        if(gameState.turn === 'guest') {
-                            log(`✅ Processing guest's click on card ${data.index}`);
-                            processMove(data.index);
-                        } else {
-                            log(`⚠️ Guest clicked out of turn (current: ${gameState.turn}) - resyncing`);
-                            c.send({ type: 'STATE', state: cloneState(gameState) });
-                        }
-                    }
-                    if(data.type === 'REQ_SYNC') {
-                        log("📥 Guest requested sync");
-                        c.send({ type: 'STATE', state: cloneState(gameState) });
-                    }
-                });
-
-                c.on('close', () => {
-                    connections = connections.filter(x => x !== c);
-                    log("❌ Guest Disconnected");
-                });
-            });
-        }
-
-        function initGuest() {
-            const code = document.getElementById('code-input').value.trim().toUpperCase();
-            if(code.length !== 4) return alert("Enter 4-letter code");
-            myRole = 'guest';
-            
-            setupUI(code);
-            log("🔵 Connecting to " + code + "...");
-            document.getElementById('turn-banner').innerText = "CONNECTING...";
-            
-            peer = new Peer();
-            peer.on('open', () => {
-                conn = peer.connect(APP_ID + code, { reliable: true });
-                
-                conn.on('open', () => {
-                    log("✅ Connected! Requesting state...");
-                    document.getElementById('turn-banner').innerText = "SYNCING...";
-                    
-                    requestSync(); 
-                    syncInterval = setInterval(() => {
-                        if(gameState.deck.length === 0) {
-                            log("⏳ Polling host...");
-                            requestSync();
-                        } else {
-                            clearInterval(syncInterval);
-                            syncInterval = null;
-                            log("✅ Sync Complete!");
-                        }
-                    }, 1000);
-                });
-                
-                conn.on('data', data => {
-                    flashHeartbeat();
-                    
-                    if(data.type === 'STATE') {
-                        // CRITICAL FIX: Deep clone the received state
-                        gameState = cloneState(data.state);
-                        
-                        log(`📥 State: turn=${gameState.turn}, flip=${gameState.flipped.length}, match=${gameState.matched.length}/16, lock=${gameState.locked}`);
-                        
-                        render();
-                        
-                        if(gameState.deck.length > 0 && syncInterval) {
-                            clearInterval(syncInterval);
-                            syncInterval = null;
-                        }
-                        
-                        if(data.snd && data.snd !== 'init') {
-                            playTone(data.snd === 'match' ? 880 : 200, data.snd === 'match' ? 'triangle' : 'sawtooth');
-                        }
-                    }
-                });
-
-                conn.on('close', () => log("❌ Connection Lost"));
-                conn.on('error', e => log("❌ Error: " + e));
-            });
-        }
-
-        // CRITICAL FIX: Deep clone function to prevent reference issues
-        function cloneState(state) {
-            return {
-                deck: [...state.deck],
-                flipped: [...state.flipped],
-                matched: [...state.matched],
-                turn: state.turn,
-                scores: { host: state.scores.host, guest: state.scores.guest },
-                locked: state.locked
-            };
-        }
-
-        function broadcast(sndTag) {
-            const cloned = cloneState(gameState);
-            connections.forEach(c => {
-                if(c.open) {
-                    c.send({ type: 'STATE', state: cloned, snd: sndTag });
-                }
-            });
-            log(`📤 Broadcast: ${sndTag || 'state'}`);
-        }
-
-        function requestSync() {
-            if(conn && conn.open) {
-                conn.send({ type: 'REQ_SYNC' });
+        conn.on('open', () => {
+          log(`> Connected to host!`);
+          document.getElementById('roomInfo').textContent = `Room: ${code.toUpperCase()}`;
+          showGame();
+          
+          // Start sync polling
+          syncInterval = setInterval(() => {
+            if (gameState.deck.length === 0) {
+              send({ type: 'REQUEST_STATE' });
+            } else {
+              clearInterval(syncInterval);
             }
-        }
+          }, 1000);
+        });
+        
+        conn.on('data', (data) => {
+          flashPulse();
+          handleMessage(data, conn);
+        });
+      } else {
+        alert('Room not found. Check the code and try again.');
+        peer.destroy();
+      }
+    });
+  });
+}
 
-        function processMove(i) {
-            if(gameState.locked) {
-                log("🔒 Locked - ignoring click");
-                return;
-            }
-            if(gameState.matched.includes(i) || gameState.flipped.includes(i)) {
-                log("⚠️ Card already flipped/matched");
-                return;
-            }
+// Message Handling
+function handleMessage(msg, conn) {
+  log(`> Recv: ${msg.type}`);
+  
+  switch(msg.type) {
+    case 'STATE':
+      Object.assign(gameState, msg.data);
+      renderBoard();
+      updateUI();
+      break;
+      
+    case 'CLICK':
+      if (role === 'host') {
+        handleCardClick(msg.index, true);
+      }
+      break;
+      
+    case 'REQUEST_STATE':
+      if (role === 'host') {
+        send({ type: 'STATE', data: gameState }, conn);
+      }
+      break;
+  }
+}
 
-            gameState.flipped.push(i);
-            playTone(400, 'sine');
-            log(`🃏 Flipped card ${i} (${gameState.deck[i]})`);
-            
-            render(); 
-            broadcast('flip'); 
+// Network Communication
+function send(msg, targetConn = null) {
+  flashPulse();
+  log(`> Send: ${msg.type}`);
+  
+  if (targetConn) {
+    targetConn.send(msg);
+  } else {
+    connections.forEach(c => {
+      if (c.open) c.send(msg);
+    });
+  }
+}
 
-            if(gameState.flipped.length === 2) {
-                gameState.locked = true;
-                log("🔒 Locked - evaluating pair...");
-                
-                // CRITICAL FIX: Broadcast the locked state with both cards visible
-                broadcast('flip');
-                
-                const [a, b] = gameState.flipped;
-                
-                setTimeout(() => {
-                    let snd = '';
-                    if(gameState.deck[a] === gameState.deck[b]) {
-                        gameState.matched.push(a, b);
-                        gameState.scores[gameState.turn]++;
-                        snd = 'match';
-                        log(`✅ MATCH! ${gameState.turn} scores (${gameState.scores[gameState.turn]})`);
-                    } else {
-                        const oldTurn = gameState.turn;
-                        gameState.turn = (gameState.turn === 'host' ? 'guest' : 'host');
-                        snd = 'nomatch';
-                        log(`❌ No match. Turn: ${oldTurn} → ${gameState.turn}`);
-                    }
-                    
-                    gameState.flipped = [];
-                    gameState.locked = false;
-                    
-                    render();
-                    broadcast(snd);
-                    
-                    playTone(snd==='match'?880:200, snd==='match'?'triangle':'sawtooth');
-                    
-                    // Check for game end
-                    if(gameState.matched.length === 16) {
-                        const winner = gameState.scores.host > gameState.scores.guest ? 'HOST' : 
-                                      gameState.scores.guest > gameState.scores.host ? 'GUEST' : 'TIE';
-                        log(`🏆 GAME OVER! Winner: ${winner}`);
-                    }
-                }, 1000);
-            }
-        }
+function broadcast(msg) {
+  connections.forEach(c => {
+    if (c.open) {
+      c.send(msg);
+    }
+  });
+}
 
-        function onCardClick(i) {
-            if(gameState.deck.length === 0) {
-                if(myRole === 'guest') {
-                    log("⚠️ No deck yet - requesting sync");
-                    requestSync();
-                }
-                return;
-            }
+function forceSync() {
+  if (role === 'guest') {
+    send({ type: 'REQUEST_STATE' });
+  }
+  log('> Force sync requested');
+}
 
-            // Check if card is already flipped or matched
-            if(gameState.matched.includes(i) || gameState.flipped.includes(i)) {
-                log(`⚠️ Card ${i} already in play`);
-                return;
-            }
+// Game Logic
+function handleCardClick(index, isRemote = false) {
+  if (gameState.locked) return;
+  if (gameState.matched.includes(index)) return;
+  if (gameState.flipped.includes(index)) return;
+  
+  const isMyTurn = (role === gameState.turn);
+  if (!isRemote && !isMyTurn) return;
+  
+  // Guest sends click to host
+  if (role === 'guest' && !isRemote) {
+    send({ type: 'CLICK', index });
+    return;
+  }
+  
+  // Host processes the move
+  playSound('flip');
+  gameState.flipped.push(index);
+  
+  if (gameState.flipped.length === 2) {
+    gameState.locked = true;
+    
+    const [i1, i2] = gameState.flipped;
+    const match = gameState.deck[i1] === gameState.deck[i2];
+    
+    if (match) {
+      playSound('match');
+      gameState.matched.push(i1, i2);
+      gameState.scores[gameState.turn]++;
+      gameState.flipped = [];
+      gameState.locked = false;
+      
+      broadcast({ type: 'STATE', data: gameState });
+      renderBoard();
+      updateUI();
+    } else {
+      setTimeout(() => {
+        playSound('fail');
+        gameState.flipped = [];
+        gameState.turn = gameState.turn === 'host' ? 'guest' : 'host';
+        gameState.locked = false;
+        
+        broadcast({ type: 'STATE', data: gameState });
+        renderBoard();
+        updateUI();
+      }, 1000);
+    }
+  }
+  
+  broadcast({ type: 'STATE', data: gameState });
+  renderBoard();
+  updateUI();
+}
 
-            // Check if game is locked
-            if(gameState.locked) {
-                log("🔒 Game locked - wait for evaluation");
-                return;
-            }
+// UI Rendering
+function renderBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  
+  gameState.deck.forEach((emoji, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    
+    if (gameState.matched.includes(i)) {
+      card.classList.add('matched');
+      card.textContent = emoji;
+    } else if (gameState.flipped.includes(i)) {
+      card.classList.add('flipped');
+      card.textContent = emoji;
+    } else {
+      const back = document.createElement('div');
+      back.className = 'card-back';
+      back.textContent = '?';
+      card.appendChild(back);
+    }
+    
+    card.onclick = () => handleCardClick(i);
+    board.appendChild(card);
+  });
+}
 
-            if(myRole === 'host') {
-                if(gameState.turn === 'host') {
-                    processMove(i);
-                } else {
-                    log("⏸️ Wait for guest's turn");
-                }
-            } 
-            else if(myRole === 'guest') {
-                if(gameState.turn === 'guest') {
-                    if(conn && conn.open) {
-                        log(`📤 Sending click ${i} to host...`);
-                        
-                        // Optimistic update: show the card flip immediately
-                        gameState.flipped.push(i);
-                        render();
-                        
-                        conn.send({ type: 'CLICK', index: i });
-                    } else {
-                        log("❌ Connection lost!");
-                        requestSync();
-                    }
-                } else {
-                    log("⏸️ Wait for host's turn");
-                }
-            }
-        }
+function updateUI() {
+  const isMyTurn = (role === gameState.turn);
+  const banner = document.getElementById('turnBanner');
+  
+  if (isMyTurn) {
+    banner.textContent = '✨ YOUR TURN ✨';
+    banner.className = 'turn-banner your-turn';
+  } else {
+    banner.textContent = "OPPONENT'S TURN";
+    banner.className = 'turn-banner opponent-turn';
+  }
+  
+  document.getElementById('hostScore').textContent = gameState.scores.host;
+  document.getElementById('guestScore').textContent = gameState.scores.guest;
+  
+  document.getElementById('hostCard').classList.toggle('active', gameState.turn === 'host');
+  document.getElementById('guestCard').classList.toggle('active', gameState.turn === 'guest');
+}
 
-        function setupUI(code) {
-            document.getElementById('lobby').style.display = 'none';
-            document.getElementById('game-view').style.display = 'flex';
-            document.getElementById('role-display').innerText = `${myRole.toUpperCase()} | Room: ${code}`;
-            
-            const grid = document.getElementById('grid');
-            grid.innerHTML = '';
-            for(let i=0; i<16; i++) {
-                const el = document.createElement('div');
-                el.className = 'card';
-                el.onclick = () => onCardClick(i);
-                el.innerHTML = `<span></span>`;
-                grid.appendChild(el);
-            }
-        }
+function showGame() {
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('gameView').style.display = 'block';
+}
 
-        function render() {
-            if(gameState.deck.length === 0) return;
+function resetGame() {
+  if (peer) peer.destroy();
+  if (syncInterval) clearInterval(syncInterval);
+  
+  connections = [];
+  gameState.deck = [];
+  gameState.flipped = [];
+  gameState.matched = [];
+  gameState.turn = 'host';
+  gameState.scores = { host: 0, guest: 0 };
+  
+  document.getElementById('menu').style.display = 'block';
+  document.getElementById('gameView').style.display = 'none';
+  document.getElementById('debugConsole').innerHTML = '';
+  document.getElementById('roomCode').value = '';
+}
+</script>
 
-            const banner = document.getElementById('turn-banner');
-            const isMyTurn = gameState.turn === myRole;
-            banner.innerText = isMyTurn ? "YOUR TURN" : `${gameState.turn.toUpperCase()}'S TURN`;
-            banner.style.color = isMyTurn ? "#00ffcc" : "#666";
-
-            document.getElementById('s-host').innerText = gameState.scores.host;
-            document.getElementById('s-guest').innerText = gameState.scores.guest;
-            document.getElementById('p-host').className = gameState.turn === 'host' ? 'p-card active' : 'p-card';
-            document.getElementById('p-guest').className = gameState.turn === 'guest' ? 'p-card active' : 'p-card';
-
-            const cards = document.getElementsByClassName('card');
-            for(let i=0; i<cards.length; i++) {
-                const card = cards[i];
-                const span = card.querySelector('span');
-                span.innerText = gameState.deck[i];
-
-                // CRITICAL FIX: Always reset classes first
-                card.classList.remove('flipped', 'matched');
-                
-                const isFlipped = gameState.flipped.includes(i) || gameState.matched.includes(i);
-                if(isFlipped) card.classList.add('flipped');
-                
-                if(gameState.matched.includes(i)) card.classList.add('matched');
-            }
-        }
-
-        function flashHeartbeat() {
-            const hb = document.getElementById('hb');
-            hb.classList.add('active');
-            setTimeout(() => hb.classList.remove('active'), 150);
-        }
-    </script>
 </body>
 </html>
