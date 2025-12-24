@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Field Day Scheduler (Collaborative)</title>
+    <title>Field Day Scheduler (Live)</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -42,10 +42,10 @@
         .btn-io { background: #7c3aed; } 
         .btn-sound { background: #334155; width: 40px; justify-content: center; padding: 0; font-size: 1.1rem; }
         .btn-bulk { background: #0891b2; font-size: 0.75rem; padding: 2px 8px; height: 24px; }
-        .btn-online { background: #dc2626; animation: pulse 2s infinite; } 
-        .btn-online.connected { background: #16a34a; animation: none; }
-
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+        
+        /* CONNECTION STATUS INDICATOR */
+        .status-dot { width: 10px; height: 10px; background: #ccc; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .status-dot.online { background: #22c55e; box-shadow: 0 0 5px #22c55e; }
 
         /* VIEWS */
         .view-section { display: none; flex: 1; overflow: hidden; position: relative; }
@@ -121,11 +121,11 @@
         /* MODAL */
         .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: center; }
         .modal.open { display: flex; }
-        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .modal h3 { margin-top: 0; color: var(--primary); }
         .form-row { margin-bottom: 15px; }
         .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 8px; box-sizing: border-box; border:1px solid #ccc; border-radius:4px; }
-        .form-row textarea { height: 180px; resize: vertical; font-family: monospace; font-size: 0.7rem; white-space: pre; overflow-x: auto; background: #f8fafc; }
+        .form-row textarea { height: 120px; resize: vertical; font-family: monospace; font-size: 0.75rem; white-space: pre; overflow-x: auto; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         
         .import-area { border: 2px dashed #cbd5e0; padding: 20px; text-align: center; border-radius: 6px; margin-top: 10px; background: #f8fafc; }
@@ -158,7 +158,9 @@
         </div>
     </div>
     <div class="controls">
-        <button id="btn-online" class="btn-online" onclick="openFirebaseModal()" title="Connect to Firebase">☁️ Go Online</button>
+        <div style="display:flex; align-items:center; font-size:0.75rem; color:#64748b; margin-right:10px;">
+            <div id="status-dot" class="status-dot"></div> <span id="status-text">Connecting...</span>
+        </div>
         <button class="btn-sound" onclick="toggleSound()" title="Toggle Sound">🔊</button>
         <button class="btn-copy" onclick="copyTableToClipboard()" title="Copy active table">📋 Copy</button>
         <button class="btn-io" onclick="openIOModal()" title="Backup/Restore">Backup</button>
@@ -212,28 +214,6 @@
             </thead>
             <tbody id="cov-tbody"></tbody>
         </table>
-    </div>
-</div>
-
-<div id="firebaseModal" class="modal">
-    <div class="modal-content">
-        <h3>Connect to Firebase</h3>
-        <p style="font-size:0.8rem;color:#666;line-height:1.4">
-            <b>Setup:</b> Your Config is pre-filled below.<br>
-            1. Verify the Config.<br>
-            2. Enter a Session Name (or share the URL later).<br>
-            3. Click Connect.
-        </p>
-        <div class="form-row">
-            <textarea id="firebaseConfigInput" spellcheck="false"></textarea>
-        </div>
-        <div class="form-row">
-            <input type="text" id="sessionIdInput" placeholder="Session Name (e.g. FieldDay)">
-        </div>
-        <div class="modal-actions">
-            <button class="btn-sec" onclick="closeModals()">Cancel</button>
-            <button class="btn-online" onclick="connectFirebase()">Connect</button>
-        </div>
     </div>
 </div>
 
@@ -293,90 +273,68 @@
 <script>
     // --- FIREBASE SYNC SYSTEM ---
     let db = null;
-    let sessionId = "default";
+    let sessionId = "FieldDay"; 
     let isConnected = false;
 
-    // PRE-FILLED CONFIG WITH USER DATA
-    const CONFIG_TEMPLATE = `{
-  "apiKey": "AIzaSyAGZu2xFlx5Qy5QB2qi5q1n4eAiW0ROHzQ",
-  "authDomain": "fielddayschedule.firebaseapp.com",
-  "databaseURL": "https://fielddayschedule-default-rtdb.firebaseio.com",
-  "projectId": "fielddayschedule",
-  "storageBucket": "fielddayschedule.firebasestorage.app",
-  "messagingSenderId": "125330603786",
-  "appId": "1:125330603786:web:c7838ec65f8a2dff1484f3",
-  "measurementId": "G-PK9HXV9W76"
-}`;
-
-    // Check URL for session
+    // Check URL for custom session
     const urlParams = new URLSearchParams(window.location.hash.replace('#','?'));
     if(urlParams.get('session')) sessionId = urlParams.get('session');
+    
+    // HARDCODED CONFIG
+    const firebaseConfig = {
+      apiKey: "AIzaSyAGZu2xFlx5Qy5QB2qi5q1n4eAiW0ROHzQ",
+      authDomain: "fielddayschedule.firebaseapp.com",
+      databaseURL: "https://fielddayschedule-default-rtdb.firebaseio.com",
+      projectId: "fielddayschedule",
+      storageBucket: "fielddayschedule.firebasestorage.app",
+      messagingSenderId: "125330603786",
+      appId: "1:125330603786:web:c7838ec65f8a2dff1484f3",
+      measurementId: "G-PK9HXV9W76"
+    };
 
-    function openFirebaseModal() {
-        if(isConnected) {
-            if(confirm("Disconnect from Cloud?")) {
-                isConnected = false;
-                document.getElementById('btn-online').innerText = "☁️ Go Online";
-                document.getElementById('btn-online').classList.remove('connected');
-                document.getElementById('session-label').innerText = "Local Mode";
-                alert("Disconnected. Changes are now saving locally only.");
-            }
-        } else {
-            // Use stored config if valid, otherwise use template
-            const storedConfig = localStorage.getItem('fb_config');
-            if(storedConfig && storedConfig.includes("fielddayschedule")) {
-                document.getElementById('firebaseConfigInput').value = storedConfig;
-            } else {
-                document.getElementById('firebaseConfigInput').value = CONFIG_TEMPLATE;
-            }
-            document.getElementById('sessionIdInput').value = sessionId;
-            document.getElementById('firebaseModal').classList.add('open');
-        }
-    }
-
-    function connectFirebase() {
-        const configStr = document.getElementById('firebaseConfigInput').value;
-        let sId = document.getElementById('sessionIdInput').value.trim();
-        if(!sId) sId = 'FieldDay';
-        
+    function startFirebase() {
         try {
-            let config;
-            try { config = JSON.parse(configStr); } 
-            catch(e) { config = eval('(' + configStr + ')'); }
-
-            if(!firebase.apps.length) firebase.initializeApp(config);
+            if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
             db = firebase.database();
             
-            sessionId = sId;
-            isConnected = true;
-            localStorage.setItem('fb_config', configStr);
+            // Connect
+            const ref = db.ref('sessions/' + sessionId);
             
-            // Update UI
-            document.getElementById('btn-online').innerText = "☁️ Online";
-            document.getElementById('btn-online').classList.add('connected');
-            document.getElementById('session-label').innerText = "Session: " + sessionId;
-            window.location.hash = "session=" + sessionId;
-            
-            closeModals();
-            
-            // Initial Sync listener
-            db.ref('sessions/' + sessionId).on('value', (snap) => {
+            // Listener for data changes
+            ref.on('value', (snap) => {
                 const val = snap.val();
+                
+                // Update UI Connection Status
+                document.getElementById('status-dot').classList.add('online');
+                document.getElementById('status-text').innerText = "Online";
+                document.getElementById('session-label').innerText = "Session: " + sessionId;
+                isConnected = true;
+
                 if(val) {
+                    // Update state from cloud
                     if(val.classes) classes = val.classes;
                     if(val.assignments) assignments = val.assignments;
                     if(val.stations) STATIONS = val.stations;
                     if(val.coverageAssignments) coverageAssignments = val.coverageAssignments;
                     if(val.covHeaders) covHeaders = val.covHeaders;
-                    render(); 
+                    render();
                 } else {
-                    save(); // Push local if cloud empty
+                    // New session? Upload default data
+                    save();
                 }
             });
-            alert("Connected! Share the URL to collaborate.");
+
+            // Error handling
+            ref.on('cancel', (e) => {
+                console.error(e);
+                document.getElementById('status-text').innerText = "Sync Error";
+                document.getElementById('status-dot').classList.remove('online');
+                isConnected = false;
+            });
 
         } catch(e) {
-            alert("Error connecting: " + e.message);
+            console.error("Firebase Init Error:", e);
+            document.getElementById('status-text').innerText = "Config Error";
         }
     }
 
@@ -443,12 +401,13 @@
 
     // --- INIT ---
     function init() {
-        const saved = localStorage.getItem('fieldDayData_general_v1');
+        const saved = localStorage.getItem('fieldDayData_general_v2');
         if(saved) {
             const d = JSON.parse(saved);
             classes = d.classes || JSON.parse(JSON.stringify(DEFAULT_ROSTER));
             assignments = d.assignments || {};
             if(d.stations) STATIONS = d.stations;
+            // Migration
             if(d.coverageData && !d.coverageAssignments) migrateCoverage(d.coverageData);
             else coverageAssignments = d.coverageAssignments || {};
             
@@ -459,11 +418,8 @@
             migrateCoverage(COVERAGE_DEFAULTS_TEXT);
         }
         
-        // Auto-connect if config exists and hash present
-        const cfg = localStorage.getItem('fb_config');
-        if(cfg && sessionId !== 'default') {
-            setTimeout(connectFirebase, 500); 
-        }
+        // START ONLINE SYNC
+        startFirebase();
 
         render();
         document.body.addEventListener('click', initAudio, {once:true});
@@ -487,8 +443,10 @@
 
     function save() {
         const data = { classes, assignments, stations: STATIONS, coverageAssignments, covHeaders };
-        localStorage.setItem('fieldDayData_general_v1', JSON.stringify(data));
+        // Save Local (backup)
+        localStorage.setItem('fieldDayData_general_v2', JSON.stringify(data));
         
+        // Sync Cloud (Primary)
         if(isConnected && db) {
             db.ref('sessions/' + sessionId).set(data).catch(e => console.error(e));
         }
