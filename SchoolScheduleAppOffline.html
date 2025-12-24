@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Master Scheduler (Offline)</title>
+    
+    <style>
+        :root { --primary: #2c3e50; --bg: #f8fafc; --border: #cbd5e0; --accent: #3b82f6; --highlight: #f39c12; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* HEADER */
+        header { background: white; padding: 0 20px; height: 60px; border-bottom: 1px solid #cbd5e0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 100; }
+        h2 { margin: 0; font-size: 1.2rem; color: var(--primary); display: flex; flex-direction: column; line-height: 1.1; }
+        
+        .tabs { display: flex; background: #e2e8f0; padding: 3px; border-radius: 6px; gap: 4px; }
+        .tab { border: none; background: none; padding: 5px 15px; font-weight: 700; color: #64748b; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+        .tab.active { background: white; color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+
+        .controls { display: flex; gap: 8px; }
+        button { height: 30px; padding: 0 12px; border: none; border-radius: 4px; font-weight: 600; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 5px; color: white; background: var(--accent); }
+        button:hover { opacity: 0.9; }
+        
+        /* BUTTON COLORS */
+        .btn-sec { background: #64748b; }
+        .btn-imp { background: #8b5cf6; }
+        .btn-csv { background: #10b981; }
+        .btn-doc { background: #f97316; }
+        .btn-save { background: #0ea5e9; } 
+        .btn-load { background: #6366f1; }
+
+        /* LAYOUT */
+        .layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 250px; background: white; border-right: 1px solid #cbd5e0; display: flex; flex-direction: column; z-index: 50; }
+        .sidebar-content { flex: 1; overflow-y: auto; padding: 15px; }
+        
+        .group-header { 
+            font-size: 0.75rem; text-transform: uppercase; color: #64748b; font-weight: 800; 
+            margin: 25px 0 8px 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;
+        }
+        .del-group-btn { cursor: pointer; color: #ef4444; font-size: 0.7rem; opacity: 0.6; transition: opacity 0.2s; }
+        .del-group-btn:hover { opacity: 1; text-decoration: underline; }
+
+        .chip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+        /* CHIPS */
+        .chip { 
+            padding: 8px 6px; font-size: 0.8rem; text-align: center; border-radius: 4px; 
+            background: white; border: 1px solid #cbd5e0; font-weight: 600; 
+            cursor: grab; user-select: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .chip:active { cursor: grabbing; }
+        .chip.selected { background: #fff7ed; border: 2px solid var(--highlight); transform: scale(1.05); z-index: 10; }
+
+        /* SYS BLOCKS */
+        .sys { font-weight: 800; border: 1px solid #94a3b8; }
+        .sys-lunch { background: #334155; color: white; }
+        .sys-prep { background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 10px, #f1f5f9 10px, #f1f5f9 20px); color: #475569; }
+        .sys-meet { background: #7c3aed; color: white; }
+
+        /* GRID */
+        .grid-area { flex: 1; overflow: auto; padding: 20px; }
+        table { border-collapse: separate; border-spacing: 0; background: white; border: 1px solid #cbd5e0; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        
+        th { 
+            background: var(--primary); color: white; padding: 12px; min-width: 130px;
+            position: sticky; top: 0; z-index: 20; cursor: grab; border-right: 1px solid #ffffff30;
+        }
+        th.drag-over { background: var(--highlight) !important; }
+        
+        .time-head { 
+            background: #f1f5f9; color: #334155; width: 110px; min-width: 110px; 
+            position: sticky; left: 0; z-index: 30; cursor: default; border-right: 2px solid #cbd5e0;
+            border-bottom: 1px solid #cbd5e0;
+        }
+        .corner { z-index: 40; background: #1e293b; color: white; border-right: 2px solid #0f172a; }
+
+        td { border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; height: 80px; vertical-align: top; padding: 0; }
+        
+        .slot { 
+            height: 100%; width: 100%; padding: 4px; 
+            display: flex; flex-direction: column; gap: 4px; box-sizing: border-box; 
+            cursor: pointer; 
+        }
+        .slot.drag-over { background-color: #dbeafe !important; outline: 2px dashed var(--accent); }
+        .slot.target-active { background-color: #ecfdf5; outline: 2px dashed #10b981; }
+
+        /* MODALS */
+        .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 200; }
+        .modal { background: white; padding: 20px; border-radius: 8px; width: 400px; display: flex; flex-direction: column; gap: 15px; }
+        textarea { height: 120px; padding: 8px; font-family: monospace; border: 1px solid #ccc; }
+        
+        #status-dot { height: 8px; width: 8px; border-radius: 50%; background: #22c55e; display: inline-block; margin-right: 5px; }
+
+        /* WATERMARK STYLE */
+        .watermark {
+            position: fixed;
+            bottom: 15px;
+            right: 25px;
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--primary);
+            opacity: 0.1; /* Very subtle transparency */
+            pointer-events: none; /* Allows clicking through it */
+            z-index: 1000;
+            user-select: none;
+            font-family: 'Segoe UI', sans-serif;
+            letter-spacing: 2px;
+        }
+
+        /* READ ONLY OVERRIDES */
+        body.readonly .controls { display: none !important; }
+        body.readonly .chip { pointer-events: none; cursor: default; }
+        body.readonly .slot { pointer-events: none; cursor: default; }
+        body.readonly th { pointer-events: none; cursor: default; }
+    </style>
+</head>
+<body>
+
+<div class="watermark">TIU</div>
+
+<header>
+    <h2>Scheduler <small style="font-size:0.7rem; font-weight:400; color:#666;"><span id="status-dot"></span><span id="status-msg">Offline</span></small></h2>
+    <div class="tabs">
+        <button class="tab active" onclick="setDay('Mon')">MON</button>
+        <button class="tab" onclick="setDay('Tue')">TUE</button>
+        <button class="tab" onclick="setDay('Wed')">WED</button>
+        <button class="tab" onclick="setDay('Thu')">THU</button>
+        <button class="tab" onclick="setDay('Fri')">FRI</button>
+    </div>
+    <div class="controls">
+        <button class="btn-save" onclick="downloadBackup()">💾 Save</button>
+        <button class="btn-load" onclick="document.getElementById('file-upload').click()">📂 Open</button>
+        <input type="file" id="file-upload" accept=".json" style="display:none" onchange="loadBackup(this)">
+
+        <button class="btn-doc" onclick="copyToClipboard()">Copy</button>
+        <button class="btn-csv" onclick="exportCSV()">CSV</button>
+        <button class="btn-imp" onclick="showModal()">Import</button>
+        <button onclick="add('time')">+ Time</button>
+        <button onclick="add('teacher')">+ Tea</button>
+        <button class="btn-sec" onclick="resetDB()">⚠️ Reset</button>
+    </div>
+</header>
+
+<div class="layout">
+    <div class="sidebar">
+        <div class="sidebar-content" id="sb-content"></div>
+        <div style="padding:10px; border-top:1px solid #eee;">
+            <button style="width:100%" onclick="add('class')">+ Class</button>
+        </div>
+    </div>
+    <div class="grid-area">
+        <table id="grid">
+            <thead id="thead"></thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal">
+    <div class="modal">
+        <h3>Bulk Import</h3>
+        <p style="font-size:0.8rem; color:#666; margin:0;">
+            <strong>For Classes:</strong> Paste list. I will find the grade automatically.<br>
+            <em>Examples: "Smith 4", "Jones, 5", "Doe K"</em>
+        </p>
+        <select id="imp-type">
+            <option value="c">Classes (Smart Detect)</option>
+            <option value="t">Teachers (Columns)</option>
+            <option value="tm">Times (Rows)</option>
+        </select>
+        <textarea id="imp-data" placeholder="Paste list here..."></textarea>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+            <button class="btn-sec" onclick="closeModal()">Cancel</button>
+            <button class="btn-imp" onclick="runImport()">Import</button>
+        </div>
+    </div>
+</div>
+<div id="hidden-export" style="position:fixed; left:-9999px;"></div>
+
+<script>
+    // --- STATE ---
+    const DEFAULTS = {
+        teachers: [{id:'t1',name:'Art'},{id:'t2',name:'Music'},{id:'t3',name:'PE'}],
+        times: [{id:'tm1',label:'8:30 - 9:10'},{id:'tm2',label:'9:15 - 9:55'}],
+        classes: [],
+        assignments: { Mon:{}, Tue:{}, Wed:{}, Thu:{}, Fri:{} }
+    };
+    
+    let data = JSON.parse(JSON.stringify(DEFAULTS));
+    let day = 'Mon';
+    let selection = null;
+
+    // READ ONLY CHECK
+    const urlParams = new URLSearchParams(window.location.search);
+    const isReadOnly = urlParams.get('mode') === 'view';
+    if (isReadOnly) document.body.classList.add('readonly');
+
+    // --- INIT ---
+    function init() {
+        const stored = localStorage.getItem('schoolSchedule_local');
+        if (stored) {
+            try {
+                data = JSON.parse(stored);
+                if(!data.assignments) data.assignments = DEFAULTS.assignments;
+                ['Mon','Tue','Wed','Thu','Fri'].forEach(d => { if(!data.assignments[d]) data.assignments[d]={}; });
+                if(!data.teachers) data.teachers = [];
+                if(!data.times) data.times = [];
+                if(!data.classes) data.classes = [];
+            } catch(e) {
+                console.error("Corrupt save data", e);
+                data = JSON.parse(JSON.stringify(DEFAULTS));
+            }
+        }
+        setStatus('Offline / Auto-Saved', '#22c55e');
+        render();
+    }
+
+    // --- SAVE & LOAD ---
+    function downloadBackup() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "schedule_backup.json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    function loadBackup(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const contents = e.target.result;
+                const newData = JSON.parse(contents);
+                if (newData.teachers && newData.times && newData.assignments) {
+                    if(confirm("Overwrite current schedule with this file?")) {
+                        data = newData;
+                        save();
+                        render();
+                        alert("Schedule loaded successfully!");
+                    }
+                } else {
+                    alert("Invalid file format.");
+                }
+            } catch (err) {
+                alert("Error reading file: " + err);
+            }
+        };
+        reader.readAsText(file);
+        input.value = ''; 
+    }
+
+    function save() {
+        if(isReadOnly) return;
+        localStorage.setItem('schoolSchedule_local', JSON.stringify(data));
+    }
+
+    function setStatus(msg, color) {
+        document.getElementById('status-msg').innerText = msg;
+        document.getElementById('status-dot').style.background = color;
+    }
+
+    function setDay(d) {
+        day = d;
+        document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.innerText === d.toUpperCase()));
+        selection = null;
+        render();
+    }
+
+    // --- CORE LOGIC ---
+    function assign(slotKey, itemId) {
+        if(!itemId) return;
+        if (!itemId.startsWith('SYS_')) {
+            const dayMap = data.assignments[day];
+            for(const k in dayMap) {
+                if(dayMap[k] === itemId) delete dayMap[k];
+            }
+        }
+        data.assignments[day][slotKey] = itemId;
+        selection = null;
+        render(); save();
+    }
+
+    function unassign(slotKey) {
+        delete data.assignments[day][slotKey];
+        render(); save();
+    }
+
+    function moveCol(fromIdx, toIdx) {
+        if(fromIdx===toIdx) return;
+        const item = data.teachers.splice(fromIdx, 1)[0];
+        data.teachers.splice(toIdx, 0, item);
+        render(); save();
+    }
+
+    // --- RENDERERS ---
+    function render() {
+        const sb = document.getElementById('sb-content');
+        sb.innerHTML = '';
+
+        const sysDiv = document.createElement('div');
+        sysDiv.innerHTML = `<div class="group-header">Planning</div><div class="chip-grid" id="sys-grid"></div>`;
+        sb.appendChild(sysDiv);
+        ['LUNCH','PREP','MEET'].forEach(t => {
+            const d = document.createElement('div');
+            d.className = `chip sys ${t==='LUNCH'?'sys-lunch':(t==='PREP'?'sys-prep':'sys-meet')}`;
+            d.innerText = t;
+            d.draggable = true;
+            d.ondragstart = (e) => { 
+                e.dataTransfer.setData('id', `SYS_${t}_${Date.now()}`);
+                e.dataTransfer.effectAllowed = 'copy';
+            };
+            const newId = `NEW_SYS_${t}`;
+            if(selection === newId) d.classList.add('selected');
+            d.onclick = () => { selection = (selection===newId)?null:newId; render(); };
+            sysDiv.querySelector('#sys-grid').appendChild(d);
+        });
+
+        const grades = [...new Set(data.classes.map(c=>c.grade))].sort((a,b) => {
+            if(a === 'K') return -1; if(b === 'K') return 1;
+            if(a === '?') return 1; if(b === '?') return -1;
+            return a - b;
+        });
+
+        grades.forEach(g => {
+            const gDiv = document.createElement('div');
+            gDiv.innerHTML = `
+                <div class="group-header">
+                    <span>Grade ${g}</span>
+                    <span class="del-group-btn" onclick="delGrade('${g}')">delete all</span>
+                </div>`;
+            
+            const grid = document.createElement('div');
+            grid.className = 'chip-grid';
+            data.classes.filter(c => c.grade === g).forEach(c => {
+                const d = document.createElement('div');
+                d.className = `chip g-${c.grade}`;
+                if(selection === c.id) d.classList.add('selected');
+                d.innerText = c.name;
+                d.draggable = true;
+                d.ondragstart = (e) => { e.dataTransfer.setData('id', c.id); };
+                d.onclick = () => { selection = (selection===c.id)?null:c.id; render(); };
+                d.ondblclick = () => { const n=prompt('Rename:',c.name); if(n){c.name=n;save();render();} };
+                d.oncontextmenu = (e) => { e.preventDefault(); if(confirm(`Delete ${c.name}?`)) delClass(c.id); };
+                grid.appendChild(d);
+            });
+            gDiv.appendChild(grid);
+            sb.appendChild(gDiv);
+        });
+
+        renderGrid();
+    }
+
+    function renderGrid() {
+        const thead = document.getElementById('thead');
+        const tbody = document.getElementById('tbody');
+        const dayMap = data.assignments[day] || {};
+
+        thead.innerHTML = '';
+        const hr = document.createElement('tr');
+        const corn = document.createElement('th');
+        corn.className = 'time-head corner'; 
+        corn.innerText = 'Time';
+        hr.appendChild(corn);
+
+        data.teachers.forEach((t, idx) => {
+            const th = document.createElement('th');
+            th.innerText = t.name;
+            th.draggable = true;
+            th.ondragstart = (e) => { e.dataTransfer.setData('colIdx', idx); };
+            th.ondragover = (e) => { e.preventDefault(); th.classList.add('drag-over'); };
+            th.ondragleave = () => th.classList.remove('drag-over');
+            th.ondrop = (e) => {
+                e.preventDefault(); th.classList.remove('drag-over');
+                const f = e.dataTransfer.getData('colIdx');
+                if(f) moveCol(parseInt(f), idx);
+            };
+            th.ondblclick = () => { const n=prompt('Rename:',t.name); if(n){t.name=n;save();render();} };
+            th.oncontextmenu = (e) => { e.preventDefault(); if(confirm('Delete col?')){ data.teachers=data.teachers.filter(x=>x.id!==t.id); save(); render();} };
+            hr.appendChild(th);
+        });
+        thead.appendChild(hr);
+
+        tbody.innerHTML = '';
+        data.times.forEach(tm => {
+            const tr = document.createElement('tr');
+            const tdc = document.createElement('td');
+            tdc.className = 'time-head';
+            tdc.innerText = tm.label;
+            tdc.ondblclick = () => { const n=prompt('Rename:',tm.label); if(n){tm.label=n;save();render();} };
+            tdc.oncontextmenu = (e) => { e.preventDefault(); if(confirm('Delete row?')){ data.times=data.times.filter(x=>x.id!==tm.id); save(); render();} };
+            tr.appendChild(tdc);
+
+            data.teachers.forEach(t => {
+                const td = document.createElement('td');
+                const key = `${t.id}_${tm.id}`;
+                
+                const slot = document.createElement('div');
+                slot.className = 'slot';
+                if(selection) slot.classList.add('target-active');
+
+                slot.ondragover = (e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
+                slot.ondragleave = (e) => { e.currentTarget.classList.remove('drag-over'); };
+                slot.ondrop = (e) => {
+                    e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove('drag-over');
+                    const id = e.dataTransfer.getData('id');
+                    assign(key, id);
+                };
+
+                slot.onclick = () => {
+                    if(selection) {
+                        let finalId = selection;
+                        if(selection.startsWith('NEW_SYS_')) {
+                            finalId = `SYS_${selection.split('_')[2]}_${Date.now()}`;
+                        }
+                        assign(key, finalId);
+                    }
+                };
+
+                const val = dayMap[key];
+                if(val) {
+                    if(val.startsWith('SYS_')) {
+                        const type = val.split('_')[1];
+                        const css = type==='LUNCH'?'sys-lunch':(type==='PREP'?'sys-prep':'sys-meet');
+                        slot.innerHTML = `<div class="chip sys ${css}">${type}</div>`;
+                    } else {
+                        const c = data.classes.find(x => x.id === val);
+                        if(c) {
+                            slot.innerHTML = `<div class="chip g-${c.grade}" onclick="event.stopPropagation();toggleSel('${c.id}')">${c.name}</div>`;
+                        }
+                    }
+                    slot.oncontextmenu = (e) => { e.preventDefault(); unassign(key); };
+                }
+                td.appendChild(slot);
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+    }
+
+    function toggleSel(id) {
+        selection = (selection===id) ? null : id;
+        render();
+    }
+
+    function showModal() { document.getElementById('modal').style.display='flex'; }
+    function closeModal() { document.getElementById('modal').style.display='none'; }
+    
+    function runImport() {
+        const type = document.getElementById('imp-type').value;
+        const txt = document.getElementById('imp-data').value;
+        const lines = txt.split('\n').map(s=>s.trim()).filter(s=>s);
+        
+        if(type==='t') lines.forEach(n=>data.teachers.push({id:'t'+Date.now()+Math.random(), name:n}));
+        else if(type==='tm') lines.forEach(n=>data.times.push({id:'tm'+Date.now()+Math.random(), label:n}));
+        else if(type==='c') {
+            lines.forEach(line => {
+                let name = "", grade = "?";
+                if(line.includes(',')) {
+                    const p = line.split(',');
+                    name = p[0].trim();
+                    grade = p[1] ? p[1].trim() : "?";
+                } else {
+                    const parts = line.split(/\s+/);
+                    if(parts.length > 1) { grade = parts.pop(); name = parts.join(" "); } 
+                    else { name = parts[0]; grade = "?"; }
+                }
+                grade = grade.replace(/grade/i, '').trim();
+                if(grade === '') grade = '?';
+                if(name) data.classes.push({id:'c'+Date.now()+Math.random(), name:name, grade:grade});
+            });
+        }
+        save(); closeModal(); document.getElementById('imp-data').value=''; render();
+    }
+
+    function add(type) {
+        if(type==='class') {
+            const n=prompt("Name:"); const g=prompt("Grade:","K");
+            if(n) { data.classes.push({id:'c'+Date.now(), name:n, grade:g||'K'}); save(); render(); }
+        } else if(type==='teacher') {
+            const n=prompt("Name:"); if(n){ data.teachers.push({id:'t'+Date.now(), name:n}); save(); render(); }
+        } else {
+            const n=prompt("Time:"); if(n){ data.times.push({id:'tm'+Date.now(), label:n}); save(); render(); }
+        }
+    }
+
+    function delClass(id) {
+        data.classes = data.classes.filter(x => x.id !== id);
+        ['Mon','Tue','Wed','Thu','Fri'].forEach(d => {
+            const dayMap = data.assignments[d];
+            for(const k in dayMap) { if(dayMap[k] === id) delete dayMap[k]; }
+        });
+        save(); render();
+    }
+
+    function delGrade(g) {
+        if(!confirm(`Delete all Grade ${g} classes?`)) return;
+        const ids = data.classes.filter(c=>c.grade===g).map(c=>c.id);
+        data.classes = data.classes.filter(c=>c.grade!==g);
+        ['Mon','Tue','Wed','Thu','Fri'].forEach(d => {
+            for(let k in data.assignments[d]) if(ids.includes(data.assignments[d][k])) delete data.assignments[d][k];
+        });
+        save(); render();
+    }
+
+    function resetDB() { if(confirm('Delete EVERYTHING and start fresh?')) { data=JSON.parse(JSON.stringify(DEFAULTS)); save(); render(); } }
+
+    function copyToClipboard() {
+        const colors = {'K':'#ef5350','1':'#3b82f6','2':'#22c55e','3':'#f59e0b','4':'#a855f7','5':'#64748b','6':'#06b6d4','7':'#78716c','8':'#db2777'};
+        let h = `<h2 style="font-family:sans-serif">${day} Schedule</h2><table border="1" style="border-collapse:collapse;font-family:sans-serif;font-size:10pt;width:100%">`;
+        h += `<tr style="background:#eee;font-weight:bold"><td>Time</td>${data.teachers.map(t=>`<td>${t.name}</td>`).join('')}</tr>`;
+        const dayMap = data.assignments[day]||{};
+        data.times.forEach(tm => {
+            h += `<tr><td style="background:#f8fafc;font-weight:bold">${tm.label}</td>`;
+            data.teachers.forEach(t => {
+                const val = dayMap[`${t.id}_${tm.id}`];
+                let c='', s='';
+                if(val) {
+                    if(val.startsWith('SYS_')) {
+                        let type=val.split('_')[1];
+                        s = type==='LUNCH'?'background:#334155;color:#fff':(type==='PREP'?'background:#eee':'background:#7c3aed;color:#fff');
+                        c = type;
+                    } else {
+                        let cls = data.classes.find(x=>x.id===val);
+                        if(cls) { c=cls.name; let col=colors[cls.grade]||'#ccc'; s=`border-left:4px solid ${col};background:${col}20`; }
+                    }
+                }
+                h += `<td style="padding:4px;${s}">${c}</td>`;
+            });
+            h += '</tr>';
+        });
+        h += '</table>';
+        const el = document.getElementById('hidden-export'); el.innerHTML=h;
+        const r = document.createRange(); r.selectNode(el);
+        window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
+        document.execCommand('copy'); alert('Copied!');
+    }
+
+    function exportCSV() {
+        let csv = `Time,${data.teachers.map(t=>`"${t.name}"`).join(',')}\n`;
+        const dayMap = data.assignments[day]||{};
+        data.times.forEach(tm => {
+            let r = [`"${tm.label}"`];
+            data.teachers.forEach(t => {
+                const val = dayMap[`${t.id}_${tm.id}`];
+                let c = '';
+                if(val && val.startsWith('SYS_')) c = val.split('_')[1];
+                else if(val) { const cl = data.classes.find(x=>x.id===val); if(cl) c=cl.name; }
+                r.push(`"${c}"`);
+            });
+            csv += r.join(',') + '\n';
+        });
+        const b = new Blob([csv],{type:'text/csv'});
+        const a = document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`schedule_${day}.csv`;
+        document.body.appendChild(a); a.click(); a.remove();
+    }
+
+    init();
+</script>
+</body>
+</html>
