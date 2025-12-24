@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Feud Style Buzzer - TIU</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --feud-blue: #09285a;
+            --feud-light-blue: #2c5ba3;
+            --feud-yellow: #f8d348;
+            --text-glow: 0 0 10px rgba(255, 255, 255, 0.8);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(circle, var(--feud-light-blue) 0%, var(--feud-blue) 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* TIU Watermark */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 2rem;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+            font-family: 'Courier New', Courier, monospace;
+            z-index: 9999;
+        }
+
+        /* Screens */
+        .screen { display: none; width: 100%; max-width: 800px; }
+        .active { display: block; }
+
+        /* UI Elements */
+        h1 { text-shadow: 2px 2px 4px black; color: var(--feud-yellow); font-size: 3rem; margin-bottom: 20px; }
+        
+        .card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid var(--feud-yellow);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 10px auto;
+            box-shadow: 0 0 20px rgba(248, 211, 72, 0.2);
+        }
+
+        input, select {
+            padding: 10px;
+            font-size: 1.2rem;
+            border-radius: 5px;
+            border: none;
+            margin: 5px;
+            width: 80%;
+        }
+
+        button {
+            background: var(--feud-yellow);
+            color: var(--feud-blue);
+            font-weight: bold;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        button:active { transform: scale(0.95); }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* Game Board */
+        .question-box {
+            background: linear-gradient(180deg, #000, #333);
+            border: 4px solid var(--feud-yellow);
+            color: white;
+            padding: 30px;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .answer-box {
+            font-size: 1.5rem;
+            color: var(--feud-yellow);
+            margin-top: 10px;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        .reveal { opacity: 1; }
+
+        .buzzer-display {
+            font-size: 3rem;
+            font-weight: bold;
+            color: red;
+            background: black;
+            border: 5px solid red;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-shadow: 0 0 10px red;
+            display: none;
+            animation: flash 0.5s infinite alternate;
+        }
+
+        @keyframes flash { from { opacity: 1; } to { opacity: 0.5; } }
+
+        /* Player Buzzer */
+        #buzzer-btn {
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            background: red;
+            border: 10px solid darkred;
+            color: white;
+            font-size: 2rem;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 10px 20px rgba(255,255,255,0.3);
+            margin-top: 30px;
+        }
+        #buzzer-btn.locked { background: #555; border-color: #333; }
+
+        .room-code {
+            font-family: monospace;
+            font-size: 2rem;
+            background: white;
+            color: black;
+            padding: 5px 15px;
+            user-select: all;
+        }
+
+        .file-upload { font-size: 0.9rem; margin-top: 10px; }
+        
+        .score-board {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        .team-score {
+            border: 2px solid var(--feud-yellow);
+            padding: 10px;
+            width: 150px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <div id="start-screen" class="screen active">
+        <h1>SURVEY SAYS...</h1>
+        <div class="card">
+            <h3>I am the:</h3>
+            <button onclick="setupHost()">HOST</button>
+            <button onclick="setupPlayer()">PLAYER</button>
+        </div>
+    </div>
+
+    <div id="host-setup" class="screen">
+        <h1>HOST GAME</h1>
+        <div class="card">
+            <p>1. Select Difficulty:</p>
+            <select id="difficulty-select">
+                <option value="K">Kindergarten</option>
+                <option value="Elementary">Elementary School</option>
+                <option value="Middle">Middle School</option>
+                <option value="High">High School</option>
+            </select>
+            
+            <p>OR Load Custom Questions (JSON):</p>
+            <input type="file" id="json-upload" class="file-upload" accept=".json">
+
+            <hr>
+            <button onclick="initializeHost()">CREATE ROOM</button>
+        </div>
+    </div>
+
+    <div id="host-lobby" class="screen">
+        <h1>WAITING FOR PLAYERS</h1>
+        <div class="card">
+            <p>Share this Room ID with players:</p>
+            <div id="room-id-display" class="room-code">Generating...</div>
+            <p>Players Connected: <span id="player-count">0</span></p>
+            <button onclick="startGame()">START GAME</button>
+        </div>
+    </div>
+
+    <div id="host-game" class="screen">
+        <div class="score-board" id="score-container">
+            </div>
+
+        <div class="question-box" id="host-question-text">
+            Loading Question...
+        </div>
+
+        <div id="buzzer-winner" class="buzzer-display">
+            TEAM NAME
+        </div>
+
+        <div id="host-answer-text" class="answer-box">ANSWER</div>
+
+        <div style="margin-top: 20px;">
+            <button onclick="revealAnswer()">REVEAL ANSWER</button>
+            <button onclick="nextQuestion()">NEXT QUESTION</button>
+            <button onclick="resetBuzzer()" style="background:orange">RESET BUZZERS</button>
+        </div>
+    </div>
+
+    <div id="player-join" class="screen">
+        <h1>JOIN GAME</h1>
+        <div class="card">
+            <input type="text" id="join-room-id" placeholder="Enter Room ID">
+            <input type="text" id="team-name" placeholder="Team Name">
+            <button onclick="joinGame()">JOIN</button>
+        </div>
+    </div>
+
+    <div id="player-game" class="screen">
+        <h2 id="display-team-name">Team</h2>
+        <div id="status-msg">Waiting for host...</div>
+        <button id="buzzer-btn" onmousedown="buzz()" ontouchstart="buzz()">BUZZ!</button>
+    </div>
+
+<script>
+    // --- DATA & QUESTIONS ---
+    const defaultQuestions = [
+        { level: "K", q: "What color is a banana?", a: "Yellow" },
+        { level: "K", q: "What animal says Moo?", a: "Cow" },
+        { level: "K", q: "How many fingers on one hand?", a: "Five" },
+        { level: "Elementary", q: "What is 5 x 5?", a: "25" },
+        { level: "Elementary", q: "What is the capital of the USA?", a: "Washington D.C." },
+        { level: "Elementary", q: "Which planet is the Red Planet?", a: "Mars" },
+        { level: "Middle", q: "What is the chemical symbol for Water?", a: "H2O" },
+        { level: "Middle", q: "Who wrote Romeo and Juliet?", a: "William Shakespeare" },
+        { level: "Middle", q: "What is the square root of 144?", a: "12" },
+        { level: "High", q: "What is the powerhouse of the cell?", a: "Mitochondria" },
+        { level: "High", q: "In what year did WWII end?", a: "1945" },
+        { level: "High", q: "Solve for x: 2x + 4 = 10", a: "3" }
+    ];
+
+    let gameQuestions = [];
+    let currentQuestionIndex = 0;
+    let peer = null;
+    let connections = []; // List of connected players
+    let isHost = false;
+    let buzzerLocked = false;
+    
+    // --- AUDIO SYSTEM (Synth) ---
+    // Using Web Audio API so no external files are needed
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSound(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        if (type === 'buzz') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        } else if (type === 'ding') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.1); // Quick ping
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 1);
+        } else if (type === 'wrong') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            osc.start();
+            setTimeout(() => { osc.stop(); }, 300); // Short buzz
+        }
+    }
+
+    // --- NAVIGATION ---
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    function setupHost() { showScreen('host-setup'); }
+    function setupPlayer() { showScreen('player-join'); }
+
+    // --- HOST LOGIC ---
+    function initializeHost() {
+        // Handle Question Loading
+        const fileInput = document.getElementById('json-upload');
+        const level = document.getElementById('difficulty-select').value;
+
+        if (fileInput.files.length > 0) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    gameQuestions = JSON.parse(e.target.result);
+                    startPeerSession();
+                } catch(err) { alert("Invalid JSON file"); }
+            };
+            reader.readAsText(fileInput.files[0]);
+        } else {
+            gameQuestions = defaultQuestions.filter(q => q.level === level);
+            // Fallback if not enough questions for level
+            if(gameQuestions.length === 0) gameQuestions = defaultQuestions; 
+            startPeerSession();
+        }
+    }
+
+    function startPeerSession() {
+        isHost = true;
+        peer = new Peer(); // Create Peer
+        
+        peer.on('open', (id) => {
+            document.getElementById('room-id-display').innerText = id;
+            showScreen('host-lobby');
+        });
+
+        peer.on('connection', (conn) => {
+            connections.push(conn);
+            updatePlayerCount();
+
+            conn.on('data', (data) => {
+                handleHostData(data);
+            });
+
+            conn.on('close', () => {
+                connections = connections.filter(c => c !== conn);
+                updatePlayerCount();
+            });
+        });
+    }
+
+    function updatePlayerCount() {
+        document.getElementById('player-count').innerText = connections.length;
+    }
+
+    function startGame() {
+        if(connections.length === 0) {
+            if(!confirm("No players connected. Start anyway?")) return;
+        }
+        showScreen('host-game');
+        loadQuestion();
+    }
+
+    function handleHostData(data) {
+        if (data.type === 'buzz') {
+            if (!buzzerLocked) {
+                buzzerLocked = true;
+                playSound('buzz');
+                
+                // Show winner
+                const winDisplay = document.getElementById('buzzer-winner');
+                winDisplay.innerText = data.team;
+                winDisplay.style.display = 'block';
+
+                // Tell all clients buzzer is locked
+                broadcast({ type: 'locked', winner: data.team });
+            }
+        }
+    }
+
+    function broadcast(data) {
+        connections.forEach(conn => conn.send(data));
+    }
+
+    function loadQuestion() {
+        if (currentQuestionIndex >= gameQuestions.length) {
+            document.getElementById('host-question-text').innerText = "GAME OVER!";
+            return;
+        }
+        const q = gameQuestions[currentQuestionIndex];
+        document.getElementById('host-question-text').innerText = q.q || q.question; // Handle both formats
+        document.getElementById('host-answer-text').innerText = q.a || q.answer;
+        document.getElementById('host-answer-text').classList.remove('reveal');
+        resetBuzzerLogic();
+    }
+
+    function revealAnswer() {
+        document.getElementById('host-answer-text').classList.add('reveal');
+        playSound('ding');
+    }
+
+    function nextQuestion() {
+        currentQuestionIndex++;
+        loadQuestion();
+    }
+
+    function resetBuzzer() {
+        resetBuzzerLogic();
+        broadcast({ type: 'reset' });
+        playSound('ding');
+    }
+
+    function resetBuzzerLogic() {
+        buzzerLocked = false;
+        document.getElementById('buzzer-winner').style.display = 'none';
+    }
+
+    // --- PLAYER LOGIC ---
+    let myConn = null;
+    let myTeam = "";
+
+    function joinGame() {
+        const roomId = document.getElementById('join-room-id').value.trim();
+        myTeam = document.getElementById('team-name').value.trim() || "Team " + Math.floor(Math.random()*100);
+        
+        if (!roomId) return alert("Enter Room ID");
+
+        peer = new Peer();
+
+        peer.on('open', (id) => {
+            myConn = peer.connect(roomId);
+
+            myConn.on('open', () => {
+                document.getElementById('display-team-name').innerText = myTeam;
+                showScreen('player-game');
+                document.getElementById('status-msg').innerText = "Ready!";
+            });
+
+            myConn.on('data', (data) => {
+                const btn = document.getElementById('buzzer-btn');
+                const status = document.getElementById('status-msg');
+
+                if (data.type === 'locked') {
+                    btn.classList.add('locked');
+                    btn.disabled = true;
+                    if (data.winner === myTeam) {
+                        status.innerText = "YOU BUZZED!";
+                        document.body.style.backgroundColor = "green";
+                    } else {
+                        status.innerText = `${data.winner} buzzed first!`;
+                        document.body.style.backgroundColor = "darkred";
+                    }
+                } else if (data.type === 'reset') {
+                    btn.classList.remove('locked');
+                    btn.disabled = false;
+                    status.innerText = "Ready!";
+                    document.body.style.background = ""; // reset bg
+                }
+            });
+
+            myConn.on('error', (err) => alert("Connection Error"));
+        });
+    }
+
+    function buzz() {
+        if (myConn && !document.getElementById('buzzer-btn').disabled) {
+            myConn.send({ type: 'buzz', team: myTeam });
+        }
+    }
+
+</script>
+</body>
+</html>
