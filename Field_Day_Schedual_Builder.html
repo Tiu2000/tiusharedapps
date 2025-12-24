@@ -219,14 +219,13 @@
     <div class="modal-content">
         <h3>Connect to Firebase</h3>
         <p style="font-size:0.8rem;color:#666;line-height:1.4">
-            <b>Setup:</b> Replace <code style="background:#eee">YOUR_PROJECT_ID</code> below with your Firebase Project ID.<br>
-            Your API Key is pre-filled.
+            <b>Setup:</b> Pre-filled with your ID. Click Connect.
         </p>
         <div class="form-row">
             <textarea id="firebaseConfigInput" spellcheck="false"></textarea>
         </div>
         <div class="form-row">
-            <input type="text" id="sessionIdInput" placeholder="Session Name (e.g. FieldDay2026)">
+            <input type="text" id="sessionIdInput" placeholder="Session Name (e.g. FieldDay)">
         </div>
         <div class="modal-actions">
             <button class="btn-sec" onclick="closeModals()">Cancel</button>
@@ -294,16 +293,13 @@
     let sessionId = "default";
     let isConnected = false;
 
-    // USER'S API KEY
-    const USER_API_KEY = "AIzaSyAGZu2xFlx5Qy5QB2qi5q1n4eAiW0ROHzQ";
-
-    // TEMPLATE FOR EASY SETUP
+    // PRE-FILLED CONFIG
     const CONFIG_TEMPLATE = `{
-  "apiKey": "${USER_API_KEY}",
-  "authDomain": "YOUR_PROJECT_ID.firebaseapp.com",
-  "databaseURL": "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-  "projectId": "YOUR_PROJECT_ID",
-  "storageBucket": "YOUR_PROJECT_ID.appspot.com",
+  "apiKey": "AIzaSyAGZu2xFlx5Qy5QB2qi5q1n4eAiW0ROHzQ",
+  "authDomain": "fielddayschedule.firebaseapp.com",
+  "databaseURL": "https://fielddayschedule-default-rtdb.firebaseio.com",
+  "projectId": "fielddayschedule",
+  "storageBucket": "fielddayschedule.appspot.com",
   "messagingSenderId": "00000000000",
   "appId": "1:00000000000:web:00000000000000"
 }`;
@@ -340,13 +336,9 @@
         if(!sId) sId = 'FieldDay';
         
         try {
-            // Loose parsing of the object string users might paste
             let config;
             try { config = JSON.parse(configStr); } 
-            catch(e) { 
-                // Fallback for JS object syntax if they copy pasted valid JS
-                config = eval('(' + configStr + ')'); 
-            }
+            catch(e) { config = eval('(' + configStr + ')'); }
 
             if(!firebase.apps.length) firebase.initializeApp(config);
             db = firebase.database();
@@ -367,23 +359,20 @@
             db.ref('sessions/' + sessionId).on('value', (snap) => {
                 const val = snap.val();
                 if(val) {
-                    // Update local state from cloud
                     if(val.classes) classes = val.classes;
                     if(val.assignments) assignments = val.assignments;
                     if(val.stations) STATIONS = val.stations;
                     if(val.coverageAssignments) coverageAssignments = val.coverageAssignments;
                     if(val.covHeaders) covHeaders = val.covHeaders;
-                    render(); // Re-render without saving loops
+                    render(); 
                 } else {
-                    // First time? Push local data to cloud
-                    save();
+                    save(); // Push local if cloud empty
                 }
             });
-            
             alert("Connected! Share the URL to collaborate.");
 
         } catch(e) {
-            alert("Error connecting. Make sure you replaced YOUR_PROJECT_ID with your actual Project ID.\n\nDetails: " + e.message);
+            alert("Error connecting: " + e.message);
         }
     }
 
