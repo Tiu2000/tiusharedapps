@@ -46,6 +46,7 @@
         /* CONNECTION STATUS INDICATOR */
         .status-dot { width: 10px; height: 10px; background: #ccc; border-radius: 50%; display: inline-block; margin-right: 5px; }
         .status-dot.online { background: #22c55e; box-shadow: 0 0 5px #22c55e; }
+        .status-dot.error { background: #ef4444; }
 
         /* VIEWS */
         .view-section { display: none; flex: 1; overflow: hidden; position: relative; }
@@ -280,7 +281,7 @@
     const urlParams = new URLSearchParams(window.location.hash.replace('#','?'));
     if(urlParams.get('session')) sessionId = urlParams.get('session');
     
-    // HARDCODED CONFIG
+    // CONFIG - UPDATED WITH USER DATA & DB URL
     const firebaseConfig = {
       apiKey: "AIzaSyAGZu2xFlx5Qy5QB2qi5q1n4eAiW0ROHzQ",
       authDomain: "fielddayschedule.firebaseapp.com",
@@ -288,8 +289,7 @@
       projectId: "fielddayschedule",
       storageBucket: "fielddayschedule.firebasestorage.app",
       messagingSenderId: "125330603786",
-      appId: "1:125330603786:web:c7838ec65f8a2dff1484f3",
-      measurementId: "G-PK9HXV9W76"
+      appId: "1:125330603786:web:c7838ec65f8a2dff1484f3"
     };
 
     function startFirebase() {
@@ -305,7 +305,7 @@
                 const val = snap.val();
                 
                 // Update UI Connection Status
-                document.getElementById('status-dot').classList.add('online');
+                document.getElementById('status-dot').className = 'status-dot online';
                 document.getElementById('status-text').innerText = "Online";
                 document.getElementById('session-label').innerText = "Session: " + sessionId;
                 isConnected = true;
@@ -322,19 +322,19 @@
                     // New session? Upload default data
                     save();
                 }
-            });
-
-            // Error handling
-            ref.on('cancel', (e) => {
-                console.error(e);
+            }, (error) => {
+                console.error("Sync Error:", error);
+                document.getElementById('status-dot').className = 'status-dot error';
                 document.getElementById('status-text').innerText = "Sync Error";
-                document.getElementById('status-dot').classList.remove('online');
                 isConnected = false;
+                alert("Firebase Error: " + error.message + "\n\nTip: Check if your Database Rules are set to 'test mode' (public) in the Firebase Console.");
             });
 
         } catch(e) {
             console.error("Firebase Init Error:", e);
+            document.getElementById('status-dot').className = 'status-dot error';
             document.getElementById('status-text').innerText = "Config Error";
+            alert("Configuration Error: " + e.message);
         }
     }
 
@@ -418,8 +418,8 @@
             migrateCoverage(COVERAGE_DEFAULTS_TEXT);
         }
         
-        // START ONLINE SYNC
-        startFirebase();
+        // START ONLINE SYNC AUTOMATICALLY
+        setTimeout(startFirebase, 100);
 
         render();
         document.body.addEventListener('click', initAudio, {once:true});
