@@ -26,6 +26,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            touch-action: manipulation;
         }
 
         /* TIU Watermark */
@@ -82,7 +83,7 @@
         }
 
         button:active { transform: scale(0.95); }
-        button:disabled { background: #ccc; cursor: not-allowed; }
+        button:disabled { background: #666; color: #aaa; cursor: not-allowed; }
 
         /* Game Board */
         .question-box {
@@ -141,7 +142,7 @@
             font-size: 2rem;
             box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 10px 20px rgba(255,255,255,0.3);
             margin-top: 30px;
-            touch-action: manipulation; /* Improves touch response */
+            -webkit-tap-highlight-color: transparent;
         }
         #buzzer-btn.locked { background: #555; border-color: #333; }
 
@@ -168,6 +169,14 @@
             border: 1px solid white;
             padding: 5px 15px;
             border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        /* Status Text */
+        #connection-status {
+            font-size: 0.9rem;
+            color: yellow;
+            min-height: 20px;
         }
     </style>
 </head>
@@ -217,17 +226,9 @@
     </div>
 
     <div id="host-game" class="screen">
-        <div class="score-board" id="score-container">
-            </div>
-
-        <div class="question-box" id="host-question-text">
-            Loading Question...
-        </div>
-
-        <div id="buzzer-winner" class="buzzer-display">
-            TEAM NAME
-        </div>
-
+        <div class="score-board" id="score-container"></div>
+        <div class="question-box" id="host-question-text">Loading Question...</div>
+        <div id="buzzer-winner" class="buzzer-display">TEAM NAME</div>
         <div id="host-answer-text" class="answer-box">ANSWER</div>
 
         <div style="margin-top: 30px;">
@@ -240,10 +241,11 @@
     <div id="player-join" class="screen">
         <h1>JOIN GAME</h1>
         <div class="card">
+            <div id="connection-status">Initializing...</div>
             <input type="text" id="join-room-id" placeholder="ROOM CODE (e.g. ABCD)" maxlength="4" style="text-transform: uppercase;">
             <input type="text" id="team-name" placeholder="YOUR TEAM NAME" maxlength="12">
             <br>
-            <button onclick="joinGame()">JOIN</button>
+            <button id="join-btn" onclick="joinGame()" disabled>JOIN</button>
         </div>
     </div>
 
@@ -254,34 +256,23 @@
     </div>
 
 <script>
-    // --- DATA & QUESTIONS ---
+    // --- DATA ---
     const defaultQuestions = [
-        // Kindergarten
         { level: "K", q: "What color is a banana?", a: "Yellow" },
         { level: "K", q: "What animal says Moo?", a: "Cow" },
         { level: "K", q: "How many fingers on one hand?", a: "Five" },
-        
-        // 1st & 2nd
         { level: "1-2", q: "What is 10 + 10?", a: "20" },
         { level: "1-2", q: "What does a caterpillar turn into?", a: "Butterfly" },
         { level: "1-2", q: "Which month comes after December?", a: "January" },
-
-        // 3rd & 4th
         { level: "3-4", q: "What is 5 x 8?", a: "40" },
         { level: "3-4", q: "What planet is known as the Red Planet?", a: "Mars" },
         { level: "3-4", q: "What is the capital of the United States?", a: "Washington D.C." },
-
-        // 5th & 6th
         { level: "5-6", q: "What is the largest ocean on Earth?", a: "Pacific Ocean" },
         { level: "5-6", q: "Who was the first President of the USA?", a: "George Washington" },
         { level: "5-6", q: "How many sides does a hexagon have?", a: "Six" },
-
-        // 7th & 8th
         { level: "7-8", q: "What is the chemical symbol for Gold?", a: "Au" },
         { level: "7-8", q: "Who wrote 'Romeo and Juliet'?", a: "William Shakespeare" },
         { level: "7-8", q: "What is the square root of 144?", a: "12" },
-
-        // High School
         { level: "HS", q: "What is the powerhouse of the cell?", a: "Mitochondria" },
         { level: "HS", q: "In what year did World War II end?", a: "1945" },
         { level: "HS", q: "What is the value of Pi (to two decimals)?", a: "3.14" },
@@ -294,11 +285,13 @@
     let connections = []; 
     let isHost = false;
     let buzzerLocked = false;
-    let roomPrefix = "tiu-game-"; // Prefix to ensure unique namespace on PeerJS server
+    
+    // Use a unique prefix to ensure we don't clash with other PeerJS users
+    const APP_ID = "tiu_buzzer_v1_"; 
 
-    // --- AUDIO SYSTEM (Synth) ---
+    // --- AUDIO SYSTEM ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
+    
     function playSound(type) {
         if (audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator();
@@ -331,12 +324,37 @@
         document.getElementById(id).classList.add('active');
     }
 
-    function setupHost() { showScreen('host-setup'); }
-    function setupPlayer() { showScreen('player-join'); }
+    // --- SETUP FLOW ---
+
+    function setupHost() { 
+        showScreen('host-setup'); 
+    }
+
+    // Initialize Player Peer immediately when they select "Player"
+    function setupPlayer() { 
+        showScreen('player-join');
+        document.getElementById('connection-status').innerText = "Establishing Network...";
+        
+        // Create Peer with random ID (we don't care what it is, we just need one)
+        peer = new Peer();
+
+        peer.on('open', (id) => {
+            console.log("Player Peer ID: " + id);
+            document.getElementById('connection-status').innerText = "Ready to Join!";
+            document.getElementById('connection-status').style.color = "lightgreen";
+            document.getElementById('join-btn').disabled = false;
+        });
+
+        peer.on('error', (err) => {
+            alert("Network Error: " + err.type);
+            document.getElementById('connection-status').innerText = "Error";
+        });
+    }
 
     // --- HOST LOGIC ---
+
     function generateRoomCode() {
-        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // Removed I, O to avoid confusion with 1, 0
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ"; 
         let result = '';
         for (let i = 0; i < 4; i++) {
             result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -360,10 +378,7 @@
             reader.readAsText(fileInput.files[0]);
         } else {
             gameQuestions = defaultQuestions.filter(q => q.level === level);
-            if(gameQuestions.length === 0) {
-                alert("No built-in questions found for this level yet! Loading all questions.");
-                gameQuestions = defaultQuestions;
-            }
+            if(gameQuestions.length === 0) gameQuestions = defaultQuestions;
             createPeerRoom();
         }
     }
@@ -371,43 +386,51 @@
     function createPeerRoom() {
         isHost = true;
         const shortCode = generateRoomCode();
-        const fullId = roomPrefix + shortCode;
+        const fullId = APP_ID + shortCode; // Combine Prefix + Code
 
-        peer = new Peer(fullId); // Request specific ID from PeerJS
+        // Create Host Peer
+        peer = new Peer(fullId); 
         
         peer.on('open', (id) => {
-            // ID successfully created
             document.getElementById('room-id-display').innerText = shortCode;
             showScreen('host-lobby');
         });
 
         peer.on('error', (err) => {
             if(err.type === 'unavailable-id') {
-                // If code taken, try again automatically
-                createPeerRoom();
+                createPeerRoom(); // ID taken, try another
             } else {
-                alert("Connection Error: " + err.type);
+                alert("Host Error: " + err.type);
             }
         });
 
         peer.on('connection', (conn) => {
-            connections.push(conn);
-            updatePlayerCount();
+            handleConnection(conn);
+        });
+    }
 
-            conn.on('data', (data) => {
-                if (data.type === 'join') {
-                    // Store team name on connection object
-                    conn.metadata = { team: data.team };
-                    updatePlayerList();
-                }
-                handleHostData(data);
-            });
+    function handleConnection(conn) {
+        connections.push(conn);
+        
+        conn.on('open', () => {
+             // Ask player for their name immediately upon connection
+             conn.send({ type: 'request_info' });
+        });
 
-            conn.on('close', () => {
-                connections = connections.filter(c => c !== conn);
-                updatePlayerCount();
+        conn.on('data', (data) => {
+            if (data.type === 'join') {
+                conn.metadata = { team: data.team };
                 updatePlayerList();
-            });
+                updatePlayerCount();
+            } else if (data.type === 'buzz') {
+                handleBuzz(data);
+            }
+        });
+
+        conn.on('close', () => {
+            connections = connections.filter(c => c !== conn);
+            updatePlayerList();
+            updatePlayerCount();
         });
     }
 
@@ -433,20 +456,16 @@
         loadQuestion();
     }
 
-    function handleHostData(data) {
-        if (data.type === 'buzz') {
-            if (!buzzerLocked) {
-                buzzerLocked = true;
-                playSound('buzz');
-                
-                // Show winner
-                const winDisplay = document.getElementById('buzzer-winner');
-                winDisplay.innerText = data.team;
-                winDisplay.style.display = 'block';
+    function handleBuzz(data) {
+        if (!buzzerLocked) {
+            buzzerLocked = true;
+            playSound('buzz');
+            
+            const winDisplay = document.getElementById('buzzer-winner');
+            winDisplay.innerText = data.team;
+            winDisplay.style.display = 'block';
 
-                // Tell all clients buzzer is locked
-                broadcast({ type: 'locked', winner: data.team });
-            }
+            broadcast({ type: 'locked', winner: data.team });
         }
     }
 
@@ -494,61 +513,68 @@
     function joinGame() {
         const shortCode = document.getElementById('join-room-id').value.trim().toUpperCase();
         myTeam = document.getElementById('team-name').value.trim();
+        const btn = document.getElementById('join-btn');
+
+        if (shortCode.length !== 4) return alert("Code must be 4 letters");
+        if (!myTeam) return alert("Enter Team Name");
+
+        btn.innerText = "Connecting...";
+        btn.disabled = true;
+
+        const hostId = APP_ID + shortCode;
         
-        if (shortCode.length !== 4) return alert("Please enter the 4-letter Room Code");
-        if (!myTeam) return alert("Please enter a Team Name");
+        // Connect using the Peer we created in setupPlayer()
+        myConn = peer.connect(hostId);
 
-        const fullId = roomPrefix + shortCode;
-        
-        peer = new Peer();
-
-        peer.on('open', (id) => {
-            myConn = peer.connect(fullId);
-
-            myConn.on('open', () => {
-                document.getElementById('display-team-name').innerText = myTeam;
-                showScreen('player-game');
-                document.getElementById('status-msg').innerText = "Ready!";
-                
-                // Send team name to host
-                myConn.send({ type: 'join', team: myTeam });
-            });
-
-            myConn.on('data', (data) => {
-                const btn = document.getElementById('buzzer-btn');
-                const status = document.getElementById('status-msg');
-
-                if (data.type === 'locked') {
-                    btn.classList.add('locked');
-                    btn.disabled = true;
-                    if (data.winner === myTeam) {
-                        status.innerText = "YOU BUZZED!";
-                        document.body.style.backgroundColor = "#28a745"; // Green
-                    } else {
-                        status.innerText = `${data.winner} buzzed first!`;
-                        document.body.style.backgroundColor = "#990000"; // Red
-                    }
-                } else if (data.type === 'reset') {
-                    btn.classList.remove('locked');
-                    btn.disabled = false;
-                    status.innerText = "Ready!";
-                    document.body.style.background = ""; // reset bg
-                }
-            });
-
-            myConn.on('error', (err) => alert("Could not find room " + shortCode));
+        myConn.on('open', () => {
+            console.log("Connected to Host!");
+            document.getElementById('display-team-name').innerText = myTeam;
+            showScreen('player-game');
+            document.getElementById('status-msg').innerText = "Ready!";
             
-            // Timeout check if connection fails silently
-            setTimeout(() => {
-                if(!myConn.open) {
-                    // alert("Connecting is taking a while... check the Code.");
-                }
-            }, 3000);
+            // Send team name immediately
+            myConn.send({ type: 'join', team: myTeam });
         });
+
+        myConn.on('data', (data) => {
+            const buzzer = document.getElementById('buzzer-btn');
+            const status = document.getElementById('status-msg');
+
+            if (data.type === 'locked') {
+                buzzer.classList.add('locked');
+                buzzer.disabled = true;
+                if (data.winner === myTeam) {
+                    status.innerText = "YOU BUZZED!";
+                    document.body.style.backgroundColor = "#28a745"; // Green
+                } else {
+                    status.innerText = `${data.winner} buzzed first!`;
+                    document.body.style.backgroundColor = "#990000"; // Red
+                }
+            } else if (data.type === 'reset') {
+                buzzer.classList.remove('locked');
+                buzzer.disabled = false;
+                status.innerText = "Ready!";
+                document.body.style.background = ""; // reset bg
+            }
+        });
+
+        myConn.on('close', () => {
+            alert("Host disconnected");
+            location.reload();
+        });
+
+        // Fail-safe for incorrect room ID
+        setTimeout(() => {
+            if (!myConn.open) {
+                btn.innerText = "JOIN";
+                btn.disabled = false;
+                alert("Could not connect. Check Room Code.");
+            }
+        }, 5000);
     }
 
     function buzz() {
-        if (myConn && !document.getElementById('buzzer-btn').disabled) {
+        if (myConn && myConn.open) {
             myConn.send({ type: 'buzz', team: myTeam });
         }
     }
