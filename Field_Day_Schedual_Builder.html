@@ -42,7 +42,7 @@
         .btn-io { background: #7c3aed; } 
         .btn-sound { background: #334155; width: 40px; justify-content: center; padding: 0; font-size: 1.1rem; }
         .btn-bulk { background: #0891b2; font-size: 0.75rem; padding: 2px 8px; height: 24px; }
-        .btn-online { background: #dc2626; animation: pulse 2s infinite; } /* Red when disconnected/prompting */
+        .btn-online { background: #dc2626; animation: pulse 2s infinite; } 
         .btn-online.connected { background: #16a34a; animation: none; }
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
@@ -121,11 +121,11 @@
         /* MODAL */
         .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: center; }
         .modal.open { display: flex; }
-        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .modal h3 { margin-top: 0; color: var(--primary); }
         .form-row { margin-bottom: 15px; }
         .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 8px; box-sizing: border-box; border:1px solid #ccc; border-radius:4px; }
-        .form-row textarea { height: 180px; resize: vertical; font-family: monospace; font-size: 0.75rem; white-space: pre; overflow-x: auto; }
+        .form-row textarea { height: 180px; resize: vertical; font-family: monospace; font-size: 0.7rem; white-space: pre; overflow-x: auto; background: #f8fafc; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         
         .import-area { border: 2px dashed #cbd5e0; padding: 20px; text-align: center; border-radius: 6px; margin-top: 10px; background: #f8fafc; }
@@ -219,7 +219,10 @@
     <div class="modal-content">
         <h3>Connect to Firebase</h3>
         <p style="font-size:0.8rem;color:#666;line-height:1.4">
-            <b>Setup:</b> Pre-filled with your ID. Click Connect.
+            <b>Setup:</b> Your Config is pre-filled below.<br>
+            1. Verify the Config.<br>
+            2. Enter a Session Name (or share the URL later).<br>
+            3. Click Connect.
         </p>
         <div class="form-row">
             <textarea id="firebaseConfigInput" spellcheck="false"></textarea>
@@ -293,15 +296,16 @@
     let sessionId = "default";
     let isConnected = false;
 
-    // PRE-FILLED CONFIG
+    // PRE-FILLED CONFIG WITH USER DATA
     const CONFIG_TEMPLATE = `{
   "apiKey": "AIzaSyAGZu2xFlx5Qy5QB2qi5q1n4eAiW0ROHzQ",
   "authDomain": "fielddayschedule.firebaseapp.com",
   "databaseURL": "https://fielddayschedule-default-rtdb.firebaseio.com",
   "projectId": "fielddayschedule",
-  "storageBucket": "fielddayschedule.appspot.com",
-  "messagingSenderId": "00000000000",
-  "appId": "1:00000000000:web:00000000000000"
+  "storageBucket": "fielddayschedule.firebasestorage.app",
+  "messagingSenderId": "125330603786",
+  "appId": "1:125330603786:web:c7838ec65f8a2dff1484f3",
+  "measurementId": "G-PK9HXV9W76"
 }`;
 
     // Check URL for session
@@ -318,9 +322,9 @@
                 alert("Disconnected. Changes are now saving locally only.");
             }
         } else {
-            // Check if user has stored config, otherwise use Template
+            // Use stored config if valid, otherwise use template
             const storedConfig = localStorage.getItem('fb_config');
-            if(storedConfig) {
+            if(storedConfig && storedConfig.includes("fielddayschedule")) {
                 document.getElementById('firebaseConfigInput').value = storedConfig;
             } else {
                 document.getElementById('firebaseConfigInput').value = CONFIG_TEMPLATE;
@@ -445,7 +449,6 @@
             classes = d.classes || JSON.parse(JSON.stringify(DEFAULT_ROSTER));
             assignments = d.assignments || {};
             if(d.stations) STATIONS = d.stations;
-            // Migration
             if(d.coverageData && !d.coverageAssignments) migrateCoverage(d.coverageData);
             else coverageAssignments = d.coverageAssignments || {};
             
@@ -484,10 +487,8 @@
 
     function save() {
         const data = { classes, assignments, stations: STATIONS, coverageAssignments, covHeaders };
-        // Save Local
         localStorage.setItem('fieldDayData_general_v1', JSON.stringify(data));
         
-        // Sync Cloud
         if(isConnected && db) {
             db.ref('sessions/' + sessionId).set(data).catch(e => console.error(e));
         }
