@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magister's Trebuchet Calculator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IM+Fell+English:ital@0;1&display=swap');
+
+        :root {
+            --parchment: #f4e4bc;
+            --wood-dark: #3e2723;
+            --wood-light: #5d4037;
+            --iron: #2c3e50;
+            --gold: #c0392b;
+        }
+
+        body {
+            background-color: #2b1d0e;
+            color: #1a1a1a;
+            font-family: 'IM Fell English', serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-image: repeating-linear-gradient(45deg, #2b1d0e 0, #2b1d0e 10px, #25180b 10px, #25180b 20px);
+        }
+
+        h1 {
+            font-family: 'Cinzel', serif;
+            color: var(--parchment);
+            text-shadow: 2px 2px 0px #000;
+            margin-top: 20px;
+            font-size: 2.5rem;
+            border-bottom: 2px solid var(--parchment);
+            padding-bottom: 10px;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        /* Controls Panel */
+        .panel {
+            background-color: var(--parchment);
+            border: 4px solid var(--wood-dark);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 4px; left: 4px; right: 4px; bottom: 4px;
+            border: 2px solid var(--wood-light);
+            pointer-events: none;
+        }
+
+        .controls {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 1.1rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type=range] {
+            accent-color: var(--wood-dark);
+            cursor: pointer;
+        }
+
+        .value-display {
+            color: var(--gold);
+            font-weight: bold;
+        }
+
+        button {
+            background-color: var(--wood-dark);
+            color: var(--parchment);
+            font-family: 'Cinzel', serif;
+            font-size: 1.2rem;
+            padding: 10px;
+            border: 2px solid #1a1a1a;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: var(--wood-light);
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        /* Simulation Area */
+        .simulation {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        canvas {
+            background-color: #87CEEB; /* Sky blue */
+            border: 8px solid var(--wood-dark);
+            border-radius: 4px;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.2);
+            background-image: linear-gradient(to bottom, #87CEEB 0%, #e0f7fa 70%, #4caf50 70%, #2e7d32 100%);
+            cursor: crosshair;
+        }
+
+        .stats {
+            margin-top: 15px;
+            background: var(--parchment);
+            padding: 10px 20px;
+            border: 2px solid var(--wood-dark);
+            font-size: 1.2rem;
+            font-family: 'Cinzel', serif;
+            text-align: center;
+            min-width: 300px;
+        }
+
+        .decorative-corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: var(--wood-dark);
+            z-index: 2;
+        }
+        .tl { top: 0; left: 0; }
+        .tr { top: 0; right: 0; }
+        .bl { bottom: 0; left: 0; }
+        .br { bottom: 0; right: 0; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Magister's Trebuchet Calculator</h1>
+
+    <div class="container">
+        <div class="panel controls">
+            <div class="decorative-corner tl"></div><div class="decorative-corner tr"></div>
+            <div class="decorative-corner bl"></div><div class="decorative-corner br"></div>
+            
+            <h2 style="text-align: center; margin-top: 0; border-bottom: 2px solid #3e2723;">Construction</h2>
+
+            <div class="control-group">
+                <label>Counterweight (kg) <span id="val-cw" class="value-display">2000</span></label>
+                <input type="range" id="cw-mass" min="500" max="5000" value="2000">
+            </div>
+
+            <div class="control-group">
+                <label>Projectile Mass (kg) <span id="val-proj" class="value-display">50</span></label>
+                <input type="range" id="proj-mass" min="10" max="200" value="50">
+            </div>
+
+            <div class="control-group">
+                <label>Short Arm Length (m) <span id="val-short" class="value-display">3</span></label>
+                <input type="range" id="len-short" min="1" max="10" step="0.5" value="3">
+            </div>
+
+            <div class="control-group">
+                <label>Long Arm Length (m) <span id="val-long" class="value-display">10</span></label>
+                <input type="range" id="len-long" min="4" max="20" step="0.5" value="10">
+            </div>
+
+            <div class="control-group">
+                <label>Sling Length (m) <span id="val-sling" class="value-display">8</span></label>
+                <input type="range" id="len-sling" min="2" max="15" step="0.5" value="8">
+            </div>
+            
+            <div class="control-group">
+                <label>Release Angle (deg) <span id="val-release" class="value-display">45</span></label>
+                <input type="range" id="release-angle" min="0" max="90" value="45">
+            </div>
+
+            <button id="fire-btn">FIRE TREBUCHET</button>
+        </div>
+
+        <div class="simulation">
+            <canvas id="simCanvas" width="800" height="500"></canvas>
+            
+            <div class="panel stats">
+                <div class="decorative-corner tl"></div><div class="decorative-corner tr"></div>
+                <div class="decorative-corner bl"></div><div class="decorative-corner br"></div>
+                Last Distance: <span id="distance-display" style="color: #c0392b;">0</span> meters
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- Audio System (Procedural) ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playSound(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'fire') {
+            // Whoosh sound (Low frequency sweep)
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(100, now);
+            osc.frequency.exponentialRampToValueAtTime(300, now + 0.3);
+            
+            // Noise buffer for "rush" of air
+            const bufferSize = audioCtx.sampleRate * 0.5;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const noiseGain = audioCtx.createGain();
+            noise.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseGain.gain.setValueAtTime(0.1, now);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+            noise.start(now);
+            
+            gainNode.gain.setValueAtTime(0.5, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+            
+            osc.start(now);
+            osc.stop(now + 0.5);
+        } 
+        else if (type === 'release') {
+            // Sharp snap
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+            gainNode.gain.setValueAtTime(0.1, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            osc.start(now);
+            osc.stop(now + 0.1);
+        }
+        else if (type === 'land') {
+            // Thud
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(80, now);
+            osc.frequency.exponentialRampToValueAtTime(10, now + 0.2);
+            gainNode.gain.setValueAtTime(0.5, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        }
+    }
+
+    // --- Physics Engine (Verlet Integration) ---
+    // We simulate using particles and constraints for the trebuchet arm/sling
+    
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const GRAVITY = 9.81;
+    const TIME_STEP = 0.016; // 60fps
+    const SCALE = 10; // Pixels per meter
+
+    // Inputs
+    const inputs = {
+        cwMass: document.getElementById('cw-mass'),
+        projMass: document.getElementById('proj-mass'),
+        shortLen: document.getElementById('len-short'),
+        longLen: document.getElementById('len-long'),
+        slingLen: document.getElementById('len-sling'),
+        releaseAngle: document.getElementById('release-angle')
+    };
+
+    // Display Updaters
+    Object.keys(inputs).forEach(k => {
+        inputs[k].addEventListener('input', (e) => {
+            document.getElementById(`val-${k === 'cwMass' ? 'cw' : k === 'projMass' ? 'proj' : k === 'shortLen' ? 'short' : k === 'longLen' ? 'long' : k === 'slingLen' ? 'sling' : 'release'}`).innerText = e.target.value;
+            if(!isFiring) resetSimulation();
+        });
+    });
+
+    // State
+    let isFiring = false;
+    let projectile = null;
+    let particles = [];
+    let pivot = { x: 150, y: 350 }; // Pivot point on canvas
+    let releaseThreshold = 45; // Degrees
+    let hasReleased = false;
+    let distance = 0;
+    let trail = [];
+
+    class Particle {
+        constructor(x, y, mass, isPinned = false) {
+            this.x = x;
+            this.y = y;
+            this.oldx = x;
+            this.oldy = y;
+            this.mass = mass;
+            this.isPinned = isPinned;
+        }
+
+        integrate() {
+            if (this.isPinned) return;
+            const vx = this.x - this.oldx;
+            const vy = this.y - this.oldy;
+            this.oldx = this.x;
+            this.oldy = this.y;
+            this.x += vx;
+            this.y += vy + (GRAVITY * TIME_STEP * TIME_STEP * 2); // Slightly exaggerated gravity for visual feel
+        }
+    }
+
+    function resetSimulation() {
+        isFiring = false;
+        hasReleased = false;
+        trail = [];
+        
+        // Setup Geometry
+        const L_short = parseFloat(inputs.shortLen.value) * SCALE;
+        const L_long = parseFloat(inputs.longLen.value) * SCALE;
+        const L_sling = parseFloat(inputs.slingLen.value) * SCALE;
+        const M_cw = parseFloat(inputs.cwMass.value);
+        const M_proj = parseFloat(inputs.projMass.value);
+        releaseThreshold = parseFloat(inputs.releaseAngle.value);
+
+        // Particle 0: Pivot (Fixed)
+        // Particle 1: Counterweight Tip
+        // Particle 2: Long Arm Tip
+        // Particle 3: Projectile (in sling)
+
+        // Initial Angle: Cocked back. Let's say -45 degrees (CW up, Long Arm down)
+        const startAngle = Math.PI / 3; 
+
+        const p0 = new Particle(pivot.x, pivot.y, 0, true);
+        
+        // Counterweight (Up and Left)
+        const p1 = new Particle(
+            pivot.x - Math.sin(startAngle) * L_short,
+            pivot.y - Math.cos(startAngle) * L_short,
+            M_cw
+        );
+
+        // Long Arm Tip (Down and Right)
+        const p2 = new Particle(
+            pivot.x + Math.sin(startAngle) * L_long,
+            pivot.y + Math.cos(startAngle) * L_long,
+            10 // Arm mass approx
+        );
+
+        // Projectile (Tucked under long arm initially - simplified to hanging straight down from tip or laid back)
+        // For a trebuchet, the sling slides on the ground. To simplify physics, we start it hanging back.
+        const p3 = new Particle(
+            p2.x - L_sling * 0.8, // Dragging behind
+            p2.y + L_sling * 0.2, // Slightly below
+            M_proj
+        );
+        // Force p3 to be exactly L_sling away
+        const dx = p3.x - p2.x;
+        const dy = p3.y - p2.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const ratio = L_sling / dist;
+        p3.x = p2.x + dx * ratio;
+        p3.y = p2.y + dy * ratio;
+        p3.oldx = p3.x; p3.oldy = p3.y;
+
+        particles = [p0, p1, p2, p3];
+        draw();
+    }
+
+    function satisfyConstraints() {
+        const L_short = parseFloat(inputs.shortLen.value) * SCALE;
+        const L_long = parseFloat(inputs.longLen.value) * SCALE;
+        const L_sling = parseFloat(inputs.slingLen.value) * SCALE;
+
+        // Constraint 1: Pivot to CW
+        link(particles[0], particles[1], L_short);
+        // Constraint 2: Pivot to Long Arm Tip
+        link(particles[0], particles[2], L_long);
+        // Constraint 3: Rigid Beam (CW to Long Arm Tip) - keeps them 180 deg apart
+        link(particles[1], particles[2], L_short + L_long);
+        
+        // Constraint 4: Sling (Long Arm to Projectile) - ONLY if not released
+        if (!hasReleased) {
+            link(particles[2], particles[3], L_sling);
+            
+            // Floor collision for sling while dragging
+            if (particles[3].y > pivot.y + 100) { // Ground level approx
+                 particles[3].y = pivot.y + 100;
+                 // Friction
+                 const vx = particles[3].x - particles[3].oldx;
+                 particles[3].oldx = particles[3].x - (vx * 0.9);
+            }
+        }
+    }
+
+    function link(p1, p2, length) {
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const diff = length - dist;
+        const percent = diff / dist / 2;
+        
+        // Mass weighting
+        const m1 = p1.isPinned ? 1000000 : p1.mass; // Hacky infinite mass
+        const m2 = p2.isPinned ? 1000000 : p2.mass;
+        const totalM = m1 + m2;
+        
+        const offsetX = dx * percent;
+        const offsetY = dy * percent;
+
+        if (!p1.isPinned) {
+            p1.x -= offsetX * (m2/totalM)*2; // Simple rigidity
+            p1.y -= offsetY * (m2/totalM)*2;
+        }
+        if (!p2.isPinned) {
+            p2.x += offsetX * (m1/totalM)*2;
+            p2.y += offsetY * (m1/totalM)*2;
+        }
+    }
+
+    function checkRelease() {
+        if (hasReleased) return;
+
+        // Calculate angle of sling relative to the vertical
+        const p2 = particles[2];
+        const p3 = particles[3];
+        
+        // Angle of beam
+        const beamAngle = Math.atan2(p2.y - pivot.y, p2.x - pivot.x);
+        
+        // Angle of sling
+        const slingAngle = Math.atan2(p3.y - p2.y, p3.x - p2.x);
+
+        // In a real trebuchet, release is usually around 45 degrees relative to vertical
+        // Here we check if the sling has whipped around past the tip
+        // We use the User Input "Release Angle"
+        
+        // Convert to degrees for comparison
+        let deg = (slingAngle * 180 / Math.PI);
+        // Normalize
+        
+        // Simple heuristic: If sling is moving upwards and forward strongly
+        const vy = p3.y - p3.oldy;
+        const vx = p3.x - p3.oldx;
+        
+        // Check if projectile angle matches user setting relative to ground
+        // -90 is straight up, 0 is right.
+        if (deg < -releaseThreshold && vy < 0) {
+            hasReleased = true;
+            playSound('release');
+        }
+    }
+
+    function update() {
+        if (!isFiring) return;
+
+        // Physics Sub-steps for stability
+        for(let i=0; i<5; i++) {
+            particles.forEach(p => p.integrate());
+            satisfyConstraints();
+        }
+
+        checkRelease();
+        
+        // Track projectile
+        if (trail.length === 0 || 
+            Math.abs(particles[3].x - trail[trail.length-1].x) > 5 || 
+            Math.abs(particles[3].y - trail[trail.length-1].y) > 5) {
+            trail.push({x: particles[3].x, y: particles[3].y});
+        }
+
+        // Camera follow logic (horizontal pan)
+        let camX = 0;
+        if (particles[3].x > 600) {
+            camX = particles[3].x - 600;
+        }
+
+        draw(camX);
+
+        // Check Landing
+        if (particles[3].y > pivot.y + 100) {
+            isFiring = false;
+            playSound('land');
+            
+            // Calculate distance in meters
+            const pixels = particles[3].x - pivot.x;
+            const meters = (pixels / SCALE).toFixed(2);
+            document.getElementById('distance-display').innerText = meters;
+        } else {
+            requestAnimationFrame(update);
+        }
+    }
+
+    function draw(camX = 0) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.save();
+        ctx.translate(-camX, 0);
+
+        // Draw Ground
+        ctx.fillStyle = "#2e7d32";
+        ctx.fillRect(camX, pivot.y + 100, canvas.width, canvas.height - (pivot.y + 100));
+        
+        // Draw Distance Markers
+        ctx.fillStyle = "rgba(255,255,255,0.5)";
+        ctx.font = "12px sans-serif";
+        for(let i=0; i<2000; i+=50) {
+            const x = pivot.x + (i * SCALE);
+            if (x > camX && x < camX + canvas.width) {
+                ctx.fillRect(x, pivot.y + 100, 2, 10);
+                ctx.fillText(i + "m", x - 10, pivot.y + 125);
+            }
+        }
+
+        // Draw Base Structure
+        ctx.fillStyle = "#3e2723";
+        ctx.beginPath();
+        ctx.moveTo(pivot.x, pivot.y);
+        ctx.lineTo(pivot.x - 40, pivot.y + 100);
+        ctx.lineTo(pivot.x + 40, pivot.y + 100);
+        ctx.fill();
+
+        // Draw Trail
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+        ctx.lineWidth = 2;
+        if (trail.length > 0) {
+            ctx.moveTo(trail[0].x, trail[0].y);
+            for(let t of trail) ctx.lineTo(t.x, t.y);
+        }
+        ctx.stroke();
+
+        // Draw Arm
+        ctx.strokeStyle = "#5d4037";
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(particles[1].x, particles[1].y);
+        ctx.lineTo(particles[2].x, particles[2].y);
+        ctx.stroke();
+
+        // Draw Sling (rope)
+        if (!hasReleased) {
+            ctx.strokeStyle = "#d7ccc8"; // Rope color
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(particles[2].x, particles[2].y);
+            ctx.lineTo(particles[3].x, particles[3].y);
+            ctx.stroke();
+        }
+
+        // Draw Counterweight
+        const cwSize = Math.sqrt(particles[1].mass) * 0.8; 
+        ctx.fillStyle = "#2c3e50"; // Iron
+        ctx.beginPath();
+        ctx.arc(particles[1].x, particles[1].y, cwSize, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Draw Projectile
+        const projSize = Math.max(4, Math.sqrt(particles[3].mass));
+        ctx.fillStyle = "#000"; // Stone
+        ctx.beginPath();
+        ctx.arc(particles[3].x, particles[3].y, projSize, 0, Math.PI*2);
+        ctx.fill();
+
+        // Draw Pivot Pin
+        ctx.fillStyle = "#c0392b";
+        ctx.beginPath();
+        ctx.arc(pivot.x, pivot.y, 5, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    document.getElementById('fire-btn').addEventListener('click', () => {
+        resetSimulation();
+        isFiring = true;
+        playSound('fire');
+        update();
+    });
+
+    // Initial draw
+    resetSimulation();
+
+</script>
+</body>
+</html>
