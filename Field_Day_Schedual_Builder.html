@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Field Day Scheduler (Collaborative)</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        :root { --primary: #1e3a8a; --bg: #f8fafc; --border: #cbd5e0; --accent: #2563eb; --highlight: #fbbf24; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        
+        /* WATERMARK */
+        .watermark {
+            position: fixed; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 25rem; font-weight: 900; 
+            color: rgba(0, 0, 0, 0.04); 
+            pointer-events: none; z-index: 40; 
+            font-family: 'Arial Black', sans-serif; 
+            letter-spacing: 20px; white-space: nowrap;
+            user-select: none; mix-blend-mode: multiply;
+        }
+
+        /* HEADER */
+        header { background: white; padding: 0 20px; height: 60px; border-bottom: 1px solid #cbd5e0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 100; position: relative; }
+        h2 { margin: 0; font-size: 1.2rem; color: var(--primary); display: flex; flex-direction: column; line-height: 1.1; }
+        
+        .tabs { display: flex; background: #e2e8f0; padding: 4px; border-radius: 6px; gap: 4px; margin-left: 20px; }
+        .tab-btn { border: none; background: none; padding: 6px 16px; font-weight: 700; color: #64748b; border-radius: 4px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+        .tab-btn.active { background: white; color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+
+        .controls { display: flex; gap: 8px; align-items: center; }
+        button { height: 32px; padding: 0 14px; border: none; border-radius: 4px; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px; color: white; background: var(--accent); transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        
+        .btn-sec { background: #64748b; }
+        .btn-edit { background: #f59e0b; color: white; }
+        .btn-copy { background: #059669; }
+        .btn-print { background: #475569; }
+        .btn-io { background: #7c3aed; } 
+        .btn-sound { background: #334155; width: 40px; justify-content: center; padding: 0; font-size: 1.1rem; }
+        .btn-bulk { background: #0891b2; font-size: 0.75rem; padding: 2px 8px; height: 24px; }
+        .btn-online { background: #dc2626; animation: pulse 2s infinite; } /* Red when disconnected/prompting */
+        .btn-online.connected { background: #16a34a; animation: none; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+
+        /* VIEWS */
+        .view-section { display: none; flex: 1; overflow: hidden; position: relative; }
+        .view-section.active { display: flex; }
+
+        /* SIDEBAR */
+        .sidebar { width: 240px; background: white; border-right: 1px solid #cbd5e0; display: flex; flex-direction: column; z-index: 50; box-shadow: 2px 0 10px rgba(0,0,0,0.02); }
+        .sidebar-header { padding: 15px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
+        .sidebar-actions { display: flex; gap: 5px; }
+        .sidebar-content { flex: 1; overflow-y: auto; padding: 10px; }
+        
+        .grade-group { margin-bottom: 20px; }
+        .grade-header { font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 800; margin: 5px 0 8px 5px; letter-spacing: 0.5px; }
+
+        .chip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .chip { 
+            padding: 6px 4px; font-size: 0.8rem; text-align: center; border-radius: 4px; 
+            background: white; border: 1px solid #cbd5e0; font-weight: 600; color: #334155;
+            cursor: grab; user-select: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            display: flex; justify-content: center; align-items: center; position: relative;
+        }
+        .chip:active { cursor: grabbing; }
+        .chip.selected { border: 2px solid var(--accent); background: #eff6ff; }
+        .chip-del { 
+            position: absolute; top: -5px; right: -5px; width: 14px; height: 14px; background: red; color: white; 
+            border-radius: 50%; font-size: 10px; line-height: 14px; cursor: pointer; display: none; 
+        }
+        .editing .chip-del { display: block; }
+
+        /* GRID */
+        .grid-area { flex: 1; overflow: auto; padding: 20px; position: relative; z-index: 5; }
+        table { border-collapse: separate; border-spacing: 0; background: white; border: 1px solid #cbd5e0; box-shadow: 0 4px 12px rgba(0,0,0,0.05); width: 100%; }
+        
+        th { 
+            background: var(--primary); color: white; padding: 10px; min-width: 120px; font-size: 0.9rem;
+            position: sticky; top: 0; z-index: 20; border-right: 1px solid #ffffff30; cursor: pointer;
+        }
+        th:hover { background: #334e9e; }
+        
+        .time-head { 
+            background: #f1f5f9; color: #334155; width: 100px; min-width: 100px; 
+            position: sticky; left: 0; z-index: 30; cursor: default; border-right: 2px solid #cbd5e0;
+            border-bottom: 1px solid #e2e8f0; font-weight:bold; font-size: 0.75rem; text-align: center; vertical-align: middle;
+            white-space: pre-wrap;
+        }
+        .period-marker { background: #e2e8f0; font-weight: 900; color: #1e3a8a; font-size: 0.85rem; }
+
+        td { border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; height: 70px; vertical-align: top; padding: 0; }
+        
+        /* SLOTS */
+        .slot { 
+            height: 100%; width: 100%; padding: 2px; 
+            display: flex; flex-direction: column; gap: 2px; box-sizing: border-box; 
+            cursor: pointer; min-height: 60px;
+        }
+        .slot.drag-over { background-color: #dbeafe; outline: 2px dashed var(--accent); }
+        .slot.target-active { background-color: #ecfdf5; outline: 2px dashed #10b981; }
+
+        .slot .chip { width: auto; font-size: 0.75rem; padding: 2px 4px; border:none; box-shadow:none; justify-content: space-between; }
+        .slot .chip span.remove { margin-left:4px; color:#ef4444; font-weight:bold; cursor:pointer; }
+        .slot .chip.grade-K { background: #dcfce7; color: #14532d; }
+        .slot .chip.grade-1 { background: #dbeafe; color: #1e3a8a; }
+        .slot .chip.grade-2 { background: #ffedd5; color: #7c2d12; }
+        .slot .chip.grade-3 { background: #fae8ff; color: #701a75; }
+        .slot .chip.grade-4 { background: #f3f4f6; color: #374151; }
+        .slot .chip.grade-5 { background: #fee2e2; color: #7f1d1d; }
+        .slot .chip.grade-Staff { background: #f1f5f9; color: #334155; border:1px solid #94a3b8; }
+
+        /* COVERAGE SPECIFIC */
+        .cov-table td, .cov-table th { border: 1px solid #cbd5e0; }
+        .cov-col-1 { width: 60px; text-align: center; font-weight: bold; background: #f1f5f9; }
+
+        /* MODAL */
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: center; }
+        .modal.open { display: flex; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal h3 { margin-top: 0; color: var(--primary); }
+        .form-row { margin-bottom: 15px; }
+        .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 8px; box-sizing: border-box; border:1px solid #ccc; border-radius:4px; }
+        .form-row textarea { height: 180px; resize: vertical; font-family: monospace; font-size: 0.75rem; white-space: pre; overflow-x: auto; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        
+        .import-area { border: 2px dashed #cbd5e0; padding: 20px; text-align: center; border-radius: 6px; margin-top: 10px; background: #f8fafc; }
+
+        /* PRINT STYLES */
+        @media print {
+            header, .sidebar, .chip-del, .remove, .btn-print, .btn-copy, .btn-sec, .btn-edit, .controls, .modal { display: none !important; }
+            .view-section { display: none !important; }
+            .view-section.active { display: block !important; }
+            .grid-area { padding: 0; overflow: visible; }
+            table { box-shadow: none; border: 1px solid #000; width: 100%; table-layout: fixed; }
+            th, td { border: 1px solid #000; color: black !important; background: white !important; font-size: 10px; height: auto; }
+            .watermark { opacity: 0.1 !important; position: absolute; }
+            body { height: auto; overflow: visible; background: white; -webkit-print-color-adjust: exact; }
+            .slot .chip { border: 1px solid #ccc; background: #eee !important; color: black !important; }
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="watermark">TIU</div>
+
+<header>
+    <div style="display:flex; align-items:center;">
+        <h2>Field Day <small style="font-size:0.7rem; font-weight:400; color:#666;" id="session-label">Scheduler</small></h2>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchView('rotation')">Rotation Schedule</button>
+            <button class="tab-btn" onclick="switchView('coverage')">Grades 6-8 Coverage</button>
+        </div>
+    </div>
+    <div class="controls">
+        <button id="btn-online" class="btn-online" onclick="openFirebaseModal()" title="Connect to Firebase">☁️ Go Online</button>
+        <button class="btn-sound" onclick="toggleSound()" title="Toggle Sound">🔊</button>
+        <button class="btn-copy" onclick="copyTableToClipboard()" title="Copy active table">📋 Copy</button>
+        <button class="btn-io" onclick="openIOModal()" title="Backup/Restore">Backup</button>
+        <button class="btn-print" onclick="window.print()">🖨️ Print</button>
+        <button class="btn-sec" onclick="clearSchedule()">⚠️ Clear</button>
+    </div>
+</header>
+
+<div id="view-rotation" class="view-section layout active">
+    <div class="sidebar" id="sidebar-rot">
+        <div class="sidebar-header">
+            <span style="font-weight:700; color:#475569">Classes</span>
+            <div class="sidebar-actions">
+                <button class="btn-bulk" onclick="openBulkModal()">++ Bulk</button>
+                <button class="btn-bulk" onclick="openAddClassModal()">+ Add</button>
+            </div>
+        </div>
+        <div class="sidebar-content" id="sb-content-rot"></div>
+    </div>
+    <div class="grid-area">
+        <table id="grid">
+            <thead id="thead"></thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="view-coverage" class="view-section layout">
+    <div class="sidebar" id="sidebar-cov">
+        <div class="sidebar-header">
+            <span style="font-weight:700; color:#475569">Staff / Names</span>
+            <div class="sidebar-actions">
+                <button class="btn-bulk" onclick="openBulkModal()">++ Bulk</button>
+                <button class="btn-bulk" onclick="openAddClassModal()">+ Add</button>
+            </div>
+        </div>
+        <div class="sidebar-content" id="sb-content-cov"></div>
+    </div>
+    <div class="grid-area" style="padding:20px 40px;">
+        <h3 style="color:var(--primary); margin-bottom:15px; border-bottom:2px solid var(--accent); padding-bottom:5px;">
+            COVERAGE For Grades 6-8 Field Day
+        </h3>
+        <table class="cov-table" id="cov-grid">
+            <thead>
+                <tr id="cov-thead-row">
+                    <th class="cov-col-1">Per</th>
+                    <th contenteditable="true" onblur="updateCovHeader('h1',this.innerText)">Lunch Duty & Indoor Recess</th>
+                    <th contenteditable="true" onblur="updateCovHeader('h2',this.innerText)">Tiu Coverage</th>
+                    <th contenteditable="true" onblur="updateCovHeader('h3',this.innerText)">Zagami Coverage</th>
+                </tr>
+            </thead>
+            <tbody id="cov-tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="firebaseModal" class="modal">
+    <div class="modal-content">
+        <h3>Connect to Firebase</h3>
+        <p style="font-size:0.8rem;color:#666;line-height:1.4">
+            <b>Setup:</b> Replace <code style="background:#eee">YOUR_PROJECT_ID</code> below with your Firebase Project ID.<br>
+            Your API Key is pre-filled.
+        </p>
+        <div class="form-row">
+            <textarea id="firebaseConfigInput" spellcheck="false"></textarea>
+        </div>
+        <div class="form-row">
+            <input type="text" id="sessionIdInput" placeholder="Session Name (e.g. FieldDay2026)">
+        </div>
+        <div class="modal-actions">
+            <button class="btn-sec" onclick="closeModals()">Cancel</button>
+            <button class="btn-online" onclick="connectFirebase()">Connect</button>
+        </div>
+    </div>
+</div>
+
+<div id="classModal" class="modal">
+    <div class="modal-content">
+        <h3>Add Item</h3>
+        <div class="form-row"><input type="text" id="newClassName" placeholder="Name or Class (e.g. 1-2 or Hoffman)"></div>
+        <div class="form-row">
+            <select id="newClassGrade">
+                <option value="Staff">Staff / Coverage</option>
+                <option value="K">Kindergarten</option>
+                <option value="1">1st Grade</option>
+                <option value="2">2nd Grade</option>
+                <option value="3">3rd Grade</option>
+                <option value="4">4th Grade</option>
+                <option value="5">5th Grade</option>
+                <option value="6">6th Grade</option>
+            </select>
+        </div>
+        <div class="modal-actions"><button class="btn-sec" onclick="closeModals()">Cancel</button><button onclick="addClass()">Add</button></div>
+    </div>
+</div>
+
+<div id="bulkModal" class="modal">
+    <div class="modal-content">
+        <h3>Bulk Add</h3>
+        <p style="font-size:0.8rem;color:#666;">Paste names (one per line).</p>
+        <div class="form-row">
+            <select id="bulkClassGrade">
+                <option value="Staff">Staff / Coverage</option>
+                <option value="K">Kindergarten</option>
+                <option value="1">1st Grade</option>
+                <option value="2">2nd Grade</option>
+                <option value="3">3rd Grade</option>
+                <option value="4">4th Grade</option>
+                <option value="5">5th Grade</option>
+                <option value="6">6th Grade</option>
+            </select>
+        </div>
+        <div class="form-row"><textarea id="bulkClassNames" placeholder="Smith&#10;Jones" style="height:120px"></textarea></div>
+        <div class="modal-actions"><button class="btn-sec" onclick="closeModals()">Cancel</button><button onclick="addBulkClasses()">Add All</button></div>
+    </div>
+</div>
+
+<div id="ioModal" class="modal">
+    <div class="modal-content">
+        <h3>Backup & Restore</h3>
+        <button onclick="downloadBackup()" style="width:100%;margin-bottom:15px;">⬇ Download Backup</button>
+        <div class="import-area">
+            <input type="file" id="importFile" accept=".json" style="font-size:0.8rem;">
+            <button class="btn-io" onclick="importBackup()" style="width:100%;margin-top:10px;">⬆ Restore</button>
+        </div>
+        <div class="modal-actions"><button class="btn-sec" onclick="closeModals()">Close</button></div>
+    </div>
+</div>
+
+<script>
+    // --- FIREBASE SYNC SYSTEM ---
+    let db = null;
+    let sessionId = "default";
+    let isConnected = false;
+
+    // USER'S API KEY
+    const USER_API_KEY = "AIzaSyAGZu2xFlx5Qy5QB2qi5q1n4eAiW0ROHzQ";
+
+    // TEMPLATE FOR EASY SETUP
+    const CONFIG_TEMPLATE = `{
+  "apiKey": "${USER_API_KEY}",
+  "authDomain": "YOUR_PROJECT_ID.firebaseapp.com",
+  "databaseURL": "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+  "projectId": "YOUR_PROJECT_ID",
+  "storageBucket": "YOUR_PROJECT_ID.appspot.com",
+  "messagingSenderId": "00000000000",
+  "appId": "1:00000000000:web:00000000000000"
+}`;
+
+    // Check URL for session
+    const urlParams = new URLSearchParams(window.location.hash.replace('#','?'));
+    if(urlParams.get('session')) sessionId = urlParams.get('session');
+
+    function openFirebaseModal() {
+        if(isConnected) {
+            if(confirm("Disconnect from Cloud?")) {
+                isConnected = false;
+                document.getElementById('btn-online').innerText = "☁️ Go Online";
+                document.getElementById('btn-online').classList.remove('connected');
+                document.getElementById('session-label').innerText = "Local Mode";
+                alert("Disconnected. Changes are now saving locally only.");
+            }
+        } else {
+            // Check if user has stored config, otherwise use Template
+            const storedConfig = localStorage.getItem('fb_config');
+            if(storedConfig) {
+                document.getElementById('firebaseConfigInput').value = storedConfig;
+            } else {
+                document.getElementById('firebaseConfigInput').value = CONFIG_TEMPLATE;
+            }
+            document.getElementById('sessionIdInput').value = sessionId;
+            document.getElementById('firebaseModal').classList.add('open');
+        }
+    }
+
+    function connectFirebase() {
+        const configStr = document.getElementById('firebaseConfigInput').value;
+        let sId = document.getElementById('sessionIdInput').value.trim();
+        if(!sId) sId = 'FieldDay';
+        
+        try {
+            // Loose parsing of the object string users might paste
+            let config;
+            try { config = JSON.parse(configStr); } 
+            catch(e) { 
+                // Fallback for JS object syntax if they copy pasted valid JS
+                config = eval('(' + configStr + ')'); 
+            }
+
+            if(!firebase.apps.length) firebase.initializeApp(config);
+            db = firebase.database();
+            
+            sessionId = sId;
+            isConnected = true;
+            localStorage.setItem('fb_config', configStr);
+            
+            // Update UI
+            document.getElementById('btn-online').innerText = "☁️ Online";
+            document.getElementById('btn-online').classList.add('connected');
+            document.getElementById('session-label').innerText = "Session: " + sessionId;
+            window.location.hash = "session=" + sessionId;
+            
+            closeModals();
+            
+            // Initial Sync listener
+            db.ref('sessions/' + sessionId).on('value', (snap) => {
+                const val = snap.val();
+                if(val) {
+                    // Update local state from cloud
+                    if(val.classes) classes = val.classes;
+                    if(val.assignments) assignments = val.assignments;
+                    if(val.stations) STATIONS = val.stations;
+                    if(val.coverageAssignments) coverageAssignments = val.coverageAssignments;
+                    if(val.covHeaders) covHeaders = val.covHeaders;
+                    render(); // Re-render without saving loops
+                } else {
+                    // First time? Push local data to cloud
+                    save();
+                }
+            });
+            
+            alert("Connected! Share the URL to collaborate.");
+
+        } catch(e) {
+            alert("Error connecting. Make sure you replaced YOUR_PROJECT_ID with your actual Project ID.\n\nDetails: " + e.message);
+        }
+    }
+
+    // --- AUDIO ---
+    let soundEnabled = true;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx;
+    function initAudio() { if(!audioCtx) audioCtx = new AudioContext(); if(audioCtx.state==='suspended') audioCtx.resume(); }
+    function playSound(type) {
+        if(!soundEnabled) return;
+        initAudio();
+        const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+        o.connect(g); g.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+        if(type==='pop') { o.frequency.setValueAtTime(600,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.1); o.start(); o.stop(now+0.1); }
+        if(type==='del') { o.type='sawtooth'; o.frequency.setValueAtTime(200,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.2); o.start(); o.stop(now+0.2); }
+        if(type==='success') { o.frequency.setValueAtTime(400,now); o.frequency.linearRampToValueAtTime(800,now+0.1); g.gain.linearRampToValueAtTime(0,now+0.3); o.start(); o.stop(now+0.3); }
+    }
+    function toggleSound() { soundEnabled=!soundEnabled; document.querySelector('.btn-sound').innerText=soundEnabled?"🔊":"🔇"; }
+
+    // --- DATA ---
+    let activeView = 'rotation';
+    let STATIONS = [
+        {id:'s1', name:'1. Relay Race'}, {id:'s2', name:'2. Dress Up'}, {id:'s3', name:'3. Connect 4'}, {id:'s4', name:'4. Egg/Spoon'},
+        {id:'s5', name:'5. Football Toss'}, {id:'s6', name:'6. Hula Hoop'}, {id:'s7', name:'7. Obstacle'}, {id:'s8', name:'8. Cup Stack'},
+        {id:'aud', name:'Auditorium'}, {id:'caf', name:'Cafeteria'}, {id:'cls', name:'Classroom'}
+    ];
+    const TIME_SLOTS = [
+        {id:'p1', label:'Per 1\n8:15-8:57', type:'setup'}, {id:'p2a', label:'Per 2 (A)\n8:59-9:19', type:'rot'}, {id:'p2b', label:'Per 2 (B)\n9:21-9:41', type:'rot'},
+        {id:'p3a', label:'Per 3 (A)\n9:43-10:03', type:'rot'}, {id:'p3b', label:'Per 3 (B)\n10:05-10:25', type:'rot'}, {id:'p4a', label:'Per 4 (A)\n10:27-10:47', type:'rot'}, {id:'p4b', label:'Per 4 (B)\n10:49-11:09', type:'rot'},
+        {id:'p5a', label:'Per 5 (A)\n11:11-11:31', type:'rot'}, {id:'p5b', label:'Per 5 (B)\n11:33-11:53', type:'rot'}, {id:'p6', label:'Per 6\n11:55-12:37', type:'lunch'},
+        {id:'p7a', label:'Per 7 (A)\n12:39-12:59', type:'rot'}, {id:'p7b', label:'Per 7 (B)\n1:01-1:21', type:'rot'}, {id:'p8a', label:'Per 8 (A)\n1:23-1:43', type:'rot'}, {id:'p8b', label:'Per 8 (B)\n1:45-2:05', type:'rot'},
+        {id:'p9', label:'Per 9\n2:07-2:49', type:'cleanup'}
+    ];
+    
+    const DEFAULT_ROSTER = [
+        {id:'st1', name:'Dairman', grade:'Staff'}, {id:'st2', name:'Evans', grade:'Staff'}, {id:'st3', name:'Malleo', grade:'Staff'},
+        {id:'st4', name:'Hoffman', grade:'Staff'}, {id:'st5', name:'Opremcak', grade:'Staff'}, {id:'st6', name:'Jackson', grade:'Staff'},
+        {id:'st7', name:'Rey', grade:'Staff'}, {id:'st8', name:'Cabarcas', grade:'Staff'}, {id:'st9', name:'Pucheta', grade:'Staff'},
+        {id:'st10', name:'Buehler', grade:'Staff'}, {id:'st11', name:'Lebron', grade:'Staff'}, {id:'st12', name:'Masri', grade:'Staff'},
+        {id:'st13', name:'DiCristo', grade:'Staff'},
+        {id:'k1', name:'K-1', grade:'K'}, {id:'k2', name:'K-2', grade:'K'}, {id:'k3', name:'K-3', grade:'K'},
+        {id:'11', name:'1-1', grade:'1'}, {id:'12', name:'1-2', grade:'1'}, {id:'13', name:'1-3', grade:'1'}, {id:'14', name:'1-4', grade:'1'}, {id:'15', name:'1-5', grade:'1'},
+        {id:'21', name:'2-1', grade:'2'}, {id:'22', name:'2-2', grade:'2'}, {id:'23', name:'2-3', grade:'2'},
+        {id:'31', name:'3-1', grade:'3'}, {id:'32', name:'3-2', grade:'3'}, {id:'33', name:'3-3', grade:'3'},
+        {id:'41', name:'4-1', grade:'4'}, {id:'42', name:'4-2', grade:'4'}, {id:'43', name:'4-3', grade:'4'},
+        {id:'51', name:'5-1', grade:'5'}, {id:'52', name:'5-2', grade:'5'}, {id:'53', name:'5-3', grade:'5'}
+    ];
+
+    const COVERAGE_DEFAULTS_TEXT = [
+        {p:1, lunch:"", tiu:"4-2 (Rm #202)\nDairman", zag:"4-3 (Rm #206)\nEvans"},
+        {p:2, lunch:"", tiu:"Prep", zag:"Prep"},
+        {p:3, lunch:"", tiu:"2-1 (Rm #201)\nMalleo", zag:""},
+        {p:4, lunch:"Jackson-Caf\nHoffman-Caf", tiu:"3-2 (Rm #210)\nOpremcak", zag:"Lunch Duty"},
+        {p:5, lunch:"Jackson-Caf\nRey-Caf", tiu:"Lunch Duty", zag:"5-1 (Rm #302)\nCabarcas"},
+        {p:6, lunch:"Pucheta-Aud, Admin-Aud\nRey-Aud, Buehler-Caf\nLebron-Caf, Masri-Caf", tiu:"K-1 & K-2\n(combine in Rm #110)\nEvans", zag:"(Lunch)"},
+        {p:7, lunch:"Pucheta-Caf, Lebron-Caf\nHoffman-Aud, Masri-Aud", tiu:"Lunch", zag:"1-4 (Rm #104)\nOpremcak"},
+        {p:8, lunch:"", tiu:"1-2 (Rm #102)\nBuehler", zag:"3-3 (Rm #208)\nDiCristo"},
+        {p:9, lunch:"", tiu:"", zag:"1-5 (Rm #106)\nDiCristo"}
+    ];
+    
+    let covHeaders = { h1:"Lunch Duty & Indoor Recess", h2:"Tiu Coverage", h3:"Zagami Coverage" };
+    let classes = []; let assignments = {}; let coverageAssignments = {};
+
+    // --- INIT ---
+    function init() {
+        const saved = localStorage.getItem('fieldDayData_general_v1');
+        if(saved) {
+            const d = JSON.parse(saved);
+            classes = d.classes || JSON.parse(JSON.stringify(DEFAULT_ROSTER));
+            assignments = d.assignments || {};
+            if(d.stations) STATIONS = d.stations;
+            // Migration
+            if(d.coverageData && !d.coverageAssignments) migrateCoverage(d.coverageData);
+            else coverageAssignments = d.coverageAssignments || {};
+            
+            if(Object.keys(coverageAssignments).length === 0 && (!d.coverageData)) migrateCoverage(COVERAGE_DEFAULTS_TEXT);
+            if(d.covHeaders) covHeaders = d.covHeaders;
+        } else {
+            classes = JSON.parse(JSON.stringify(DEFAULT_ROSTER));
+            migrateCoverage(COVERAGE_DEFAULTS_TEXT);
+        }
+        
+        // Auto-connect if config exists and hash present
+        const cfg = localStorage.getItem('fb_config');
+        if(cfg && sessionId !== 'default') {
+            setTimeout(connectFirebase, 500); 
+        }
+
+        render();
+        document.body.addEventListener('click', initAudio, {once:true});
+    }
+
+    function migrateCoverage(textData) {
+        coverageAssignments = {};
+        textData.forEach((row, idx) => {
+            ['lunch','tiu','zag'].forEach(col => {
+                const txt = row[col];
+                if(txt) {
+                    const parts = txt.split('\n');
+                    const key = `cov_${idx}_${col}`;
+                    coverageAssignments[key] = parts.filter(s=>s.trim()).map(s => ({
+                        id: 'mig_'+Date.now()+Math.random(), text: s.trim()
+                    }));
+                }
+            });
+        });
+    }
+
+    function save() {
+        const data = { classes, assignments, stations: STATIONS, coverageAssignments, covHeaders };
+        // Save Local
+        localStorage.setItem('fieldDayData_general_v1', JSON.stringify(data));
+        
+        // Sync Cloud
+        if(isConnected && db) {
+            db.ref('sessions/' + sessionId).set(data).catch(e => console.error(e));
+        }
+    }
+
+    function switchView(view) {
+        activeView = view;
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById(`view-${view}`).classList.add('active');
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        if(view==='rotation') document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        else document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        render();
+    }
+
+    function render() {
+        if(activeView === 'rotation') {
+            renderSidebar('rot', ['K','1','2','3','4','5','6']);
+            renderGrid();
+        } else {
+            renderSidebar('cov', ['Staff','K','1','2','3','4','5']);
+            renderCoverage();
+        }
+    }
+
+    function renderSidebar(suffix, gradeOrder) {
+        const sb = document.getElementById(`sb-content-${suffix}`); sb.innerHTML = '';
+        gradeOrder.forEach(g => {
+            const list = classes.filter(c => c.grade === g);
+            if(list.length === 0) return;
+            const grp = document.createElement('div'); grp.className = 'grade-group';
+            grp.innerHTML = `<div class="grade-header">${g==='Staff'?'Staff / Names':'Grade '+g}</div>`;
+            const grid = document.createElement('div'); grid.className = 'chip-grid';
+            list.forEach(c => {
+                const el = document.createElement('div'); el.className = 'chip';
+                el.innerHTML = `<span>${c.name}</span><div class="chip-del" onclick="delClass('${c.id}')">×</div>`;
+                el.draggable = true;
+                el.ondragstart = (e) => { 
+                    e.dataTransfer.setData('text', c.name);
+                    e.dataTransfer.setData('id', c.id);
+                    e.dataTransfer.setData('source', 'sidebar');
+                };
+                grid.appendChild(el);
+            });
+            grp.appendChild(grid); sb.appendChild(grp);
+        });
+    }
+
+    function renderGrid() {
+        const thead = document.getElementById('thead'); const tbody = document.getElementById('tbody');
+        thead.innerHTML = '<tr><th class="time-head">Time</th>' + STATIONS.map((s,i) => `<th onclick="renameStation(${i})">${s.name}</th>`).join('') + '</tr>';
+        tbody.innerHTML = '';
+        TIME_SLOTS.forEach(tm => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td class="time-head ${tm.type==='lunch'?'period-marker':''}">${tm.label}</td>`;
+            STATIONS.forEach(st => {
+                const key = `${tm.id}_${st.id}`;
+                const ids = assignments[key] || [];
+                const content = ids.map(id => {
+                    const c = classes.find(x=>x.id===id);
+                    return c ? `<div class="chip grade-${c.grade}">${c.name} <span class="remove" onclick="unassign('${key}','${id}')">×</span></div>` : '';
+                }).join('');
+                tr.innerHTML += `<td><div class="slot" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDropRot(event,'${key}')">${content}</div></td>`;
+            });
+            tbody.appendChild(tr);
+        });
+    }
+
+    function handleDropRot(e, key) {
+        e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+        const id = e.dataTransfer.getData('id');
+        if(!id || id==='undefined') return;
+        if(!assignments[key]) assignments[key] = [];
+        if(!assignments[key].includes(id)) { assignments[key].push(id); playSound('pop'); save(); render(); }
+    }
+    function unassign(key, id) { if(assignments[key]) { assignments[key] = assignments[key].filter(x=>x!==id); playSound('del'); save(); render(); } }
+
+    function renderCoverage() {
+        const thead = document.getElementById('cov-thead-row');
+        thead.children[1].innerText = covHeaders.h1; thead.children[2].innerText = covHeaders.h2; thead.children[3].innerText = covHeaders.h3;
+        const tb = document.getElementById('cov-tbody'); tb.innerHTML = '';
+        for(let i=0; i<9; i++) {
+            const tr = document.createElement('tr');
+            let cells = `<td class="cov-col-1">${i+1}</td>`;
+            ['lunch','tiu','zag'].forEach(col => {
+                const key = `cov_${i}_${col}`;
+                const items = coverageAssignments[key] || [];
+                const content = items.map(item => {
+                    const cls = classes.find(c => c.name === item.text);
+                    const gradeClass = cls ? `grade-${cls.grade}` : 'grade-Staff';
+                    return `<div class="chip ${gradeClass}">${item.text} <span class="remove" onclick="unassignCov('${key}','${item.id}')">×</span></div>`;
+                }).join('');
+                cells += `<td><div class="slot" style="min-height:50px" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDropCov(event,'${key}')">${content}</div></td>`;
+            });
+            tr.innerHTML = cells;
+            tb.appendChild(tr);
+        }
+    }
+    
+    function handleDropCov(e, key) {
+        e.preventDefault(); e.target.classList.remove('drag-over');
+        const text = e.dataTransfer.getData('text');
+        if(text) {
+            if(!coverageAssignments[key]) coverageAssignments[key] = [];
+            coverageAssignments[key].push({ id: 'cov_'+Date.now(), text: text });
+            playSound('pop'); save(); render();
+        }
+    }
+    function unassignCov(key, itemId) {
+        if(coverageAssignments[key]) { coverageAssignments[key] = coverageAssignments[key].filter(x => x.id !== itemId); playSound('del'); save(); render(); }
+    }
+    function updateCovHeader(key, val) { covHeaders[key] = val; save(); }
+
+    // --- SHARED ---
+    function delClass(id) { if(confirm('Delete item?')) { classes = classes.filter(c=>c.id!==id); playSound('del'); save(); render(); } }
+    function renameStation(i) { const n = prompt("Rename Station:", STATIONS[i].name); if(n) { STATIONS[i].name = n; save(); render(); } }
+    function openAddClassModal() { document.getElementById('classModal').classList.add('open'); }
+    function openBulkModal() { document.getElementById('bulkModal').classList.add('open'); }
+    function openIOModal() { document.getElementById('ioModal').classList.add('open'); }
+    function closeModals() { document.querySelectorAll('.modal').forEach(m=>m.classList.remove('open')); }
+    function addClass() {
+        const n=document.getElementById('newClassName').value; const g=document.getElementById('newClassGrade').value;
+        if(n) { classes.push({id:'c'+Date.now(), name:n, grade:g}); playSound('pop'); save(); render(); closeModals(); }
+    }
+    function addBulkClasses() {
+        const txt=document.getElementById('bulkClassNames').value; const g=document.getElementById('bulkClassGrade').value;
+        if(txt) { txt.split('\n').forEach(n => { if(n.trim()) classes.push({id:'c'+Date.now()+Math.random(), name:n.trim(), grade:g}); }); playSound('success'); save(); render(); closeModals(); }
+    }
+    function clearSchedule() { if(confirm("Clear all assignments?")) { assignments={}; coverageAssignments={}; migrateCoverage(COVERAGE_DEFAULTS_TEXT); playSound('del'); save(); render(); } }
+    function copyTableToClipboard() {
+        const id = activeView === 'rotation' ? 'grid' : 'cov-grid';
+        const el = document.getElementById(id); const r = document.createRange(); r.selectNode(el);
+        window.getSelection().removeAllRanges(); window.getSelection().addRange(r); document.execCommand('copy'); alert('Copied!');
+    }
+    function downloadBackup() {
+        const d = { classes, assignments, stations: STATIONS, coverageAssignments, covHeaders };
+        const b = new Blob([JSON.stringify(d)], {type:'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download='FieldDay.json';
+        document.body.appendChild(a); a.click(); a.remove(); playSound('success');
+    }
+    function importBackup() {
+        const f = document.getElementById('importFile').files[0]; if(!f) return;
+        const r = new FileReader();
+        r.onload = e => { 
+            const d = JSON.parse(e.target.result); 
+            if(d.classes) { 
+                classes=d.classes; assignments=d.assignments; 
+                if(d.stations)STATIONS=d.stations; 
+                coverageAssignments=d.coverageAssignments||{}; 
+                if(d.covHeaders)covHeaders=d.covHeaders; 
+                save(); render(); closeModals(); playSound('success'); 
+            } 
+        };
+        r.readAsText(f);
+    }
+    init();
+</script>
+</body>
+</html>
