@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Magister's Trebuchet Calculator</title>
+    <title>Magister's Trebuchet Calculator (Right Launch)</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IM+Fell+English:ital@0;1&display=swap');
 
@@ -121,6 +121,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            position: relative; /* Needed for watermark positioning */
         }
 
         canvas {
@@ -130,6 +131,25 @@
             box-shadow: inset 0 0 50px rgba(0,0,0,0.2);
             background-image: linear-gradient(to bottom, #87CEEB 0%, #e0f7fa 70%, #4caf50 70%, #2e7d32 100%);
             cursor: crosshair;
+            position: relative;
+            z-index: 0;
+        }
+
+        /* --- WATERMARK STYLING --- */
+        .watermark {
+            position: absolute;
+            top: 40%; /* Positioned slightly above center */
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Cinzel', serif;
+            font-size: 10rem;
+            font-weight: 700;
+            color: var(--wood-dark); 
+            opacity: 0.15; /* Subtle transparency */
+            pointer-events: none; /* Allows clicks to pass through */
+            user-select: none;
+            z-index: 1; /* Sits on top of canvas */
+            letter-spacing: 10px;
         }
 
         .stats {
@@ -141,6 +161,8 @@
             font-family: 'Cinzel', serif;
             text-align: center;
             min-width: 300px;
+            position: relative;
+            z-index: 2; /* Ensure stats are above watermark */
         }
 
         .decorative-corner {
@@ -204,6 +226,8 @@
         <div class="simulation">
             <canvas id="simCanvas" width="800" height="500"></canvas>
             
+            <div class="watermark">TIU</div>
+
             <div class="panel stats">
                 <div class="decorative-corner tl"></div><div class="decorative-corner tr"></div>
                 <div class="decorative-corner bl"></div><div class="decorative-corner br"></div>
@@ -227,12 +251,12 @@
         const now = audioCtx.currentTime;
 
         if (type === 'fire') {
-            // Whoosh sound (Low frequency sweep)
+            // Whoosh sound
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(100, now);
             osc.frequency.exponentialRampToValueAtTime(300, now + 0.3);
             
-            // Noise buffer for "rush" of air
+            // Noise buffer
             const bufferSize = audioCtx.sampleRate * 0.5;
             const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const data = buffer.getChannelData(0);
@@ -277,12 +301,11 @@
     }
 
     // --- Physics Engine (Verlet Integration) ---
-    // We simulate using particles and constraints for the trebuchet arm/sling
     
     const canvas = document.getElementById('simCanvas');
     const ctx = canvas.getContext('2d');
     const GRAVITY = 9.81;
-    const TIME_STEP = 0.016; // 60fps
+    const TIME_STEP = 0.016; 
     const SCALE = 10; // Pixels per meter
 
     // Inputs
@@ -298,19 +321,19 @@
     // Display Updaters
     Object.keys(inputs).forEach(k => {
         inputs[k].addEventListener('input', (e) => {
-            document.getElementById(`val-${k === 'cwMass' ? 'cw' : k === 'projMass' ? 'proj' : k === 'shortLen' ? 'short' : k === 'longLen' ? 'long' : k === 'slingLen' ? 'sling' : 'release'}`).innerText = e.target.value;
+            const displayId = k === 'cwMass' ? 'cw' : k === 'projMass' ? 'proj' : k === 'shortLen' ? 'short' : k === 'longLen' ? 'long' : k === 'slingLen' ? 'sling' : 'release';
+            document.getElementById(`val-${displayId}`).innerText = e.target.value;
             if(!isFiring) resetSimulation();
         });
     });
 
     // State
     let isFiring = false;
-    let projectile = null;
     let particles = [];
-    let pivot = { x: 150, y: 350 }; // Pivot point on canvas
-    let releaseThreshold = 45; // Degrees
+    // Pivot moved slightly left to give room for rightward shot
+    let pivot = { x: 200, y: 350 }; 
+    let releaseThreshold = 45;
     let hasReleased = false;
-    let distance = 0;
     let trail = [];
 
     class Particle {
@@ -330,7 +353,7 @@
             this.oldx = this.x;
             this.oldy = this.y;
             this.x += vx;
-            this.y += vy + (GRAVITY * TIME_STEP * TIME_STEP * 2); // Slightly exaggerated gravity for visual feel
+            this.y += vy + (GRAVITY * TIME_STEP * TIME_STEP * 2);
         }
     }
 
@@ -339,7 +362,6 @@
         hasReleased = false;
         trail = [];
         
-        // Setup Geometry
         const L_short = parseFloat(inputs.shortLen.value) * SCALE;
         const L_long = parseFloat(inputs.longLen.value) * SCALE;
         const L_sling = parseFloat(inputs.slingLen.value) * SCALE;
@@ -347,37 +369,35 @@
         const M_proj = parseFloat(inputs.projMass.value);
         releaseThreshold = parseFloat(inputs.releaseAngle.value);
 
-        // Particle 0: Pivot (Fixed)
-        // Particle 1: Counterweight Tip
-        // Particle 2: Long Arm Tip
-        // Particle 3: Projectile (in sling)
-
-        // Initial Angle: Cocked back. Let's say -45 degrees (CW up, Long Arm down)
-        const startAngle = Math.PI / 3; 
+        // CONFIGURATION FOR RIGHTWARD SHOT
+        // Initial Angle: Cocked back. 
+        // Long Arm (p2) points Left-Down
+        // Counterweight (p1) points Right-Up
+        const startAngle = Math.PI / 3; // 60 degrees from vertical
 
         const p0 = new Particle(pivot.x, pivot.y, 0, true);
         
-        // Counterweight (Up and Left)
+        // Counterweight (Right and Up)
         const p1 = new Particle(
-            pivot.x - Math.sin(startAngle) * L_short,
+            pivot.x + Math.sin(startAngle) * L_short,
             pivot.y - Math.cos(startAngle) * L_short,
             M_cw
         );
 
-        // Long Arm Tip (Down and Right)
+        // Long Arm Tip (Left and Down)
         const p2 = new Particle(
-            pivot.x + Math.sin(startAngle) * L_long,
+            pivot.x - Math.sin(startAngle) * L_long,
             pivot.y + Math.cos(startAngle) * L_long,
-            10 // Arm mass approx
+            10 // Arm mass
         );
 
-        // Projectile (Tucked under long arm initially - simplified to hanging straight down from tip or laid back)
-        // For a trebuchet, the sling slides on the ground. To simplify physics, we start it hanging back.
+        // Projectile (Tucked behind p2, further left)
         const p3 = new Particle(
-            p2.x - L_sling * 0.8, // Dragging behind
-            p2.y + L_sling * 0.2, // Slightly below
+            p2.x - L_sling * 0.8, 
+            p2.y + L_sling * 0.2, 
             M_proj
         );
+        
         // Force p3 to be exactly L_sling away
         const dx = p3.x - p2.x;
         const dy = p3.y - p2.y;
@@ -400,7 +420,7 @@
         link(particles[0], particles[1], L_short);
         // Constraint 2: Pivot to Long Arm Tip
         link(particles[0], particles[2], L_long);
-        // Constraint 3: Rigid Beam (CW to Long Arm Tip) - keeps them 180 deg apart
+        // Constraint 3: Rigid Beam
         link(particles[1], particles[2], L_short + L_long);
         
         // Constraint 4: Sling (Long Arm to Projectile) - ONLY if not released
@@ -408,7 +428,7 @@
             link(particles[2], particles[3], L_sling);
             
             // Floor collision for sling while dragging
-            if (particles[3].y > pivot.y + 100) { // Ground level approx
+            if (particles[3].y > pivot.y + 100) { 
                  particles[3].y = pivot.y + 100;
                  // Friction
                  const vx = particles[3].x - particles[3].oldx;
@@ -424,8 +444,7 @@
         const diff = length - dist;
         const percent = diff / dist / 2;
         
-        // Mass weighting
-        const m1 = p1.isPinned ? 1000000 : p1.mass; // Hacky infinite mass
+        const m1 = p1.isPinned ? 1000000 : p1.mass;
         const m2 = p2.isPinned ? 1000000 : p2.mass;
         const totalM = m1 + m2;
         
@@ -433,7 +452,7 @@
         const offsetY = dy * percent;
 
         if (!p1.isPinned) {
-            p1.x -= offsetX * (m2/totalM)*2; // Simple rigidity
+            p1.x -= offsetX * (m2/totalM)*2; 
             p1.y -= offsetY * (m2/totalM)*2;
         }
         if (!p2.isPinned) {
@@ -445,31 +464,23 @@
     function checkRelease() {
         if (hasReleased) return;
 
-        // Calculate angle of sling relative to the vertical
         const p2 = particles[2];
         const p3 = particles[3];
         
-        // Angle of beam
-        const beamAngle = Math.atan2(p2.y - pivot.y, p2.x - pivot.x);
+        // Velocity Check: Projectile must be moving right (vx > 0)
+        const vx = p3.x - p3.oldx;
+        const vy = p3.y - p3.oldy;
         
         // Angle of sling
         const slingAngle = Math.atan2(p3.y - p2.y, p3.x - p2.x);
-
-        // In a real trebuchet, release is usually around 45 degrees relative to vertical
-        // Here we check if the sling has whipped around past the tip
-        // We use the User Input "Release Angle"
-        
-        // Convert to degrees for comparison
         let deg = (slingAngle * 180 / Math.PI);
-        // Normalize
+
+        // Release Logic for Rightward Shot
+        // We want to release when the sling swings up and forward
+        // Angle 0 is Right, -90 is Up.
+        // Usually release is around 45 degrees relative to ground
         
-        // Simple heuristic: If sling is moving upwards and forward strongly
-        const vy = p3.y - p3.oldy;
-        const vx = p3.x - p3.oldx;
-        
-        // Check if projectile angle matches user setting relative to ground
-        // -90 is straight up, 0 is right.
-        if (deg < -releaseThreshold && vy < 0) {
+        if (vx > 0 && deg < -releaseThreshold && vy < 0) {
             hasReleased = true;
             playSound('release');
         }
@@ -478,7 +489,6 @@
     function update() {
         if (!isFiring) return;
 
-        // Physics Sub-steps for stability
         for(let i=0; i<5; i++) {
             particles.forEach(p => p.integrate());
             satisfyConstraints();
@@ -493,10 +503,11 @@
             trail.push({x: particles[3].x, y: particles[3].y});
         }
 
-        // Camera follow logic (horizontal pan)
+        // Camera follow logic (Rightward pan)
         let camX = 0;
-        if (particles[3].x > 600) {
-            camX = particles[3].x - 600;
+        // Start panning when projectile crosses center screen (400)
+        if (particles[3].x > 400) {
+            camX = particles[3].x - 400;
         }
 
         draw(camX);
@@ -507,6 +518,7 @@
             playSound('land');
             
             // Calculate distance in meters
+            // Subtract initial position (pivot x)
             const pixels = particles[3].x - pivot.x;
             const meters = (pixels / SCALE).toFixed(2);
             document.getElementById('distance-display').innerText = meters;
@@ -523,14 +535,17 @@
 
         // Draw Ground
         ctx.fillStyle = "#2e7d32";
+        // Ensure ground extends infinitely to the right of camera
         ctx.fillRect(camX, pivot.y + 100, canvas.width, canvas.height - (pivot.y + 100));
         
         // Draw Distance Markers
         ctx.fillStyle = "rgba(255,255,255,0.5)";
         ctx.font = "12px sans-serif";
-        for(let i=0; i<2000; i+=50) {
+        // Draw markers far to the right
+        for(let i=0; i<5000; i+=50) {
             const x = pivot.x + (i * SCALE);
-            if (x > camX && x < camX + canvas.width) {
+            // Only draw if within camera view for performance
+            if (x > camX - 50 && x < camX + canvas.width + 50) {
                 ctx.fillRect(x, pivot.y + 100, 2, 10);
                 ctx.fillText(i + "m", x - 10, pivot.y + 125);
             }
@@ -564,7 +579,7 @@
 
         // Draw Sling (rope)
         if (!hasReleased) {
-            ctx.strokeStyle = "#d7ccc8"; // Rope color
+            ctx.strokeStyle = "#d7ccc8"; 
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(particles[2].x, particles[2].y);
