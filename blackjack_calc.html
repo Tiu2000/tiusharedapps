@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro-Grade Blackjack Odds Calculator</title>
+    <style>
+        :root {
+            --bg-color: #1b1b1b;
+            --felt-color: #2d5e38;
+            --felt-border: #3e7a4b;
+            --text-color: #ecf0f1;
+            --accent-color: #f1c40f;
+            --card-bg: #fff;
+            --card-text: #000;
+            --danger: #e74c3c;
+            --success: #2ecc71;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* --- WATERMARK --- */
+        body::after {
+            content: "TIU";
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-25deg);
+            font-size: 25vw; /* Responsive size */
+            font-weight: 900;
+            
+            /* Visibility set to be subtle but clearly visible */
+            color: rgba(255, 255, 255, 0.08); 
+            
+            z-index: 0; 
+            pointer-events: none; /* Allows clicks to pass through */
+            user-select: none;
+            white-space: nowrap;
+            font-family: sans-serif;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            
+            /* Ensures the interface sits ABOVE the watermark */
+            z-index: 1; 
+            position: relative;
+        }
+
+        @media (max-width: 800px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        /* --- Game Board --- */
+        .board {
+            background-color: var(--felt-color);
+            border: 10px solid var(--felt-border);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        h2 { margin-top: 0; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+        
+        .section-label {
+            text-transform: uppercase;
+            font-size: 0.8em;
+            letter-spacing: 1px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        /* --- Card Inputs --- */
+        .hand-area {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            align-items: center;
+        }
+
+        .card-slot {
+            width: 60px;
+            height: 85px;
+            border: 2px dashed rgba(255,255,255,0.3);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2em;
+            background: rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .card-slot.filled {
+            background: var(--card-bg);
+            color: var(--card-text);
+            border-style: solid;
+        }
+
+        .card-slot.filled.red { color: var(--danger); }
+        .card-slot:hover { border-color: var(--accent-color); }
+        .card-slot.active { box-shadow: 0 0 0 3px var(--accent-color); border-color: var(--accent-color); }
+
+        /* --- Card Picker --- */
+        .card-picker {
+            display: grid;
+            grid-template-columns: repeat(13, 1fr);
+            gap: 5px;
+            background: #2c3e50;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .picker-btn {
+            background: #fff;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 0;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .picker-btn:hover { background: var(--accent-color); }
+
+        /* --- Stats Panel --- */
+        .stats-panel {
+            background: #2c3e50;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .stat-box {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        .recommendation {
+            font-size: 1.5em;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: block;
+        }
+        
+        .rec-hit { background: var(--success); color: #fff; }
+        .rec-stand { background: var(--danger); color: #fff; }
+        .rec-double { background: var(--accent-color); color: #000; }
+        .rec-split { background: #3498db; color: #fff; }
+
+        /* --- Settings & Toggles --- */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .toggle-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .toggle-btn.active {
+            background: var(--accent-color);
+            color: #000;
+            border-color: var(--accent-color);
+        }
+
+        .bar-container {
+            height: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 5px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        .bar-fill { height: 100%; transition: width 0.3s; }
+        .bar-win { background: var(--success); }
+        .bar-push { background: #95a5a6; }
+        .bar-lose { background: var(--danger); }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="board">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2>Table & Hands</h2>
+            <button onclick="resetHands()" style="padding:5px 15px; cursor:pointer; background:#e74c3c; border:none; color:white; border-radius:4px;">Reset Hands</button>
+        </div>
+
+        <span class="section-label">Dealer Upcard</span>
+        <div class="hand-area">
+            <div class="card-slot" id="d1" onclick="selectSlot('d1')">?</div>
+        </div>
+
+        <span class="section-label">Player Hand</span>
+        <div class="hand-area">
+            <div class="card-slot" id="p1" onclick="selectSlot('p1')">?</div>
+            <div class="card-slot" id="p2" onclick="selectSlot('p2')">?</div>
+        </div>
+
+        <div id="card-selector">
+            <span class="section-label">Select Card Value</span>
+            <div class="card-picker">
+                <button class="picker-btn" onclick="setCard('2')">2</button>
+                <button class="picker-btn" onclick="setCard('3')">3</button>
+                <button class="picker-btn" onclick="setCard('4')">4</button>
+                <button class="picker-btn" onclick="setCard('5')">5</button>
+                <button class="picker-btn" onclick="setCard('6')">6</button>
+                <button class="picker-btn" onclick="setCard('7')">7</button>
+                <button class="picker-btn" onclick="setCard('8')">8</button>
+                <button class="picker-btn" onclick="setCard('9')">9</button>
+                <button class="picker-btn" onclick="setCard('10')">10</button>
+                <button class="picker-btn" onclick="setCard('J')">J</button>
+                <button class="picker-btn" onclick="setCard('Q')">Q</button>
+                <button class="picker-btn" onclick="setCard('K')">K</button>
+                <button class="picker-btn" onclick="setCard('A')">A</button>
+            </div>
+            <p style="font-size:0.8em; color:#ccc; margin-top:5px;">*Suit does not affect odds in standard Blackjack.</p>
+        </div>
+
+        <div style="margin-top:20px;">
+            <h3>Simulation Results (10,000 Hands)</h3>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; text-align:center;">
+                <div>
+                    <span class="section-label">Player Win</span>
+                    <div class="bar-container"><div id="bar-win" class="bar-fill bar-win" style="width:0%"></div></div>
+                    <span id="txt-win">0%</span>
+                </div>
+                <div>
+                    <span class="section-label">Push (Tie)</span>
+                    <div class="bar-container"><div id="bar-push" class="bar-fill bar-push" style="width:0%"></div></div>
+                    <span id="txt-push">0%</span>
+                </div>
+                <div>
+                    <span class="section-label">Dealer Win</span>
+                    <div class="bar-container"><div id="bar-lose" class="bar-fill bar-lose" style="width:0%"></div></div>
+                    <span id="txt-lose">0%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats-panel">
+        <h3>Configuration</h3>
+        <div class="settings-grid">
+            <button class="toggle-btn active" id="btn-csm" onclick="toggleCSM()">Mode: CSM (Anti-Cheat)</button>
+            <button class="toggle-btn" id="btn-soft17" onclick="toggleSoft17()">Dealer: Stand Soft 17</button>
+            <button class="toggle-btn" id="btn-decks" onclick="cycleDecks()">Decks: 6</button>
+        </div>
+        
+        <div class="stat-box">
+            <span class="section-label">Optimum Move</span>
+            <div id="rec-display" class="recommendation" style="background:#555;">WAITING</div>
+            <div id="rec-sub" style="font-size:0.8em; margin-top:5px; opacity:0.7;">Input cards to see move</div>
+        </div>
+
+        <div class="stat-box" id="counting-box" style="opacity: 0.3;">
+            <span class="section-label">True Count (Hi-Lo)</span>
+            <div class="stat-value" id="true-count">0</div>
+            <div style="font-size:0.8em; color:#e74c3c;" id="csm-warning">DISABLED IN CSM MODE</div>
+        </div>
+
+        <div class="stat-box">
+            <span class="section-label">House Edge (Current State)</span>
+            <div class="stat-value" id="house-edge">0.5%</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /**
+     * STATE MANAGEMENT
+     */
+    const state = {
+        decks: 6,
+        hitSoft17: false, // false = Stand on Soft 17 (S17), true = Hit on Soft 17 (H17)
+        csmMode: true,    // Continuous Shuffling Machine
+        runningCount: 0,
+        cardsDealt: 0,
+        deck: [],         // The shoe
+        hand: {
+            d1: null,
+            p1: null,
+            p2: null
+        },
+        activeSlot: null
+    };
+
+    const cardValues = {
+        '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, 
+        '10': 10, 'J': 10, 'Q': 10, 'K': 10, 'A': 11
+    };
+
+    const hiLoValues = {
+        '2': 1, '3': 1, '4': 1, '5': 1, '6': 1,
+        '7': 0, '8': 0, '9': 0,
+        '10': -1, 'J': -1, 'Q': -1, 'K': -1, 'A': -1
+    };
+
+    /**
+     * INITIALIZATION
+     */
+    function init() {
+        resetDeck();
+        updateUI();
+    }
+
+    function resetDeck() {
+        state.deck = [];
+        state.runningCount = 0;
+        state.cardsDealt = 0;
+        
+        // Create standard shoe
+        const suits = ['h', 'd', 'c', 's'];
+        const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+        
+        for (let d = 0; d < state.decks; d++) {
+            for (let s of suits) {
+                for (let r of ranks) {
+                    state.deck.push(r);
+                }
+            }
+        }
+    }
+
+    /**
+     * UI INTERACTION
+     */
+    function selectSlot(id) {
+        // Remove active class from all
+        document.querySelectorAll('.card-slot').forEach(el => el.classList.remove('active'));
+        state.activeSlot = id;
+        document.getElementById(id).classList.add('active');
+    }
+
+    function setCard(val) {
+        if (!state.activeSlot) return;
+
+        state.hand[state.activeSlot] = val;
+        
+        // Update Visual
+        const el = document.getElementById(state.activeSlot);
+        el.textContent = val;
+        el.classList.add('filled');
+
+        // Handle Card Counting Logic
+        if (!state.csmMode) {
+            updateCount(val);
+        }
+
+        // Auto-advance slot
+        if (state.activeSlot === 'd1') selectSlot('p1');
+        else if (state.activeSlot === 'p1') selectSlot('p2');
+        else if (state.activeSlot === 'p2') state.activeSlot = null; // Done
+
+        calculate();
+    }
+
+    function resetHands() {
+        state.hand = { d1: null, p1: null, p2: null };
+        document.querySelectorAll('.card-slot').forEach(el => {
+            el.textContent = '?';
+            el.classList.remove('filled', 'active');
+        });
+        
+        document.getElementById('rec-display').textContent = "WAITING";
+        document.getElementById('rec-display').style.background = "#555";
+        document.getElementById('rec-sub').textContent = "Input cards to see move";
+        clearBars();
+    }
+
+    function toggleCSM() {
+        state.csmMode = !state.csmMode;
+        const btn = document.getElementById('btn-csm');
+        const countBox = document.getElementById('counting-box');
+        const warning = document.getElementById('csm-warning');
+
+        if (state.csmMode) {
+            btn.textContent = "Mode: CSM (Anti-Cheat)";
+            btn.classList.add('active');
+            countBox.style.opacity = "0.3";
+            warning.style.display = "block";
+            state.runningCount = 0; // Reset count
+        } else {
+            btn.textContent = "Mode: Shoe (Card Counting)";
+            btn.classList.remove('active');
+            countBox.style.opacity = "1";
+            warning.style.display = "none";
+        }
+        calculate();
+    }
+
+    function toggleSoft17() {
+        state.hitSoft17 = !state.hitSoft17;
+        const btn = document.getElementById('btn-soft17');
+        btn.textContent = state.hitSoft17 ? "Dealer: Hit Soft 17" : "Dealer: Stand Soft 17";
+        if(state.hitSoft17) btn.classList.add('active');
+        else btn.classList.remove('active');
+        calculate();
+    }
+
+    function cycleDecks() {
+        const options = [1, 2, 4, 6, 8];
+        let idx = options.indexOf(state.decks);
+        state.decks = options[(idx + 1) % options.length];
+        document.getElementById('btn-decks').textContent = `Decks: ${state.decks}`;
+        resetDeck(); // New deck size implies reshuffle
+        calculate();
+    }
+
+    function updateCount(cardVal) {
+        // Simple Hi-Lo
+        state.runningCount += hiLoValues[cardVal];
+        state.cardsDealt++;
+        updateUI();
+    }
+
+    function updateUI() {
+        // Calculate True Count
+        let decksRemaining = state.decks - (state.cardsDealt / 52);
+        if (decksRemaining < 1) decksRemaining = 1; // Prevent divide by zero/weirdness at end
+        let trueCount = Math.round((state.runningCount / decksRemaining) * 10) / 10;
+        
+        document.getElementById('true-count').textContent = state.csmMode ? "-" : trueCount;
+    }
+
+    /**
+     * CALCULATION ENGINES
+     */
+    function calculate() {
+        if (!state.hand.d1 || !state.hand.p1 || !state.hand.p2) return;
+
+        const dealerCard = state.hand.d1;
+        const playerCard1 = state.hand.p1;
+        const playerCard2 = state.hand.p2;
+
+        // 1. Get Basic Strategy Recommendation
+        const rec = getBasicStrategy(playerCard1, playerCard2, dealerCard);
+        displayRecommendation(rec);
+
+        // 2. Run Monte Carlo Simulation for Win %
+        runSimulation(playerCard1, playerCard2, dealerCard);
+    }
+
+    function getBasicStrategy(p1, p2, d) {
+        const val1 = cardValues[p1];
+        const val2 = cardValues[p2];
+        const dealerVal = cardValues[d];
+        const playerTotal = val1 + val2;
+        const isStrictPair = p1 === p2; // 8-8, A-A
+        const hasAce = (p1 === 'A' || p2 === 'A');
+
+        // --- PAIR SPLITTING ---
+        if (isStrictPair) {
+            if (p1 === 'A') return "SPLIT";
+            if (p1 === '8') return "SPLIT";
+            if (p1 === '10' || p1 === 'J' || p1 === 'Q' || p1 === 'K') return "STAND"; // Never split 10s
+            if (p1 === '9') return (dealerVal === 7 || dealerVal === 10 || dealerVal === 11) ? "STAND" : "SPLIT";
+            if (p1 === '7') return (dealerVal <= 7) ? "SPLIT" : "HIT";
+            if (p1 === '6') return (dealerVal <= 6) ? "SPLIT" : "HIT";
+            if (p1 === '5') return (dealerVal <= 9) ? "DOUBLE" : "HIT"; // Double 5s, don't split
+            if (p1 === '4') return (dealerVal === 5 || dealerVal === 6) ? "SPLIT" : "HIT"; // Usually only split 4s on 5/6
+            if (p1 === '3' || p1 === '2') return (dealerVal <= 7) ? "SPLIT" : "HIT";
+        }
+
+        // --- SOFT TOTALS (Ace + X) ---
+        if (hasAce && playerTotal !== 2) { 
+            let softVal = (p1 === 'A' ? val2 : val1) + 11;
+            
+            if (softVal >= 20) return "STAND"; // A-9
+            if (softVal === 19) return (dealerVal === 6 && state.hitSoft17) ? "DOUBLE" : "STAND"; 
+            if (softVal === 18) {
+                if (dealerVal <= 6) return "DOUBLE";
+                if (dealerVal <= 8) return "STAND";
+                return "HIT";
+            }
+            if (softVal === 17) return (dealerVal >= 3 && dealerVal <= 6) ? "DOUBLE" : "HIT";
+            if (softVal === 16 || softVal === 15) return (dealerVal >= 4 && dealerVal <= 6) ? "DOUBLE" : "HIT";
+            if (softVal === 14 || softVal === 13) return (dealerVal >= 5 && dealerVal <= 6) ? "DOUBLE" : "HIT";
+        }
+
+        // --- HARD TOTALS ---
+        if (playerTotal >= 17) return "STAND";
+        if (playerTotal === 16) return (dealerVal >= 7) ? "HIT" : "STAND";
+        if (playerTotal === 15) return (dealerVal >= 7) ? "HIT" : "STAND";
+        if (playerTotal === 14 || playerTotal === 13) return (dealerVal >= 7) ? "HIT" : "STAND";
+        if (playerTotal === 12) return (dealerVal >= 4 && dealerVal <= 6) ? "STAND" : "HIT";
+        if (playerTotal === 11) return "DOUBLE";
+        if (playerTotal === 10) return (dealerVal >= 10) ? "HIT" : "DOUBLE";
+        if (playerTotal === 9) return (dealerVal >= 3 && dealerVal <= 6) ? "DOUBLE" : "HIT";
+        
+        return "HIT";
+    }
+
+    function displayRecommendation(move) {
+        const el = document.getElementById('rec-display');
+        const sub = document.getElementById('rec-sub');
+        el.className = 'recommendation'; // reset
+        
+        if (move === "HIT") {
+            el.classList.add('rec-hit');
+            sub.textContent = "Take another card.";
+        } else if (move === "STAND") {
+            el.classList.add('rec-stand');
+            sub.textContent = "Hold your total.";
+        } else if (move === "DOUBLE") {
+            el.classList.add('rec-double');
+            sub.textContent = "Double wager, take exactly 1 card. (Hit if unavailable)";
+        } else if (move === "SPLIT") {
+            el.classList.add('rec-split');
+            sub.textContent = "Split into two hands.";
+        }
+        el.textContent = move;
+    }
+
+    /**
+     * MONTE CARLO SIMULATION
+     */
+    function runSimulation(p1, p2, d) {
+        let wins = 0;
+        let pushes = 0;
+        let losses = 0;
+        const iterations = 5000; 
+
+        // Create a 'simulation deck' based on current state
+        let simDeckBase = [];
+        
+        if (state.csmMode) {
+             const suits = 4;
+             const baseRanks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+             for(let i=0; i<state.decks * suits; i++) {
+                 baseRanks.forEach(r => simDeckBase.push(r));
+             }
+             removeFromDeck(simDeckBase, p1);
+             removeFromDeck(simDeckBase, p2);
+             removeFromDeck(simDeckBase, d);
+        } else {
+             const suits = 4;
+             const baseRanks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+             for(let i=0; i<state.decks * suits; i++) {
+                 baseRanks.forEach(r => simDeckBase.push(r));
+             }
+             removeFromDeck(simDeckBase, p1);
+             removeFromDeck(simDeckBase, p2);
+             removeFromDeck(simDeckBase, d);
+        }
+
+        for (let i = 0; i < iterations; i++) {
+            // Shuffle
+            let currentDeck = [...simDeckBase];
+            for (let j = currentDeck.length - 1; j > 0; j--) {
+                const k = Math.floor(Math.random() * (j + 1));
+                [currentDeck[j], currentDeck[k]] = [currentDeck[k], currentDeck[j]];
+            }
+
+            // Player Logic: Basic Strategy Simulation
+            let pHand = [p1, p2];
+            let dHand = [d, currentDeck.pop()]; 
+
+            // Play Player
+            let pBust = false;
+            while(true) {
+                let val = getHandValue(pHand);
+                if (val > 21) { pBust = true; break; }
+                
+                // Sim Strategy
+                let action = "STAND";
+                let dShow = cardValues[d];
+                if (val <= 11) action = "HIT";
+                else if (val >= 17) action = "STAND";
+                else { // 12-16
+                    if (dShow >= 7) action = "HIT";
+                    else if (val === 12 && (dShow === 2 || dShow === 3)) action = "HIT";
+                    else action = "STAND";
+                }
+
+                if (action === "HIT") pHand.push(currentDeck.pop());
+                else break;
+            }
+
+            // Play Dealer
+            let dBust = false;
+            let dVal = 0;
+            if (!pBust) {
+                while(true) {
+                    dVal = getHandValue(dHand);
+                    if (dVal > 21) { dBust = true; break; }
+                    if (dVal >= 17) {
+                        if (state.hitSoft17 && dVal === 17 && isSoft(dHand)) {
+                            dHand.push(currentDeck.pop());
+                            continue;
+                        }
+                        break;
+                    }
+                    dHand.push(currentDeck.pop());
+                }
+            }
+
+            // Result
+            let pFinal = getHandValue(pHand);
+            dVal = getHandValue(dHand);
+
+            if (pBust) losses++;
+            else if (dBust) wins++;
+            else if (pFinal > dVal) wins++;
+            else if (dVal > pFinal) losses++;
+            else pushes++;
+        }
+
+        updateStats(wins, pushes, losses, iterations);
+    }
+
+    function removeFromDeck(deck, card) {
+        const idx = deck.indexOf(card);
+        if (idx > -1) deck.splice(idx, 1);
+    }
+
+    function getHandValue(cards) {
+        let sum = 0;
+        let aces = 0;
+        cards.forEach(c => {
+            let v = cardValues[c];
+            if (v === 11) aces++;
+            sum += v;
+        });
+        while (sum > 21 && aces > 0) {
+            sum -= 10;
+            aces--;
+        }
+        return sum;
+    }
+
+    function isSoft(cards) {
+        let sum = 0;
+        let aces = 0;
+        cards.forEach(c => {
+            let v = cardValues[c];
+            if (v === 11) aces++;
+            sum += v;
+        });
+        return (aces > 0 && sum <= 21 && (sum - 10 + 1) === (sum - 10)); 
+    }
+
+    function updateStats(w, p, l, total) {
+        const pWin = Math.round((w/total)*100);
+        const pPush = Math.round((p/total)*100);
+        const pLose = Math.round((l/total)*100);
+
+        document.getElementById('bar-win').style.width = `${pWin}%`;
+        document.getElementById('bar-push').style.width = `${pPush}%`;
+        document.getElementById('bar-lose').style.width = `${pLose}%`;
+
+        document.getElementById('txt-win').textContent = `${pWin}%`;
+        document.getElementById('txt-push').textContent = `${pPush}%`;
+        document.getElementById('txt-lose').textContent = `${pLose}%`;
+
+        let ev = (pWin - pLose) / 100; 
+        let edge = -(ev * 100).toFixed(2);
+        
+        let label = "House Edge";
+        let val = edge + "%";
+        if (edge < 0) {
+            label = "Player Edge";
+            val = Math.abs(edge) + "%";
+            document.getElementById('house-edge').style.color = "#2ecc71";
+        } else {
+            document.getElementById('house-edge').style.color = "#e74c3c";
+        }
+        document.querySelector('#house-edge').parentElement.querySelector('.section-label').textContent = label;
+        document.getElementById('house-edge').textContent = val;
+    }
+
+    function clearBars() {
+        ['bar-win','bar-push','bar-lose'].forEach(id => document.getElementById(id).style.width = '0%');
+        ['txt-win','txt-push','txt-lose'].forEach(id => document.getElementById(id).textContent = '0%');
+        document.getElementById('house-edge').textContent = "0.5%";
+    }
+
+    init();
+
+</script>
+</body>
+</html>
