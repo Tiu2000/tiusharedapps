@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TIU // Institutional Whale Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #02040a;
+            --panel: #0d121f;
+            --border: #1e293b;
+            --text: #e2e8f0;
+            --text-dim: #64748b;
+            --accent: #38bdf8; /* Default Blue */
+            --green: #10b981;
+            --red: #f43f5e;
+            
+            /* Investor Themes */
+            --buffett: #fbbf24; /* Gold */
+            --wood: #c084fc;    /* Purple */
+            --ackman: #cbd5e1;  /* Silver */
+            --dalio: #14b8a6;   /* Teal */
+        }
+        
+        * { box-sizing: border-box; }
+        
+        body {
+            margin: 0; padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- SUBTLE TIU WATERMARK --- */
+        .watermark {
+            position: fixed;
+            bottom: -3vh;
+            right: 1vw;
+            font-size: 20vh;
+            font-weight: 900;
+            color: #ffffff;
+            opacity: 0.02; /* Very Subtle */
+            pointer-events: none;
+            z-index: 0;
+            font-family: sans-serif;
+            letter-spacing: -1vh;
+        }
+
+        /* --- LAYOUT --- */
+        .header {
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 10;
+            height: 50px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr 320px;
+            flex: 1;
+            min-height: 0;
+            z-index: 10;
+        }
+
+        .col {
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            background: rgba(2, 4, 10, 0.85); /* Slight Transparency */
+        }
+
+        .panel-head {
+            background: #0a0e17;
+            color: var(--text-dim);
+            padding: 8px 12px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        /* --- WHALE SELECTOR --- */
+        .whale-menu {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            gap: 5px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+        }
+        .whale-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 8px;
+            text-align: left;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.8rem;
+            transition: 0.2s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .whale-btn:hover { background: #1e293b; color: white; }
+        .whale-btn.active { border-color: var(--accent); color: var(--accent); background: #0f172a; }
+        
+        .whale-icon { width: 10px; height: 10px; border-radius: 50%; background: #444; }
+
+        /* --- STOCK LIST --- */
+        .stock-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #1e293b;
+            cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .stock-item:hover { background: #1e293b; }
+        .stock-item.active { border-left: 3px solid var(--accent); background: #111827; }
+        .stock-symbol { font-weight: bold; font-size: 1rem; }
+        .stock-name { font-size: 0.7rem; color: var(--text-dim); }
+
+        /* --- CHART & CONTROLS --- */
+        .chart-container { position: relative; flex: 1; width: 100%; min-height: 0; }
+        .price-display {
+            position: absolute; top: 20px; left: 20px; pointer-events: none;
+        }
+        
+        .control-panel {
+            padding: 15px;
+            background: var(--panel);
+            border-top: 1px solid var(--border);
+        }
+
+        .btn-trade {
+            flex: 1; padding: 12px; border: none; font-weight: bold;
+            font-family: inherit; cursor: pointer; color: #fff;
+            text-transform: uppercase; font-size: 0.8rem;
+        }
+        .btn-buy { background: #059669; border-bottom: 3px solid #064e3b; }
+        .btn-buy:active { transform: translateY(2px); border-bottom: 0; }
+        .btn-sell { background: #e11d48; border-bottom: 3px solid #881337; }
+        .btn-sell:active { transform: translateY(2px); border-bottom: 0; }
+
+        /* --- TAPE --- */
+        .tape-container { flex: 1; overflow-y: auto; background: #000; font-family: 'Consolas', monospace; }
+        .tape-row {
+            display: flex; padding: 4px 8px; font-size: 0.7rem; border-bottom: 1px solid #111;
+            color: #888;
+        }
+        .whale-row {
+            background: #0f2e2e;
+            color: var(--accent);
+            border-left: 2px solid var(--accent);
+            font-weight: bold;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        .live-dot { height: 8px; width: 8px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
+    </style>
+</head>
+<body>
+
+<div class="watermark">TIU</div>
+
+<div class="header">
+    <div style="display:flex; align-items:center; gap:10px;">
+        <span style="color:var(--accent); font-weight:bold; letter-spacing:1px;">TIU WHALE TERMINAL</span>
+        <span style="font-size:0.7rem; color:var(--text-dim);">// MULTI-STRATEGY</span>
+    </div>
+    <div style="font-size:0.75rem; color:var(--text-dim);">
+        FEED STATUS: <span id="statusText" style="color:var(--green)">WAITING...</span> <span class="live-dot"></span>
+    </div>
+</div>
+
+<div class="main-grid">
+    
+    <div class="col">
+        <div class="panel-head">SELECT INSTITUTION</div>
+        <div class="whale-menu">
+            <button class="whale-btn active" onclick="setStrategy('buffett')" id="btn-buffett">
+                <span class="whale-icon" style="background:var(--buffett)"></span> W. Buffett (Value)
+            </button>
+            <button class="whale-btn" onclick="setStrategy('wood')" id="btn-wood">
+                <span class="whale-icon" style="background:var(--wood)"></span> C. Wood (Growth)
+            </button>
+            <button class="whale-btn" onclick="setStrategy('ackman')" id="btn-ackman">
+                <span class="whale-icon" style="background:var(--ackman)"></span> B. Ackman (Activist)
+            </button>
+            <button class="whale-btn" onclick="setStrategy('dalio')" id="btn-dalio">
+                <span class="whale-icon" style="background:var(--dalio)"></span> R. Dalio (Macro)
+            </button>
+        </div>
+
+        <div class="panel-head">WATCHLIST</div>
+        <div id="watchlist" style="flex:1; overflow-y:auto;">
+            </div>
+        
+        <div style="padding:10px; border-top:1px solid var(--border);">
+            <div style="font-size:0.7rem; color:var(--text-dim); margin-bottom:5px;">WHALE ALERT THRESHOLD</div>
+            <select id="thresholdSelect" style="width:100%; background:#0f172a; color:white; border:1px solid #334155; padding:5px;">
+                <option value="50000">$50k (Small)</option>
+                <option value="100000" selected>$100k (Medium)</option>
+                <option value="500000">$500k (Large)</option>
+                <option value="1000000">$1M (Massive)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="chart-container">
+            <div class="price-display">
+                <div id="symDisplay" style="font-size:1.5rem; color:var(--text-dim); font-weight:bold;">---</div>
+                <div id="priceDisplay" style="font-size:3.5rem; font-weight:bold;">0.00</div>
+                <div id="blockStatus" style="font-size:0.8rem; color:var(--accent);">Scanning for blocks...</div>
+            </div>
+            <canvas id="mainChart"></canvas>
+        </div>
+        
+        <div class="control-panel">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <div>
+                    <div style="font-size:0.7rem; color:var(--text-dim);">BUYING POWER</div>
+                    <div id="cashDisplay" style="font-size:1.2rem;">$1,000,000</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:0.7rem; color:var(--text-dim);">UNREALIZED P/L</div>
+                    <div id="pnlDisplay" style="font-size:1.2rem; color:var(--text-dim);">$0.00</div>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-trade btn-buy" onclick="executeOrder('buy')">BUY BLOCK</button>
+                <button class="btn-trade btn-sell" onclick="executeOrder('sell')">SELL BLOCK</button>
+            </div>
+            <div style="text-align:center; font-size:0.7rem; margin-top:5px; color:var(--text-dim);">
+                Sound: <span id="soundStatus" style="cursor:pointer; color:var(--text);" onclick="sound.toggle()">ON 🔊</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="panel-head">INSTITUTIONAL TAPE</div>
+        <div class="tape-container" id="tape">
+            </div>
+    </div>
+</div>
+
+<script>
+    // --- DATA ---
+    const API_KEY = "d52lhbhr01qggm5sggrgd52lhbhr01qggm5sggs0";
+    
+    const STRATEGIES = {
+        'buffett': {
+            name: "Warren Buffett",
+            color: "#fbbf24",
+            stocks: [
+                { s: 'AAPL', n: 'Apple Inc.' },
+                { s: 'BAC', n: 'Bank of America' },
+                { s: 'AXP', n: 'American Express' },
+                { s: 'KO', n: 'Coca-Cola' },
+                { s: 'CVX', n: 'Chevron' },
+                { s: 'KHC', n: 'Kraft Heinz' },
+                { s: 'MCO', n: 'Moody\'s' }
+            ]
+        },
+        'wood': {
+            name: "Cathie Wood",
+            color: "#c084fc",
+            stocks: [
+                { s: 'TSLA', n: 'Tesla' },
+                { s: 'COIN', n: 'Coinbase' },
+                { s: 'ROKU', n: 'Roku Inc.' },
+                { s: 'PATH', n: 'UiPath' },
+                { s: 'SQ', n: 'Block Inc.' },
+                { s: 'SHOP', n: 'Shopify' }
+            ]
+        },
+        'ackman': {
+            name: "Bill Ackman",
+            color: "#cbd5e1",
+            stocks: [
+                { s: 'CMG', n: 'Chipotle' },
+                { s: 'HLT', n: 'Hilton' },
+                { s: 'QSR', n: 'Restaurant Brands' },
+                { s: 'CP', n: 'Canadian Pacific' },
+                { s: 'LOW', n: 'Lowe\'s' }
+            ]
+        },
+        'dalio': {
+            name: "Ray Dalio",
+            color: "#14b8a6",
+            stocks: [
+                { s: 'SPY', n: 'S&P 500 ETF' },
+                { s: 'GLD', n: 'Gold Trust' },
+                { s: 'PEP', n: 'PepsiCo' },
+                { s: 'COST', n: 'Costco' },
+                { s: 'MCD', n: 'McDonald\'s' },
+                { s: 'JNJ', n: 'Johnson & Johnson' }
+            ]
+        }
+    };
+
+    // --- STATE ---
+    let state = {
+        strategy: 'buffett',
+        symbol: 'AAPL',
+        price: 0,
+        cash: 1000000,
+        shares: 0,
+        avgCost: 0,
+        history: [],
+        socket: null
+    };
+
+    // --- SOUND ENGINE ---
+    const sound = {
+        ctx: new (window.AudioContext || window.webkitAudioContext)(),
+        on: true,
+        play(freq, type='sine', dur=0.1) {
+            if(!this.on) return;
+            const o = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            o.type = type;
+            o.frequency.value = freq;
+            g.gain.setValueAtTime(0.05, this.ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+            o.connect(g); g.connect(this.ctx.destination);
+            o.start(); o.stop(this.ctx.currentTime + dur);
+        },
+        whale() { 
+            // Underwater sonar ping
+            if(!this.on) return;
+            const o = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            o.type = 'sine';
+            o.frequency.setValueAtTime(600, this.ctx.currentTime);
+            g.gain.setValueAtTime(0.1, this.ctx.currentTime);
+            g.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 1);
+            o.connect(g); g.connect(this.ctx.destination);
+            o.start(); o.stop(this.ctx.currentTime + 1);
+        },
+        toggle() {
+            this.on = !this.on;
+            document.getElementById('soundStatus').innerText = this.on ? "ON 🔊" : "OFF 🔇";
+            if(this.on && this.ctx.state === 'suspended') this.ctx.resume();
+        }
+    };
+
+    // --- CHART ---
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Array(60).fill(''),
+            datasets: [{
+                data: [],
+                borderColor: '#38bdf8',
+                backgroundColor: (ctx) => {
+                    const g = ctx.chart.ctx.createLinearGradient(0,0,0,400);
+                    g.addColorStop(0, 'rgba(56, 189, 248, 0.2)');
+                    g.addColorStop(1, 'rgba(56, 189, 248, 0)');
+                    return g;
+                },
+                borderWidth: 2,
+                tension: 0.1,
+                pointRadius: 0,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { display: false },
+                y: { position: 'right', grid: { color: '#1e293b' }, ticks: { color: '#64748b' } }
+            }
+        }
+    });
+
+    // --- APP LOGIC ---
+    function init() {
+        setStrategy('buffett');
+    }
+
+    function setStrategy(stratKey) {
+        state.strategy = stratKey;
+        
+        // Update Buttons
+        document.querySelectorAll('.whale-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`btn-${stratKey}`).classList.add('active');
+        
+        // Update Theme Color
+        const themeColor = STRATEGIES[stratKey].color;
+        document.documentElement.style.setProperty('--accent', themeColor);
+        chart.data.datasets[0].borderColor = themeColor;
+        chart.data.datasets[0].backgroundColor = (ctx) => {
+            const g = ctx.chart.ctx.createLinearGradient(0,0,0,400);
+            g.addColorStop(0, themeColor + '33'); // 20% opacity hex
+            g.addColorStop(1, themeColor + '00');
+            return g;
+        };
+        
+        // Build Watchlist
+        const list = document.getElementById('watchlist');
+        list.innerHTML = '';
+        STRATEGIES[stratKey].stocks.forEach(stock => {
+            const el = document.createElement('div');
+            el.className = 'stock-item';
+            el.innerHTML = `
+                <div>
+                    <div class="stock-symbol">${stock.s}</div>
+                    <div class="stock-name">${stock.n}</div>
+                </div>
+                <div id="price-${stock.s}" style="font-family:'Consolas'; color:#aaa">---</div>
+            `;
+            el.onclick = () => loadStock(stock.s);
+            if(stock.s === state.symbol) el.classList.add('active');
+            list.appendChild(el);
+        });
+
+        // Load first stock if not current
+        const first = STRATEGIES[stratKey].stocks[0].s;
+        if (!STRATEGIES[stratKey].stocks.find(s => s.s === state.symbol)) {
+            loadStock(first);
+        }
+    }
+
+    function loadStock(sym) {
+        if(state.socket) state.socket.close();
+        
+        state.symbol = sym;
+        state.history = [];
+        state.price = 0;
+        
+        // Update UI Highlights
+        document.querySelectorAll('.stock-item').forEach(el => {
+            el.classList.remove('active');
+            if(el.querySelector('.stock-symbol').innerText === sym) el.classList.add('active');
+        });
+
+        document.getElementById('symDisplay').innerText = sym;
+        document.getElementById('tape').innerHTML = '';
+        
+        connectFeed(sym);
+    }
+
+    function connectFeed(sym) {
+        document.getElementById('statusText').innerText = "CONNECTING...";
+        document.getElementById('statusText').style.color = "var(--text-dim)";
+        
+        state.socket = new WebSocket(`wss://ws.finnhub.io?token=${API_KEY}`);
+        
+        state.socket.onopen = () => {
+            document.getElementById('statusText').innerText = "LIVE FEED";
+            document.getElementById('statusText').style.color = "var(--green)";
+            state.socket.send(JSON.stringify({type: 'subscribe', symbol: sym}));
+        };
+
+        state.socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if(data.type === 'trade') {
+                processTrades(data.data);
+            }
+        };
+    }
+
+    function processTrades(trades) {
+        const last = trades[trades.length-1];
+        state.price = last.p;
+        
+        // Update DOM Price
+        document.getElementById('priceDisplay').innerText = state.price.toFixed(2);
+        
+        // Update Chart
+        state.history.push(state.price);
+        if(state.history.length > 60) state.history.shift();
+        
+        chart.data.datasets[0].data = state.history;
+        
+        // Auto Scale
+        const vals = state.history;
+        const min = Math.min(...vals);
+        const max = Math.max(...vals);
+        const pad = (max - min) * 0.1;
+        chart.options.scales.y.min = min - pad;
+        chart.options.scales.y.max = max + pad;
+        chart.update('none');
+
+        // Check for Whale Blocks
+        const threshold = parseInt(document.getElementById('thresholdSelect').value);
+        
+        trades.forEach(t => {
+            const val = t.p * t.v;
+            const isWhale = val >= threshold;
+            
+            // Tape
+            const row = document.createElement('div');
+            row.className = `tape-row ${isWhale ? 'whale-row' : ''}`;
+            const time = new Date(t.t).toLocaleTimeString().split(' ')[0];
+            const sizeK = (val/1000).toFixed(1) + 'k';
+            
+            row.innerHTML = `
+                <span style="width:60px">${time}</span>
+                <span style="width:60px; color:${t.v > 0 ? '#10b981':'#f43f5e'}">${t.p.toFixed(2)}</span>
+                <span style="flex:1; text-align:right;">$${sizeK}</span>
+            `;
+            
+            const tape = document.getElementById('tape');
+            tape.prepend(row);
+            if(tape.children.length > 40) tape.lastChild.remove();
+
+            if(isWhale) {
+                sound.whale();
+                document.getElementById('blockStatus').innerText = `WHALE DETECTED: $${sizeK}`;
+                setTimeout(() => document.getElementById('blockStatus').innerText = "Scanning...", 2000);
+            }
+        });
+
+        updatePnL();
+    }
+
+    // --- TRADING ---
+    function executeOrder(side) {
+        if(state.price === 0) return;
+        
+        const size = 100; // Block size
+        const cost = size * state.price;
+
+        if(side === 'buy') {
+            if(state.cash >= cost) {
+                const totalVal = (state.shares * state.avgCost) + cost;
+                state.shares += size;
+                state.avgCost = totalVal / state.shares;
+                state.cash -= cost;
+                sound.play(800, 'triangle');
+            }
+        } else {
+            if(state.shares >= size) {
+                state.shares -= size;
+                state.cash += cost;
+                if(state.shares === 0) state.avgCost = 0;
+                sound.play(400, 'triangle');
+            }
+        }
+        updatePnL();
+    }
+
+    function updatePnL() {
+        document.getElementById('cashDisplay').innerText = '$' + Math.floor(state.cash).toLocaleString();
+        
+        const curVal = state.shares * state.price;
+        const costVal = state.shares * state.avgCost;
+        const pnl = curVal - costVal;
+        
+        const el = document.getElementById('pnlDisplay');
+        el.innerText = (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2);
+        el.style.color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+    }
+
+    // Start
+    init();
+
+</script>
+</body>
+</html>
