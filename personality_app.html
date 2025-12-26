@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIU Personality Assessment</title>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --secondary: #2c3e50;
+            --accent: #e74c3c;
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --text: #333333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* TIU Watermark */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 3rem;
+            font-weight: 900;
+            color: rgba(0, 0, 0, 0.05);
+            pointer-events: none;
+            z-index: 9999;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 5px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 40px;
+            margin: 20px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: var(--secondary);
+        }
+
+        p {
+            line-height: 1.6;
+            color: #666;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Buttons */
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin-top: 20px;
+            border: none;
+            background-color: var(--primary);
+            color: white;
+            font-size: 1.1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            background-color: #357abd;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Question Styles */
+        .question-block {
+            margin-bottom: 25px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+        }
+
+        .question-text {
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .scale-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        /* Results Chart */
+        .chart-container {
+            margin-top: 30px;
+        }
+
+        .trait-row {
+            margin-bottom: 20px;
+        }
+
+        .trait-label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .bar-bg {
+            background-color: #eee;
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background-color: var(--primary);
+            width: 0%;
+            transition: width 1s ease-out;
+        }
+
+        .source-cite {
+            font-size: 0.75rem;
+            color: #999;
+            text-align: center;
+            margin-top: 30px;
+            font-style: italic;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <div class="container" id="app">
+        <div id="intro-screen">
+            <h1>Personality Assessment</h1>
+            <p>This application uses the <strong>Ten-Item Personality Inventory (TIPI)</strong> to determine your Big Five personality traits.</p>
+            <p>You will see 10 pairs of personality traits. Please indicate the extent to which you agree or disagree that the pair applies to you.</p>
+            <p style="font-size: 0.9rem; background: #f0f4f8; padding: 10px; border-radius: 6px;">
+                <em>Note: Be honest. There are no right or wrong answers.</em>
+            </p>
+            <button class="btn" onclick="startQuiz()">Begin Assessment</button>
+        </div>
+
+        <div id="quiz-screen" class="hidden">
+            <h2>Self-Description</h2>
+            <p style="text-align: center; margin-bottom: 30px;">I see myself as:</p>
+            
+            <form id="tipi-form">
+                <div id="questions-container"></div>
+            </form>
+
+            <button class="btn" onclick="calculateResults()">See Results</button>
+        </div>
+
+        <div id="results-screen" class="hidden">
+            <h2>Your Profile</h2>
+            <p>Based on the Big Five model:</p>
+            
+            <div class="chart-container" id="results-chart">
+                </div>
+
+            <button class="btn" onclick="restartApp()">Retake Test</button>
+            
+            <div class="source-cite">
+                Source: Gosling, S. D., Rentfrow, P. J., & Swann, W. B., Jr. (2003). A very brief measure of the Big-Five personality domains. Journal of Research in Personality.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        // TIPI Questions (Gosling et al., 2003)
+        // Scale: 1 (Disagree strongly) to 7 (Agree strongly)
+        const questions = [
+            { id: 1, text: "Extraverted, enthusiastic", trait: "Extraversion", reverse: false },
+            { id: 2, text: "Critical, quarrelsome", trait: "Agreeableness", reverse: true },
+            { id: 3, text: "Dependable, self-disciplined", trait: "Conscientiousness", reverse: false },
+            { id: 4, text: "Anxious, easily upset", trait: "Emotional Stability", reverse: true },
+            { id: 5, text: "Open to new experiences, complex", trait: "Openness", reverse: false },
+            { id: 6, text: "Reserved, quiet", trait: "Extraversion", reverse: true },
+            { id: 7, text: "Sympathetic, warm", trait: "Agreeableness", reverse: false },
+            { id: 8, text: "Disorganized, careless", trait: "Conscientiousness", reverse: true },
+            { id: 9, text: "Calm, emotionally stable", trait: "Emotional Stability", reverse: false },
+            { id: 10, text: "Conventional, uncreative", trait: "Openness", reverse: true }
+        ];
+
+        // --- SOUND ENGINE (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            if (type === 'click') {
+                // High blip
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'success') {
+                // Major chord chime
+                playNote(523.25, 0, 0.5); // C5
+                playNote(659.25, 0.1, 0.5); // E5
+                playNote(783.99, 0.2, 0.8); // G5
+            }
+        }
+
+        function playNote(freq, delay, duration) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+            gain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + delay + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + duration);
+            osc.start(audioCtx.currentTime + delay);
+            osc.stop(audioCtx.currentTime + delay + duration);
+        }
+
+        // --- LOGIC ---
+
+        function renderQuestions() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+            
+            questions.forEach((q, index) => {
+                const div = document.createElement('div');
+                div.className = 'question-block';
+                div.innerHTML = `
+                    <label class="question-text">${index + 1}. ${q.text}</label>
+                    <div class="scale-labels">
+                        <span>Disagree strongly</span>
+                        <span>Neutral</span>
+                        <span>Agree strongly</span>
+                    </div>
+                    <input type="range" min="1" max="7" value="4" class="q-input" data-id="${index}" oninput="playSound('click')">
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function startQuiz() {
+            playSound('click');
+            document.getElementById('intro-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            renderQuestions();
+            window.scrollTo(0, 0);
+        }
+
+        function calculateResults() {
+            playSound('success');
+            const inputs = document.querySelectorAll('.q-input');
+            const scores = {};
+            const rawValues = Array.from(inputs).map(i => parseInt(i.value));
+
+            // TIPI Scoring Logic
+            // Reverse score = 8 - score
+            
+            // 1. Extraversion: (Item 1 + (8 - Item 6)) / 2
+            scores['Extraversion'] = (rawValues[0] + (8 - rawValues[5])) / 2;
+            
+            // 2. Agreeableness: ((8 - Item 2) + Item 7) / 2
+            scores['Agreeableness'] = ((8 - rawValues[1]) + rawValues[6]) / 2;
+            
+            // 3. Conscientiousness: (Item 3 + (8 - Item 8)) / 2
+            scores['Conscientiousness'] = (rawValues[2] + (8 - rawValues[7])) / 2;
+            
+            // 4. Emotional Stability: ((8 - Item 4) + Item 9) / 2
+            // Note: Often labelled Neuroticism in Big 5, but TIPI scores "Emotional Stability" (low Neuroticism)
+            scores['Emotional Stability'] = ((8 - rawValues[3]) + rawValues[8]) / 2;
+            
+            // 5. Openness: (Item 5 + (8 - Item 10)) / 2
+            scores['Openness'] = (rawValues[4] + (8 - rawValues[9])) / 2;
+
+            showResults(scores);
+        }
+
+        function showResults(scores) {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('results-screen').classList.remove('hidden');
+            
+            const chartDiv = document.getElementById('results-chart');
+            chartDiv.innerHTML = '';
+
+            // Render bars
+            for (const [trait, score] of Object.entries(scores)) {
+                // Score is 1-7. Convert to percentage for the bar (1=0%, 7=100%)
+                const percentage = ((score - 1) / 6) * 100;
+                
+                // Color coding based on intensity
+                let color = '#4a90e2';
+                if (percentage < 30) color = '#e74c3c';
+                else if (percentage > 70) color = '#2ecc71';
+
+                const html = `
+                    <div class="trait-row">
+                        <div class="trait-label">
+                            <span>${trait}</span>
+                            <span>${score.toFixed(1)} / 7</span>
+                        </div>
+                        <div class="bar-bg">
+                            <div class="bar-fill" style="width: ${percentage}%; background-color: ${color};"></div>
+                        </div>
+                    </div>
+                `;
+                chartDiv.innerHTML += html;
+            }
+            window.scrollTo(0, 0);
+        }
+
+        function restartApp() {
+            playSound('click');
+            document.getElementById('results-screen').classList.add('hidden');
+            document.getElementById('intro-screen').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
