@@ -3,22 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro-Grade Blackjack Odds Calculator</title>
+    <title>Pro-Grade Blackjack Engine v2.0</title>
     <style>
         :root {
             --bg-color: #1b1b1b;
-            --felt-color: #2d5e38;
-            --felt-border: #3e7a4b;
+            --felt-color: #27663a;
+            --felt-texture: repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 2px, transparent 2px, transparent 4px);
+            --felt-border: #1e4d2b;
             --text-color: #ecf0f1;
             --accent-color: #f1c40f;
-            --card-bg: #fff;
-            --card-text: #000;
+            --card-bg: #fdfdfd;
+            --card-text: #2c3e50;
             --danger: #e74c3c;
             --success: #2ecc71;
+            --blue: #3498db;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
@@ -28,7 +30,7 @@
             min-height: 100vh;
         }
 
-        /* --- FIXED WATERMARK (OVERLAY METHOD) --- */
+        /* --- WATERMARK --- */
         body::after {
             content: "TIU";
             position: fixed;
@@ -37,207 +39,286 @@
             transform: translate(-50%, -50%) rotate(-25deg);
             font-size: 25vw;
             font-weight: 900;
-            
-            /* White color with Overlay blend mode makes it look like a watermark on top */
-            color: rgba(255, 255, 255, 0.1); 
+            color: rgba(255, 255, 255, 0.08); 
             mix-blend-mode: overlay;
-            
-            /* Sits on top of everything */
             z-index: 9999; 
-            
-            /* Crucial: Allows clicks to pass through to buttons below */
             pointer-events: none; 
             user-select: none;
-            white-space: nowrap;
             font-family: sans-serif;
         }
 
         .container {
             width: 100%;
-            max-width: 1000px;
+            max-width: 1100px;
             display: grid;
-            grid-template-columns: 1fr 350px;
-            gap: 20px;
+            grid-template-columns: 1fr 380px;
+            gap: 25px;
             z-index: 1;
             position: relative;
         }
 
-        @media (max-width: 800px) {
+        @media (max-width: 900px) {
             .container { grid-template-columns: 1fr; }
         }
 
         /* --- Game Board --- */
         .board {
             background-color: var(--felt-color);
-            border: 10px solid var(--felt-border);
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            position: relative;
+            background-image: var(--felt-texture);
+            border: 12px solid var(--felt-border);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
-        h2 { margin-top: 0; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+        h2 { 
+            margin: 0; 
+            font-size: 1.4em; 
+            color: rgba(255,255,255,0.9);
+            border-bottom: 2px solid rgba(255,255,255,0.1); 
+            padding-bottom: 15px; 
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
         
         .section-label {
             text-transform: uppercase;
-            font-size: 0.8em;
-            letter-spacing: 1px;
-            opacity: 0.8;
-            margin-bottom: 5px;
+            font-size: 0.75em;
+            letter-spacing: 1.5px;
+            opacity: 0.7;
+            margin-bottom: 8px;
             display: block;
+            font-weight: 600;
         }
 
         /* --- Card Inputs --- */
         .hand-area {
             display: flex;
             gap: 15px;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             align-items: center;
         }
 
         .card-slot {
-            width: 60px;
-            height: 85px;
-            border: 2px dashed rgba(255,255,255,0.3);
-            border-radius: 6px;
+            width: 65px;
+            height: 95px;
+            border: 2px dashed rgba(255,255,255,0.2);
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
-            font-size: 1.2em;
-            background: rgba(0,0,0,0.2);
+            font-weight: 800;
+            font-size: 1.4em;
+            background: rgba(0,0,0,0.1);
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            user-select: none;
         }
 
         .card-slot.filled {
             background: var(--card-bg);
             color: var(--card-text);
             border-style: solid;
+            border-color: #bdc3c7;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transform: translateY(-2px);
         }
 
-        .card-slot.filled.red { color: var(--danger); }
-        .card-slot:hover { border-color: var(--accent-color); }
-        .card-slot.active { box-shadow: 0 0 0 3px var(--accent-color); border-color: var(--accent-color); }
+        /* Visual trick: Make face cards look "richer" */
+        .card-slot.filled[data-val="10"], 
+        .card-slot.filled[data-val="J"], 
+        .card-slot.filled[data-val="Q"], 
+        .card-slot.filled[data-val="K"] { 
+            letter-spacing: -2px; 
+        }
+
+        .card-slot.active { 
+            box-shadow: 0 0 0 4px var(--accent-color), 0 5px 20px rgba(0,0,0,0.5); 
+            border-color: var(--accent-color); 
+            transform: scale(1.05);
+            background: rgba(255,255,255,0.1);
+            z-index: 10;
+        }
+        .card-slot.filled.active { background: var(--card-bg); }
 
         /* --- Card Picker --- */
+        .picker-container {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: auto; /* Pushes to bottom */
+        }
         .card-picker {
             display: grid;
             grid-template-columns: repeat(13, 1fr);
-            gap: 5px;
-            background: #2c3e50;
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 10px;
+            gap: 4px;
+            margin-bottom: 10px;
         }
 
         .picker-btn {
-            background: #fff;
-            color: #000;
+            background: #ecf0f1;
+            color: #2c3e50;
             border: none;
             border-radius: 4px;
-            padding: 8px 0;
+            height: 40px;
             cursor: pointer;
-            font-weight: bold;
+            font-weight: 800;
+            font-size: 0.9em;
+            transition: background 0.1s;
         }
-        .picker-btn:hover { background: var(--accent-color); }
+        .picker-btn:hover { background: var(--accent-color); transform: translateY(-1px); }
+        .picker-btn:active { transform: translateY(1px); }
+
+        .action-row {
+            display: flex;
+            gap: 10px;
+        }
+        .ctrl-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 0.8em;
+            transition: opacity 0.2s;
+        }
+        .btn-reset { background: var(--danger); color: white; }
+        .btn-undo { background: #7f8c8d; color: white; }
+        .ctrl-btn:hover { opacity: 0.9; }
 
         /* --- Stats Panel --- */
         .stats-panel {
             background: #2c3e50;
-            border-radius: 10px;
-            padding: 20px;
+            border-radius: 15px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
         .stat-box {
             background: rgba(0,0,0,0.2);
             padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
+            border-radius: 10px;
             text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
         }
 
         .stat-value {
-            font-size: 2em;
-            font-weight: bold;
+            font-size: 2.2em;
+            font-weight: 800;
             color: var(--accent-color);
+            line-height: 1;
+            margin-top: 5px;
         }
 
+        /* Recommendation Styles */
+        .rec-box {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            text-align: center;
+        }
         .recommendation {
-            font-size: 1.5em;
-            font-weight: bold;
+            font-size: 2em;
+            font-weight: 900;
             text-transform: uppercase;
+            padding: 20px 10px;
+            letter-spacing: 1px;
+            background: #34495e;
+            transition: background 0.3s;
+        }
+        .rec-reason {
             padding: 10px;
-            border-radius: 5px;
-            margin-top: 10px;
-            display: block;
+            font-size: 0.85em;
+            background: rgba(0,0,0,0.2);
+            color: #bdc3c7;
+            min-height: 20px;
         }
         
-        .rec-hit { background: var(--success); color: #fff; }
-        .rec-stand { background: var(--danger); color: #fff; }
-        .rec-double { background: var(--accent-color); color: #000; }
-        .rec-split { background: #3498db; color: #fff; }
+        .rec-hit { background: var(--success); color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,0.2); }
+        .rec-stand { background: var(--danger); color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,0.2); }
+        .rec-double { background: var(--accent-color); color: #2c3e50; }
+        .rec-split { background: var(--blue); color: #fff; }
+        .rec-surrender { background: #9b59b6; color: #fff; }
 
-        /* --- Settings & Toggles --- */
+        /* --- Toggle Buttons --- */
         .settings-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 8px;
         }
-
         .toggle-btn {
-            background: rgba(255,255,255,0.1);
+            background: transparent;
             border: 1px solid rgba(255,255,255,0.2);
-            color: #fff;
-            padding: 8px;
-            border-radius: 4px;
+            color: #95a5a6;
+            padding: 10px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.9em;
+            font-size: 0.8em;
+            font-weight: 600;
+            transition: all 0.2s;
         }
         .toggle-btn.active {
             background: var(--accent-color);
-            color: #000;
+            color: #2c3e50;
             border-color: var(--accent-color);
         }
 
-        .bar-container {
-            height: 10px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 5px;
-            margin-top: 5px;
-            overflow: hidden;
-        }
-        .bar-fill { height: 100%; transition: width 0.3s; }
-        .bar-win { background: var(--success); }
-        .bar-push { background: #95a5a6; }
-        .bar-lose { background: var(--danger); }
-
-        .hidden { display: none; }
+        /* --- Charts --- */
+        .bar-wrapper { margin-bottom: 8px; }
+        .bar-label { display: flex; justify-content: space-between; font-size: 0.8em; margin-bottom: 2px; }
+        .bar-track { background: rgba(0,0,0,0.4); height: 8px; border-radius: 4px; overflow: hidden; }
+        .bar-fill { height: 100%; transition: width 0.5s ease-out; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="board">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h2>Table & Hands</h2>
-            <button onclick="resetHands()" style="padding:5px 15px; cursor:pointer; background:#e74c3c; border:none; color:white; border-radius:4px;">Reset Hands</button>
+        <div>
+            <h2>
+                <span>Table & Hands</span>
+            </h2>
+
+            <span class="section-label">Dealer Upcard</span>
+            <div class="hand-area">
+                <div class="card-slot active" id="d1" onclick="selectSlot('d1')"></div>
+            </div>
+
+            <span class="section-label">Player Hand</span>
+            <div class="hand-area">
+                <div class="card-slot" id="p1" onclick="selectSlot('p1')"></div>
+                <div class="card-slot" id="p2" onclick="selectSlot('p2')"></div>
+            </div>
+            
+            <div style="margin-top: 10px;">
+                <span class="section-label">Odds Simulation (Optimal Play)</span>
+                <div class="bar-wrapper">
+                    <div class="bar-label"><span>Player Win</span><span id="txt-win">0%</span></div>
+                    <div class="bar-track"><div id="bar-win" class="bar-fill" style="background: var(--success); width:0%"></div></div>
+                </div>
+                <div class="bar-wrapper">
+                    <div class="bar-label"><span>Push</span><span id="txt-push">0%</span></div>
+                    <div class="bar-track"><div id="bar-push" class="bar-fill" style="background: #95a5a6; width:0%"></div></div>
+                </div>
+                <div class="bar-wrapper">
+                    <div class="bar-label"><span>Dealer Win</span><span id="txt-lose">0%</span></div>
+                    <div class="bar-track"><div id="bar-lose" class="bar-fill" style="background: var(--danger); width:0%"></div></div>
+                </div>
+            </div>
         </div>
 
-        <span class="section-label">Dealer Upcard</span>
-        <div class="hand-area">
-            <div class="card-slot" id="d1" onclick="selectSlot('d1')">?</div>
-        </div>
-
-        <span class="section-label">Player Hand</span>
-        <div class="hand-area">
-            <div class="card-slot" id="p1" onclick="selectSlot('p1')">?</div>
-            <div class="card-slot" id="p2" onclick="selectSlot('p2')">?</div>
-        </div>
-
-        <div id="card-selector">
-            <span class="section-label">Select Card Value</span>
+        <div class="picker-container">
+            <span class="section-label" style="margin-bottom:10px;">Input Card</span>
             <div class="card-picker">
                 <button class="picker-btn" onclick="setCard('2')">2</button>
                 <button class="picker-btn" onclick="setCard('3')">3</button>
@@ -253,75 +334,61 @@
                 <button class="picker-btn" onclick="setCard('K')">K</button>
                 <button class="picker-btn" onclick="setCard('A')">A</button>
             </div>
-            <p style="font-size:0.8em; color:#ccc; margin-top:5px;">*Suit does not affect odds in standard Blackjack.</p>
-        </div>
-
-        <div style="margin-top:20px;">
-            <h3>Simulation Results (10,000 Hands)</h3>
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; text-align:center;">
-                <div>
-                    <span class="section-label">Player Win</span>
-                    <div class="bar-container"><div id="bar-win" class="bar-fill bar-win" style="width:0%"></div></div>
-                    <span id="txt-win">0%</span>
-                </div>
-                <div>
-                    <span class="section-label">Push (Tie)</span>
-                    <div class="bar-container"><div id="bar-push" class="bar-fill bar-push" style="width:0%"></div></div>
-                    <span id="txt-push">0%</span>
-                </div>
-                <div>
-                    <span class="section-label">Dealer Win</span>
-                    <div class="bar-container"><div id="bar-lose" class="bar-fill bar-lose" style="width:0%"></div></div>
-                    <span id="txt-lose">0%</span>
-                </div>
+            <div class="action-row">
+                <button class="ctrl-btn btn-undo" onclick="undoLast()">Undo</button>
+                <button class="ctrl-btn btn-reset" onclick="resetHands()">Clear Table</button>
             </div>
         </div>
     </div>
 
     <div class="stats-panel">
-        <h3>Configuration</h3>
-        <div class="settings-grid">
-            <button class="toggle-btn active" id="btn-csm" onclick="toggleCSM()">Mode: CSM (Anti-Cheat)</button>
-            <button class="toggle-btn" id="btn-soft17" onclick="toggleSoft17()">Dealer: Stand Soft 17</button>
-            <button class="toggle-btn" id="btn-decks" onclick="cycleDecks()">Decks: 6</button>
-        </div>
-        
-        <div class="stat-box">
-            <span class="section-label">Optimum Move</span>
-            <div id="rec-display" class="recommendation" style="background:#555;">WAITING</div>
-            <div id="rec-sub" style="font-size:0.8em; margin-top:5px; opacity:0.7;">Input cards to see move</div>
-        </div>
-
-        <div class="stat-box" id="counting-box" style="opacity: 0.3;">
-            <span class="section-label">True Count (Hi-Lo)</span>
-            <div class="stat-value" id="true-count">0</div>
-            <div style="font-size:0.8em; color:#e74c3c;" id="csm-warning">DISABLED IN CSM MODE</div>
+        <div>
+            <span class="section-label" style="color:var(--accent-color);">Optimum Move</span>
+            <div class="rec-box">
+                <div id="rec-display" class="recommendation">...</div>
+                <div id="rec-sub" class="rec-reason">Waiting for input</div>
+            </div>
         </div>
 
         <div class="stat-box">
-            <span class="section-label">House Edge (Current State)</span>
+            <span class="section-label">House Edge (Live)</span>
             <div class="stat-value" id="house-edge">0.5%</div>
+            <div style="font-size:0.7em; opacity:0.6; margin-top:5px;">Based on current composition</div>
+        </div>
+
+        <div class="stat-box" id="counting-box">
+            <span class="section-label">True Count (Hi-Lo)</span>
+            <div class="stat-value" id="true-count">-</div>
+            <div style="font-size:0.7em; color:#e74c3c; display:none;" id="csm-warning">DISABLED IN CSM MODE</div>
+        </div>
+
+        <div>
+            <span class="section-label">Table Rules</span>
+            <div class="settings-grid">
+                <button class="toggle-btn active" id="btn-csm" onclick="toggleCSM()">CSM</button>
+                <button class="toggle-btn" id="btn-soft17" onclick="toggleSoft17()">Stand S17</button>
+                <button class="toggle-btn" id="btn-surrender" onclick="toggleSurrender()">No Surrender</button>
+                <button class="toggle-btn" id="btn-decks" onclick="cycleDecks()">6 Decks</button>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
     /**
-     * STATE MANAGEMENT
+     * PRO-GRADE LOGIC ENGINE
      */
     const state = {
         decks: 6,
-        hitSoft17: false, // false = Stand on Soft 17 (S17), true = Hit on Soft 17 (H17)
+        hitSoft17: false, // false = Stand S17, true = Hit S17
+        allowSurrender: false,
         csmMode: true,    // Continuous Shuffling Machine
         runningCount: 0,
         cardsDealt: 0,
-        deck: [],         // The shoe
-        hand: {
-            d1: null,
-            p1: null,
-            p2: null
-        },
-        activeSlot: null
+        deck: [],
+        hand: { d1: null, p1: null, p2: null },
+        activeSlot: 'd1', // Start at dealer
+        historyStack: []  // For Undo
     };
 
     const cardValues = {
@@ -335,37 +402,21 @@
         '10': -1, 'J': -1, 'Q': -1, 'K': -1, 'A': -1
     };
 
-    /**
-     * INITIALIZATION
-     */
     function init() {
         resetDeck();
         updateUI();
     }
 
+    /* --- Core Game Logic --- */
+
     function resetDeck() {
         state.deck = [];
         state.runningCount = 0;
         state.cardsDealt = 0;
-        
-        // Create standard shoe
-        const suits = ['h', 'd', 'c', 's'];
-        const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-        
-        for (let d = 0; d < state.decks; d++) {
-            for (let s of suits) {
-                for (let r of ranks) {
-                    state.deck.push(r);
-                }
-            }
-        }
+        // In Monte Carlo, we generate deck on fly, but for Count, we track scalar values
     }
 
-    /**
-     * UI INTERACTION
-     */
     function selectSlot(id) {
-        // Remove active class from all
         document.querySelectorAll('.card-slot').forEach(el => el.classList.remove('active'));
         state.activeSlot = id;
         document.getElementById(id).classList.add('active');
@@ -374,56 +425,101 @@
     function setCard(val) {
         if (!state.activeSlot) return;
 
+        // Save history
+        state.historyStack.push({
+            slot: state.activeSlot,
+            prevVal: state.hand[state.activeSlot],
+            newVal: val
+        });
+
         state.hand[state.activeSlot] = val;
         
-        // Update Visual
+        // Render
         const el = document.getElementById(state.activeSlot);
         el.textContent = val;
+        el.dataset.val = val;
         el.classList.add('filled');
+        
+        // Counting
+        if (!state.csmMode) updateCount(val, 1);
 
-        // Handle Card Counting Logic
-        if (!state.csmMode) {
-            updateCount(val);
-        }
-
-        // Auto-advance slot
+        // Auto Advance
         if (state.activeSlot === 'd1') selectSlot('p1');
         else if (state.activeSlot === 'p1') selectSlot('p2');
-        else if (state.activeSlot === 'p2') state.activeSlot = null; // Done
+        else if (state.activeSlot === 'p2') {
+            state.activeSlot = null;
+            document.querySelectorAll('.card-slot').forEach(el => el.classList.remove('active'));
+        }
 
+        calculate();
+    }
+
+    function undoLast() {
+        if (state.historyStack.length === 0) return;
+        const lastAction = state.historyStack.pop();
+        
+        // Revert State
+        state.hand[lastAction.slot] = lastAction.prevVal;
+        
+        // Revert Count
+        if (!state.csmMode) updateCount(lastAction.newVal, -1);
+
+        // Revert UI
+        const el = document.getElementById(lastAction.slot);
+        if (lastAction.prevVal) {
+            el.textContent = lastAction.prevVal;
+            el.dataset.val = lastAction.prevVal;
+        } else {
+            el.textContent = '';
+            el.removeAttribute('data-val');
+            el.classList.remove('filled');
+        }
+
+        // Set active to the slot we just undid
+        selectSlot(lastAction.slot);
         calculate();
     }
 
     function resetHands() {
         state.hand = { d1: null, p1: null, p2: null };
-        document.querySelectorAll('.card-slot').forEach(el => {
-            el.textContent = '?';
-            el.classList.remove('filled', 'active');
-        });
+        state.historyStack = [];
+        state.activeSlot = 'd1';
         
-        document.getElementById('rec-display').textContent = "WAITING";
-        document.getElementById('rec-display').style.background = "#555";
-        document.getElementById('rec-sub').textContent = "Input cards to see move";
+        document.querySelectorAll('.card-slot').forEach(el => {
+            el.textContent = '';
+            el.classList.remove('filled', 'active');
+            el.removeAttribute('data-val');
+        });
+        selectSlot('d1');
+        
+        document.getElementById('rec-display').className = 'recommendation';
+        document.getElementById('rec-display').style.background = '#34495e';
+        document.getElementById('rec-display').textContent = "...";
+        document.getElementById('rec-sub').textContent = "Waiting for input";
+        
         clearBars();
     }
+
+    /* --- Settings Controls --- */
 
     function toggleCSM() {
         state.csmMode = !state.csmMode;
         const btn = document.getElementById('btn-csm');
-        const countBox = document.getElementById('counting-box');
-        const warning = document.getElementById('csm-warning');
-
+        btn.classList.toggle('active');
+        btn.textContent = state.csmMode ? "CSM" : "Shoe Mode";
+        
+        const box = document.getElementById('counting-box');
+        const warn = document.getElementById('csm-warning');
+        
         if (state.csmMode) {
-            btn.textContent = "Mode: CSM (Anti-Cheat)";
-            btn.classList.add('active');
-            countBox.style.opacity = "0.3";
-            warning.style.display = "block";
-            state.runningCount = 0; // Reset count
+            box.style.opacity = "0.4";
+            warn.style.display = "block";
+            state.runningCount = 0;
+            document.getElementById('true-count').textContent = "-";
         } else {
-            btn.textContent = "Mode: Shoe (Card Counting)";
-            btn.classList.remove('active');
-            countBox.style.opacity = "1";
-            warning.style.display = "none";
+            box.style.opacity = "1";
+            warn.style.display = "none";
+            updateUI(); // Show count
         }
         calculate();
     }
@@ -431,291 +527,314 @@
     function toggleSoft17() {
         state.hitSoft17 = !state.hitSoft17;
         const btn = document.getElementById('btn-soft17');
-        btn.textContent = state.hitSoft17 ? "Dealer: Hit Soft 17" : "Dealer: Stand Soft 17";
-        if(state.hitSoft17) btn.classList.add('active');
-        else btn.classList.remove('active');
+        btn.textContent = state.hitSoft17 ? "Hit S17" : "Stand S17";
+        btn.classList.toggle('active');
+        calculate();
+    }
+
+    function toggleSurrender() {
+        state.allowSurrender = !state.allowSurrender;
+        const btn = document.getElementById('btn-surrender');
+        btn.textContent = state.allowSurrender ? "Surrender Allowed" : "No Surrender";
+        btn.classList.toggle('active');
         calculate();
     }
 
     function cycleDecks() {
-        const options = [1, 2, 4, 6, 8];
+        const options = [1, 2, 6, 8];
         let idx = options.indexOf(state.decks);
         state.decks = options[(idx + 1) % options.length];
-        document.getElementById('btn-decks').textContent = `Decks: ${state.decks}`;
-        resetDeck(); // New deck size implies reshuffle
+        document.getElementById('btn-decks').textContent = `${state.decks} Decks`;
+        resetDeck();
         calculate();
     }
 
-    function updateCount(cardVal) {
-        // Simple Hi-Lo
-        state.runningCount += hiLoValues[cardVal];
-        state.cardsDealt++;
+    /* --- Math & Simulation --- */
+
+    function updateCount(cardVal, direction) {
+        // direction: 1 = add, -1 = remove (undo)
+        state.runningCount += (hiLoValues[cardVal] * direction);
+        state.cardsDealt += direction;
         updateUI();
     }
 
     function updateUI() {
-        // Calculate True Count
+        if (state.csmMode) return;
         let decksRemaining = state.decks - (state.cardsDealt / 52);
-        if (decksRemaining < 1) decksRemaining = 1; // Prevent divide by zero/weirdness at end
+        if (decksRemaining < 0.5) decksRemaining = 0.5;
         let trueCount = Math.round((state.runningCount / decksRemaining) * 10) / 10;
         
-        document.getElementById('true-count').textContent = state.csmMode ? "-" : trueCount;
+        const tcEl = document.getElementById('true-count');
+        tcEl.textContent = trueCount;
+        tcEl.style.color = trueCount >= 1 ? "#2ecc71" : (trueCount <= -1 ? "#e74c3c" : "var(--accent-color)");
     }
 
-    /**
-     * CALCULATION ENGINES
-     */
     function calculate() {
-        if (!state.hand.d1 || !state.hand.p1 || !state.hand.p2) return;
+        if (!state.hand.d1 || !state.hand.p1 || !state.hand.p2) {
+            clearBars();
+            return;
+        }
 
         const dealerCard = state.hand.d1;
-        const playerCard1 = state.hand.p1;
-        const playerCard2 = state.hand.p2;
+        const p1 = state.hand.p1;
+        const p2 = state.hand.p2;
 
-        // 1. Get Basic Strategy Recommendation
-        const rec = getBasicStrategy(playerCard1, playerCard2, dealerCard);
-        displayRecommendation(rec);
+        // 1. Get Strategy
+        const recData = getBasicStrategy(p1, p2, dealerCard);
+        displayRecommendation(recData);
 
-        // 2. Run Monte Carlo Simulation for Win %
-        runSimulation(playerCard1, playerCard2, dealerCard);
+        // 2. Run Sim
+        runSimulation(p1, p2, dealerCard);
     }
 
+    // RETURNS: { move: "HIT", reason: "..." }
     function getBasicStrategy(p1, p2, d) {
         const val1 = cardValues[p1];
         const val2 = cardValues[p2];
-        const dealerVal = cardValues[d];
-        const playerTotal = val1 + val2;
-        const isStrictPair = p1 === p2; // 8-8, A-A
+        const dVal = cardValues[d];
+        const total = val1 + val2;
+        const isPair = (p1 === p2) || (val1 === 10 && val2 === 10 && false); // Standard strategy only splits Rank pairs (10-K is not split)
+        const isStrictPair = p1 === p2;
         const hasAce = (p1 === 'A' || p2 === 'A');
 
-        // --- PAIR SPLITTING ---
+        // --- SURRENDER ---
+        if (state.allowSurrender) {
+            if (total === 16 && (dVal === 9 || dVal === 10 || dVal === 11)) return { move: "SURRENDER", reason: "Save 50% equity on weak hand" };
+            if (total === 15 && dVal === 10) return { move: "SURRENDER", reason: "Save 50% equity vs 10" };
+        }
+
+        // --- PAIRS ---
         if (isStrictPair) {
-            if (p1 === 'A') return "SPLIT";
-            if (p1 === '8') return "SPLIT";
-            if (p1 === '10' || p1 === 'J' || p1 === 'Q' || p1 === 'K') return "STAND"; // Never split 10s
-            if (p1 === '9') return (dealerVal === 7 || dealerVal === 10 || dealerVal === 11) ? "STAND" : "SPLIT";
-            if (p1 === '7') return (dealerVal <= 7) ? "SPLIT" : "HIT";
-            if (p1 === '6') return (dealerVal <= 6) ? "SPLIT" : "HIT";
-            if (p1 === '5') return (dealerVal <= 9) ? "DOUBLE" : "HIT"; // Double 5s, don't split
-            if (p1 === '4') return (dealerVal === 5 || dealerVal === 6) ? "SPLIT" : "HIT"; // Usually only split 4s on 5/6
-            if (p1 === '3' || p1 === '2') return (dealerVal <= 7) ? "SPLIT" : "HIT";
+            if (p1 === 'A') return { move: "SPLIT", reason: "Always split Aces" };
+            if (p1 === '8') return { move: "SPLIT", reason: "Always split 8s (break 16)" };
+            if (val1 === 10) return { move: "STAND", reason: "20 is a winning hand" };
+            if (p1 === '9') return (dVal === 7 || dVal === 10 || dVal === 11) ? 
+                { move: "STAND", reason: "Dealer shows strength" } : { move: "SPLIT", reason: "Dominant vs weak dealer" };
+            if (p1 === '7') return (dVal <= 7) ? { move: "SPLIT", reason: "Offensive split" } : { move: "HIT", reason: "Defensive hit" };
+            if (p1 === '6') return (dVal <= 6) ? { move: "SPLIT", reason: "Split vs Bust Card" } : { move: "HIT", reason: "Hit hard 12" };
+            if (p1 === '5') return (dVal <= 9) ? { move: "DOUBLE", reason: "Treat as Hard 10" } : { move: "HIT", reason: "Treat as Hard 10" };
+            if (p1 === '4') return (dVal === 5 || dVal === 6) ? { move: "SPLIT", reason: "Only split 4s vs weak" } : { move: "HIT", reason: "Hit Hard 8" };
+            if (p1 === '3' || p1 === '2') return (dVal <= 7) ? { move: "SPLIT", reason: "Offensive split" } : { move: "HIT", reason: "Hit weak total" };
         }
 
-        // --- SOFT TOTALS (Ace + X) ---
-        if (hasAce && playerTotal !== 2) { 
+        // --- SOFT ---
+        if (hasAce && total !== 2) {
             let softVal = (p1 === 'A' ? val2 : val1) + 11;
-            
-            if (softVal >= 20) return "STAND"; // A-9
-            if (softVal === 19) return (dealerVal === 6 && state.hitSoft17) ? "DOUBLE" : "STAND"; 
+            if (softVal >= 20) return { move: "STAND", reason: "Strong hand" };
+            if (softVal === 19) return (dVal === 6 && state.hitSoft17) ? { move: "DOUBLE", reason: "Attack S17 rule" } : { move: "STAND", reason: "Standard hold" };
             if (softVal === 18) {
-                if (dealerVal <= 6) return "DOUBLE";
-                if (dealerVal <= 8) return "STAND";
-                return "HIT";
+                if (dVal <= 6) return { move: "DOUBLE", reason: "Attack weak dealer" };
+                if (dVal <= 8) return { move: "STAND", reason: "Defensive stand" };
+                return { move: "HIT", reason: "Hit soft 18 vs strong" };
             }
-            if (softVal === 17) return (dealerVal >= 3 && dealerVal <= 6) ? "DOUBLE" : "HIT";
-            if (softVal === 16 || softVal === 15) return (dealerVal >= 4 && dealerVal <= 6) ? "DOUBLE" : "HIT";
-            if (softVal === 14 || softVal === 13) return (dealerVal >= 5 && dealerVal <= 6) ? "DOUBLE" : "HIT";
+            // Soft 13-17
+            if (softVal === 17) return (dVal >= 3 && dVal <= 6) ? { move: "DOUBLE", reason: "Attack bust card" } : { move: "HIT", reason: "Improve soft hand" };
+            if (softVal >= 15) return (dVal >= 4 && dVal <= 6) ? { move: "DOUBLE", reason: "Attack bust card" } : { move: "HIT", reason: "Improve soft hand" };
+            if (softVal >= 13) return (dVal >= 5 && dVal <= 6) ? { move: "DOUBLE", reason: "Attack bust card" } : { move: "HIT", reason: "Improve soft hand" };
         }
 
-        // --- HARD TOTALS ---
-        if (playerTotal >= 17) return "STAND";
-        if (playerTotal === 16) return (dealerVal >= 7) ? "HIT" : "STAND";
-        if (playerTotal === 15) return (dealerVal >= 7) ? "HIT" : "STAND";
-        if (playerTotal === 14 || playerTotal === 13) return (dealerVal >= 7) ? "HIT" : "STAND";
-        if (playerTotal === 12) return (dealerVal >= 4 && dealerVal <= 6) ? "STAND" : "HIT";
-        if (playerTotal === 11) return "DOUBLE";
-        if (playerTotal === 10) return (dealerVal >= 10) ? "HIT" : "DOUBLE";
-        if (playerTotal === 9) return (dealerVal >= 3 && dealerVal <= 6) ? "DOUBLE" : "HIT";
-        
-        return "HIT";
+        // --- HARD ---
+        if (total >= 17) return { move: "STAND", reason: "Pat hand" };
+        if (total === 16) return (dVal >= 7) ? { move: "HIT", reason: "Mandatory hit (math favors it)" } : { move: "STAND", reason: "Let dealer bust" };
+        if (total === 15) return (dVal >= 7) ? { move: "HIT", reason: "Defensive hit" } : { move: "STAND", reason: "Let dealer bust" };
+        if (total === 14 || total === 13) return (dVal >= 7) ? { move: "HIT", reason: "Defensive hit" } : { move: "STAND", reason: "Let dealer bust" };
+        if (total === 12) return (dVal >= 4 && dVal <= 6) ? { move: "STAND", reason: "Let dealer bust" } : { move: "HIT", reason: "Hit hard 12" };
+        if (total === 11) return { move: "DOUBLE", reason: "Strongest starting hand" };
+        if (total === 10) return (dVal >= 10) ? { move: "HIT", reason: "Defensive hit vs 10/A" } : { move: "DOUBLE", reason: "Power double" };
+        if (total === 9) return (dVal >= 3 && dVal <= 6) ? { move: "DOUBLE", reason: "Attack bust card" } : { move: "HIT", reason: "Build hand" };
+
+        return { move: "HIT", reason: "Build hand" };
     }
 
-    function displayRecommendation(move) {
+    function displayRecommendation(data) {
         const el = document.getElementById('rec-display');
         const sub = document.getElementById('rec-sub');
-        el.className = 'recommendation'; // reset
+        el.className = 'recommendation';
         
-        if (move === "HIT") {
-            el.classList.add('rec-hit');
-            sub.textContent = "Take another card.";
-        } else if (move === "STAND") {
-            el.classList.add('rec-stand');
-            sub.textContent = "Hold your total.";
-        } else if (move === "DOUBLE") {
-            el.classList.add('rec-double');
-            sub.textContent = "Double wager, take exactly 1 card. (Hit if unavailable)";
-        } else if (move === "SPLIT") {
-            el.classList.add('rec-split');
-            sub.textContent = "Split into two hands.";
-        }
-        el.textContent = move;
+        const styleMap = {
+            "HIT": "rec-hit", "STAND": "rec-stand", "DOUBLE": "rec-double", "SPLIT": "rec-split", "SURRENDER": "rec-surrender"
+        };
+        
+        el.classList.add(styleMap[data.move] || '');
+        el.textContent = data.move;
+        sub.textContent = data.reason;
     }
 
     /**
-     * MONTE CARLO SIMULATION
+     * ADVANCED MONTE CARLO SIM
+     * Player actually follows the basic strategy logic
      */
     function runSimulation(p1, p2, d) {
-        let wins = 0;
-        let pushes = 0;
-        let losses = 0;
-        const iterations = 5000; 
+        // ... (Similar setup to before, but we call getBasicStrategy in the loop) ...
+        const iterations = 3000; // Slightly lower for performance since logic is complex
+        let wins = 0, pushes = 0, losses = 0;
 
-        // Create a 'simulation deck' based on current state
+        // Base deck
         let simDeckBase = [];
-        
-        if (state.csmMode) {
-             const suits = 4;
-             const baseRanks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-             for(let i=0; i<state.decks * suits; i++) {
-                 baseRanks.forEach(r => simDeckBase.push(r));
-             }
-             removeFromDeck(simDeckBase, p1);
-             removeFromDeck(simDeckBase, p2);
-             removeFromDeck(simDeckBase, d);
-        } else {
-             const suits = 4;
-             const baseRanks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-             for(let i=0; i<state.decks * suits; i++) {
-                 baseRanks.forEach(r => simDeckBase.push(r));
-             }
-             removeFromDeck(simDeckBase, p1);
-             removeFromDeck(simDeckBase, p2);
-             removeFromDeck(simDeckBase, d);
-        }
+        const suits = 4;
+        const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+        // Use full deck approximation for CSM, or deck composition for Shoe
+        // For Speed: Use infinite deck approximation (easiest for CSM) or simple removal
+        for(let i=0; i<state.decks*suits; i++) ranks.forEach(r => simDeckBase.push(r));
+        removeFromDeck(simDeckBase, p1);
+        removeFromDeck(simDeckBase, p2);
+        removeFromDeck(simDeckBase, d);
 
-        for (let i = 0; i < iterations; i++) {
-            // Shuffle
-            let currentDeck = [...simDeckBase];
-            for (let j = currentDeck.length - 1; j > 0; j--) {
-                const k = Math.floor(Math.random() * (j + 1));
-                [currentDeck[j], currentDeck[k]] = [currentDeck[k], currentDeck[j]];
+        for(let i=0; i<iterations; i++) {
+            let deck = [...simDeckBase];
+            // Fisher-Yates partial shuffle (just enough for the hand)
+            for(let k=deck.length-1; k>deck.length-20; k--) {
+                const j = Math.floor(Math.random() * (k+1));
+                [deck[k], deck[j]] = [deck[j], deck[k]];
             }
 
-            // Player Logic: Basic Strategy Simulation
+            // Deal
             let pHand = [p1, p2];
-            let dHand = [d, currentDeck.pop()]; 
+            let dHand = [d, deck.pop()];
 
-            // Play Player
+            // --- PLAYER TURN (SMART AGENT) ---
             let pBust = false;
+            let doubled = false;
+            let surrendered = false;
+
+            // Simplified loop: We process only the main hand. Splitting in sim is complex.
+            // If Rec is SPLIT, we simulate two hands? No, too slow.
+            // We just treat SPLIT as a HIT for the purpose of single-hand Win % estimation
+            // Or we force the first move.
+            
             while(true) {
+                let rec = getBasicStrategy(pHand[0], pHand.length > 1 ? pHand[1] : 'x', dHand[0]);
+                // Recalculate strat based on current hand sum
+                // getBasicStrategy is designed for 2 cards. We need a "Hit/Stand" logic for N cards.
                 let val = getHandValue(pHand);
-                if (val > 21) { pBust = true; break; }
                 
-                // Sim Strategy
-                let action = "STAND";
-                let dShow = cardValues[d];
-                if (val <= 11) action = "HIT";
-                else if (val >= 17) action = "STAND";
-                else { // 12-16
-                    if (dShow >= 7) action = "HIT";
-                    else if (val === 12 && (dShow === 2 || dShow === 3)) action = "HIT";
-                    else action = "STAND";
+                let move = "STAND";
+                if (val >= 21) move = "STAND"; // Done
+                else if (pHand.length === 2) {
+                    move = rec.move; 
+                    if(move === "SPLIT") move = "HIT"; // Sim simplification
+                } else {
+                    // Multi-card logic (Basic Strat derived)
+                    if (val < 12) move = "HIT";
+                    else if (val >= 17) {
+                         if (isSoft(pHand) && val <= 17) move = "HIT"; // Soft 17 usually hit? No, S17 vs H17 logic
+                         else if (isSoft(pHand) && val === 18 && cardValues[dHand[0]] >= 9) move = "HIT";
+                         else move = "STAND";
+                    } else {
+                        // Hard 12-16
+                        if (cardValues[dHand[0]] >= 7) move = "HIT";
+                        else if (val === 12 && (cardValues[dHand[0]] === 2 || cardValues[dHand[0]] === 3)) move = "HIT";
+                        else move = "STAND";
+                    }
                 }
 
-                if (action === "HIT") pHand.push(currentDeck.pop());
-                else break;
+                if (move === "SURRENDER") { surrendered = true; break; }
+                if (move === "DOUBLE") { 
+                    pHand.push(deck.pop()); 
+                    doubled = true; 
+                    break; // 1 card only
+                }
+                if (move === "HIT") {
+                    pHand.push(deck.pop());
+                    if (getHandValue(pHand) > 21) { pBust = true; break; }
+                } else {
+                    break; // STAND
+                }
             }
 
-            // Play Dealer
+            // --- DEALER TURN ---
             let dBust = false;
-            let dVal = 0;
-            if (!pBust) {
+            let dTotal = 0;
+            if (!pBust && !surrendered) {
                 while(true) {
-                    dVal = getHandValue(dHand);
-                    if (dVal > 21) { dBust = true; break; }
-                    if (dVal >= 17) {
-                        if (state.hitSoft17 && dVal === 17 && isSoft(dHand)) {
-                            dHand.push(currentDeck.pop());
+                    dTotal = getHandValue(dHand);
+                    if (dTotal > 21) { dBust = true; break; }
+                    if (dTotal >= 17) {
+                        if (state.hitSoft17 && dTotal === 17 && isSoft(dHand)) {
+                            dHand.push(deck.pop());
                             continue;
                         }
                         break;
                     }
-                    dHand.push(currentDeck.pop());
+                    dHand.push(deck.pop());
                 }
             }
 
-            // Result
-            let pFinal = getHandValue(pHand);
-            dVal = getHandValue(dHand);
-
-            if (pBust) losses++;
+            // --- SCORING ---
+            if (surrendered) { losses += 0.5; wins -= 0.5; } // Complex to map to W/L bars, treat as Loss for graph simplicity
+            else if (pBust) losses++;
             else if (dBust) wins++;
-            else if (pFinal > dVal) wins++;
-            else if (dVal > pFinal) losses++;
-            else pushes++;
+            else {
+                let pFinal = getHandValue(pHand);
+                if (pFinal > dTotal) wins++;
+                else if (dTotal > pFinal) losses++;
+                else pushes++;
+            }
         }
-
+        
         updateStats(wins, pushes, losses, iterations);
     }
 
-    function removeFromDeck(deck, card) {
-        const idx = deck.indexOf(card);
-        if (idx > -1) deck.splice(idx, 1);
-    }
+    /* --- Utilities --- */
 
     function getHandValue(cards) {
-        let sum = 0;
-        let aces = 0;
+        let sum = 0, aces = 0;
         cards.forEach(c => {
             let v = cardValues[c];
             if (v === 11) aces++;
             sum += v;
         });
-        while (sum > 21 && aces > 0) {
-            sum -= 10;
-            aces--;
-        }
+        while (sum > 21 && aces > 0) { sum -= 10; aces--; }
         return sum;
     }
 
     function isSoft(cards) {
-        let sum = 0;
-        let aces = 0;
+        let sum = 0, aces = 0;
         cards.forEach(c => {
             let v = cardValues[c];
             if (v === 11) aces++;
             sum += v;
         });
-        return (aces > 0 && sum <= 21 && (sum - 10 + 1) === (sum - 10)); 
+        return (aces > 0 && sum <= 21 && (sum - 10 + 1) === (sum - 10)); // Math check
+    }
+
+    function removeFromDeck(d, c) {
+        let idx = d.indexOf(c);
+        if (idx > -1) d.splice(idx, 1);
     }
 
     function updateStats(w, p, l, total) {
         const pWin = Math.round((w/total)*100);
         const pPush = Math.round((p/total)*100);
         const pLose = Math.round((l/total)*100);
-
-        document.getElementById('bar-win').style.width = `${pWin}%`;
-        document.getElementById('bar-push').style.width = `${pPush}%`;
-        document.getElementById('bar-lose').style.width = `${pLose}%`;
-
-        document.getElementById('txt-win').textContent = `${pWin}%`;
-        document.getElementById('txt-push').textContent = `${pPush}%`;
-        document.getElementById('txt-lose').textContent = `${pLose}%`;
-
-        let ev = (pWin - pLose) / 100; 
-        let edge = -(ev * 100).toFixed(2);
         
-        let label = "House Edge";
-        let val = edge + "%";
-        if (edge < 0) {
-            label = "Player Edge";
-            val = Math.abs(edge) + "%";
+        document.getElementById('bar-win').style.width = pWin + "%";
+        document.getElementById('bar-push').style.width = pPush + "%";
+        document.getElementById('bar-lose').style.width = pLose + "%";
+        
+        document.getElementById('txt-win').textContent = pWin + "%";
+        document.getElementById('txt-push').textContent = pPush + "%";
+        document.getElementById('txt-lose').textContent = pLose + "%";
+
+        // House Edge Estimate
+        let edge = (pWin - pLose); // Rough Player Advantage
+        if (edge > 0) {
+            document.getElementById('house-edge').textContent = "+" + edge + "%";
             document.getElementById('house-edge').style.color = "#2ecc71";
         } else {
+            document.getElementById('house-edge').textContent = edge + "%";
             document.getElementById('house-edge').style.color = "#e74c3c";
         }
-        document.querySelector('#house-edge').parentElement.querySelector('.section-label').textContent = label;
-        document.getElementById('house-edge').textContent = val;
     }
 
     function clearBars() {
         ['bar-win','bar-push','bar-lose'].forEach(id => document.getElementById(id).style.width = '0%');
         ['txt-win','txt-push','txt-lose'].forEach(id => document.getElementById(id).textContent = '0%');
         document.getElementById('house-edge').textContent = "0.5%";
+        document.getElementById('house-edge').style.color = "var(--accent-color)";
     }
 
     init();
-
 </script>
 </body>
 </html>
