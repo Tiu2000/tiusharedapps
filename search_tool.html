@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Open Source Intelligence Tool v3.0</title>
+    <title>TIU Open Source Intelligence Tool v3.1</title>
     <style>
         :root {
             --bg-color: #f0f2f5;
@@ -164,6 +164,12 @@
             transform: translateY(-1px);
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
+        
+        /* Optional: Make Obituary button distinct */
+        .btn-obit:hover {
+            border-color: #e74c3c;
+            color: #e74c3c;
+        }
 
         .helper {
             font-size: 0.75rem;
@@ -206,7 +212,7 @@
         <div class="input-group">
             <label>Keywords / Phrases</label>
             <input type="text" id="customKeywords" value="arrest shooting prison inmate" placeholder="Type ANY keywords here...">
-            <div class="helper">Edit this field to change what the buttons search for. Try: "scholarship", "missing", "lawsuit", "hired".</div>
+            <div class="helper">These keywords apply to the "News" and "Web" buttons.</div>
         </div>
 
         <div class="section-header">Execute Search</div>
@@ -216,6 +222,7 @@
             <button onclick="search('images')">📷 Images</button>
             <button onclick="search('court')">⚖️ Legal / Court</button>
             <button onclick="search('doc')">🔒 DOC / Inmate</button>
+            <button class="btn-obit" onclick="search('obits')">⚰️ Obituaries</button>
         </div>
     </div>
 
@@ -264,18 +271,22 @@
                     break;
 
                 case 'court':
-                    // Court Listener (Legal DB) - Focuses on Name only for broader matches, or adds location if specific
-                    // We remove generic keywords for court search to avoid clutter, unless user wants them.
-                    // Here we will use Name + Location for better legal results
+                    // Court Listener (Legal DB) - Focuses on Name + Location
                     let legalQuery = `"${name}" ${location}`;
                     url = `https://www.courtlistener.com/?q=${encodeURIComponent(legalQuery)}&type=r&order_by=score%20desc`;
                     break;
 
                 case 'doc':
-                    // DOC Search - This appends specific "inmate" language regardless of custom keywords
-                    // to ensure it hits the prison databases.
+                    // DOC Search - Forces "inmate" context
                     let docQuery = `"${name}" inmate locator offender search ${location}`;
                     url = `https://www.google.com/search?q=${encodeURIComponent(docQuery)}`;
+                    break;
+
+                case 'obits':
+                    // Obituary Cross Reference
+                    // Searches for the name in proximity to "killed" or "victim" or just general obituary listings
+                    let obitQuery = `"${name}" obituary OR killed OR victim ${location}`;
+                    url = `https://www.google.com/search?q=${encodeURIComponent(obitQuery)}`;
                     break;
             }
 
