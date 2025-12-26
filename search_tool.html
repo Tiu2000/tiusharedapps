@@ -3,22 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Investigative Search v2.0</title>
+    <title>TIU Open Source Intelligence Tool v3.0</title>
     <style>
         :root {
             --bg-color: #f0f2f5;
             --card-bg: #ffffff;
             --text-color: #2c3e50;
-            --accent: #2980b9;
+            --accent: #2c3e50;
             --border: #ddd;
+            --highlight: #3498db;
         }
 
         [data-theme="dark"] {
-            --bg-color: #1a1a1a;
-            --card-bg: #2d2d2d;
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
             --text-color: #e0e0e0;
-            --accent: #3498db;
-            --border: #444;
+            --accent: #ecf0f1;
+            --border: #333;
+            --highlight: #bb86fc;
         }
 
         body {
@@ -30,6 +32,7 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
+            padding: 20px;
             transition: background-color 0.3s;
         }
 
@@ -39,7 +42,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) rotate(-30deg);
-            font-size: 15rem;
+            font-size: 12rem;
             font-weight: 900;
             color: var(--text-color);
             opacity: 0.03;
@@ -47,43 +50,43 @@
             z-index: 0;
             user-select: none;
             font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
         }
 
         .container {
             background-color: var(--card-bg);
-            padding: 2.5rem;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 650px;
+            max-width: 700px;
             z-index: 1;
             position: relative;
-            border-top: 5px solid var(--accent);
-            transition: background-color 0.3s;
+            border-top: 4px solid var(--highlight);
         }
 
         .header-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             border-bottom: 1px solid var(--border);
             padding-bottom: 15px;
         }
 
-        h2 { margin: 0; font-size: 1.5rem; }
+        h2 { margin: 0; font-size: 1.4rem; letter-spacing: -0.5px; }
 
         .theme-toggle {
             cursor: pointer;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             text-decoration: underline;
-            color: var(--accent);
+            color: var(--highlight);
         }
 
         .grid-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 20px;
             margin-bottom: 15px;
         }
 
@@ -91,11 +94,13 @@
 
         label {
             display: block;
-            margin-bottom: 6px;
-            font-weight: 600;
-            font-size: 0.85rem;
+            margin-bottom: 8px;
+            font-weight: 700;
+            font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            color: var(--text-color);
+            opacity: 0.8;
         }
 
         input {
@@ -111,49 +116,60 @@
 
         input:focus {
             outline: none;
-            border-color: var(--accent);
+            border-color: var(--highlight);
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
         }
 
-        .section-title {
-            font-size: 0.8rem;
-            color: var(--accent);
-            margin-top: 20px;
-            margin-bottom: 10px;
-            font-weight: bold;
+        .section-header {
+            font-size: 0.75rem;
             text-transform: uppercase;
+            font-weight: bold;
+            color: var(--highlight);
+            margin-top: 25px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .section-header::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+            margin-left: 10px;
         }
 
         .btn-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-top: 10px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
         }
 
         button {
-            padding: 14px;
-            border: none;
+            padding: 12px;
+            border: 1px solid var(--border);
             border-radius: 4px;
             cursor: pointer;
             font-weight: 600;
             font-size: 0.9rem;
-            transition: transform 0.1s, opacity 0.2s;
-            color: white;
+            transition: all 0.2s;
+            background-color: var(--bg-color);
+            color: var(--text-color);
         }
 
-        button:active { transform: scale(0.98); }
-        button:hover { opacity: 0.9; }
-
-        .btn-primary { background-color: var(--accent); }
-        .btn-alert { background-color: #c0392b; } /* Red for DOC */
-        .btn-info { background-color: #8e44ad; } /* Purple for Images */
-        .btn-secondary { background-color: #7f8c8d; }
+        button:hover {
+            border-color: var(--highlight);
+            color: var(--highlight);
+            background-color: var(--card-bg);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
 
         .helper {
             font-size: 0.75rem;
-            color: #888;
-            margin-top: 4px;
-            font-style: italic;
+            color: var(--text-color);
+            opacity: 0.6;
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -163,50 +179,43 @@
 
     <div class="container">
         <div class="header-row">
-            <h2>Subject Investigation Tool</h2>
-            <span class="theme-toggle" onclick="toggleTheme()">Switch Theme</span>
+            <h2>TIU Open Source Search</h2>
+            <span class="theme-toggle" onclick="toggleTheme()">Dark Mode</span>
         </div>
 
         <div class="input-group">
-            <label>Subject Name</label>
-            <input type="text" id="subjectName" placeholder="First Last (e.g., John Doe)">
-            <div class="helper">Use their legal name, not nicknames (e.g., Robert, not Bobby).</div>
+            <label>Subject / Target Name</label>
+            <input type="text" id="subjectName" placeholder="e.g. John Doe">
         </div>
 
         <div class="grid-row">
             <div class="input-group">
-                <label>City / County</label>
-                <input type="text" id="city" placeholder="e.g. Newark">
+                <label>Location (City/State)</label>
+                <input type="text" id="location" placeholder="e.g. Newark NJ">
             </div>
             <div class="input-group">
-                <label>State</label>
-                <input type="text" id="state" placeholder="e.g. NJ">
+                <label>Year Range</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="startYear" value="2019" placeholder="Start">
+                    <input type="number" id="endYear" value="2025" placeholder="End">
+                </div>
             </div>
         </div>
 
-        <div class="grid-row">
-            <div class="input-group">
-                <label>Date Start</label>
-                <input type="number" id="startYear" value="2019">
-            </div>
-            <div class="input-group">
-                <label>Date End</label>
-                <input type="number" id="endYear" value="2025">
-            </div>
+        <div class="section-header">Custom Context (Editable)</div>
+        <div class="input-group">
+            <label>Keywords / Phrases</label>
+            <input type="text" id="customKeywords" value="arrest shooting prison inmate" placeholder="Type ANY keywords here...">
+            <div class="helper">Edit this field to change what the buttons search for. Try: "scholarship", "missing", "lawsuit", "hired".</div>
         </div>
 
-        <div class="section-title">Current Status Checks</div>
+        <div class="section-header">Execute Search</div>
         <div class="btn-grid">
-            <button class="btn-alert" onclick="search('doc')">🔍 Inmate / DOC Search</button>
-            <button class="btn-info" onclick="search('mugshot')">📷 Image / Mugshot Search</button>
-        </div>
-
-        <div class="section-title">News & Archive Checks</div>
-        <div class="btn-grid">
-            <button class="btn-primary" onclick="search('googleNews')">Google News Archive</button>
-            <button class="btn-primary" onclick="search('general')">General Investigation</button>
-            <button class="btn-secondary" onclick="search('court')">Court Listener / Legal</button>
-            <button class="btn-secondary" onclick="search('obits')">Obituary/Victim Cross-Ref</button>
+            <button onclick="search('news')">📰 News Archives</button>
+            <button onclick="search('web')">🌐 General Web</button>
+            <button onclick="search('images')">📷 Images</button>
+            <button onclick="search('court')">⚖️ Legal / Court</button>
+            <button onclick="search('doc')">🔒 DOC / Inmate</button>
         </div>
     </div>
 
@@ -221,57 +230,52 @@
         }
 
         function search(type) {
+            // Get Values
             const name = document.getElementById('subjectName').value.trim();
-            const city = document.getElementById('city').value.trim();
-            const state = document.getElementById('state').value.trim();
+            const location = document.getElementById('location').value.trim();
+            const keywords = document.getElementById('customKeywords').value.trim();
             const start = document.getElementById('startYear').value;
             const end = document.getElementById('endYear').value;
 
             if (!name) {
-                alert("Subject Name is required.");
+                alert("Please enter a Subject Name.");
                 return;
             }
 
-            const location = `${city} ${state}`.trim();
-            let query = "";
+            // Build Base Query
+            // We combine Name + Keywords + Location
+            let baseQuery = `"${name}" ${keywords} ${location}`; 
             let url = "";
 
             switch(type) {
-                case 'doc':
-                    // Searches specifically for inmate locators in that state
-                    query = `"${name}" inmate locator department of corrections ${state}`;
-                    url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+                case 'news':
+                    // Google News with Date Range
+                    url = `https://www.google.com/search?q=${encodeURIComponent(baseQuery)}&tbm=nws&tbs=cdr:1,cd_min:1/1/${start},cd_max:12/31/${end}`;
                     break;
 
-                case 'mugshot':
-                    // Focuses on images and booking logs
-                    query = `"${name}" arrest mugshot booking ${location}`;
-                    url = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch`;
+                case 'web':
+                    // General Google Search
+                    url = `https://www.google.com/search?q=${encodeURIComponent(baseQuery)}`;
                     break;
 
-                case 'googleNews':
-                    // News with location and strict date range
-                    query = `"${name}" arrest OR shooting OR police ${location}`;
-                    url = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=nws&tbs=cdr:1,cd_min:1/1/${start},cd_max:12/31/${end}`;
-                    break;
-
-                case 'general':
-                    // Broad web search including Reddit/social media mentions
-                    query = `"${name}" (arrested OR sentenced OR shooting) ${location}`;
-                    url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+                case 'images':
+                    // Google Images
+                    url = `https://www.google.com/search?q=${encodeURIComponent(baseQuery)}&tbm=isch`;
                     break;
 
                 case 'court':
-                    // Court Listener is a free legal database
-                    query = `"${name}"`;
-                    url = `https://www.courtlistener.com/?q=${encodeURIComponent(query)}&type=r&order_by=score%20desc`;
+                    // Court Listener (Legal DB) - Focuses on Name only for broader matches, or adds location if specific
+                    // We remove generic keywords for court search to avoid clutter, unless user wants them.
+                    // Here we will use Name + Location for better legal results
+                    let legalQuery = `"${name}" ${location}`;
+                    url = `https://www.courtlistener.com/?q=${encodeURIComponent(legalQuery)}&type=r&order_by=score%20desc`;
                     break;
-                
-                case 'obits':
-                    // Useful if you only know the student's name but want to find the incident via the victim 
-                    // (Searching the student's name + "killed" or "victim")
-                    query = `"${name}" shooting victim OR killed ${location}`;
-                    url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+
+                case 'doc':
+                    // DOC Search - This appends specific "inmate" language regardless of custom keywords
+                    // to ensure it hits the prison databases.
+                    let docQuery = `"${name}" inmate locator offender search ${location}`;
+                    url = `https://www.google.com/search?q=${encodeURIComponent(docQuery)}`;
                     break;
             }
 
