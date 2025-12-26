@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIU Command Center | Level 4</title>
+    <style>
+        :root {
+            --bg-color: #0b1120;
+            --card-bg: #151e2e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8; /* Sky Blue */
+            --accent-glow: rgba(56, 189, 248, 0.2);
+            --border: #334155;
+            --danger: #f43f5e;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding-bottom: 60px;
+        }
+
+        /* -------------------------------------------
+           FIXED TIU WATERMARK (High Visibility)
+        ------------------------------------------- */
+        .watermark {
+            position: fixed;
+            bottom: 15px;
+            right: 25px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 5rem;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.08); /* 8% Opacity */
+            pointer-events: none; /* Allows clicking through it */
+            z-index: 9999; /* Stays on TOP of everything */
+            user-select: none;
+            letter-spacing: 5px;
+            text-shadow: 0 0 20px rgba(0,0,0,0.5); /* Shadow for contrast */
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1300px;
+            padding: 40px 20px;
+            z-index: 1;
+        }
+
+        /* Toast Notification */
+        #toast {
+            visibility: hidden;
+            min-width: 280px;
+            background-color: var(--success);
+            color: #000;
+            text-align: center;
+            border-radius: 50px;
+            padding: 14px 25px;
+            position: fixed;
+            z-index: 10000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-weight: 700;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.6);
+            font-size: 0.95rem;
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 25px;
+        }
+
+        h1 { margin: 0; font-size: 2.2rem; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); text-shadow: 0 0 15px var(--accent-glow); }
+        .subtitle { color: var(--text-muted); margin-top: 8px; font-size: 1rem; }
+
+        /* INPUT PANEL */
+        .control-panel {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 40px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .input-group { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 240px; }
+        label { font-size: 0.75rem; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        
+        input {
+            padding: 14px 18px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: #0f172a;
+            color: white;
+            font-size: 1.1rem;
+            transition: border 0.2s;
+        }
+        input:focus { outline: none; border-color: var(--accent); background: #162032; }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: #0b1120;
+            font-weight: 800;
+            border: none;
+            padding: 0 50px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            height: 52px;
+            align-self: flex-end;
+            font-size: 1rem;
+        }
+        .btn-primary:hover { background-color: #0ea5e9; transform: translateY(-2px); box-shadow: 0 0 20px var(--accent-glow); }
+
+        /* GRID SYSTEM */
+        .section-header {
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 0.85rem;
+            margin: 40px 0 15px 5px;
+            border-left: 3px solid var(--accent);
+            padding-left: 12px;
+            font-weight: 700;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .card:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+
+        .card-badge {
+            position: absolute;
+            top: 15px; right: 15px;
+            font-size: 0.6rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: bold;
+            opacity: 0.8;
+        }
+        .bg-fed { background: rgba(244, 63, 94, 0.15); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.3); }
+        .bg-loc { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .bg-civ { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+        .bg-soc { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        .card-title { font-size: 1.1rem; margin: 5px 0 8px 0; font-weight: 600; color: #fff; }
+        .card-desc { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.4; }
+
+        .launch-btn {
+            width: 100%;
+            padding: 10px 0;
+            text-align: center;
+            background: #0f172a;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+        .launch-btn.active { pointer-events: auto; opacity: 1; border-color: var(--border); color: #cbd5e1; }
+        .launch-btn.active:hover { background: var(--accent); border-color: var(--accent); color: #0f172a; }
+
+        /* County Hunter Section */
+        .county-hunter {
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            padding: 25px;
+            border-radius: 10px;
+            border: 1px solid var(--warning);
+            margin-top: 30px;
+            display: flex;
+            align-items: flex-end;
+            gap: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <div id="toast">Name Copied to Clipboard!</div>
+
+    <div class="container">
+        <header>
+            <h1>TIU Command Center v4.0</h1>
+            <div class="subtitle">Federal • State • County • OSINT Interdiction</div>
+        </header>
+
+        <div class="control-panel">
+            <div class="input-group">
+                <label>First Name</label>
+                <input type="text" id="firstName" placeholder="John">
+            </div>
+            <div class="input-group">
+                <label>Last Name</label>
+                <input type="text" id="lastName" placeholder="Doe">
+            </div>
+            <button class="btn-primary" onclick="initSearch()">Activate</button>
+        </div>
+
+        <div class="section-header">County / Local Jails (Direct Access)</div>
+        <div class="grid">
+            <div class="card">
+                <span class="card-badge bg-loc">NJ</span>
+                <div class="card-title">Essex County</div>
+                <div class="card-desc">New Jersey Corrections (Newark/Middleton).</div>
+                <a href="#" onclick="copyAndGo('http://www.eccorrections.org/inmatelookup')" class="launch-btn">Open Lookup</a>
+            </div>
+
+            <div class="card">
+                <span class="card-badge bg-loc">IL</span>
+                <div class="card-title">Cook County</div>
+                <div class="card-desc">Chicago Area Sheriff (Daily Update).</div>
+                <a href="#" onclick="copyAndGo('https://iic.ccsheriff.org/IndividualInCustodyLocator/Search')" class="launch-btn">Open Lookup</a>
+            </div>
+
+            <div class="card">
+                <span class="card-badge bg-loc">NY</span>
+                <div class="card-title">NYC Rikers / DOC</div>
+                <div class="card-desc">New York City Inmate Lookup.</div>
+                <a href="#" onclick="copyAndGo('https://a073-ils-web.nyc.gov/inmatelookup/pages/home/home.jsf')" class="launch-btn">Open Lookup</a>
+            </div>
+
+            <div class="card">
+                <span class="card-badge bg-loc">CA</span>
+                <div class="card-title">LA County Sheriff</div>
+                <div class="card-desc">Los Angeles Inmate Info Center.</div>
+                <a href="#" onclick="copyAndGo('http://app5.lasd.org/iic/ajis_search.cfm')" class="launch-btn">Open Lookup</a>
+            </div>
+
+            <div class="card">
+                <span class="card-badge bg-loc">TX</span>
+                <div class="card-title">Harris County</div>
+                <div class="card-desc">Houston Area Sheriff (Jail Info).</div>
+                <a href="#" onclick="copyAndGo('https://www.harriscountyso.org/JailInfo/HCSO_FindSomeoneInJail.aspx')" class="launch-btn">Open Lookup</a>
+            </div>
+        </div>
+
+        <div class="county-hunter">
+            <div class="input-group">
+                <label style="color: var(--warning);">Other County Search (Smart Search)</label>
+                <input type="text" id="countyName" placeholder="e.g. Bergen County, Maricopa, Miami-Dade">
+            </div>
+            <a href="#" id="btn-smart-county" class="launch-btn active" style="width: 200px; border-color: var(--warning); color: var(--warning);" onclick="searchCounty()">Find Jail</a>
+        </div>
+
+        <div class="section-header">Federal & State Systems</div>
+        <div class="grid">
+            <div class="card">
+                <span class="card-badge bg-fed">Federal</span>
+                <div class="card-title">Bureau of Prisons</div>
+                <div class="card-desc">Federal Inmates (BOP).</div>
+                <a href="#" onclick="copyAndGo('https://www.bop.gov/mobile/find_inmate/byname.jsp#inmate_name_search_form')" class="launch-btn">Open Search</a>
+            </div>
+
+            <div class="card">
+                <span class="card-badge bg-fed">Alerts</span>
+                <div class="card-title">VINE Link</div>
+                <div class="card-desc">Custody status notifications.</div>
+                <a href="#" onclick="copyAndGo('https://vinelink.vineapps.com/search/persons')" class="launch-btn">Open VINE</a>
+            </div>
+
+            <div class="card">
+                <span class="card-badge bg-civ">Court</span>
+                <div class="card-title">Justia Dockets</div>
+                <div class="card-desc">Federal Civil/Criminal Filings.</div>
+                <a href="#" id="link-justia" target="_blank" class="launch-btn" onclick="copyName()">Auto-Search</a>
+            </div>
+
+            <div class="card" style="grid-column: span 2;">
+                <span class="card-badge bg-civ">State DOC</span>
+                <div class="card-title">Department of Corrections</div>
+                <div class="card-desc">Deep scan specific state database.</div>
+                <div style="display: flex; gap: 10px;">
+                    <select id="stateSelect" style="flex: 1; padding: 5px; background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px;">
+                        <option value="" disabled selected>Select State</option>
+                    </select>
+                    <a href="#" id="link-state" class="launch-btn active" style="width: 100px;" onclick="copyName()">Search</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-header">Intelligence & Social</div>
+        <div class="grid">
+            <div class="card">
+                <span class="card-badge bg-soc">Social</span>
+                <div class="card-title">Facebook</div>
+                <a href="#" id="link-fb" target="_blank" class="launch-btn" onclick="copyName()">Auto-Search</a>
+            </div>
+            <div class="card">
+                <span class="card-badge bg-soc">Social</span>
+                <div class="card-title">Google Images</div>
+                <div class="card-desc">Scan for mugshots.</div>
+                <a href="#" id="link-img" target="_blank" class="launch-btn" onclick="copyName()">Auto-Search</a>
+            </div>
+            <div class="card">
+                <span class="card-badge bg-soc">Records</span>
+                <div class="card-title">TruePeopleSearch</div>
+                <div class="card-desc">Address history.</div>
+                <a href="#" id="link-tps" target="_blank" class="launch-btn" onclick="copyName()">Auto-Search</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State List
+        const states = [
+            { name: "Alabama", url: "doc.alabama.gov" }, { name: "Alaska", url: "doc.alaska.gov" },
+            { name: "Arizona", url: "azcorrections.gov" }, { name: "Arkansas", url: "adc.arkansas.gov" },
+            { name: "California", url: "inmatelocator.cdcr.ca.gov" }, { name: "Colorado", url: "doc.state.co.us" },
+            { name: "Connecticut", url: "portal.ct.gov/DOC" }, { name: "Delaware", url: "doc.delaware.gov" },
+            { name: "Florida", url: "dc.state.fl.us" }, { name: "Georgia", url: "dcor.state.ga.us" },
+            { name: "Illinois", url: "idoc.state.il.us" }, { name: "Indiana", url: "in.gov/idoc" },
+            { name: "Kentucky", url: "kool.corrections.ky.gov" }, { name: "Louisiana", url: "doc.louisiana.gov" },
+            { name: "Massachusetts", url: "mass.gov" }, { name: "Michigan", url: "mdocweb.state.mi.us" },
+            { name: "Minnesota", url: "mn.gov/doc" }, { name: "Mississippi", url: "mdoc.ms.gov" },
+            { name: "Missouri", url: "web.mo.gov/doc/offender" }, { name: "Nevada", url: "doc.nv.gov" },
+            { name: "New Jersey", url: "www20.state.nj.us/DOC_Inmate" }, { name: "New York", url: "nysdoccslookup.doccs.ny.gov" },
+            { name: "North Carolina", url: "webapps.doc.state.nc.us" }, { name: "Ohio", url: "appgateway.drc.ohio.gov" },
+            { name: "Oklahoma", url: "ok.gov/doc" }, { name: "Pennsylvania", url: "inmatelocator.cor.pa.gov" },
+            { name: "Texas", url: "inmate.tdcj.texas.gov" }, { name: "Virginia", url: "vadoc.virginia.gov" },
+            { name: "Washington", url: "doc.wa.gov" }, { name: "Wisconsin", url: "doc.wi.gov" }
+        ];
+
+        const stateSelect = document.getElementById('stateSelect');
+        states.forEach(s => {
+            let opt = document.createElement('option');
+            opt.value = s.url;
+            opt.textContent = s.name;
+            stateSelect.appendChild(opt);
+        });
+
+        function getName() {
+            const f = document.getElementById('firstName').value.trim();
+            const l = document.getElementById('lastName').value.trim();
+            return (f && l) ? `${f} ${l}` : "";
+        }
+
+        // 1. Core Logic: Activate Buttons
+        function initSearch() {
+            const name = getName();
+            if (!name) { alert("Please enter First and Last Name."); return; }
+
+            // Unlock buttons
+            document.querySelectorAll('.launch-btn').forEach(b => b.classList.add('active'));
+
+            // Pre-fill links
+            const encName = encodeURIComponent(name);
+            document.getElementById('link-justia').href = `https://dockets.justia.com/search?query=${encName}`;
+            document.getElementById('link-fb').href = `https://www.facebook.com/search/top?q=${encName}`;
+            document.getElementById('link-tps').href = `https://www.truepeoplesearch.com/results?name=${encName}`;
+            document.getElementById('link-img').href = `https://www.google.com/search?tbm=isch&q=${encName}+mugshot+arrest`;
+
+            updateStateLink();
+        }
+
+        // 2. Helper: Copy Name and Open URL
+        function copyAndGo(url) {
+            const name = getName();
+            if(name) {
+                navigator.clipboard.writeText(name).then(() => {
+                    showToast();
+                    window.open(url, '_blank');
+                });
+            } else {
+                alert("Enter name first.");
+            }
+        }
+
+        function copyName() {
+            const name = getName();
+            if(name) navigator.clipboard.writeText(name).then(showToast);
+        }
+
+        function showToast() {
+            const t = document.getElementById("toast");
+            t.classList.add("show");
+            setTimeout(() => t.classList.remove("show"), 3000);
+        }
+
+        // 3. Smart County Search
+        function searchCounty() {
+            const name = getName();
+            const county = document.getElementById('countyName').value.trim();
+            
+            if(!name) { alert("Enter Name first."); return; }
+            if(!county) { alert("Enter County Name first."); return; }
+
+            // Google Dork for finding inmate lookup in that county
+            // Query: "County Name" inmate lookup "John Doe"
+            const query = `"${county}" inmate lookup "${name}"`;
+            const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+            
+            copyName();
+            window.open(url, '_blank');
+        }
+
+        // 4. State Link Logic
+        function updateStateLink() {
+            const name = getName();
+            const domain = document.getElementById('stateSelect').value;
+            if(name && domain) {
+                const dork = `site:${domain} "${name}"`;
+                document.getElementById('link-state').href = `https://www.google.com/search?q=${encodeURIComponent(dork)}`;
+            }
+        }
+        document.getElementById('stateSelect').addEventListener('change', updateStateLink);
+
+    </script>
+</body>
+</html>

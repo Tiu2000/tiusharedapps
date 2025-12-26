@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIU Investigative Search v2.0</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-color: #2c3e50;
+            --accent: #2980b9;
+            --border: #ddd;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-color: #e0e0e0;
+            --accent: #3498db;
+            --border: #444;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            transition: background-color 0.3s;
+        }
+
+        /* TIU Watermark */
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 15rem;
+            font-weight: 900;
+            color: var(--text-color);
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 0;
+            user-select: none;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            width: 100%;
+            max-width: 650px;
+            z-index: 1;
+            position: relative;
+            border-top: 5px solid var(--accent);
+            transition: background-color 0.3s;
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+        }
+
+        h2 { margin: 0; font-size: 1.5rem; }
+
+        .theme-toggle {
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: underline;
+            color: var(--accent);
+        }
+
+        .grid-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .input-group { margin-bottom: 15px; }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .section-title {
+            font-size: 0.8rem;
+            color: var(--accent);
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: transform 0.1s, opacity 0.2s;
+            color: white;
+        }
+
+        button:active { transform: scale(0.98); }
+        button:hover { opacity: 0.9; }
+
+        .btn-primary { background-color: var(--accent); }
+        .btn-alert { background-color: #c0392b; } /* Red for DOC */
+        .btn-info { background-color: #8e44ad; } /* Purple for Images */
+        .btn-secondary { background-color: #7f8c8d; }
+
+        .helper {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 4px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <div class="container">
+        <div class="header-row">
+            <h2>Subject Investigation Tool</h2>
+            <span class="theme-toggle" onclick="toggleTheme()">Switch Theme</span>
+        </div>
+
+        <div class="input-group">
+            <label>Subject Name</label>
+            <input type="text" id="subjectName" placeholder="First Last (e.g., John Doe)">
+            <div class="helper">Use their legal name, not nicknames (e.g., Robert, not Bobby).</div>
+        </div>
+
+        <div class="grid-row">
+            <div class="input-group">
+                <label>City / County</label>
+                <input type="text" id="city" placeholder="e.g. Newark">
+            </div>
+            <div class="input-group">
+                <label>State</label>
+                <input type="text" id="state" placeholder="e.g. NJ">
+            </div>
+        </div>
+
+        <div class="grid-row">
+            <div class="input-group">
+                <label>Date Start</label>
+                <input type="number" id="startYear" value="2019">
+            </div>
+            <div class="input-group">
+                <label>Date End</label>
+                <input type="number" id="endYear" value="2025">
+            </div>
+        </div>
+
+        <div class="section-title">Current Status Checks</div>
+        <div class="btn-grid">
+            <button class="btn-alert" onclick="search('doc')">🔍 Inmate / DOC Search</button>
+            <button class="btn-info" onclick="search('mugshot')">📷 Image / Mugshot Search</button>
+        </div>
+
+        <div class="section-title">News & Archive Checks</div>
+        <div class="btn-grid">
+            <button class="btn-primary" onclick="search('googleNews')">Google News Archive</button>
+            <button class="btn-primary" onclick="search('general')">General Investigation</button>
+            <button class="btn-secondary" onclick="search('court')">Court Listener / Legal</button>
+            <button class="btn-secondary" onclick="search('obits')">Obituary/Victim Cross-Ref</button>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.removeAttribute('data-theme');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+            }
+        }
+
+        function search(type) {
+            const name = document.getElementById('subjectName').value.trim();
+            const city = document.getElementById('city').value.trim();
+            const state = document.getElementById('state').value.trim();
+            const start = document.getElementById('startYear').value;
+            const end = document.getElementById('endYear').value;
+
+            if (!name) {
+                alert("Subject Name is required.");
+                return;
+            }
+
+            const location = `${city} ${state}`.trim();
+            let query = "";
+            let url = "";
+
+            switch(type) {
+                case 'doc':
+                    // Searches specifically for inmate locators in that state
+                    query = `"${name}" inmate locator department of corrections ${state}`;
+                    url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+                    break;
+
+                case 'mugshot':
+                    // Focuses on images and booking logs
+                    query = `"${name}" arrest mugshot booking ${location}`;
+                    url = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch`;
+                    break;
+
+                case 'googleNews':
+                    // News with location and strict date range
+                    query = `"${name}" arrest OR shooting OR police ${location}`;
+                    url = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=nws&tbs=cdr:1,cd_min:1/1/${start},cd_max:12/31/${end}`;
+                    break;
+
+                case 'general':
+                    // Broad web search including Reddit/social media mentions
+                    query = `"${name}" (arrested OR sentenced OR shooting) ${location}`;
+                    url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+                    break;
+
+                case 'court':
+                    // Court Listener is a free legal database
+                    query = `"${name}"`;
+                    url = `https://www.courtlistener.com/?q=${encodeURIComponent(query)}&type=r&order_by=score%20desc`;
+                    break;
+                
+                case 'obits':
+                    // Useful if you only know the student's name but want to find the incident via the victim 
+                    // (Searching the student's name + "killed" or "victim")
+                    query = `"${name}" shooting victim OR killed ${location}`;
+                    url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+                    break;
+            }
+
+            window.open(url, '_blank');
+        }
+    </script>
+</body>
+</html>
