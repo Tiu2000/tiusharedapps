@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Sports Analyst Telestrator</title>
+    <title>TIU Analyst Suite</title>
     <style>
         :root {
             --primary-color: #1a1a1a;
@@ -21,28 +21,42 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
+            padding-bottom: 50px; /* Space for scrolling on mobile */
         }
 
         header {
             width: 100%;
-            padding: 15px 0;
+            padding: 10px 0;
             background-color: var(--panel-bg);
             text-align: center;
             border-bottom: 2px solid #444;
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 20px;
+            gap: 15px;
+            flex-wrap: wrap;
         }
 
-        h1 { margin: 0; font-size: 1.5rem; letter-spacing: 1px; }
+        h1 { margin: 0; font-size: 1.2rem; letter-spacing: 1px; white-space: nowrap; }
 
-        /* --- Main Stage Area --- */
+        /* --- RESPONSIVE STAGE AREA --- */
+        #stage-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            background: #000;
+            padding: 10px 0;
+        }
+
         #stage-container {
             position: relative;
-            width: 960px; /* Base width */
-            height: 540px; /* 16:9 Aspect Ratio */
-            margin: 20px auto;
+            /* Responsive Width Logic */
+            width: 95%; 
+            max-width: 1600px; /* Cap it for ultra-wide monitors */
+            
+            /* Aspect Ratio Hack (modern browsers support aspect-ratio) */
+            aspect-ratio: 16 / 9; 
+            
             background: #000;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             overflow: hidden;
@@ -68,16 +82,16 @@
             height: 100%;
             z-index: 10;
             cursor: crosshair;
-            /* Initially allow clicks to pass through to video unless in draw mode */
             pointer-events: none; 
+            touch-action: none; /* Critical for mobile drawing */
         }
 
-        /* Watermark */
+        /* Watermark - Responsive size */
         .watermark {
             position: absolute;
-            bottom: 20px;
-            right: 25px;
-            font-size: 3rem;
+            bottom: 2%;
+            right: 2%;
+            font-size: clamp(1.5rem, 5vw, 4rem); /* Scales with screen */
             font-weight: 900;
             color: rgba(255, 255, 255, 0.15);
             z-index: 5;
@@ -86,12 +100,16 @@
             font-family: 'Arial Black', sans-serif;
         }
 
-        /* --- Controls Area --- */
+        /* --- CONTROLS AREA --- */
         .controls-panel {
-            width: 960px;
+            width: 95%;
+            max-width: 1600px;
             background-color: var(--panel-bg);
             padding: 15px;
             border-radius: 8px;
+            margin-top: 15px;
+            
+            /* Grid Layout for Desktop */
             display: grid;
             grid-template-columns: 1.2fr 2fr 1fr;
             gap: 15px;
@@ -103,58 +121,76 @@
             flex-direction: column;
             gap: 8px;
             border-right: 1px solid #444;
-            padding-right: 10px;
+            padding-right: 15px;
         }
         .control-group:last-child { border-right: none; }
-        .group-label { font-size: 0.75rem; text-transform: uppercase; color: #888; font-weight: bold; }
+
+        .group-label { font-size: 0.75rem; text-transform: uppercase; color: #888; font-weight: bold; margin-bottom: 5px; }
 
         /* Buttons & Inputs */
         button {
             background-color: #444;
             color: white;
             border: none;
-            padding: 8px 12px;
+            padding: 10px 14px; /* Larger touch targets */
             border-radius: 4px;
             cursor: pointer;
-            transition: background 0.2s;
             font-weight: 600;
+            font-size: 0.9rem;
+            flex-grow: 1; /* Buttons fill space */
         }
-        button:hover { background-color: #555; }
+        button:active { transform: translateY(1px); }
         button.active { background-color: var(--accent-color); color: black; }
         button.danger { background-color: #d32f2f; }
-        button.danger:hover { background-color: #b71c1c; }
-
+        
         input[type="text"] {
-            padding: 8px;
+            padding: 10px;
             border-radius: 4px;
             border: 1px solid #555;
             background: #222;
             color: white;
-            width: 70%;
+            flex-grow: 2;
+            min-width: 0; /* Prevents overflow */
         }
 
         /* Tools Row */
         .tools-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         
         .color-btn {
-            width: 25px;
-            height: 25px;
+            width: 30px; height: 30px; /* Bigger for mobile */
             border-radius: 50%;
             border: 2px solid #fff;
             cursor: pointer;
+            flex-shrink: 0;
         }
         .color-btn.selected { transform: scale(1.2); box-shadow: 0 0 5px white; }
 
-        /* Status Indicator */
         #mode-indicator {
-            padding: 5px 10px;
+            padding: 5px 12px;
             border-radius: 4px;
             font-weight: bold;
+            font-size: 0.9rem;
             background: #444;
-            text-align: center;
         }
         .mode-viewing { background: #2196f3; }
         .mode-drawing { background: var(--accent-color); color: black; }
+
+        /* --- MOBILE LAYOUT (Stack controls vertically) --- */
+        @media (max-width: 800px) {
+            .controls-panel {
+                grid-template-columns: 1fr; /* Stack vertically */
+                gap: 20px;
+            }
+            .control-group {
+                border-right: none;
+                border-bottom: 1px solid #444;
+                padding-bottom: 15px;
+                padding-right: 0;
+            }
+            .control-group:last-child { border-bottom: none; }
+            
+            h1 { font-size: 1rem; }
+        }
 
     </style>
 </head>
@@ -165,9 +201,12 @@
     <div id="mode-indicator" class="mode-viewing">MODE: VIEWING</div>
 </header>
 
-<div id="stage-container">
-    <div id="player"></div> <canvas id="drawing-canvas"></canvas>
-    <div class="watermark">TIU</div>
+<div id="stage-wrapper">
+    <div id="stage-container">
+        <div id="player"></div>
+        <canvas id="drawing-canvas"></canvas>
+        <div class="watermark">TIU</div>
+    </div>
 </div>
 
 <div class="controls-panel">
@@ -175,11 +214,13 @@
     <div class="control-group">
         <div class="group-label">Source & Playback</div>
         <div class="tools-row">
-            <input type="text" id="yt-input" placeholder="Paste full YouTube Link here...">
-            <button onclick="loadVideo()">Load</button>
+            <input type="text" id="yt-input" placeholder="Paste link...">
+            <button onclick="loadVideo()" style="flex-grow: 0;">Load</button>
         </div>
         <div class="tools-row">
             <button onclick="togglePlay()">Play/Pause</button>
+            <button onclick="toggleFullscreen()">&#x26F6; Fullscreen</button> </div>
+        <div class="tools-row">
             <button onclick="setSpeed(0.25)">0.25x</button>
             <button onclick="setSpeed(0.5)">0.5x</button>
             <button onclick="setSpeed(1)">1.0x</button>
@@ -190,28 +231,35 @@
         <div class="group-label">Telestrator Tools</div>
         <div class="tools-row">
             <button id="draw-mode-btn" onclick="toggleDrawMode()">Enable Drawing</button>
-            <button class="danger" onclick="clearCanvas()">Clear Screen</button>
+            <button class="danger" onclick="clearCanvas()">Clear</button>
         </div>
-        <div class="tools-row" style="margin-top: 5px;">
-            <span>Color:</span>
-            <div class="color-btn selected" style="background: #fdd835;" onclick="setColor('#fdd835', this)"></div> <div class="color-btn" style="background: #ff0000;" onclick="setColor('#ff0000', this)"></div> <div class="color-btn" style="background: #ffffff;" onclick="setColor('#ffffff', this)"></div> <div class="color-btn" style="background: #000000;" onclick="setColor('#000000', this)"></div> <span style="margin-left: 10px;">Size:</span>
-            <input type="range" id="pen-size" min="2" max="10" value="4">
+        <div class="tools-row" style="margin-top: 5px; justify-content: space-between;">
+            <div style="display:flex; gap: 10px;">
+                <div class="color-btn selected" style="background: #fdd835;" onclick="setColor('#fdd835', this)"></div>
+                <div class="color-btn" style="background: #ff0000;" onclick="setColor('#ff0000', this)"></div>
+                <div class="color-btn" style="background: #ffffff;" onclick="setColor('#ffffff', this)"></div>
+                <div class="color-btn" style="background: #000000;" onclick="setColor('#000000', this)"></div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <span style="font-size: 0.8rem; color:#aaa;">Size</span>
+                <input type="range" id="pen-size" min="2" max="15" value="4" style="width: 80px;">
+            </div>
         </div>
     </div>
 
     <div class="control-group">
         <div class="group-label">Instructions</div>
-        <p style="font-size: 0.85rem; color: #ccc; margin: 0;">
-            1. Paste Link (e.g. youtube.com/watch?v=...)<br>
-            2. Click "Enable Drawing" to draw.<br>
-            3. Use Slow-Mo to break down the play.<br>
-            4. Toggle Drawing off to scrub video.
+        <p style="font-size: 0.85rem; color: #ccc; margin: 0; line-height: 1.5;">
+            1. Paste YouTube Link.<br>
+            2. Tap "Enable Drawing".<br>
+            3. Use Fullscreen for best view.<br>
+            4. <strong>Note:</strong> Check "Allow Embedding" in YouTube Studio if loading your own videos.
         </p>
     </div>
 </div>
 
 <script>
-    // --- 1. SETUP VARIABLES ---
     let player;
     let isDrawingMode = false;
     let currentColor = '#fdd835';
@@ -225,15 +273,21 @@
     const drawBtn = document.getElementById('draw-mode-btn');
     const modeIndicator = document.getElementById('mode-indicator');
 
-    // Set Canvas Resolution to match container
+    // --- CANVAS RESIZING ---
+    // Critical for responsive layout: run this whenever window changes
     function resizeCanvas() {
         canvas.width = stage.clientWidth;
         canvas.height = stage.clientHeight;
+        // Re-apply context settings after resize
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
     }
     window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+    
+    // Also resize every second just to be safe (catches layout shifts)
+    setInterval(resizeCanvas, 1000);
 
-    // --- 2. YOUTUBE API SETUP ---
+    // --- YOUTUBE API ---
     var tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
     var firstScriptTag = document.getElementsByTagName('script')[0];
@@ -243,81 +297,75 @@
         player = new YT.Player('player', {
             height: '100%',
             width: '100%',
-            videoId: 'Nu9T1i4hO_w', // Default video (Football example)
-            playerVars: {
-                'playsinline': 1,
-                'rel': 0,
-                'controls': 1 
-            },
-            events: {
-                'onReady': onPlayerReady
-            }
+            videoId: 'tVoqA-LKGb4', 
+            playerVars: { 'playsinline': 1, 'rel': 0, 'controls': 1, 'origin': window.location.origin },
+            events: { 'onReady': onPlayerReady, 'onError': onPlayerError }
         });
     }
 
-    function onPlayerReady(event) {
-        // Player is ready
+    function onPlayerReady(event) { resizeCanvas(); }
+
+    function onPlayerError(event) {
+        if([101, 150, 153].includes(event.data)) {
+            alert("Video embedding blocked. Check YouTube Studio > Details > 'Allow Embedding'.");
+        }
     }
 
-    // --- NEW: ROBUST ID EXTRACTOR ---
     function getId(url) {
         const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
         const match = url.match(regExp);
-
-        if (match && match[2].length === 11) {
-            return match[2];
-        } else {
-            // Fallback: assume the user pasted a raw ID (11 chars) if no URL pattern matches
-            if(url.length === 11) return url;
-            return null;
-        }
+        return (match && match[2].length === 11) ? match[2] : (url.length === 11 ? url : null);
     }
 
     function loadVideo() {
         const input = document.getElementById('yt-input').value;
         const videoId = getId(input);
-        
         if (player && videoId) {
             player.loadVideoById(videoId);
-            // Clear input for cleaner look
             document.getElementById('yt-input').value = ""; 
         } else {
-            alert("Could not find a valid YouTube Video ID in that link.");
+            alert("Invalid YouTube ID/URL.");
         }
     }
 
-    // --- 3. PLAYER CONTROLS ---
+    // --- CONTROLS ---
     function togglePlay() {
         if (!player) return;
-        const state = player.getPlayerState();
-        if (state === 1) { // Playing
-            player.pauseVideo();
-        } else {
-            player.playVideo();
-        }
+        player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo();
     }
 
     function setSpeed(rate) {
-        if (!player) return;
-        player.setPlaybackRate(rate);
+        if (player) player.setPlaybackRate(rate);
     }
+    
+    // NEW: Fullscreen Logic
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            stage.requestFullscreen().catch(err => {
+                alert(`Error attempting to enable full-screen mode: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+    
+    // Listen for fullscreen change to resize canvas immediately
+    document.addEventListener('fullscreenchange', resizeCanvas);
 
-    // --- 4. TELESTRATOR LOGIC ---
-
+    // --- DRAWING LOGIC ---
     function toggleDrawMode() {
         isDrawingMode = !isDrawingMode;
-        
         if (isDrawingMode) {
             canvas.style.pointerEvents = 'auto'; 
             drawBtn.classList.add('active');
             drawBtn.innerText = "Disable Drawing";
-            modeIndicator.innerText = "MODE: DRAWING";
+            modeIndicator.innerText = "DRAWING";
             modeIndicator.className = "mode-drawing";
         } else {
             canvas.style.pointerEvents = 'none'; 
             drawBtn.classList.remove('active');
             drawBtn.innerText = "Enable Drawing";
-            modeIndicator.innerText = "MODE: VIEWING";
+            modeIndicator.innerText = "VIEWING";
             modeIndicator.className = "mode-viewing";
         }
     }
@@ -332,70 +380,56 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
-    function draw(e) {
-        if (!isDrawing || !isDrawingMode) return;
-        
+    function getPos(e) {
         const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        ctx.strokeStyle = currentColor;
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
-        ctx.lineWidth = document.getElementById('pen-size').value;
-
-        ctx.beginPath();
-        ctx.moveTo(lastX, lastY);
-        ctx.lineTo(x, y);
-        ctx.stroke();
-
-        [lastX, lastY] = [x, y];
+        // Handle Touch vs Mouse
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
     }
 
-    canvas.addEventListener('mousedown', (e) => {
-        if(!isDrawingMode) return;
-        isDrawing = true;
-        const rect = canvas.getBoundingClientRect();
-        [lastX, lastY] = [e.clientX - rect.left, e.clientY - rect.top];
-    });
-
-    canvas.addEventListener('mousemove', draw);
-    
-    canvas.addEventListener('mouseup', () => isDrawing = false);
-    canvas.addEventListener('mouseout', () => isDrawing = false);
-
-    canvas.addEventListener('touchstart', (e) => {
-        if(!isDrawingMode) return;
-        e.preventDefault(); 
-        isDrawing = true;
-        const rect = canvas.getBoundingClientRect();
-        const touch = e.touches[0];
-        [lastX, lastY] = [touch.clientX - rect.left, touch.clientY - rect.top];
-    }, {passive: false});
-
-    canvas.addEventListener('touchmove', (e) => {
-        if(!isDrawingMode) return;
-        e.preventDefault();
-        const rect = canvas.getBoundingClientRect();
-        const touch = e.touches[0];
+    function startDraw(e) {
+        if (!isDrawingMode) return;
+        if(e.type === 'touchstart') e.preventDefault(); // Prevent scrolling on touch
         
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
+        isDrawing = true;
+        const pos = getPos(e);
+        lastX = pos.x;
+        lastY = pos.y;
+    }
 
+    function moveDraw(e) {
+        if (!isDrawing || !isDrawingMode) return;
+        if(e.type === 'touchmove') e.preventDefault();
+
+        const pos = getPos(e);
         ctx.strokeStyle = currentColor;
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
         ctx.lineWidth = document.getElementById('pen-size').value;
-
+        
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
-        ctx.lineTo(x, y);
+        ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
 
-        [lastX, lastY] = [x, y];
-    }, {passive: false});
-    
-    canvas.addEventListener('touchend', () => isDrawing = false);
+        lastX = pos.x;
+        lastY = pos.y;
+    }
+
+    function endDraw() { isDrawing = false; }
+
+    // Mouse Events
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', moveDraw);
+    canvas.addEventListener('mouseup', endDraw);
+    canvas.addEventListener('mouseout', endDraw);
+
+    // Touch Events (Mobile)
+    canvas.addEventListener('touchstart', startDraw, {passive: false});
+    canvas.addEventListener('touchmove', moveDraw, {passive: false});
+    canvas.addEventListener('touchend', endDraw);
 
 </script>
 
