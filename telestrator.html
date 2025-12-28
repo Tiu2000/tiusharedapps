@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Analyst Suite PRO - v10 (Cinema Mask)</title>
+    <title>TIU Analyst Suite PRO - v7</title>
     <style>
         :root {
             --primary-color: #1a1a1a;
@@ -71,21 +71,6 @@
             width: 100%;
             height: 100%;
             z-index: 1;
-            pointer-events: none; 
-        }
-        #player.interactive { pointer-events: auto; }
-
-        /* THE CINEMA MASK (New in v10) */
-        #cinema-mask {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 25%; /* Covers bottom 1/4 of screen */
-            background: black;
-            z-index: 4; /* Above player, below drawings */
-            display: none; /* Hidden by default */
-            pointer-events: none;
         }
 
         #click-shield {
@@ -93,7 +78,7 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: 100%;
+            height: 85%;
             z-index: 5;
             cursor: pointer;
         }
@@ -123,21 +108,6 @@
             font-family: 'Arial Black', sans-serif;
         }
 
-        .lock-indicator {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            z-index: 20;
-            background: rgba(0,0,0,0.6);
-            color: #888;
-            padding: 5px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            border: 1px solid #444;
-        }
-        .lock-indicator:hover { color: white; border-color: white; }
-
         /* --- CONTROLS PANEL --- */
         .controls-panel {
             width: 95%;
@@ -165,6 +135,7 @@
 
         .group-label { font-size: 0.75rem; text-transform: uppercase; color: #888; font-weight: bold; margin-bottom: 5px; }
 
+        /* General Button Styles */
         button, .link-btn {
             background-color: var(--btn-bg);
             color: white;
@@ -182,6 +153,7 @@
             text-decoration: none;
         }
         button:hover, .link-btn:hover { background-color: #555; }
+        button:active, .link-btn:active { transform: translateY(1px); }
         
         button.active { 
             background-color: var(--accent-color); 
@@ -191,7 +163,7 @@
         
         button.danger { background-color: #d32f2f; border-color: #b71c1c;}
         button.secondary { background-color: transparent; border: 1px solid #666; }
-        button.action { background-color: #2e7d32; border-color: #1b5e20; } 
+        button.action { background-color: #2e7d32; border-color: #1b5e20; } /* Green for Import/Export */
 
         .cash-app-btn {
             background-color: var(--cash-app-green);
@@ -211,50 +183,6 @@
             background: #222;
             color: white;
             flex-grow: 1;
-        }
-
-        /* SCRUBBER BAR */
-        .scrubber-container {
-            width: 100%;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            margin-bottom: 5px;
-        }
-        .scrubber-track {
-            width: 100%;
-            height: 6px;
-            background: #444;
-            border-radius: 3px;
-            position: relative;
-        }
-        .scrubber-progress {
-            height: 100%;
-            background: var(--accent-color);
-            width: 0%;
-            border-radius: 3px;
-            position: relative;
-        }
-        .scrubber-thumb {
-            width: 14px;
-            height: 14px;
-            background: #fff;
-            border-radius: 50%;
-            position: absolute;
-            right: -7px;
-            top: -4px;
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
-            display: none;
-        }
-        .scrubber-container:hover .scrubber-thumb { display: block; }
-        .time-display {
-            font-family: monospace;
-            font-size: 0.8rem;
-            color: var(--accent-color);
-            margin-top: -5px;
-            margin-bottom: 5px;
-            text-align: right;
         }
 
         .tools-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 5px;}
@@ -279,6 +207,7 @@
         .mode-viewing { background: #2196f3; }
         .mode-drawing { background: var(--accent-color); color: black; }
 
+        /* Saved Annotation List Styles */
         .annotation-list {
             list-style: none;
             padding: 0;
@@ -338,12 +267,9 @@
 <div id="stage-wrapper">
     <div id="stage-container" tabindex="0"> 
         <div id="player"></div>
-        <div id="cinema-mask"></div> <div id="click-shield" onclick="onShieldClick()"></div>
+        <div id="click-shield" onclick="onShieldClick()"></div>
         <canvas id="drawing-canvas"></canvas>
         <div class="watermark">TIU</div>
-        <div id="lock-btn" class="lock-indicator" onclick="togglePlayerLock(event)" title="Lock/Unlock YouTube Controls">
-            &#128274; Player Locked
-        </div>
     </div>
 </div>
 
@@ -357,18 +283,9 @@
             <button onclick="loadVideo()">Load</button>
         </div>
 
-        <div class="scrubber-container" id="scrubber-container">
-            <div class="scrubber-track">
-                <div class="scrubber-progress" id="scrubber-progress">
-                    <div class="scrubber-thumb"></div>
-                </div>
-            </div>
-        </div>
-        <div class="time-display" id="time-display">0:00 / 0:00</div>
-
         <div class="tools-row" style="justify-content: space-between;">
             <button onclick="frameStep(-1)" title="Left Arrow">&#9664; Frame</button>
-            <button onclick="togglePlay()" style="flex-grow: 2;" title="Spacebar" id="play-pause-btn">Play / Pause</button>
+            <button onclick="togglePlay()" style="flex-grow: 2;" title="Spacebar">Play / Pause</button>
             <button onclick="frameStep(1)" title="Right Arrow">Frame &#9654;</button>
         </div>
 
@@ -379,11 +296,16 @@
             <button onclick="setSpeed(1.0)" class="secondary" title="Key: 3">1.0x</button>
         </div>
         
-        <div style="margin-top:5px; display:flex; gap:10px;">
-             <label style="font-size:0.8rem; color:#888; display:flex; align-items:center; cursor:pointer;">
-                <input type="checkbox" id="mask-toggle" checked onchange="toggleMaskSetting()" style="margin-right:5px;">
-                Auto-Hide Popup (Mask)
-             </label>
+        <div style="margin-top:auto; padding-top:10px;">
+             <p style="margin: 0 0 5px 0; font-size: 0.75rem; color: #888;">SHORTCUTS</p>
+             <div style="font-size: 0.75rem; color: #aaa; display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                 <span>Space: Play</span>
+                 <span>P: Pen</span>
+                 <span>Arrows: Seek</span>
+                 <span>H: Highlight</span>
+                 <span>C: Clear</span>
+                 <span>F: Fullscreen</span>
+             </div>
         </div>
     </div>
 
@@ -465,10 +387,7 @@
     let player;
     let isDrawingMode = false;
     let isDrawing = false;
-    let annotations = []; 
-    let isPlayerLocked = true;
-    let updateTimer;
-    let maskEnabled = true; // New Mask Setting
+    let annotations = []; // Store saved plays
     
     // Tools
     let currentTool = 'pen'; 
@@ -489,11 +408,6 @@
     const modeIndicator = document.getElementById('mode-indicator');
     const shield = document.getElementById('click-shield');
     const annotationListEl = document.getElementById('annotation-list');
-    const lockBtn = document.getElementById('lock-btn');
-    const playerDiv = document.getElementById('player');
-    const progressBar = document.getElementById('scrubber-progress');
-    const timeDisplay = document.getElementById('time-display');
-    const cinemaMask = document.getElementById('cinema-mask');
 
     // --- SETUP ---
     function resizeCanvas() {
@@ -521,14 +435,7 @@
             height: '100%',
             width: '100%',
             videoId: 'tVoqA-LKGb4', 
-            playerVars: { 
-                'playsinline': 1, 
-                'rel': 0, 
-                'controls': 0, 
-                'modestbranding': 1, 
-                'disablekb': 1,
-                'origin': window.location.origin 
-            },
+            playerVars: { 'playsinline': 1, 'rel': 0, 'controls': 1, 'origin': window.location.origin },
             events: { 
                 'onReady': onPlayerReady, 
                 'onError': onPlayerError,
@@ -536,66 +443,15 @@
             }
         });
     }
-    
-    function onPlayerReady(event) { 
-        resizeCanvas();
-        startUpdateTimer();
-    }
+    function onPlayerReady(event) { resizeCanvas(); }
     function onPlayerError(event) { if([101, 150, 153].includes(event.data)) alert("Video blocked. Try a different video."); }
     
-    // --- SMART MASK LOGIC ---
+    // AUTO-CLEAR CANVAS ON PLAY
     function onPlayerStateChange(event) {
-        if (event.data === 1) { // Playing
+        if (event.data === 1) { // 1 = Playing
             clearCanvas();
-            cinemaMask.style.display = 'none'; // Always hide mask when playing
-        } else {
-            // Paused, Ended, or Buffering
-            updateMaskVisibility();
         }
     }
-
-    function updateMaskVisibility() {
-        if (maskEnabled && player && player.getPlayerState() !== 1) {
-            cinemaMask.style.display = 'block';
-        } else {
-            cinemaMask.style.display = 'none';
-        }
-    }
-
-    function toggleMaskSetting() {
-        maskEnabled = document.getElementById('mask-toggle').checked;
-        updateMaskVisibility();
-    }
-
-    // --- CUSTOM SCRUBBER LOGIC ---
-    function startUpdateTimer() {
-        if(updateTimer) clearInterval(updateTimer);
-        updateTimer = setInterval(() => {
-            if(player && player.getCurrentTime) {
-                const curr = player.getCurrentTime();
-                const total = player.getDuration();
-                if(total > 0) {
-                    const pct = (curr / total) * 100;
-                    progressBar.style.width = pct + "%";
-                    timeDisplay.innerText = formatTime(curr) + " / " + formatTime(total);
-                }
-            }
-        }, 250);
-    }
-
-    document.getElementById('scrubber-container').addEventListener('click', function(e) {
-        if(!player) return;
-        const rect = this.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const width = rect.width;
-        const pct = x / width;
-        const total = player.getDuration();
-        
-        player.seekTo(total * pct, true);
-        progressBar.style.width = (pct * 100) + "%";
-    });
-
-    // --- CONTROLS ---
 
     function loadVideo(optionalId) {
         let id = optionalId;
@@ -610,6 +466,7 @@
             player.loadVideoById(id);
             document.getElementById('yt-input').value = ""; 
             if(!optionalId) { 
+                // Only clear if manual load, otherwise we are importing
                 annotations = []; 
                 renderAnnotations();
             }
@@ -619,31 +476,14 @@
         }
     }
 
-    function togglePlayerLock(e) {
-        if(e) e.stopPropagation();
-        isPlayerLocked = !isPlayerLocked;
-        if(isPlayerLocked) {
-            playerDiv.classList.remove('interactive');
-            shield.style.pointerEvents = "auto";
-            lockBtn.innerHTML = "&#128274; Player Locked";
-            lockBtn.style.color = "#888";
-        } else {
-            playerDiv.classList.add('interactive');
-            shield.style.pointerEvents = "none";
-            lockBtn.innerHTML = "&#128275; Player Unlocked";
-            lockBtn.style.color = "#4caf50";
-        }
-    }
-
+    // --- CONTROLS ---
     function onShieldClick() {
-        if(!isDrawingMode) {
-            stage.focus();
-            togglePlay();
-        }
+        stage.focus();
+        togglePlay();
     }
     
     document.addEventListener('mousemove', (e) => {
-        if (document.fullscreenElement && (e.target === shield || e.target === canvas)) {
+        if (document.fullscreenElement && e.target === shield || e.target === canvas) {
             if (document.activeElement !== stage) {
                 stage.focus();
             }
@@ -652,14 +492,8 @@
 
     function togglePlay() { 
         if(!player) return;
-        const state = player.getPlayerState();
-        if(state === 1) {
-            player.pauseVideo();
-        } else {
-            player.playVideo();
-        }
+        player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); 
     }
-    
     function setSpeed(rate) { if(player) player.setPlaybackRate(rate); }
     
     function frameStep(dir) {
@@ -667,8 +501,12 @@
         player.pauseVideo();
         const currentTime = player.getCurrentTime();
         player.seekTo(currentTime + (dir * 0.04), true);
-        // Force update mask in case it blinked
-        setTimeout(updateMaskVisibility, 100);
+    }
+    
+    function seekVideo(seconds) {
+        if(!player) return;
+        const currentTime = player.getCurrentTime();
+        player.seekTo(currentTime + seconds, true);
     }
 
     function toggleFullscreen() {
@@ -676,7 +514,7 @@
             stage.requestFullscreen().then(() => {
                 setTimeout(() => { stage.focus(); }, 100);
             }).catch(err => {
-                console.log(err);
+                console.log(`Error attempting to enable fullscreen: ${err.message}`);
             });
         } else {
             document.exitFullscreen();
@@ -764,11 +602,12 @@
         });
     }
 
-    // --- EXPORT / IMPORT LOGIC ---
+    // --- EXPORT / IMPORT LOGIC (NEW) ---
     function exportPlaybook() {
         if (!player) { alert("No video loaded."); return; }
         if (annotations.length === 0) { alert("No plays saved to export."); return; }
 
+        // Create data object
         const videoData = player.getVideoData();
         const playbook = {
             videoId: videoData.video_id,
@@ -777,8 +616,11 @@
             plays: annotations
         };
 
+        // Create file blob
         const dataStr = JSON.stringify(playbook);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+
+        // Trigger download
         const exportFileDefaultName = 'playbook-' + new Date().toISOString().slice(0,10) + '.json';
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
@@ -794,16 +636,26 @@
         reader.onload = function(e) {
             try {
                 const playbook = JSON.parse(e.target.result);
-                if (!playbook.videoId || !playbook.plays) throw new Error("Invalid Playbook File");
+                
+                if (!playbook.videoId || !playbook.plays) {
+                    throw new Error("Invalid Playbook File");
+                }
+
+                // Load the video from the file
                 loadVideo(playbook.videoId);
+                
+                // Load the annotations
                 annotations = playbook.plays;
                 renderAnnotations();
-                alert(`Loaded ${annotations.length} plays.`);
+                
+                alert(`Loaded ${annotations.length} plays for video: ${playbook.videoTitle || 'Unknown'}`);
             } catch (err) {
                 alert("Error loading file: " + err.message);
             }
         };
         reader.readAsText(file);
+        
+        // Reset input so same file can be selected again if needed
         inputElement.value = '';
     }
 
@@ -817,6 +669,8 @@
             case 'k': togglePlay(); break;
             case 'arrowleft': frameStep(-1); break;
             case 'arrowright': frameStep(1); break;
+            case 'arrowup': seekVideo(5); break;
+            case 'arrowdown': seekVideo(-5); break;
             case 'f': toggleFullscreen(); break;
             case 'c': clearCanvas(); break;
             case 'z': if(e.ctrlKey || e.metaKey) { e.preventDefault(); undoLast(); } break;
@@ -833,12 +687,14 @@
         isDrawingMode = !isDrawingMode;
         if (isDrawingMode) {
             canvas.style.pointerEvents = 'auto';
+            shield.style.pointerEvents = 'none'; 
             drawBtn.classList.add('active');
             drawBtn.innerText = "Disable Drawing";
             modeIndicator.innerText = "DRAWING";
             modeIndicator.className = "mode-drawing";
         } else {
             canvas.style.pointerEvents = 'none'; 
+            shield.style.pointerEvents = 'auto';
             drawBtn.classList.remove('active');
             drawBtn.innerText = "Enable Drawing";
             modeIndicator.innerText = "VIEWING";
