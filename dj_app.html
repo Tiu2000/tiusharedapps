@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Ultimate Mixer (Fixed)</title>
+    <title>TIU Ultimate Mixer V4</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -11,9 +11,7 @@
             --accent: #00ff9d; 
             --accent-dim: #008f58;
             --cue-color: #ff9900; 
-            --cue-dim: #cc7a00;
             --sync-color: #00ccff; 
-            --sync-dim: #0088cc;
             --text-color: #e0e0e0;
         }
 
@@ -28,9 +26,10 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            overflow: hidden;
+            overflow: hidden; /* Prevent scrolling */
         }
 
+        /* TIU Watermark */
         .watermark {
             position: fixed;
             bottom: 20px;
@@ -40,8 +39,40 @@
             font-size: 4rem;
             color: rgba(255, 255, 255, 0.04);
             pointer-events: none;
-            z-index: 0;
-            user-select: none;
+            z-index: 50; /* Above players, below controls */
+        }
+
+        /* This container holds the YouTube iframes BEHIND everything else 
+           so they are technically "visible" to the browser but user sees the mixer. */
+        #video-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1; /* Lowest visible layer */
+            opacity: 0.1; /* Slight visibility ensures browser renders them */
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #video-layer div {
+            width: 50%;
+            height: 100%;
+        }
+
+        /* The Main App Interface sits ON TOP of the videos */
+        .app-layer {
+            position: relative;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(26, 26, 26, 0.9); /* Dark overlay so we don't see videos */
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 0 50px #000;
         }
 
         header {
@@ -51,7 +82,6 @@
             letter-spacing: 4px;
             border-bottom: 2px solid var(--accent);
             padding-bottom: 10px;
-            z-index: 10;
         }
 
         .mode-switch-container {
@@ -63,18 +93,17 @@
             padding: 8px 15px;
             border-radius: 20px;
             border: 1px solid #444;
-            z-index: 10;
         }
 
         .switch-label { font-size: 0.8rem; font-weight: bold; color: #888; }
-        .switch-label.active { color: var(--accent); text-shadow: 0 0 5px var(--accent-dim); }
+        .switch-label.active { color: var(--accent); }
 
-        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: var(--accent); }
-        input:checked + .slider:before { transform: translateX(26px); }
+        input:checked + .slider:before { transform: translateX(20px); }
 
         .console {
             display: flex;
@@ -84,7 +113,6 @@
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
             border: 1px solid #333;
-            z-index: 10;
             flex-wrap: wrap;
             justify-content: center;
         }
@@ -93,19 +121,18 @@
             background-color: var(--deck-color);
             padding: 20px;
             border-radius: 10px;
-            width: 300px;
+            width: 280px;
             display: flex;
             flex-direction: column;
             align-items: center;
             border: 1px solid #444;
-            position: relative;
         }
 
         .deck h2 { margin: 0 0 15px 0; font-size: 1.2rem; color: var(--accent); }
 
         .vinyl-container {
-            width: 200px;
-            height: 200px;
+            width: 180px;
+            height: 180px;
             background: #000;
             border-radius: 50%;
             display: flex;
@@ -114,20 +141,19 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
             margin-bottom: 20px;
             position: relative;
-            transition: transform 0.1s linear;
         }
 
         .vinyl-grooves {
-            width: 190px;
-            height: 190px;
+            width: 170px;
+            height: 170px;
             border-radius: 50%;
             background: repeating-radial-gradient(#111, #111 2px, #222 3px, #222 4px);
             position: absolute;
         }
 
         .vinyl-label {
-            width: 70px;
-            height: 70px;
+            width: 60px;
+            height: 60px;
             background: #d32f2f;
             border-radius: 50%;
             z-index: 2;
@@ -135,11 +161,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             font-weight: bold;
             color: white;
             text-align: center;
-            line-height: 1.1;
         }
 
         .deck-b .vinyl-label { background: #1976d2; }
@@ -148,7 +173,7 @@
         .spinning { animation: spin 1.8s linear infinite; }
         .paused { animation-play-state: paused; }
 
-        .controls { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+        .controls { width: 100%; display: flex; flex-direction: column; gap: 10px; }
 
         input[type="text"] {
             background: #222;
@@ -158,74 +183,58 @@
             border-radius: 4px;
             width: calc(100% - 18px);
             font-family: inherit;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
         }
 
-        .btn-group { display: flex; gap: 6px; }
+        .btn-group { display: flex; gap: 5px; }
 
         button {
             background: #444;
             color: white;
             border: none;
-            padding: 10px;
+            padding: 8px;
             border-radius: 4px;
             cursor: pointer;
             flex: 1;
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             transition: all 0.1s;
-            box-shadow: 0 2px 0 #222;
         }
-        button:active { transform: translateY(2px); box-shadow: none; }
         button:hover { background: #666; }
+        button:active { transform: scale(0.98); }
 
-        button.cue-btn { background: #b36b00; flex: 0.5; }
+        button.cue-btn { background: #b36b00; flex: 0.4; }
         button.cue-btn:hover { background: var(--cue-color); }
+        
+        button.play-btn.active { background: var(--accent-dim); color: #fff; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
 
-        button.sync-btn {
-            background: var(--sync-dim);
-            color: white;
-            display: none; 
-        }
+        button.sync-btn { background: #0088cc; color: white; display: none; margin-bottom: 5px; font-size: 0.6rem; padding: 2px 5px;}
         button.sync-btn:hover { background: var(--sync-color); }
-
-        .play-btn.active {
-            background: var(--accent-dim);
-            color: #fff;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-        }
 
         .slider-group {
             margin-top: 10px;
             text-align: center;
             background: #222;
-            padding: 10px;
+            padding: 8px;
             border-radius: 5px;
             border: 1px solid #333;
         }
-        
-        .slider-group label {
-            font-size: 0.7rem;
-            display: block;
-            margin-bottom: 5px;
-            color: #aaa;
-            letter-spacing: 1px;
-        }
 
-        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        /* Standardize Sliders */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; }
         input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
-            background: var(--accent); cursor: pointer; margin-top: -6px; box-shadow: 0 0 5px var(--accent);
+            -webkit-appearance: none; height: 14px; width: 14px; border-radius: 50%;
+            background: var(--accent); margin-top: -5px; box-shadow: 0 0 5px var(--accent);
         }
         input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 4px; cursor: pointer; background: #555; border-radius: 2px;
+            width: 100%; height: 4px; background: #555; border-radius: 2px;
         }
 
         .mixer {
-            width: 150px;
+            width: 140px;
             background: #222;
-            padding: 20px;
+            padding: 15px;
             border-radius: 10px;
             display: flex;
             flex-direction: column;
@@ -234,212 +243,186 @@
             border: 1px solid #444;
         }
 
-        .xfader-container {
-            width: 100%;
-            text-align: center;
-            margin-top: auto;
-            padding-top: 20px;
-            border-top: 1px solid #444;
-        }
-
-        /* FIX: We do not hide display:none or visibility:hidden.
-           We make them tiny and transparent so the browser initializes them correctly.
-        */
-        .hidden-player { 
-            position: absolute; 
-            bottom: 0; 
-            right: 0; 
-            width: 1px; 
-            height: 1px; 
-            opacity: 0.01; 
-            pointer-events: none; 
-            z-index: -100;
-        }
-        
         .status-light {
             width: 8px; height: 8px; border-radius: 50%; background: #000; margin: 10px auto;
-            transition: background 0.2s; box-shadow: inset 0 0 2px #333; border: 1px solid #333;
+            border: 1px solid #333; transition: background 0.3s;
         }
-        /* New: Ready state (Yellow) */
-        .status-light.ready { background: #ffcc00; box-shadow: 0 0 5px #ffcc00; }
-        /* New: Playing state (Red) */
+        .status-light.ready { background: #ffe600; box-shadow: 0 0 6px #ffe600; }
         .status-light.on { background: #ff0000; box-shadow: 0 0 8px #ff0000; }
+
+        /* Error Message */
+        #error-log {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #d32f2f;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            display: none;
+            z-index: 200;
+        }
 
     </style>
 </head>
 <body>
 
-    <div class="watermark">TIU</div>
-
-    <header>
-        <h1>TIU Vinyl Mixer</h1>
-    </header>
-
-    <div class="mode-switch-container">
-        <span class="switch-label active" id="label-manual">OLD SCHOOL</span>
-        <label class="switch">
-            <input type="checkbox" id="mode-toggle" onchange="toggleMode()">
-            <span class="slider"></span>
-        </label>
-        <span class="switch-label" id="label-sync">MODERN SYNC</span>
+    <div id="video-layer">
+        <div id="player-a-wrapper"><div id="player-a"></div></div>
+        <div id="player-b-wrapper"><div id="player-b"></div></div>
     </div>
 
-    <div class="console">
-        <div class="deck" id="deck-a">
-            <h2>DECK A</h2>
-            <div class="vinyl-container" id="vinyl-a">
-                <div class="vinyl-grooves"></div>
-                <div class="vinyl-label">TIU<br>SIDE A</div>
-            </div>
-            
-            <div class="status-light" id="status-a"></div>
+    <div class="watermark">TIU</div>
+    <div id="error-log">Error Loading Video</div>
 
-            <div class="controls">
-                <input type="text" id="input-a" placeholder="Paste YouTube URL..." value="https://www.youtube.com/watch?v=5qap5aO4i9A">
-                
-                <div class="btn-group">
-                    <button onclick="loadTrack('A')">Load</button>
-                    <button class="cue-btn" onclick="cueTrack('A')">CUE</button>
-                    <button class="play-btn" onclick="togglePlay('A')" id="play-btn-a">Play</button>
-                </div>
+    <div class="app-layer">
+        <header>
+            <h1>TIU Vinyl Mixer v4</h1>
+        </header>
 
-                <div class="slider-group">
-                    <div style="display:flex; justify-content: space-between; align-items: center;">
-                        <label>PITCH ADJ</label>
-                        <button class="sync-btn" id="sync-a" onclick="syncDeck('A')" style="font-size:0.6rem; padding: 2px 5px; flex:none; margin-bottom:5px;">SYNC</button>
-                    </div>
-                    <input type="range" id="pitch-a" min="0.5" max="1.5" step="0.01" value="1" oninput="updatePitch('A')" onchange="updatePitch('A')">
-                    <button style="margin-top:8px; padding: 4px; font-size:0.7rem; background:#333;" onclick="resetPitch('A')">Reset Speed</button>
-                </div>
-            </div>
-            <div id="player-a" class="hidden-player"></div>
+        <div class="mode-switch-container">
+            <span class="switch-label active" id="label-manual">OLD SCHOOL</span>
+            <label class="switch">
+                <input type="checkbox" id="mode-toggle" onchange="toggleMode()">
+                <span class="slider"></span>
+            </label>
+            <span class="switch-label" id="label-sync">SYNC MODE</span>
         </div>
 
-        <div class="mixer">
-            <div style="font-size: 0.8rem; color:#666;">MASTER</div>
-            <div class="slider-group" style="width: 100%; margin-bottom: 20px;">
-                <label>VOL</label>
-                <input type="range" min="0" max="100" value="90" disabled style="opacity:0.5;">
-            </div>
-            <div style="color:#333; font-size: 3rem; font-weight:bold;">X</div>
-            <div class="xfader-container">
-                <label>CROSSFADER</label>
-                <input type="range" id="crossfader" min="0" max="100" value="50" oninput="updateCrossfader()">
-                <div style="display:flex; justify-content:space-between; font-size:0.6rem; color:#666; margin-top:5px; font-weight:bold;">
-                    <span>A</span>
-                    <span>&lt; MIX &gt;</span>
-                    <span>B</span>
+        <div class="console">
+            <div class="deck" id="deck-a">
+                <h2>DECK A</h2>
+                <div class="vinyl-container" id="vinyl-a">
+                    <div class="vinyl-grooves"></div>
+                    <div class="vinyl-label">TIU<br>A</div>
                 </div>
-            </div>
-        </div>
+                <div class="status-light" id="status-a"></div>
 
-        <div class="deck deck-b" id="deck-b">
-            <h2>DECK B</h2>
-            <div class="vinyl-container" id="vinyl-b">
-                <div class="vinyl-grooves"></div>
-                <div class="vinyl-label">TIU<br>SIDE B</div>
-            </div>
-
-            <div class="status-light" id="status-b"></div>
-
-            <div class="controls">
-                <input type="text" id="input-b" placeholder="Paste YouTube URL..." value="https://youtu.be/jfKfPfyJRdk">
-                
-                <div class="btn-group">
-                    <button onclick="loadTrack('B')">Load</button>
-                    <button class="cue-btn" onclick="cueTrack('B')">CUE</button>
-                    <button class="play-btn" onclick="togglePlay('B')" id="play-btn-b">Play</button>
-                </div>
-
-                <div class="slider-group">
-                    <div style="display:flex; justify-content: space-between; align-items: center;">
-                        <label>PITCH ADJ</label>
-                        <button class="sync-btn" id="sync-b" onclick="syncDeck('B')" style="font-size:0.6rem; padding: 2px 5px; flex:none; margin-bottom:5px;">SYNC</button>
+                <div class="controls">
+                    <input type="text" id="input-a" placeholder="YouTube URL..." value="https://www.youtube.com/watch?v=5qap5aO4i9A">
+                    <div class="btn-group">
+                        <button onclick="loadTrack('A')">Load</button>
+                        <button class="cue-btn" onclick="cueTrack('A')">CUE</button>
+                        <button class="play-btn" onclick="togglePlay('A')" id="play-btn-a">Play</button>
                     </div>
-                    <input type="range" id="pitch-b" min="0.5" max="1.5" step="0.01" value="1" oninput="updatePitch('B')" onchange="updatePitch('B')">
-                    <button style="margin-top:8px; padding: 4px; font-size:0.7rem; background:#333;" onclick="resetPitch('B')">Reset Speed</button>
+                    <div class="slider-group">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label>PITCH</label>
+                            <button class="sync-btn" id="sync-a" onclick="syncDeck('A')">SYNC</button>
+                        </div>
+                        <input type="range" id="pitch-a" min="0.5" max="1.5" step="0.01" value="1" oninput="updatePitch('A')">
+                        <button style="margin-top:5px; padding:2px; font-size:0.6rem; background:#333;" onclick="resetPitch('A')">Reset</button>
+                    </div>
                 </div>
             </div>
-            <div id="player-b" class="hidden-player"></div>
+
+            <div class="mixer">
+                <div style="font-size: 0.7rem; color:#aaa; margin-bottom:5px;">MASTER VOL</div>
+                <div class="slider-group" style="width: 100%; margin-bottom: 20px;">
+                    <input type="range" id="master-vol" min="0" max="100" value="100" oninput="updateCrossfader()">
+                </div>
+
+                <div style="color:#333; font-size: 2.5rem; font-weight:bold;">X</div>
+
+                <div style="width:100%; text-align:center; margin-top:auto; padding-top:10px; border-top:1px solid #444;">
+                    <label style="font-size:0.7rem; color:#aaa;">CROSSFADER</label>
+                    <input type="range" id="crossfader" min="0" max="100" value="50" oninput="updateCrossfader()">
+                    <div style="display:flex; justify-content:space-between; font-size:0.6rem; color:#666; margin-top:2px;">
+                        <span>A</span><span>B</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="deck deck-b" id="deck-b">
+                <h2>DECK B</h2>
+                <div class="vinyl-container" id="vinyl-b">
+                    <div class="vinyl-grooves"></div>
+                    <div class="vinyl-label">TIU<br>B</div>
+                </div>
+                <div class="status-light" id="status-b"></div>
+
+                <div class="controls">
+                    <input type="text" id="input-b" placeholder="YouTube URL..." value="https://youtu.be/jfKfPfyJRdk">
+                    <div class="btn-group">
+                        <button onclick="loadTrack('B')">Load</button>
+                        <button class="cue-btn" onclick="cueTrack('B')">CUE</button>
+                        <button class="play-btn" onclick="togglePlay('B')" id="play-btn-b">Play</button>
+                    </div>
+                    <div class="slider-group">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label>PITCH</label>
+                            <button class="sync-btn" id="sync-b" onclick="syncDeck('B')">SYNC</button>
+                        </div>
+                        <input type="range" id="pitch-b" min="0.5" max="1.5" step="0.01" value="1" oninput="updatePitch('B')">
+                        <button style="margin-top:5px; padding:2px; font-size:0.6rem; background:#333;" onclick="resetPitch('B')">Reset</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        // 1. DEFINE CALLBACKS FIRST to avoid race conditions
+        // Global State
         var playerA, playerB;
         var isReadyA = false, isReadyB = false;
 
-        function onYouTubeIframeAPIReady() {
-            console.log("API Ready");
-            
-            // DECK A
-            playerA = new YT.Player('player-a', {
-                height: '200', width: '200', videoId: '',
-                playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1 },
-                events: { 'onReady': onPlayerReadyA, 'onStateChange': onPlayerStateChangeA }
-            });
-
-            // DECK B
-            playerB = new YT.Player('player-b', {
-                height: '200', width: '200', videoId: '',
-                playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1 },
-                events: { 'onReady': onPlayerReadyB, 'onStateChange': onPlayerStateChangeB }
-            });
-        }
-
-        // --- INJECT API SCRIPT MANUALLY ---
-        // This ensures the callback above exists before the API tries to find it.
+        // --- 1. Load YouTube API ---
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         var firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
+        // --- 2. API Callback ---
+        window.onYouTubeIframeAPIReady = function() {
+            playerA = new YT.Player('player-a', {
+                height: '100%', width: '100%',
+                videoId: '', 
+                playerVars: { 'playsinline': 1, 'controls': 0, 'rel': 0 },
+                events: {
+                    'onReady': onReadyA,
+                    'onStateChange': onStateChangeA,
+                    'onError': onError
+                }
+            });
 
-        // --- DECK EVENTS ---
-        function onPlayerReadyA(event) { 
-            console.log("Deck A Ready"); 
-            isReadyA = true; 
-            document.getElementById('status-a').classList.add('ready'); // Show Yellow Light
-            updateCrossfader(); 
+            playerB = new YT.Player('player-b', {
+                height: '100%', width: '100%',
+                videoId: '',
+                playerVars: { 'playsinline': 1, 'controls': 0, 'rel': 0 },
+                events: {
+                    'onReady': onReadyB,
+                    'onStateChange': onStateChangeB,
+                    'onError': onError
+                }
+            });
+        };
+
+        // --- 3. Event Handlers ---
+        function onReadyA(event) {
+            isReadyA = true;
+            document.getElementById('status-a').classList.add('ready');
+            updateCrossfader(); // Init volume
+        }
+        function onReadyB(event) {
+            isReadyB = true;
+            document.getElementById('status-b').classList.add('ready');
+            updateCrossfader(); // Init volume
         }
 
-        function onPlayerReadyB(event) { 
-            console.log("Deck B Ready"); 
-            isReadyB = true; 
-            document.getElementById('status-b').classList.add('ready'); // Show Yellow Light
-            updateCrossfader(); 
+        function onStateChangeA(event) { updateVisuals('A', event.data); }
+        function onStateChangeB(event) { updateVisuals('B', event.data); }
+
+        function onError(event) {
+            const el = document.getElementById('error-log');
+            el.innerText = "Error: Video Restricted or Invalid ID";
+            el.style.display = "block";
+            setTimeout(() => { el.style.display = "none"; }, 4000);
         }
 
-        function onPlayerStateChangeA(event) { updateDeckVisuals('A', event.data); }
-        function onPlayerStateChangeB(event) { updateDeckVisuals('B', event.data); }
-
-
-        // --- VISUALS ---
-        function updateDeckVisuals(deck, state) {
-            const d = deck.toLowerCase();
-            const vinyl = document.getElementById(`vinyl-${d}`);
-            const btn = document.getElementById(`play-btn-${d}`);
-            const light = document.getElementById(`status-${d}`);
-
-            if (state == YT.PlayerState.PLAYING) {
-                vinyl.classList.add('spinning');
-                vinyl.classList.remove('paused');
-                btn.classList.add('active');
-                btn.innerText = "PAUSE";
-                light.classList.remove('ready');
-                light.classList.add('on'); // Red
-            } else {
-                vinyl.classList.add('paused');
-                btn.classList.remove('active');
-                btn.innerText = "PLAY";
-                light.classList.remove('on');
-                light.classList.add('ready'); // Back to Yellow
-            }
-        }
-
-        // --- CONTROLS ---
-
-        function extractVideoID(url) {
+        // --- 4. Controls ---
+        function extractID(url) {
             if(!url) return "";
             var regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
             var match = url.match(regExp);
@@ -447,18 +430,14 @@
         }
 
         function loadTrack(deck) {
-            const inputVal = document.getElementById(`input-${deck.toLowerCase()}`).value;
-            const videoId = extractVideoID(inputVal);
-
-            if(!videoId) { alert("Please enter a valid URL or ID"); return; }
-
-            if (deck === 'A') {
-                if(!isReadyA) { alert("Deck A is still initializing..."); return; }
-                playerA.loadVideoById(videoId);
+            const input = document.getElementById(`input-${deck.toLowerCase()}`).value;
+            const vidId = extractID(input);
+            
+            if (deck === 'A' && isReadyA) {
+                playerA.loadVideoById(vidId);
                 resetPitch('A');
-            } else if (deck === 'B') {
-                if(!isReadyB) { alert("Deck B is still initializing..."); return; }
-                playerB.loadVideoById(videoId);
+            } else if (deck === 'B' && isReadyB) {
+                playerB.loadVideoById(vidId);
                 resetPitch('B');
             }
         }
@@ -466,26 +445,48 @@
         function togglePlay(deck) {
             let p = (deck === 'A') ? playerA : playerB;
             let ready = (deck === 'A') ? isReadyA : isReadyB;
-
-            if (ready) {
+            
+            if(ready) {
                 const state = p.getPlayerState();
-                state === YT.PlayerState.PLAYING ? p.pauseVideo() : p.playVideo();
-            } else {
-                console.log("Deck " + deck + " not ready yet.");
+                if(state === YT.PlayerState.PLAYING) p.pauseVideo();
+                else p.playVideo();
             }
         }
 
         function cueTrack(deck) {
             let p = (deck === 'A') ? playerA : playerB;
             let ready = (deck === 'A') ? isReadyA : isReadyB;
-            if (ready) p.seekTo(0, true);
+            if(ready) p.seekTo(0, true);
         }
 
+        // --- 5. Visuals ---
+        function updateVisuals(deck, state) {
+            const d = deck.toLowerCase();
+            const vinyl = document.getElementById(`vinyl-${d}`);
+            const btn = document.getElementById(`play-btn-${d}`);
+            const light = document.getElementById(`status-${d}`);
+
+            if (state === YT.PlayerState.PLAYING) {
+                vinyl.classList.add('spinning');
+                vinyl.classList.remove('paused');
+                btn.classList.add('active');
+                btn.innerText = "PAUSE";
+                light.classList.remove('ready');
+                light.classList.add('on');
+            } else {
+                vinyl.classList.add('paused');
+                btn.classList.remove('active');
+                btn.innerText = "PLAY";
+                light.classList.remove('on');
+                light.classList.add('ready');
+            }
+        }
+
+        // --- 6. Mixing & Pitch ---
         function updatePitch(deck) {
-            const slider = document.getElementById(`pitch-${deck.toLowerCase()}`);
-            const rate = parseFloat(slider.value);
-            if (deck === 'A' && isReadyA) playerA.setPlaybackRate(rate);
-            if (deck === 'B' && isReadyB) playerB.setPlaybackRate(rate);
+            const val = document.getElementById(`pitch-${deck.toLowerCase()}`).value;
+            if(deck === 'A' && isReadyA) playerA.setPlaybackRate(parseFloat(val));
+            if(deck === 'B' && isReadyB) playerB.setPlaybackRate(parseFloat(val));
         }
 
         function resetPitch(deck) {
@@ -494,42 +495,54 @@
         }
 
         function updateCrossfader() {
-            const val = document.getElementById('crossfader').value;
+            // Get Crossfader Value (0 - 100)
+            const xVal = document.getElementById('crossfader').value;
+            // Get Master Volume Value (0 - 100) and convert to decimal (0.0 - 1.0)
+            const masterVal = document.getElementById('master-vol').value / 100;
+
             let volA = 100, volB = 100;
-            if (val < 50) {
-                volB = (val / 50) * 100;
-            } else if (val > 50) {
-                volA = 100 - ((val - 50) / 50 * 100);
+
+            // Crossfader Logic
+            if (xVal < 50) {
+                volB = (xVal / 50) * 100;
+            } else if (xVal > 50) {
+                volA = 100 - ((xVal - 50) / 50 * 100);
             }
+
+            // Apply Master Volume Multiplier
+            volA = volA * masterVal;
+            volB = volB * masterVal;
+
             if (isReadyA) playerA.setVolume(volA);
             if (isReadyB) playerB.setVolume(volB);
         }
 
+        // --- 7. Sync Mode Logic ---
         function toggleMode() {
             const isSync = document.getElementById('mode-toggle').checked;
             const syncBtns = document.querySelectorAll('.sync-btn');
-            const labelManual = document.getElementById('label-manual');
-            const labelSync = document.getElementById('label-sync');
+            const labelM = document.getElementById('label-manual');
+            const labelS = document.getElementById('label-sync');
 
-            if (isSync) {
-                syncBtns.forEach(btn => btn.style.display = 'block');
-                labelManual.classList.remove('active');
-                labelSync.classList.add('active');
+            if(isSync) {
+                syncBtns.forEach(b => b.style.display = 'block');
+                labelM.classList.remove('active'); labelS.classList.add('active');
             } else {
-                syncBtns.forEach(btn => btn.style.display = 'none');
-                labelManual.classList.add('active');
-                labelSync.classList.remove('active');
+                syncBtns.forEach(b => b.style.display = 'none');
+                labelM.classList.add('active'); labelS.classList.remove('active');
             }
         }
 
         function syncDeck(target) {
+            // Syncs target deck to the other deck's speed
             let targetSlider = document.getElementById(`pitch-${target.toLowerCase()}`);
             let sourceRate = 1;
-            if (target === 'A') {
-                if (!isReadyB) return; 
+
+            if(target === 'A') {
+                if(!isReadyB) return;
                 sourceRate = playerB.getPlaybackRate();
             } else {
-                if (!isReadyA) return;
+                if(!isReadyA) return;
                 sourceRate = playerA.getPlaybackRate();
             }
             targetSlider.value = sourceRate;
