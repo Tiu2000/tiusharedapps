@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Analyst Suite PRO - v7</title>
+    <title>TIU Analyst Suite PRO - v8</title>
     <style>
         :root {
             --primary-color: #1a1a1a;
@@ -71,14 +71,19 @@
             width: 100%;
             height: 100%;
             z-index: 1;
+            /* MAGIC FIX: This stops mouse interaction with YouTube internals */
+            pointer-events: none; 
         }
+        
+        /* If user unlocks the player, we add this class */
+        #player.interactive { pointer-events: auto; }
 
         #click-shield {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 85%;
+            height: 100%;
             z-index: 5;
             cursor: pointer;
         }
@@ -108,6 +113,21 @@
             font-family: 'Arial Black', sans-serif;
         }
 
+        .lock-indicator {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            z-index: 20;
+            background: rgba(0,0,0,0.6);
+            color: #888;
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border: 1px solid #444;
+        }
+        .lock-indicator:hover { color: white; border-color: white; }
+
         /* --- CONTROLS PANEL --- */
         .controls-panel {
             width: 95%;
@@ -135,7 +155,6 @@
 
         .group-label { font-size: 0.75rem; text-transform: uppercase; color: #888; font-weight: bold; margin-bottom: 5px; }
 
-        /* General Button Styles */
         button, .link-btn {
             background-color: var(--btn-bg);
             color: white;
@@ -163,7 +182,7 @@
         
         button.danger { background-color: #d32f2f; border-color: #b71c1c;}
         button.secondary { background-color: transparent; border: 1px solid #666; }
-        button.action { background-color: #2e7d32; border-color: #1b5e20; } /* Green for Import/Export */
+        button.action { background-color: #2e7d32; border-color: #1b5e20; } 
 
         .cash-app-btn {
             background-color: var(--cash-app-green);
@@ -207,7 +226,6 @@
         .mode-viewing { background: #2196f3; }
         .mode-drawing { background: var(--accent-color); color: black; }
 
-        /* Saved Annotation List Styles */
         .annotation-list {
             list-style: none;
             padding: 0;
@@ -270,6 +288,9 @@
         <div id="click-shield" onclick="onShieldClick()"></div>
         <canvas id="drawing-canvas"></canvas>
         <div class="watermark">TIU</div>
+        <div id="lock-btn" class="lock-indicator" onclick="togglePlayerLock(event)" title="Lock/Unlock YouTube Controls">
+            &#128274; Player Locked
+        </div>
     </div>
 </div>
 
@@ -387,7 +408,8 @@
     let player;
     let isDrawingMode = false;
     let isDrawing = false;
-    let annotations = []; // Store saved plays
+    let annotations = []; 
+    let isPlayerLocked = true; // NEW: Starts locked to prevent popups
     
     // Tools
     let currentTool = 'pen'; 
@@ -408,6 +430,8 @@
     const modeIndicator = document.getElementById('mode-indicator');
     const shield = document.getElementById('click-shield');
     const annotationListEl = document.getElementById('annotation-list');
+    const lockBtn = document.getElementById('lock-btn');
+    const playerDiv = document.getElementById('player');
 
     // --- SETUP ---
     function resizeCanvas() {
@@ -435,7 +459,8 @@
             height: '100%',
             width: '100%',
             videoId: 'tVoqA-LKGb4', 
-            playerVars: { 'playsinline': 1, 'rel': 0, 'controls': 1, 'origin': window.location.origin },
+            // rel=0 is still here as a fallback
+            playerVars: { 'playsinline': 1, 'rel': 0, 'controls': 1, 'modestbranding': 1, 'origin': window.location.origin },
             events: { 
                 'onReady': onPlayerReady, 
                 'onError': onPlayerError,
@@ -446,7 +471,6 @@
     function onPlayerReady(event) { resizeCanvas(); }
     function onPlayerError(event) { if([101, 150, 153].includes(event.data)) alert("Video blocked. Try a different video."); }
     
-    // AUTO-CLEAR CANVAS ON PLAY
     function onPlayerStateChange(event) {
         if (event.data === 1) { // 1 = Playing
             clearCanvas();
@@ -466,7 +490,6 @@
             player.loadVideoById(id);
             document.getElementById('yt-input').value = ""; 
             if(!optionalId) { 
-                // Only clear if manual load, otherwise we are importing
                 annotations = []; 
                 renderAnnotations();
             }
@@ -477,13 +500,35 @@
     }
 
     // --- CONTROLS ---
+    
+    // NEW: Toggles whether clicks go to YouTube or the Shield
+    function togglePlayerLock(e) {
+        if(e) e.stopPropagation();
+        isPlayerLocked = !isPlayerLocked;
+        if(isPlayerLocked) {
+            playerDiv.classList.remove('interactive');
+            shield.style.pointerEvents = "auto";
+            lockBtn.innerHTML = "&#128274; Player Locked";
+            lockBtn.style.color = "#888";
+        } else {
+            playerDiv.classList.add('interactive');
+            shield.style.pointerEvents = "none";
+            lockBtn.innerHTML = "&#128275; Player Unlocked";
+            lockBtn.style.color = "#4caf50";
+        }
+    }
+
     function onShieldClick() {
-        stage.focus();
-        togglePlay();
+        // If we are in drawing mode, clicks do nothing (canvas handles them)
+        // If we are in viewing mode and locked, we handle Play/Pause
+        if(!isDrawingMode) {
+            stage.focus();
+            togglePlay();
+        }
     }
     
     document.addEventListener('mousemove', (e) => {
-        if (document.fullscreenElement && e.target === shield || e.target === canvas) {
+        if (document.fullscreenElement && (e.target === shield || e.target === canvas)) {
             if (document.activeElement !== stage) {
                 stage.focus();
             }
@@ -602,12 +647,11 @@
         });
     }
 
-    // --- EXPORT / IMPORT LOGIC (NEW) ---
+    // --- EXPORT / IMPORT LOGIC ---
     function exportPlaybook() {
         if (!player) { alert("No video loaded."); return; }
         if (annotations.length === 0) { alert("No plays saved to export."); return; }
 
-        // Create data object
         const videoData = player.getVideoData();
         const playbook = {
             videoId: videoData.video_id,
@@ -616,11 +660,9 @@
             plays: annotations
         };
 
-        // Create file blob
         const dataStr = JSON.stringify(playbook);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
 
-        // Trigger download
         const exportFileDefaultName = 'playbook-' + new Date().toISOString().slice(0,10) + '.json';
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
@@ -636,26 +678,16 @@
         reader.onload = function(e) {
             try {
                 const playbook = JSON.parse(e.target.result);
-                
-                if (!playbook.videoId || !playbook.plays) {
-                    throw new Error("Invalid Playbook File");
-                }
-
-                // Load the video from the file
+                if (!playbook.videoId || !playbook.plays) throw new Error("Invalid Playbook File");
                 loadVideo(playbook.videoId);
-                
-                // Load the annotations
                 annotations = playbook.plays;
                 renderAnnotations();
-                
-                alert(`Loaded ${annotations.length} plays for video: ${playbook.videoTitle || 'Unknown'}`);
+                alert(`Loaded ${annotations.length} plays.`);
             } catch (err) {
                 alert("Error loading file: " + err.message);
             }
         };
         reader.readAsText(file);
-        
-        // Reset input so same file can be selected again if needed
         inputElement.value = '';
     }
 
@@ -687,14 +719,12 @@
         isDrawingMode = !isDrawingMode;
         if (isDrawingMode) {
             canvas.style.pointerEvents = 'auto';
-            shield.style.pointerEvents = 'none'; 
             drawBtn.classList.add('active');
             drawBtn.innerText = "Disable Drawing";
             modeIndicator.innerText = "DRAWING";
             modeIndicator.className = "mode-drawing";
         } else {
             canvas.style.pointerEvents = 'none'; 
-            shield.style.pointerEvents = 'auto';
             drawBtn.classList.remove('active');
             drawBtn.innerText = "Enable Drawing";
             modeIndicator.innerText = "VIEWING";
