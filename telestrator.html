@@ -12,6 +12,7 @@
             --text-color: #ffffff;
             --panel-bg: #2d2d2d;
             --btn-bg: #444;
+            --cash-app-green: #00D632;
         }
 
         body {
@@ -105,7 +106,7 @@
             border-radius: 8px;
             margin-top: 15px;
             display: grid;
-            grid-template-columns: 1fr 2fr; /* Playback | Drawing */
+            grid-template-columns: 1fr 2fr 1fr; /* Playback | Drawing | Info */
             gap: 15px;
             box-sizing: border-box;
         }
@@ -122,7 +123,7 @@
         .group-label { font-size: 0.75rem; text-transform: uppercase; color: #888; font-weight: bold; margin-bottom: 5px; }
 
         /* General Button Styles */
-        button {
+        button, .link-btn {
             background-color: var(--btn-bg);
             color: white;
             border: 1px solid #555;
@@ -136,9 +137,10 @@
             align-items: center;
             justify-content: center;
             gap: 5px;
+            text-decoration: none; /* For link buttons */
         }
-        button:hover { background-color: #555; }
-        button:active { transform: translateY(1px); }
+        button:hover, .link-btn:hover { background-color: #555; }
+        button:active, .link-btn:active { transform: translateY(1px); }
         
         button.active { 
             background-color: var(--accent-color); 
@@ -148,6 +150,16 @@
         
         button.danger { background-color: #d32f2f; border-color: #b71c1c;}
         button.secondary { background-color: transparent; border: 1px solid #666; }
+
+        /* Cash App Button Style */
+        .cash-app-btn {
+            background-color: var(--cash-app-green);
+            color: white;
+            border: none;
+            font-weight: bold;
+            margin-top: auto; /* Push to bottom of container */
+        }
+        .cash-app-btn:hover { background-color: #00b82b; }
 
         /* Icon styling helper */
         .icon { font-size: 1.1em; line-height: 1; }
@@ -215,7 +227,7 @@
 <div class="controls-panel">
     
     <div class="control-group">
-        <div class="group-label">Video Source & Playback</div>
+        <div class="group-label">Source & Playback</div>
         
         <div class="tools-row">
             <input type="text" id="yt-input" placeholder="YouTube Link...">
@@ -249,7 +261,7 @@
         <div class="tools-row" style="background:#222; padding:5px; border-radius:4px; justify-content: space-between;">
             <div style="display:flex; gap:5px;">
                 <button class="tool-btn active" id="tool-pen" onclick="setTool('pen')">Pen</button>
-                <button class="tool-btn" id="tool-highlight" onclick="setTool('highlighter')">Highlighter</button>
+                <button class="tool-btn" id="tool-highlighter" onclick="setTool('highlighter')">Highlighter</button>
             </div>
             <div style="display:flex; gap:5px;">
                 <button class="shape-btn active" id="shape-free" onclick="setShape('free')">&#x2710; Free</button>
@@ -263,10 +275,28 @@
             <div class="color-btn" style="background: #ff0000;" onclick="setColor('#ff0000', this)"></div>
             <div class="color-btn" style="background: #ffffff;" onclick="setColor('#ffffff', this)"></div>
             <div class="color-btn" style="background: #000000;" onclick="setColor('#000000', this)"></div>
-            <div class="color-btn" style="background: #00e5ff;" onclick="setColor('#00e5ff', this)"></div> <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 0.8rem; color:#aaa;">Thickness</span>
+            <div class="color-btn" style="background: #00e5ff;" onclick="setColor('#00e5ff', this)"></div> 
+            
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.8rem; color:#aaa;">Size</span>
                 <input type="range" id="pen-size" min="2" max="20" value="4" style="width: 100px;">
             </div>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <div class="group-label">Help & Support</div>
+        <div style="font-size: 0.85rem; color: #ccc; line-height: 1.5; margin-bottom: 15px;">
+            <div style="margin-bottom: 5px;">&#8226; <strong>Arrows:</strong> Drag to create.</div>
+            <div style="margin-bottom: 5px;">&#8226; <strong>Keys:</strong> Left/Right arrows step frames.</div>
+            <div style="margin-bottom: 5px;">&#8226; <strong>Note:</strong> Check "Allow Embedding" on your video.</div>
+        </div>
+        
+        <div style="margin-top:auto; text-align: center;">
+            <p style="margin: 0 0 8px 0; font-size: 0.8rem; color: #aaa;">Enjoying the app? Buy me a coffee!</p>
+            <a href="https://cash.app/$AnthonyTiu" target="_blank" class="link-btn cash-app-btn">
+                <span style="font-size:1.2em;">$</span> AnthonyTiu
+            </a>
         </div>
     </div>
 </div>
@@ -296,7 +326,6 @@
 
     // --- CANVAS SETUP ---
     function resizeCanvas() {
-        // Save content if existing
         let savedData = null;
         if (canvas.width > 0 && canvas.height > 0) {
             savedData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -307,7 +336,6 @@
         
         if (savedData) ctx.putImageData(savedData, 0, 0);
         
-        // Reset Context Styles
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
     }
@@ -353,19 +381,15 @@
     }
     function setSpeed(rate) { if(player) player.setPlaybackRate(rate); }
     
-    // Feature 3: Frame Stepping
     function frameStep(dir) {
         if(!player) return;
         player.pauseVideo();
         const currentTime = player.getCurrentTime();
-        // Assume 30fps (approx 0.033s per frame). 
-        // 0.04s is a safe jump to ensure we hit the next frame keyframe.
         player.seekTo(currentTime + (dir * 0.04), true);
     }
     
-    // Keyboard Shortcuts for Frames
     document.addEventListener('keydown', (e) => {
-        if(e.target.tagName === 'INPUT') return; // Ignore if typing
+        if(e.target.tagName === 'INPUT') return; 
         if(e.key === 'ArrowRight') frameStep(1);
         if(e.key === 'ArrowLeft') frameStep(-1);
         if(e.key === 'z' && (e.ctrlKey || e.metaKey)) {
@@ -398,29 +422,29 @@
         }
     }
 
-    // Tool Setters
     function setColor(color, btn) {
         currentColor = color;
         document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
     }
+    
     function setTool(tool) {
         currentTool = tool;
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(`tool-${tool}`).classList.add('active');
     }
+    
     function setShape(shape) {
         currentShape = shape;
         document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(`shape-${shape}`).classList.add('active');
     }
 
-    // Feature 1: Undo System
+    // Undo System
     function saveHistory() {
         historyStep++;
-        if (historyStep < drawHistory.length) { drawHistory.length = historyStep; } // Cut off "redo" path
+        if (historyStep < drawHistory.length) { drawHistory.length = historyStep; } 
         drawHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-        // Limit history to 20 steps to save memory
         if(drawHistory.length > 20) {
             drawHistory.shift();
             historyStep--;
@@ -447,7 +471,7 @@
         link.download = 'tiu-analysis.png';
         link.href = canvas.toDataURL();
         link.click();
-        alert("Drawing saved! NOTE: Due to YouTube security, video cannot be included. Use your device's Screenshot tool to capture both.");
+        alert("Drawing saved!");
     }
 
     // Input Handling
@@ -458,7 +482,7 @@
         return { x: clientX - rect.left, y: clientY - rect.top };
     }
 
-    let snapshot; // For shape preview
+    let snapshot; 
 
     function startDraw(e) {
         if (!isDrawingMode) return;
@@ -469,9 +493,8 @@
         startX = pos.x;
         startY = pos.y;
 
-        // Save state BEFORE drawing starts (for undo + shape preview)
-        saveHistory(); // Save the "clean" state
-        snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); // Temp snapshot for shape dragging
+        saveHistory(); 
+        snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
 
         ctx.beginPath();
         ctx.moveTo(startX, startY);
@@ -484,22 +507,23 @@
         const pos = getPos(e);
         const size = document.getElementById('pen-size').value;
         
-        // Style Setup
         ctx.strokeStyle = currentColor;
         ctx.lineWidth = size;
+        
         if(currentTool === 'highlighter') {
-            ctx.globalAlpha = 0.4; // 40% opacity
-            ctx.lineWidth = size * 3; // Highlighter is wider
+            ctx.globalAlpha = 0.4;
+            ctx.lineWidth = size * 4; 
+            ctx.lineCap = 'butt';     
         } else {
             ctx.globalAlpha = 1.0;
+            ctx.lineCap = 'round';
         }
 
         if (currentShape === 'free') {
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
         } else {
-            // Feature 4: Shape Preview logic
-            ctx.putImageData(snapshot, 0, 0); // Restore clean slate
+            ctx.putImageData(snapshot, 0, 0);
             ctx.beginPath();
             
             if (currentShape === 'arrow') {
@@ -515,21 +539,13 @@
         if (!isDrawing) return;
         isDrawing = false;
         ctx.closePath();
-        // Note: History was saved at Start. We don't save at End because 
-        // Start saved the 'previous' state which is what Undo needs.
-        // But for Redo logic, we would need more complex handling. 
-        // For simple Undo, saving at start is safer, but let's update top of stack
-        // Actually, best practice: Save clean state at mousedown. 
-        // The canvas now holds the dirty state.
     }
 
-    // --- SHAPE HELPERS ---
     function drawArrow(ctx, fromX, fromY, toX, toY, width) {
-        const headlen = width * 4; // length of head in pixels
+        const headlen = width * 4; 
         const angle = Math.atan2(toY - fromY, toX - fromX);
         ctx.moveTo(fromX, fromY);
         ctx.lineTo(toX, toY);
-        // Arrowhead
         ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
         ctx.moveTo(toX, toY);
         ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
