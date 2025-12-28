@@ -137,7 +137,7 @@
             align-items: center;
             justify-content: center;
             gap: 5px;
-            text-decoration: none; /* For link buttons */
+            text-decoration: none;
         }
         button:hover, .link-btn:hover { background-color: #555; }
         button:active, .link-btn:active { transform: translateY(1px); }
@@ -151,17 +151,15 @@
         button.danger { background-color: #d32f2f; border-color: #b71c1c;}
         button.secondary { background-color: transparent; border: 1px solid #666; }
 
-        /* Cash App Button Style */
         .cash-app-btn {
             background-color: var(--cash-app-green);
             color: white;
             border: none;
             font-weight: bold;
-            margin-top: auto; /* Push to bottom of container */
+            margin-top: auto;
         }
         .cash-app-btn:hover { background-color: #00b82b; }
 
-        /* Icon styling helper */
         .icon { font-size: 1.1em; line-height: 1; }
 
         input[type="text"] {
@@ -173,10 +171,8 @@
             flex-grow: 1;
         }
 
-        /* Toolbar Rows */
         .tools-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 5px;}
         
-        /* Color Picker */
         .color-btn {
             width: 24px; height: 24px;
             border-radius: 50%;
@@ -187,7 +183,6 @@
         }
         .color-btn.selected { transform: scale(1.3); box-shadow: 0 0 8px rgba(255,255,255,0.5); }
 
-        /* Mode Indicator */
         #mode-indicator {
             padding: 5px 12px;
             border-radius: 4px;
@@ -198,7 +193,6 @@
         .mode-viewing { background: #2196f3; }
         .mode-drawing { background: var(--accent-color); color: black; }
 
-        /* --- MOBILE --- */
         @media (max-width: 900px) {
             .controls-panel { grid-template-columns: 1fr; gap: 20px; }
             .control-group { border-right: none; border-bottom: 1px solid #444; padding-bottom: 15px; padding-left: 0; padding-right: 0;}
@@ -308,12 +302,14 @@
     let isDrawing = false;
     
     // Tools
-    let currentTool = 'pen'; // 'pen' or 'highlighter'
-    let currentShape = 'free'; // 'free', 'arrow', 'circle'
+    let currentTool = 'pen'; 
+    let currentShape = 'free'; 
     let currentColor = '#fdd835';
-    let startX = 0, startY = 0; // For shapes
+    // Coordinates
+    let startX = 0, startY = 0; // For Shapes
+    let lastX = 0, lastY = 0;   // For Freehand
     
-    // History (Undo)
+    // History
     let drawHistory = [];
     let historyStep = -1;
 
@@ -324,23 +320,20 @@
     const drawBtn = document.getElementById('draw-mode-btn');
     const modeIndicator = document.getElementById('mode-indicator');
 
-    // --- CANVAS SETUP ---
+    // --- SETUP ---
     function resizeCanvas() {
         let savedData = null;
         if (canvas.width > 0 && canvas.height > 0) {
             savedData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         }
-        
         canvas.width = stage.clientWidth;
         canvas.height = stage.clientHeight;
-        
         if (savedData) ctx.putImageData(savedData, 0, 0);
-        
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
     }
     window.addEventListener('resize', resizeCanvas);
-    resizeCanvas(); // Init
+    resizeCanvas(); 
 
     // --- YOUTUBE API ---
     var tag = document.createElement('script');
@@ -358,7 +351,7 @@
         });
     }
     function onPlayerReady(event) { resizeCanvas(); }
-    function onPlayerError(event) { if([101, 150, 153].includes(event.data)) alert("Video blocked (Rights Management). Try a different video."); }
+    function onPlayerError(event) { if([101, 150, 153].includes(event.data)) alert("Video blocked. Try a different video."); }
 
     function loadVideo() {
         const input = document.getElementById('yt-input').value;
@@ -374,7 +367,7 @@
         }
     }
 
-    // --- VIDEO CONTROLS ---
+    // --- CONTROLS ---
     function togglePlay() { 
         if(!player) return;
         player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); 
@@ -404,7 +397,7 @@
     }
     document.addEventListener('fullscreenchange', resizeCanvas);
 
-    // --- DRAWING LOGIC ---
+    // --- DRAWING ---
     function toggleDrawMode() {
         isDrawingMode = !isDrawingMode;
         if (isDrawingMode) {
@@ -427,20 +420,18 @@
         document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
     }
-    
     function setTool(tool) {
         currentTool = tool;
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(`tool-${tool}`).classList.add('active');
     }
-    
     function setShape(shape) {
         currentShape = shape;
         document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(`shape-${shape}`).classList.add('active');
     }
 
-    // Undo System
+    // --- UNDO ---
     function saveHistory() {
         historyStep++;
         if (historyStep < drawHistory.length) { drawHistory.length = historyStep; } 
@@ -474,7 +465,6 @@
         alert("Drawing saved!");
     }
 
-    // Input Handling
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -490,14 +480,18 @@
         
         isDrawing = true;
         const pos = getPos(e);
-        startX = pos.x;
+        
+        startX = pos.x; // For shapes
         startY = pos.y;
+        lastX = pos.x;  // For freehand
+        lastY = pos.y;
 
         saveHistory(); 
         snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
 
+        // Important: Start a path immediately
         ctx.beginPath();
-        ctx.moveTo(startX, startY);
+        ctx.moveTo(lastX, lastY);
     }
 
     function moveDraw(e) {
@@ -507,22 +501,32 @@
         const pos = getPos(e);
         const size = document.getElementById('pen-size').value;
         
+        // --- APPLY STYLES ---
         ctx.strokeStyle = currentColor;
-        ctx.lineWidth = size;
         
         if(currentTool === 'highlighter') {
-            ctx.globalAlpha = 0.4;
+            ctx.globalAlpha = 0.3; // Lower opacity for better see-through
             ctx.lineWidth = size * 4; 
-            ctx.lineCap = 'butt';     
+            ctx.lineCap = 'butt';  // Butt cap prevents "knots" at overlaps
         } else {
             ctx.globalAlpha = 1.0;
+            ctx.lineWidth = size;
             ctx.lineCap = 'round';
         }
 
+        // --- DRAWING LOGIC ---
         if (currentShape === 'free') {
+            // FIX: Draw segment-by-segment to prevent opacity accumulation
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
+            
+            // Update last position for next segment
+            lastX = pos.x;
+            lastY = pos.y;
         } else {
+            // Shapes: Clear and redraw
             ctx.putImageData(snapshot, 0, 0);
             ctx.beginPath();
             
@@ -542,8 +546,11 @@
     }
 
     function drawArrow(ctx, fromX, fromY, toX, toY, width) {
-        const headlen = width * 4; 
+        // Adjust arrow head size based on highlighter/pen
+        const actualWidth = currentTool === 'highlighter' ? width * 4 : width;
+        const headlen = actualWidth * 3; 
         const angle = Math.atan2(toY - fromY, toX - fromX);
+        
         ctx.moveTo(fromX, fromY);
         ctx.lineTo(toX, toY);
         ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
@@ -556,7 +563,6 @@
         ctx.arc(x1, y1, radius, 0, 2 * Math.PI);
     }
 
-    // Events
     canvas.addEventListener('mousedown', startDraw);
     canvas.addEventListener('mousemove', moveDraw);
     canvas.addEventListener('mouseup', endDraw);
