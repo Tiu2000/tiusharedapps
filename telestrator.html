@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Analyst Suite</title>
+    <title>TIU Analyst Suite PRO</title>
     <style>
         :root {
             --primary-color: #1a1a1a;
             --accent-color: #fdd835; /* Madden Yellow */
+            --highlight-color: rgba(253, 216, 53, 0.4);
             --text-color: #ffffff;
             --panel-bg: #2d2d2d;
+            --btn-bg: #444;
         }
 
         body {
@@ -22,7 +24,7 @@
             align-items: center;
             min-height: 100vh;
             padding-bottom: 50px;
-            overscroll-behavior: none; /* Prevents pull-to-refresh on mobile */
+            overscroll-behavior: none;
         }
 
         header {
@@ -40,7 +42,7 @@
 
         h1 { margin: 0; font-size: 1.2rem; letter-spacing: 1px; white-space: nowrap; }
 
-        /* --- STAGE AREA --- */
+        /* --- STAGE --- */
         #stage-wrapper {
             width: 100%;
             display: flex;
@@ -94,7 +96,7 @@
             font-family: 'Arial Black', sans-serif;
         }
 
-        /* --- CONTROLS --- */
+        /* --- CONTROLS PANEL --- */
         .controls-panel {
             width: 95%;
             max-width: 1600px;
@@ -103,7 +105,7 @@
             border-radius: 8px;
             margin-top: 15px;
             display: grid;
-            grid-template-columns: 1.2fr 2fr 1fr;
+            grid-template-columns: 1fr 2fr; /* Playback | Drawing */
             gap: 15px;
             box-sizing: border-box;
         }
@@ -115,46 +117,65 @@
             border-right: 1px solid #444;
             padding-right: 15px;
         }
-        .control-group:last-child { border-right: none; }
+        .control-group:last-child { border-right: none; padding-left: 10px; padding-right: 0;}
 
         .group-label { font-size: 0.75rem; text-transform: uppercase; color: #888; font-weight: bold; margin-bottom: 5px; }
 
+        /* General Button Styles */
         button {
-            background-color: #444;
+            background-color: var(--btn-bg);
             color: white;
-            border: none;
-            padding: 10px 14px;
+            border: 1px solid #555;
+            padding: 8px 12px;
             border-radius: 4px;
             cursor: pointer;
             font-weight: 600;
-            font-size: 0.9rem;
-            flex-grow: 1;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
         }
+        button:hover { background-color: #555; }
         button:active { transform: translateY(1px); }
-        button.active { background-color: var(--accent-color); color: black; }
-        button.danger { background-color: #d32f2f; }
         
+        button.active { 
+            background-color: var(--accent-color); 
+            color: black; 
+            border-color: var(--accent-color);
+        }
+        
+        button.danger { background-color: #d32f2f; border-color: #b71c1c;}
+        button.secondary { background-color: transparent; border: 1px solid #666; }
+
+        /* Icon styling helper */
+        .icon { font-size: 1.1em; line-height: 1; }
+
         input[type="text"] {
-            padding: 10px;
+            padding: 8px;
             border-radius: 4px;
             border: 1px solid #555;
             background: #222;
             color: white;
-            flex-grow: 2;
-            min-width: 0; 
+            flex-grow: 1;
         }
 
-        .tools-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        /* Toolbar Rows */
+        .tools-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 5px;}
         
+        /* Color Picker */
         .color-btn {
-            width: 30px; height: 30px;
+            width: 24px; height: 24px;
             border-radius: 50%;
             border: 2px solid #fff;
             cursor: pointer;
             flex-shrink: 0;
+            transition: transform 0.2s;
         }
-        .color-btn.selected { transform: scale(1.2); box-shadow: 0 0 5px white; }
+        .color-btn.selected { transform: scale(1.3); box-shadow: 0 0 8px rgba(255,255,255,0.5); }
 
+        /* Mode Indicator */
         #mode-indicator {
             padding: 5px 12px;
             border-radius: 4px;
@@ -165,28 +186,22 @@
         .mode-viewing { background: #2196f3; }
         .mode-drawing { background: var(--accent-color); color: black; }
 
-        @media (max-width: 800px) {
-            .controls-panel {
-                grid-template-columns: 1fr;
-                gap: 20px;
-            }
-            .control-group {
-                border-right: none;
-                border-bottom: 1px solid #444;
-                padding-bottom: 15px;
-                padding-right: 0;
-            }
+        /* --- MOBILE --- */
+        @media (max-width: 900px) {
+            .controls-panel { grid-template-columns: 1fr; gap: 20px; }
+            .control-group { border-right: none; border-bottom: 1px solid #444; padding-bottom: 15px; padding-left: 0; padding-right: 0;}
             .control-group:last-child { border-bottom: none; }
-            h1 { font-size: 1rem; }
         }
-
     </style>
 </head>
 <body>
 
 <header>
-    <h1>TIU ANALYST SUITE</h1>
-    <div id="mode-indicator" class="mode-viewing">MODE: VIEWING</div>
+    <h1>TIU ANALYST PRO</h1>
+    <div id="mode-indicator" class="mode-viewing">VIEWING</div>
+    <button onclick="toggleFullscreen()" class="secondary" style="margin-left:auto; font-size: 0.8rem;">
+        <span class="icon">&#x26F6;</span> Fullscreen
+    </button>
 </header>
 
 <div id="stage-wrapper">
@@ -200,102 +215,104 @@
 <div class="controls-panel">
     
     <div class="control-group">
-        <div class="group-label">Source & Playback</div>
+        <div class="group-label">Video Source & Playback</div>
+        
         <div class="tools-row">
-            <input type="text" id="yt-input" placeholder="Paste link...">
-            <button onclick="loadVideo()" style="flex-grow: 0;">Load</button>
+            <input type="text" id="yt-input" placeholder="YouTube Link...">
+            <button onclick="loadVideo()">Load</button>
         </div>
-        <div class="tools-row">
-            <button onclick="togglePlay()">Play/Pause</button>
-            <button onclick="toggleFullscreen()">&#x26F6; Fullscreen</button>
+
+        <div class="tools-row" style="justify-content: space-between;">
+            <button onclick="frameStep(-1)" title="Prev Frame (Left Arrow)">&#9664; Frame</button>
+            <button onclick="togglePlay()" style="flex-grow: 2;">Play / Pause</button>
+            <button onclick="frameStep(1)" title="Next Frame (Right Arrow)">Frame &#9654;</button>
         </div>
+
         <div class="tools-row">
-            <button onclick="setSpeed(0.25)">0.25x</button>
-            <button onclick="setSpeed(0.5)">0.5x</button>
-            <button onclick="setSpeed(1)">1.0x</button>
+            <span style="font-size:0.8rem; color:#aaa;">Speed:</span>
+            <button onclick="setSpeed(0.25)" class="secondary">0.25x</button>
+            <button onclick="setSpeed(0.5)" class="secondary">0.5x</button>
+            <button onclick="setSpeed(1.0)" class="secondary">1.0x</button>
         </div>
     </div>
 
     <div class="control-group">
-        <div class="group-label">Telestrator Tools</div>
+        <div class="group-label">Telestration Tools</div>
+        
         <div class="tools-row">
-            <button id="draw-mode-btn" onclick="toggleDrawMode()">Enable Drawing</button>
-            <button class="danger" onclick="clearCanvas()">Clear</button>
+            <button id="draw-mode-btn" onclick="toggleDrawMode()" style="flex-grow:2;">Enable Drawing</button>
+            <button onclick="undoLast()" title="Undo (Ctrl+Z)"><span class="icon">&#8630;</span> Undo</button>
+            <button onclick="saveDrawing()" title="Save Image"><span class="icon">&#128190;</span> Save</button>
+            <button class="danger" onclick="clearCanvas()" title="Clear All"><span class="icon">&#10005;</span> Clear</button>
         </div>
-        <div class="tools-row" style="margin-top: 5px; justify-content: space-between;">
-            <div style="display:flex; gap: 10px;">
-                <div class="color-btn selected" style="background: #fdd835;" onclick="setColor('#fdd835', this)"></div>
-                <div class="color-btn" style="background: #ff0000;" onclick="setColor('#ff0000', this)"></div>
-                <div class="color-btn" style="background: #ffffff;" onclick="setColor('#ffffff', this)"></div>
-                <div class="color-btn" style="background: #000000;" onclick="setColor('#000000', this)"></div>
-            </div>
-            
-            <div style="display: flex; align-items: center; gap: 5px;">
-                <span style="font-size: 0.8rem; color:#aaa;">Size</span>
-                <input type="range" id="pen-size" min="2" max="15" value="4" style="width: 80px;">
-            </div>
-        </div>
-    </div>
 
-    <div class="control-group">
-        <div class="group-label">Instructions</div>
-        <p style="font-size: 0.85rem; color: #ccc; margin: 0; line-height: 1.5;">
-            1. Paste YouTube Link.<br>
-            2. Tap "Enable Drawing".<br>
-            3. Use Fullscreen for best view.<br>
-            4. Make sure "Allow Embedding" is ON in YouTube Studio.
-        </p>
+        <div class="tools-row" style="background:#222; padding:5px; border-radius:4px; justify-content: space-between;">
+            <div style="display:flex; gap:5px;">
+                <button class="tool-btn active" id="tool-pen" onclick="setTool('pen')">Pen</button>
+                <button class="tool-btn" id="tool-highlight" onclick="setTool('highlighter')">Highlighter</button>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <button class="shape-btn active" id="shape-free" onclick="setShape('free')">&#x2710; Free</button>
+                <button class="shape-btn" id="shape-arrow" onclick="setShape('arrow')">&#8594; Arrow</button>
+                <button class="shape-btn" id="shape-circle" onclick="setShape('circle')">&#9711; Circle</button>
+            </div>
+        </div>
+
+        <div class="tools-row" style="margin-top: 10px;">
+            <div class="color-btn selected" style="background: #fdd835;" onclick="setColor('#fdd835', this)"></div>
+            <div class="color-btn" style="background: #ff0000;" onclick="setColor('#ff0000', this)"></div>
+            <div class="color-btn" style="background: #ffffff;" onclick="setColor('#ffffff', this)"></div>
+            <div class="color-btn" style="background: #000000;" onclick="setColor('#000000', this)"></div>
+            <div class="color-btn" style="background: #00e5ff;" onclick="setColor('#00e5ff', this)"></div> <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.8rem; color:#aaa;">Thickness</span>
+                <input type="range" id="pen-size" min="2" max="20" value="4" style="width: 100px;">
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
+    // --- STATE VARIABLES ---
     let player;
     let isDrawingMode = false;
-    let currentColor = '#fdd835';
     let isDrawing = false;
-    let lastX = 0;
-    let lastY = 0;
+    
+    // Tools
+    let currentTool = 'pen'; // 'pen' or 'highlighter'
+    let currentShape = 'free'; // 'free', 'arrow', 'circle'
+    let currentColor = '#fdd835';
+    let startX = 0, startY = 0; // For shapes
+    
+    // History (Undo)
+    let drawHistory = [];
+    let historyStep = -1;
 
+    // DOM Elements
     const canvas = document.getElementById('drawing-canvas');
     const ctx = canvas.getContext('2d');
     const stage = document.getElementById('stage-container');
     const drawBtn = document.getElementById('draw-mode-btn');
     const modeIndicator = document.getElementById('mode-indicator');
 
-    // --- SMART CANVAS RESIZING ---
-    // This saves your drawing before resizing, so rotation/layout changes don't wipe the screen
+    // --- CANVAS SETUP ---
     function resizeCanvas() {
-        const newWidth = stage.clientWidth;
-        const newHeight = stage.clientHeight;
-        
-        // Only resize if dimensions actually changed
-        if (canvas.width !== newWidth || canvas.height !== newHeight) {
-            // 1. Save current drawing
-            let savedData = null;
-            if (canvas.width > 0 && canvas.height > 0) {
-                savedData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            }
-
-            // 2. Resize
-            canvas.width = newWidth;
-            canvas.height = newHeight;
-
-            // 3. Restore drawing
-            if (savedData) {
-                ctx.putImageData(savedData, 0, 0);
-            }
-
-            // 4. Reset stroke styles
-            ctx.lineJoin = 'round';
-            ctx.lineCap = 'round';
+        // Save content if existing
+        let savedData = null;
+        if (canvas.width > 0 && canvas.height > 0) {
+            savedData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         }
+        
+        canvas.width = stage.clientWidth;
+        canvas.height = stage.clientHeight;
+        
+        if (savedData) ctx.putImageData(savedData, 0, 0);
+        
+        // Reset Context Styles
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
     }
-    
-    // Listen for resize, but don't clear aggressively
     window.addEventListener('resize', resizeCanvas);
-    
-    // Run once on load
-    resizeCanvas();
+    resizeCanvas(); // Init
 
     // --- YOUTUBE API ---
     var tag = document.createElement('script');
@@ -312,50 +329,54 @@
             events: { 'onReady': onPlayerReady, 'onError': onPlayerError }
         });
     }
-
     function onPlayerReady(event) { resizeCanvas(); }
-
-    function onPlayerError(event) {
-        if([101, 150, 153].includes(event.data)) {
-            alert("Video embedding blocked. Check YouTube Studio > Details > 'Allow Embedding'.");
-        }
-    }
-
-    function getId(url) {
-        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-        const match = url.match(regExp);
-        return (match && match[2].length === 11) ? match[2] : (url.length === 11 ? url : null);
-    }
+    function onPlayerError(event) { if([101, 150, 153].includes(event.data)) alert("Video blocked (Rights Management). Try a different video."); }
 
     function loadVideo() {
         const input = document.getElementById('yt-input').value;
-        const videoId = getId(input);
-        if (player && videoId) {
-            player.loadVideoById(videoId);
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+        const match = input.match(regExp);
+        const id = (match && match[2].length === 11) ? match[2] : (input.length === 11 ? input : null);
+        
+        if (player && id) {
+            player.loadVideoById(id);
             document.getElementById('yt-input').value = ""; 
         } else {
             alert("Invalid YouTube ID/URL.");
         }
     }
 
-    // --- CONTROLS ---
-    function togglePlay() {
-        if (!player) return;
-        player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo();
+    // --- VIDEO CONTROLS ---
+    function togglePlay() { 
+        if(!player) return;
+        player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); 
     }
-
-    function setSpeed(rate) {
-        if (player) player.setPlaybackRate(rate);
+    function setSpeed(rate) { if(player) player.setPlaybackRate(rate); }
+    
+    // Feature 3: Frame Stepping
+    function frameStep(dir) {
+        if(!player) return;
+        player.pauseVideo();
+        const currentTime = player.getCurrentTime();
+        // Assume 30fps (approx 0.033s per frame). 
+        // 0.04s is a safe jump to ensure we hit the next frame keyframe.
+        player.seekTo(currentTime + (dir * 0.04), true);
     }
     
-    function toggleFullscreen() {
-        if (!document.fullscreenElement) {
-            stage.requestFullscreen().catch(err => {
-                alert(`Error: ${err.message}`);
-            });
-        } else {
-            document.exitFullscreen();
+    // Keyboard Shortcuts for Frames
+    document.addEventListener('keydown', (e) => {
+        if(e.target.tagName === 'INPUT') return; // Ignore if typing
+        if(e.key === 'ArrowRight') frameStep(1);
+        if(e.key === 'ArrowLeft') frameStep(-1);
+        if(e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            undoLast();
         }
+    });
+
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) stage.requestFullscreen();
+        else document.exitFullscreen();
     }
     document.addEventListener('fullscreenchange', resizeCanvas);
 
@@ -377,34 +398,83 @@
         }
     }
 
-    function setColor(color, btnElement) {
+    // Tool Setters
+    function setColor(color, btn) {
         currentColor = color;
-        document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('selected'));
-        btnElement.classList.add('selected');
+        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+    }
+    function setTool(tool) {
+        currentTool = tool;
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`tool-${tool}`).classList.add('active');
+    }
+    function setShape(shape) {
+        currentShape = shape;
+        document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`shape-${shape}`).classList.add('active');
+    }
+
+    // Feature 1: Undo System
+    function saveHistory() {
+        historyStep++;
+        if (historyStep < drawHistory.length) { drawHistory.length = historyStep; } // Cut off "redo" path
+        drawHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        // Limit history to 20 steps to save memory
+        if(drawHistory.length > 20) {
+            drawHistory.shift();
+            historyStep--;
+        }
+    }
+
+    function undoLast() {
+        if (historyStep > 0) {
+            historyStep--;
+            ctx.putImageData(drawHistory[historyStep], 0, 0);
+        } else if (historyStep === 0) {
+            clearCanvas();
+        }
     }
 
     function clearCanvas() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawHistory = [];
+        historyStep = -1;
     }
 
+    function saveDrawing() {
+        const link = document.createElement('a');
+        link.download = 'tiu-analysis.png';
+        link.href = canvas.toDataURL();
+        link.click();
+        alert("Drawing saved! NOTE: Due to YouTube security, video cannot be included. Use your device's Screenshot tool to capture both.");
+    }
+
+    // Input Handling
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return {
-            x: clientX - rect.left,
-            y: clientY - rect.top
-        };
+        return { x: clientX - rect.left, y: clientY - rect.top };
     }
+
+    let snapshot; // For shape preview
 
     function startDraw(e) {
         if (!isDrawingMode) return;
-        if(e.type === 'touchstart') e.preventDefault(); 
+        if(e.type === 'touchstart') e.preventDefault();
         
         isDrawing = true;
         const pos = getPos(e);
-        lastX = pos.x;
-        lastY = pos.y;
+        startX = pos.x;
+        startY = pos.y;
+
+        // Save state BEFORE drawing starts (for undo + shape preview)
+        saveHistory(); // Save the "clean" state
+        snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); // Temp snapshot for shape dragging
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
     }
 
     function moveDraw(e) {
@@ -412,20 +482,65 @@
         if(e.type === 'touchmove') e.preventDefault();
 
         const pos = getPos(e);
-        ctx.strokeStyle = currentColor;
-        ctx.lineWidth = document.getElementById('pen-size').value;
+        const size = document.getElementById('pen-size').value;
         
-        ctx.beginPath();
-        ctx.moveTo(lastX, lastY);
-        ctx.lineTo(pos.x, pos.y);
-        ctx.stroke();
+        // Style Setup
+        ctx.strokeStyle = currentColor;
+        ctx.lineWidth = size;
+        if(currentTool === 'highlighter') {
+            ctx.globalAlpha = 0.4; // 40% opacity
+            ctx.lineWidth = size * 3; // Highlighter is wider
+        } else {
+            ctx.globalAlpha = 1.0;
+        }
 
-        lastX = pos.x;
-        lastY = pos.y;
+        if (currentShape === 'free') {
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        } else {
+            // Feature 4: Shape Preview logic
+            ctx.putImageData(snapshot, 0, 0); // Restore clean slate
+            ctx.beginPath();
+            
+            if (currentShape === 'arrow') {
+                drawArrow(ctx, startX, startY, pos.x, pos.y, size);
+            } else if (currentShape === 'circle') {
+                drawCircle(ctx, startX, startY, pos.x, pos.y);
+            }
+            ctx.stroke();
+        }
     }
 
-    function endDraw() { isDrawing = false; }
+    function endDraw() {
+        if (!isDrawing) return;
+        isDrawing = false;
+        ctx.closePath();
+        // Note: History was saved at Start. We don't save at End because 
+        // Start saved the 'previous' state which is what Undo needs.
+        // But for Redo logic, we would need more complex handling. 
+        // For simple Undo, saving at start is safer, but let's update top of stack
+        // Actually, best practice: Save clean state at mousedown. 
+        // The canvas now holds the dirty state.
+    }
 
+    // --- SHAPE HELPERS ---
+    function drawArrow(ctx, fromX, fromY, toX, toY, width) {
+        const headlen = width * 4; // length of head in pixels
+        const angle = Math.atan2(toY - fromY, toX - fromX);
+        ctx.moveTo(fromX, fromY);
+        ctx.lineTo(toX, toY);
+        // Arrowhead
+        ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(toX, toY);
+        ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+    }
+
+    function drawCircle(ctx, x1, y1, x2, y2) {
+        const radius = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        ctx.arc(x1, y1, radius, 0, 2 * Math.PI);
+    }
+
+    // Events
     canvas.addEventListener('mousedown', startDraw);
     canvas.addEventListener('mousemove', moveDraw);
     canvas.addEventListener('mouseup', endDraw);
