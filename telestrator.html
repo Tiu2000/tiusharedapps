@@ -61,6 +61,7 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             overflow: hidden;
             border: 2px solid #444;
+            outline: none; /* Remove blue focus ring */
         }
 
         #player {
@@ -70,6 +71,18 @@
             width: 100%;
             height: 100%;
             z-index: 1;
+        }
+
+        /* THE CLICK SHIELD: Intercepts clicks to keep focus on our app */
+        #click-shield {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 85%; /* Leave bottom 15% open for YouTube controls */
+            z-index: 5;
+            cursor: pointer;
+            /* Debug color: background: rgba(255,0,0,0.2); */ 
         }
 
         #drawing-canvas {
@@ -91,7 +104,7 @@
             font-size: clamp(1.5rem, 5vw, 4rem);
             font-weight: 900;
             color: rgba(255, 255, 255, 0.15);
-            z-index: 5;
+            z-index: 6; /* Above shield */
             pointer-events: none;
             user-select: none;
             font-family: 'Arial Black', sans-serif;
@@ -106,7 +119,7 @@
             border-radius: 8px;
             margin-top: 15px;
             display: grid;
-            grid-template-columns: 1fr 2fr 1fr; /* Playback | Drawing | Info */
+            grid-template-columns: 1fr 2fr 1fr; 
             gap: 15px;
             box-sizing: border-box;
         }
@@ -193,7 +206,6 @@
         .mode-viewing { background: #2196f3; }
         .mode-drawing { background: var(--accent-color); color: black; }
 
-        /* Keyboard Shortcut Table */
         .shortcut-table {
             width: 100%;
             font-size: 0.8rem;
@@ -229,8 +241,8 @@
 </header>
 
 <div id="stage-wrapper">
-    <div id="stage-container">
-        <div id="player"></div>
+    <div id="stage-container" tabindex="0"> <div id="player"></div>
+        <div id="click-shield" onclick="onShieldClick()"></div>
         <canvas id="drawing-canvas"></canvas>
         <div class="watermark">TIU</div>
     </div>
@@ -327,7 +339,6 @@
     let currentTool = 'pen'; 
     let currentShape = 'free'; 
     let currentColor = '#fdd835';
-    // Coordinates
     let startX = 0, startY = 0; 
     let lastX = 0, lastY = 0;   
     
@@ -341,6 +352,7 @@
     const stage = document.getElementById('stage-container');
     const drawBtn = document.getElementById('draw-mode-btn');
     const modeIndicator = document.getElementById('mode-indicator');
+    const shield = document.getElementById('click-shield');
 
     // --- SETUP ---
     function resizeCanvas() {
@@ -390,6 +402,14 @@
     }
 
     // --- CONTROLS ---
+    
+    // SHIELD CLICK HANDLER
+    function onShieldClick() {
+        togglePlay();
+        // Force focus back to the stage container so keys work immediately
+        stage.focus();
+    }
+
     function togglePlay() { 
         if(!player) return;
         player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); 
@@ -410,20 +430,28 @@
     }
 
     function toggleFullscreen() {
-        if (!document.fullscreenElement) stage.requestFullscreen();
-        else document.exitFullscreen();
+        if (!document.fullscreenElement) {
+            stage.requestFullscreen().then(() => {
+                stage.focus(); // Ensure focus on entry
+            });
+        } else {
+            document.exitFullscreen();
+        }
     }
     document.addEventListener('fullscreenchange', resizeCanvas);
 
-    // --- KEYBOARD LISTENERS (UPDATED) ---
+    // --- KEYBOARD LISTENERS ---
     document.addEventListener('keydown', (e) => {
-        // Ignore if user is typing in the input box
         if(e.target.tagName === 'INPUT') return;
+
+        // Prevent default browser scrolling/volume for Arrow Keys
+        if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+            e.preventDefault();
+        }
 
         switch(e.key.toLowerCase()) {
             case ' ':
             case 'k':
-                e.preventDefault(); // Prevent page scroll
                 togglePlay();
                 break;
             case 'arrowleft':
@@ -433,10 +461,10 @@
                 frameStep(1);
                 break;
             case 'arrowup':
-                seekVideo(5); // +5s
+                seekVideo(5); 
                 break;
             case 'arrowdown':
-                seekVideo(-5); // -5s
+                seekVideo(-5); 
                 break;
             case 'f':
                 toggleFullscreen();
@@ -472,13 +500,19 @@
     function toggleDrawMode() {
         isDrawingMode = !isDrawingMode;
         if (isDrawingMode) {
-            canvas.style.pointerEvents = 'auto'; 
+            canvas.style.pointerEvents = 'auto';
+            // When drawing, we hide the click shield so it doesn't interfere
+            shield.style.pointerEvents = 'none'; 
+            
             drawBtn.classList.add('active');
             drawBtn.innerText = "Disable Drawing";
             modeIndicator.innerText = "DRAWING";
             modeIndicator.className = "mode-drawing";
         } else {
             canvas.style.pointerEvents = 'none'; 
+            // Re-enable shield in viewing mode
+            shield.style.pointerEvents = 'auto';
+            
             drawBtn.classList.remove('active');
             drawBtn.innerText = "Enable Drawing";
             modeIndicator.innerText = "VIEWING";
