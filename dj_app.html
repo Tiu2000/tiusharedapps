@@ -1,9 +1,9 @@
-dj_app<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Ultimate Mixer</title>
+    <title>TIU Ultimate Mixer (Fixed)</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -12,7 +12,7 @@ dj_app<!DOCTYPE html>
             --accent-dim: #008f58;
             --cue-color: #ff9900; 
             --cue-dim: #cc7a00;
-            --sync-color: #00ccff; /* Blue for SYNC */
+            --sync-color: #00ccff; 
             --sync-dim: #0088cc;
             --text-color: #e0e0e0;
         }
@@ -31,7 +31,6 @@ dj_app<!DOCTYPE html>
             overflow: hidden;
         }
 
-        /* TIU Watermark */
         .watermark {
             position: fixed;
             bottom: 20px;
@@ -55,7 +54,6 @@ dj_app<!DOCTYPE html>
             z-index: 10;
         }
 
-        /* Mode Toggle Switch */
         .mode-switch-container {
             display: flex;
             align-items: center;
@@ -68,48 +66,16 @@ dj_app<!DOCTYPE html>
             z-index: 10;
         }
 
-        .switch-label {
-            font-size: 0.8rem;
-            font-weight: bold;
-            color: #888;
-        }
+        .switch-label { font-size: 0.8rem; font-weight: bold; color: #888; }
+        .switch-label.active { color: var(--accent); text-shadow: 0 0 5px var(--accent-dim); }
 
-        .switch-label.active {
-            color: var(--accent);
-            text-shadow: 0 0 5px var(--accent-dim);
-        }
-
-        /* The actual toggle switch CSS */
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 24px;
-        }
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #333;
-            transition: .4s;
-            border-radius: 34px;
-        }
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: var(--accent); }
         input:checked + .slider:before { transform: translateX(26px); }
 
-        /* Main Console */
         .console {
             display: flex;
             gap: 20px;
@@ -135,11 +101,7 @@ dj_app<!DOCTYPE html>
             position: relative;
         }
 
-        .deck h2 {
-            margin: 0 0 15px 0;
-            font-size: 1.2rem;
-            color: var(--accent);
-        }
+        .deck h2 { margin: 0 0 15px 0; font-size: 1.2rem; color: var(--accent); }
 
         .vinyl-container {
             width: 200px;
@@ -186,12 +148,7 @@ dj_app<!DOCTYPE html>
         .spinning { animation: spin 1.8s linear infinite; }
         .paused { animation-play-state: paused; }
 
-        .controls {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+        .controls { width: 100%; display: flex; flex-direction: column; gap: 12px; }
 
         input[type="text"] {
             background: #222;
@@ -226,11 +183,10 @@ dj_app<!DOCTYPE html>
         button.cue-btn { background: #b36b00; flex: 0.5; }
         button.cue-btn:hover { background: var(--cue-color); }
 
-        /* SYNC BUTTON STYLES */
         button.sync-btn {
             background: var(--sync-dim);
             color: white;
-            display: none; /* Hidden by default (Old School Mode) */
+            display: none; 
         }
         button.sync-btn:hover { background: var(--sync-color); }
 
@@ -286,13 +242,28 @@ dj_app<!DOCTYPE html>
             border-top: 1px solid #444;
         }
 
-        .hidden-player { position: absolute; top: -9999px; left: -9999px; visibility: hidden; }
+        /* FIX: We do not hide display:none or visibility:hidden.
+           We make them tiny and transparent so the browser initializes them correctly.
+        */
+        .hidden-player { 
+            position: absolute; 
+            bottom: 0; 
+            right: 0; 
+            width: 1px; 
+            height: 1px; 
+            opacity: 0.01; 
+            pointer-events: none; 
+            z-index: -100;
+        }
         
         .status-light {
-            width: 8px; height: 8px; border-radius: 50%; background: #333; margin: 10px auto;
-            transition: background 0.1s; box-shadow: inset 0 0 2px #000;
+            width: 8px; height: 8px; border-radius: 50%; background: #000; margin: 10px auto;
+            transition: background 0.2s; box-shadow: inset 0 0 2px #333; border: 1px solid #333;
         }
-        .status-light.on { background: #f00; box-shadow: 0 0 8px #f00; }
+        /* New: Ready state (Yellow) */
+        .status-light.ready { background: #ffcc00; box-shadow: 0 0 5px #ffcc00; }
+        /* New: Playing state (Red) */
+        .status-light.on { background: #ff0000; box-shadow: 0 0 8px #ff0000; }
 
     </style>
 </head>
@@ -305,12 +276,12 @@ dj_app<!DOCTYPE html>
     </header>
 
     <div class="mode-switch-container">
-        <span class="switch-label active" id="label-manual">OLD SCHOOL (MANUAL)</span>
+        <span class="switch-label active" id="label-manual">OLD SCHOOL</span>
         <label class="switch">
             <input type="checkbox" id="mode-toggle" onchange="toggleMode()">
             <span class="slider"></span>
         </label>
-        <span class="switch-label" id="label-sync">MODERN (SYNC)</span>
+        <span class="switch-label" id="label-sync">MODERN SYNC</span>
     </div>
 
     <div class="console">
@@ -393,76 +364,57 @@ dj_app<!DOCTYPE html>
         </div>
     </div>
 
-    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
+        // 1. DEFINE CALLBACKS FIRST to avoid race conditions
         var playerA, playerB;
         var isReadyA = false, isReadyB = false;
 
         function onYouTubeIframeAPIReady() {
+            console.log("API Ready");
+            
+            // DECK A
             playerA = new YT.Player('player-a', {
                 height: '200', width: '200', videoId: '',
+                playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1 },
                 events: { 'onReady': onPlayerReadyA, 'onStateChange': onPlayerStateChangeA }
             });
+
+            // DECK B
             playerB = new YT.Player('player-b', {
                 height: '200', width: '200', videoId: '',
+                playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1 },
                 events: { 'onReady': onPlayerReadyB, 'onStateChange': onPlayerStateChangeB }
             });
         }
 
-        // --- TOGGLE MODE LOGIC ---
-        function toggleMode() {
-            const isSync = document.getElementById('mode-toggle').checked;
-            const syncBtns = document.querySelectorAll('.sync-btn');
-            const labelManual = document.getElementById('label-manual');
-            const labelSync = document.getElementById('label-sync');
+        // --- INJECT API SCRIPT MANUALLY ---
+        // This ensures the callback above exists before the API tries to find it.
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-            if (isSync) {
-                // Show Sync Buttons
-                syncBtns.forEach(btn => btn.style.display = 'block');
-                labelManual.classList.remove('active');
-                labelSync.classList.add('active');
-            } else {
-                // Hide Sync Buttons
-                syncBtns.forEach(btn => btn.style.display = 'none');
-                labelManual.classList.add('active');
-                labelSync.classList.remove('active');
-            }
+
+        // --- DECK EVENTS ---
+        function onPlayerReadyA(event) { 
+            console.log("Deck A Ready"); 
+            isReadyA = true; 
+            document.getElementById('status-a').classList.add('ready'); // Show Yellow Light
+            updateCrossfader(); 
         }
 
-        // --- SYNC LOGIC ---
-        function syncDeck(target) {
-            // target is the deck we want to CHANGE (e.g., clicked Sync on A, we want A to match B)
-            // source is the deck we are copying FROM
-            let targetSlider = document.getElementById(`pitch-${target.toLowerCase()}`);
-            let sourceRate = 1;
-
-            if (target === 'A') {
-                if (!isReadyB) return; 
-                sourceRate = playerB.getPlaybackRate();
-            } else {
-                if (!isReadyA) return;
-                sourceRate = playerA.getPlaybackRate();
-            }
-
-            // Apply to slider UI
-            targetSlider.value = sourceRate;
-            // Apply to Audio
-            updatePitch(target);
+        function onPlayerReadyB(event) { 
+            console.log("Deck B Ready"); 
+            isReadyB = true; 
+            document.getElementById('status-b').classList.add('ready'); // Show Yellow Light
+            updateCrossfader(); 
         }
 
-        // --- EXISTING UTILITIES ---
-        function extractVideoID(url) {
-            var regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-            var match = url.match(regExp);
-            return (match && match[2].length == 11) ? match[2] : url;
-        }
-
-        function onPlayerReadyA(event) { isReadyA = true; updateCrossfader(); }
         function onPlayerStateChangeA(event) { updateDeckVisuals('A', event.data); }
-
-        function onPlayerReadyB(event) { isReadyB = true; updateCrossfader(); }
         function onPlayerStateChangeB(event) { updateDeckVisuals('B', event.data); }
 
+
+        // --- VISUALS ---
         function updateDeckVisuals(deck, state) {
             const d = deck.toLowerCase();
             const vinyl = document.getElementById(`vinyl-${d}`);
@@ -474,23 +426,38 @@ dj_app<!DOCTYPE html>
                 vinyl.classList.remove('paused');
                 btn.classList.add('active');
                 btn.innerText = "PAUSE";
-                light.classList.add('on');
+                light.classList.remove('ready');
+                light.classList.add('on'); // Red
             } else {
                 vinyl.classList.add('paused');
                 btn.classList.remove('active');
                 btn.innerText = "PLAY";
                 light.classList.remove('on');
+                light.classList.add('ready'); // Back to Yellow
             }
+        }
+
+        // --- CONTROLS ---
+
+        function extractVideoID(url) {
+            if(!url) return "";
+            var regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            var match = url.match(regExp);
+            return (match && match[2].length == 11) ? match[2] : url;
         }
 
         function loadTrack(deck) {
             const inputVal = document.getElementById(`input-${deck.toLowerCase()}`).value;
             const videoId = extractVideoID(inputVal);
 
-            if (deck === 'A' && isReadyA) {
+            if(!videoId) { alert("Please enter a valid URL or ID"); return; }
+
+            if (deck === 'A') {
+                if(!isReadyA) { alert("Deck A is still initializing..."); return; }
                 playerA.loadVideoById(videoId);
                 resetPitch('A');
-            } else if (deck === 'B' && isReadyB) {
+            } else if (deck === 'B') {
+                if(!isReadyB) { alert("Deck B is still initializing..."); return; }
                 playerB.loadVideoById(videoId);
                 resetPitch('B');
             }
@@ -499,9 +466,12 @@ dj_app<!DOCTYPE html>
         function togglePlay(deck) {
             let p = (deck === 'A') ? playerA : playerB;
             let ready = (deck === 'A') ? isReadyA : isReadyB;
+
             if (ready) {
                 const state = p.getPlayerState();
                 state === YT.PlayerState.PLAYING ? p.pauseVideo() : p.playVideo();
+            } else {
+                console.log("Deck " + deck + " not ready yet.");
             }
         }
 
@@ -534,6 +504,38 @@ dj_app<!DOCTYPE html>
             if (isReadyA) playerA.setVolume(volA);
             if (isReadyB) playerB.setVolume(volB);
         }
+
+        function toggleMode() {
+            const isSync = document.getElementById('mode-toggle').checked;
+            const syncBtns = document.querySelectorAll('.sync-btn');
+            const labelManual = document.getElementById('label-manual');
+            const labelSync = document.getElementById('label-sync');
+
+            if (isSync) {
+                syncBtns.forEach(btn => btn.style.display = 'block');
+                labelManual.classList.remove('active');
+                labelSync.classList.add('active');
+            } else {
+                syncBtns.forEach(btn => btn.style.display = 'none');
+                labelManual.classList.add('active');
+                labelSync.classList.remove('active');
+            }
+        }
+
+        function syncDeck(target) {
+            let targetSlider = document.getElementById(`pitch-${target.toLowerCase()}`);
+            let sourceRate = 1;
+            if (target === 'A') {
+                if (!isReadyB) return; 
+                sourceRate = playerB.getPlaybackRate();
+            } else {
+                if (!isReadyA) return;
+                sourceRate = playerA.getPlaybackRate();
+            }
+            targetSlider.value = sourceRate;
+            updatePitch(target);
+        }
+
     </script>
 </body>
 </html>
