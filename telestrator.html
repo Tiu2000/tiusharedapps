@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TIU Analyst Suite</title>
     <style>
         :root {
@@ -21,7 +21,8 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            padding-bottom: 50px; /* Space for scrolling on mobile */
+            padding-bottom: 50px;
+            overscroll-behavior: none; /* Prevents pull-to-refresh on mobile */
         }
 
         header {
@@ -39,7 +40,7 @@
 
         h1 { margin: 0; font-size: 1.2rem; letter-spacing: 1px; white-space: nowrap; }
 
-        /* --- RESPONSIVE STAGE AREA --- */
+        /* --- STAGE AREA --- */
         #stage-wrapper {
             width: 100%;
             display: flex;
@@ -50,20 +51,15 @@
 
         #stage-container {
             position: relative;
-            /* Responsive Width Logic */
             width: 95%; 
-            max-width: 1600px; /* Cap it for ultra-wide monitors */
-            
-            /* Aspect Ratio Hack (modern browsers support aspect-ratio) */
+            max-width: 1600px; 
             aspect-ratio: 16 / 9; 
-            
             background: #000;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             overflow: hidden;
             border: 2px solid #444;
         }
 
-        /* YouTube Iframe */
         #player {
             position: absolute;
             top: 0;
@@ -73,7 +69,6 @@
             z-index: 1;
         }
 
-        /* Drawing Canvas */
         #drawing-canvas {
             position: absolute;
             top: 0;
@@ -83,15 +78,14 @@
             z-index: 10;
             cursor: crosshair;
             pointer-events: none; 
-            touch-action: none; /* Critical for mobile drawing */
+            touch-action: none;
         }
 
-        /* Watermark - Responsive size */
         .watermark {
             position: absolute;
             bottom: 2%;
             right: 2%;
-            font-size: clamp(1.5rem, 5vw, 4rem); /* Scales with screen */
+            font-size: clamp(1.5rem, 5vw, 4rem);
             font-weight: 900;
             color: rgba(255, 255, 255, 0.15);
             z-index: 5;
@@ -100,7 +94,7 @@
             font-family: 'Arial Black', sans-serif;
         }
 
-        /* --- CONTROLS AREA --- */
+        /* --- CONTROLS --- */
         .controls-panel {
             width: 95%;
             max-width: 1600px;
@@ -108,8 +102,6 @@
             padding: 15px;
             border-radius: 8px;
             margin-top: 15px;
-            
-            /* Grid Layout for Desktop */
             display: grid;
             grid-template-columns: 1.2fr 2fr 1fr;
             gap: 15px;
@@ -127,17 +119,16 @@
 
         .group-label { font-size: 0.75rem; text-transform: uppercase; color: #888; font-weight: bold; margin-bottom: 5px; }
 
-        /* Buttons & Inputs */
         button {
             background-color: #444;
             color: white;
             border: none;
-            padding: 10px 14px; /* Larger touch targets */
+            padding: 10px 14px;
             border-radius: 4px;
             cursor: pointer;
             font-weight: 600;
             font-size: 0.9rem;
-            flex-grow: 1; /* Buttons fill space */
+            flex-grow: 1;
         }
         button:active { transform: translateY(1px); }
         button.active { background-color: var(--accent-color); color: black; }
@@ -150,14 +141,13 @@
             background: #222;
             color: white;
             flex-grow: 2;
-            min-width: 0; /* Prevents overflow */
+            min-width: 0; 
         }
 
-        /* Tools Row */
         .tools-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         
         .color-btn {
-            width: 30px; height: 30px; /* Bigger for mobile */
+            width: 30px; height: 30px;
             border-radius: 50%;
             border: 2px solid #fff;
             cursor: pointer;
@@ -175,10 +165,9 @@
         .mode-viewing { background: #2196f3; }
         .mode-drawing { background: var(--accent-color); color: black; }
 
-        /* --- MOBILE LAYOUT (Stack controls vertically) --- */
         @media (max-width: 800px) {
             .controls-panel {
-                grid-template-columns: 1fr; /* Stack vertically */
+                grid-template-columns: 1fr;
                 gap: 20px;
             }
             .control-group {
@@ -188,7 +177,6 @@
                 padding-right: 0;
             }
             .control-group:last-child { border-bottom: none; }
-            
             h1 { font-size: 1rem; }
         }
 
@@ -219,7 +207,8 @@
         </div>
         <div class="tools-row">
             <button onclick="togglePlay()">Play/Pause</button>
-            <button onclick="toggleFullscreen()">&#x26F6; Fullscreen</button> </div>
+            <button onclick="toggleFullscreen()">&#x26F6; Fullscreen</button>
+        </div>
         <div class="tools-row">
             <button onclick="setSpeed(0.25)">0.25x</button>
             <button onclick="setSpeed(0.5)">0.5x</button>
@@ -254,7 +243,7 @@
             1. Paste YouTube Link.<br>
             2. Tap "Enable Drawing".<br>
             3. Use Fullscreen for best view.<br>
-            4. <strong>Note:</strong> Check "Allow Embedding" in YouTube Studio if loading your own videos.
+            4. Make sure "Allow Embedding" is ON in YouTube Studio.
         </p>
     </div>
 </div>
@@ -273,19 +262,40 @@
     const drawBtn = document.getElementById('draw-mode-btn');
     const modeIndicator = document.getElementById('mode-indicator');
 
-    // --- CANVAS RESIZING ---
-    // Critical for responsive layout: run this whenever window changes
+    // --- SMART CANVAS RESIZING ---
+    // This saves your drawing before resizing, so rotation/layout changes don't wipe the screen
     function resizeCanvas() {
-        canvas.width = stage.clientWidth;
-        canvas.height = stage.clientHeight;
-        // Re-apply context settings after resize
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
+        const newWidth = stage.clientWidth;
+        const newHeight = stage.clientHeight;
+        
+        // Only resize if dimensions actually changed
+        if (canvas.width !== newWidth || canvas.height !== newHeight) {
+            // 1. Save current drawing
+            let savedData = null;
+            if (canvas.width > 0 && canvas.height > 0) {
+                savedData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            }
+
+            // 2. Resize
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+
+            // 3. Restore drawing
+            if (savedData) {
+                ctx.putImageData(savedData, 0, 0);
+            }
+
+            // 4. Reset stroke styles
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+        }
     }
+    
+    // Listen for resize, but don't clear aggressively
     window.addEventListener('resize', resizeCanvas);
     
-    // Also resize every second just to be safe (catches layout shifts)
-    setInterval(resizeCanvas, 1000);
+    // Run once on load
+    resizeCanvas();
 
     // --- YOUTUBE API ---
     var tag = document.createElement('script');
@@ -338,18 +348,15 @@
         if (player) player.setPlaybackRate(rate);
     }
     
-    // NEW: Fullscreen Logic
     function toggleFullscreen() {
         if (!document.fullscreenElement) {
             stage.requestFullscreen().catch(err => {
-                alert(`Error attempting to enable full-screen mode: ${err.message}`);
+                alert(`Error: ${err.message}`);
             });
         } else {
             document.exitFullscreen();
         }
     }
-    
-    // Listen for fullscreen change to resize canvas immediately
     document.addEventListener('fullscreenchange', resizeCanvas);
 
     // --- DRAWING LOGIC ---
@@ -382,7 +389,6 @@
 
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
-        // Handle Touch vs Mouse
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         return {
@@ -393,7 +399,7 @@
 
     function startDraw(e) {
         if (!isDrawingMode) return;
-        if(e.type === 'touchstart') e.preventDefault(); // Prevent scrolling on touch
+        if(e.type === 'touchstart') e.preventDefault(); 
         
         isDrawing = true;
         const pos = getPos(e);
@@ -420,13 +426,11 @@
 
     function endDraw() { isDrawing = false; }
 
-    // Mouse Events
     canvas.addEventListener('mousedown', startDraw);
     canvas.addEventListener('mousemove', moveDraw);
     canvas.addEventListener('mouseup', endDraw);
     canvas.addEventListener('mouseout', endDraw);
 
-    // Touch Events (Mobile)
     canvas.addEventListener('touchstart', startDraw, {passive: false});
     canvas.addEventListener('touchmove', moveDraw, {passive: false});
     canvas.addEventListener('touchend', endDraw);
