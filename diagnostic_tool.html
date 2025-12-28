@@ -244,8 +244,8 @@
                 alert("Please enter symptoms first.");
                 return;
             }
-            // Redirects to Merck Manual Consumer Version search
-            const url = `https://www.merckmanuals.com/home/search?query=${encodeURIComponent(symptoms)}`;
+            // UPDATED: Correct URL structure for Merck Manual Consumer Version
+            const url = `https://www.merckmanuals.com/home/SearchResults?query=${encodeURIComponent(symptoms)}`;
             window.open(url, '_blank');
         }
 
@@ -256,7 +256,7 @@
                 window.open('https://symptoms.webmd.com/', '_blank');
                 return;
             }
-            // WebMD search query
+            // UPDATED: Robust search URL for WebMD
             const url = `https://www.webmd.com/search/search_results/default.aspx?query=${encodeURIComponent(symptoms)}`;
             window.open(url, '_blank');
         }
