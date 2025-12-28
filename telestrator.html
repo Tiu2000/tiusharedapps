@@ -61,7 +61,7 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             overflow: hidden;
             border: 2px solid #444;
-            outline: none;
+            outline: none; /* Hides the blue focus box */
         }
 
         #player {
@@ -78,7 +78,7 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: 85%;
+            height: 85%; /* Leaves controls exposed */
             z-index: 5;
             cursor: pointer;
         }
@@ -120,7 +120,6 @@
             grid-template-columns: 1fr 1.5fr 1fr; 
             gap: 15px;
             box-sizing: border-box;
-            /* Height constraint for scrolling lists */
             max-height: 400px; 
         }
 
@@ -130,7 +129,7 @@
             gap: 8px;
             border-right: 1px solid #444;
             padding-right: 15px;
-            overflow-y: auto; /* Allow scrolling if list gets long */
+            overflow-y: auto; 
         }
         .control-group:last-child { border-right: none; padding-left: 10px; padding-right: 0;}
 
@@ -435,8 +434,7 @@
     
     // AUTO-CLEAR CANVAS ON PLAY
     function onPlayerStateChange(event) {
-        // 1 = Playing. If user hits play, we clear the static drawing to avoid confusion.
-        if (event.data === 1) {
+        if (event.data === 1) { // 1 = Playing
             clearCanvas();
         }
     }
@@ -450,7 +448,7 @@
         if (player && id) {
             player.loadVideoById(id);
             document.getElementById('yt-input').value = ""; 
-            annotations = []; // Clear saved plays for new video
+            annotations = []; 
             renderAnnotations();
             clearCanvas();
         } else {
@@ -460,9 +458,20 @@
 
     // --- CONTROLS ---
     function onShieldClick() {
-        togglePlay();
+        // Force focus to the container so keys work
         stage.focus();
+        togglePlay();
     }
+    
+    // Aggressive Focus Reclaimer for Mouse Movement
+    document.addEventListener('mousemove', (e) => {
+        // If we are in fullscreen and the mouse is moving over the stage, claim focus
+        if (document.fullscreenElement && e.target === shield || e.target === canvas) {
+            if (document.activeElement !== stage) {
+                stage.focus();
+            }
+        }
+    });
 
     function togglePlay() { 
         if(!player) return;
@@ -483,16 +492,30 @@
         player.seekTo(currentTime + seconds, true);
     }
 
+    // UPDATED FULLSCREEN LOGIC
     function toggleFullscreen() {
         if (!document.fullscreenElement) {
-            stage.requestFullscreen().then(() => stage.focus());
+            stage.requestFullscreen().then(() => {
+                // Wait for animation to finish, then force focus
+                setTimeout(() => { stage.focus(); }, 100);
+            }).catch(err => {
+                console.log(`Error attempting to enable fullscreen: ${err.message}`);
+            });
         } else {
             document.exitFullscreen();
         }
     }
-    document.addEventListener('fullscreenchange', resizeCanvas);
+    
+    // Listen for the change to catch it even if triggered via Esc key
+    document.addEventListener('fullscreenchange', () => {
+        resizeCanvas();
+        if (document.fullscreenElement) {
+            // Force focus again on change
+            setTimeout(() => { stage.focus(); }, 100);
+        }
+    });
 
-    // --- ANNOTATIONS SYSTEM (NEW) ---
+    // --- ANNOTATIONS SYSTEM ---
     function formatTime(seconds) {
         const m = Math.floor(seconds / 60);
         const s = Math.floor(seconds % 60);
@@ -502,13 +525,12 @@
     function saveSnapshot() {
         if (!player) return;
         
-        // Ask for a name
         const defaultName = "Play " + (annotations.length + 1);
         const name = prompt("Name this saved play:", defaultName);
-        if (name === null) return; // Cancelled
+        if (name === null) return; 
 
         const time = player.getCurrentTime();
-        const imageData = canvas.toDataURL(); // Save the drawing
+        const imageData = canvas.toDataURL(); 
         
         annotations.push({
             id: Date.now(),
@@ -517,9 +539,7 @@
             name: name || defaultName
         });
         
-        // Sort by timestamp
         annotations.sort((a, b) => a.time - b.time);
-        
         renderAnnotations();
         alert("Play saved! Check the list on the right.");
     }
@@ -528,24 +548,20 @@
         const note = annotations.find(a => a.id === id);
         if (!note) return;
 
-        // 1. Seek to time
         player.seekTo(note.time, true);
         player.pauseVideo();
 
-        // 2. Load drawing
         const img = new Image();
         img.onload = function() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            // Push to history so Undo works on it (optional, but nice)
             saveHistory();
         };
         img.src = note.image;
     }
 
     function deleteAnnotation(id, event) {
-        event.stopPropagation(); // Don't trigger the load click
+        event.stopPropagation();
         if(confirm("Delete this saved play?")) {
             annotations = annotations.filter(a => a.id !== id);
             renderAnnotations();
