@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Analyst Suite PRO - v8</title>
+    <title>TIU Analyst Suite PRO - v9 (Chromeless)</title>
     <style>
         :root {
             --primary-color: #1a1a1a;
@@ -71,11 +71,8 @@
             width: 100%;
             height: 100%;
             z-index: 1;
-            /* MAGIC FIX: This stops mouse interaction with YouTube internals */
-            pointer-events: none; 
+            pointer-events: none; /* Keeps clicks on the shield, not YouTube */
         }
-        
-        /* If user unlocks the player, we add this class */
         #player.interactive { pointer-events: auto; }
 
         #click-shield {
@@ -172,7 +169,6 @@
             text-decoration: none;
         }
         button:hover, .link-btn:hover { background-color: #555; }
-        button:active, .link-btn:active { transform: translateY(1px); }
         
         button.active { 
             background-color: var(--accent-color); 
@@ -202,6 +198,50 @@
             background: #222;
             color: white;
             flex-grow: 1;
+        }
+
+        /* SCRUBBER BAR (NEW) */
+        .scrubber-container {
+            width: 100%;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+        .scrubber-track {
+            width: 100%;
+            height: 6px;
+            background: #444;
+            border-radius: 3px;
+            position: relative;
+        }
+        .scrubber-progress {
+            height: 100%;
+            background: var(--accent-color);
+            width: 0%;
+            border-radius: 3px;
+            position: relative;
+        }
+        .scrubber-thumb {
+            width: 14px;
+            height: 14px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            right: -7px;
+            top: -4px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            display: none;
+        }
+        .scrubber-container:hover .scrubber-thumb { display: block; }
+        .time-display {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--accent-color);
+            margin-top: -5px;
+            margin-bottom: 5px;
+            text-align: right;
         }
 
         .tools-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 5px;}
@@ -304,9 +344,18 @@
             <button onclick="loadVideo()">Load</button>
         </div>
 
+        <div class="scrubber-container" id="scrubber-container">
+            <div class="scrubber-track">
+                <div class="scrubber-progress" id="scrubber-progress">
+                    <div class="scrubber-thumb"></div>
+                </div>
+            </div>
+        </div>
+        <div class="time-display" id="time-display">0:00 / 0:00</div>
+
         <div class="tools-row" style="justify-content: space-between;">
             <button onclick="frameStep(-1)" title="Left Arrow">&#9664; Frame</button>
-            <button onclick="togglePlay()" style="flex-grow: 2;" title="Spacebar">Play / Pause</button>
+            <button onclick="togglePlay()" style="flex-grow: 2;" title="Spacebar" id="play-pause-btn">Play / Pause</button>
             <button onclick="frameStep(1)" title="Right Arrow">Frame &#9654;</button>
         </div>
 
@@ -315,18 +364,6 @@
             <button onclick="setSpeed(0.25)" class="secondary" title="Key: 1">0.25x</button>
             <button onclick="setSpeed(0.5)" class="secondary" title="Key: 2">0.5x</button>
             <button onclick="setSpeed(1.0)" class="secondary" title="Key: 3">1.0x</button>
-        </div>
-        
-        <div style="margin-top:auto; padding-top:10px;">
-             <p style="margin: 0 0 5px 0; font-size: 0.75rem; color: #888;">SHORTCUTS</p>
-             <div style="font-size: 0.75rem; color: #aaa; display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
-                 <span>Space: Play</span>
-                 <span>P: Pen</span>
-                 <span>Arrows: Seek</span>
-                 <span>H: Highlight</span>
-                 <span>C: Clear</span>
-                 <span>F: Fullscreen</span>
-             </div>
         </div>
     </div>
 
@@ -409,7 +446,8 @@
     let isDrawingMode = false;
     let isDrawing = false;
     let annotations = []; 
-    let isPlayerLocked = true; // NEW: Starts locked to prevent popups
+    let isPlayerLocked = true;
+    let updateTimer;
     
     // Tools
     let currentTool = 'pen'; 
@@ -432,6 +470,8 @@
     const annotationListEl = document.getElementById('annotation-list');
     const lockBtn = document.getElementById('lock-btn');
     const playerDiv = document.getElementById('player');
+    const progressBar = document.getElementById('scrubber-progress');
+    const timeDisplay = document.getElementById('time-display');
 
     // --- SETUP ---
     function resizeCanvas() {
@@ -459,8 +499,15 @@
             height: '100%',
             width: '100%',
             videoId: 'tVoqA-LKGb4', 
-            // rel=0 is still here as a fallback
-            playerVars: { 'playsinline': 1, 'rel': 0, 'controls': 1, 'modestbranding': 1, 'origin': window.location.origin },
+            // V9 CHANGE: controls: 0 (This is the magic fix for overlays)
+            playerVars: { 
+                'playsinline': 1, 
+                'rel': 0, 
+                'controls': 0, 
+                'modestbranding': 1, 
+                'disablekb': 1,
+                'origin': window.location.origin 
+            },
             events: { 
                 'onReady': onPlayerReady, 
                 'onError': onPlayerError,
@@ -468,14 +515,50 @@
             }
         });
     }
-    function onPlayerReady(event) { resizeCanvas(); }
+    
+    function onPlayerReady(event) { 
+        resizeCanvas();
+        startUpdateTimer();
+    }
     function onPlayerError(event) { if([101, 150, 153].includes(event.data)) alert("Video blocked. Try a different video."); }
     
     function onPlayerStateChange(event) {
-        if (event.data === 1) { // 1 = Playing
+        if (event.data === 1) { // Playing
             clearCanvas();
         }
     }
+
+    // --- CUSTOM SCRUBBER LOGIC ---
+    function startUpdateTimer() {
+        if(updateTimer) clearInterval(updateTimer);
+        updateTimer = setInterval(() => {
+            if(player && player.getCurrentTime) {
+                const curr = player.getCurrentTime();
+                const total = player.getDuration();
+                if(total > 0) {
+                    const pct = (curr / total) * 100;
+                    progressBar.style.width = pct + "%";
+                    timeDisplay.innerText = formatTime(curr) + " / " + formatTime(total);
+                }
+            }
+        }, 250);
+    }
+
+    document.getElementById('scrubber-container').addEventListener('click', function(e) {
+        if(!player) return;
+        const rect = this.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const width = rect.width;
+        const pct = x / width;
+        const total = player.getDuration();
+        
+        player.seekTo(total * pct, true);
+        
+        // If paused, update bar manually immediately
+        progressBar.style.width = (pct * 100) + "%";
+    });
+
+    // --- CONTROLS ---
 
     function loadVideo(optionalId) {
         let id = optionalId;
@@ -499,9 +582,6 @@
         }
     }
 
-    // --- CONTROLS ---
-    
-    // NEW: Toggles whether clicks go to YouTube or the Shield
     function togglePlayerLock(e) {
         if(e) e.stopPropagation();
         isPlayerLocked = !isPlayerLocked;
@@ -519,8 +599,6 @@
     }
 
     function onShieldClick() {
-        // If we are in drawing mode, clicks do nothing (canvas handles them)
-        // If we are in viewing mode and locked, we handle Play/Pause
         if(!isDrawingMode) {
             stage.focus();
             togglePlay();
@@ -537,21 +615,22 @@
 
     function togglePlay() { 
         if(!player) return;
-        player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); 
+        const state = player.getPlayerState();
+        if(state === 1) {
+            player.pauseVideo();
+        } else {
+            player.playVideo();
+        }
     }
+    
     function setSpeed(rate) { if(player) player.setPlaybackRate(rate); }
     
     function frameStep(dir) {
         if(!player) return;
         player.pauseVideo();
         const currentTime = player.getCurrentTime();
+        // Seek
         player.seekTo(currentTime + (dir * 0.04), true);
-    }
-    
-    function seekVideo(seconds) {
-        if(!player) return;
-        const currentTime = player.getCurrentTime();
-        player.seekTo(currentTime + seconds, true);
     }
 
     function toggleFullscreen() {
@@ -559,7 +638,7 @@
             stage.requestFullscreen().then(() => {
                 setTimeout(() => { stage.focus(); }, 100);
             }).catch(err => {
-                console.log(`Error attempting to enable fullscreen: ${err.message}`);
+                console.log(err);
             });
         } else {
             document.exitFullscreen();
@@ -662,7 +741,6 @@
 
         const dataStr = JSON.stringify(playbook);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-
         const exportFileDefaultName = 'playbook-' + new Date().toISOString().slice(0,10) + '.json';
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
@@ -701,8 +779,6 @@
             case 'k': togglePlay(); break;
             case 'arrowleft': frameStep(-1); break;
             case 'arrowright': frameStep(1); break;
-            case 'arrowup': seekVideo(5); break;
-            case 'arrowdown': seekVideo(-5); break;
             case 'f': toggleFullscreen(); break;
             case 'c': clearCanvas(); break;
             case 'z': if(e.ctrlKey || e.metaKey) { e.preventDefault(); undoLast(); } break;
