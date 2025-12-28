@@ -193,6 +193,24 @@
         .mode-viewing { background: #2196f3; }
         .mode-drawing { background: var(--accent-color); color: black; }
 
+        /* Keyboard Shortcut Table */
+        .shortcut-table {
+            width: 100%;
+            font-size: 0.8rem;
+            color: #ccc;
+            border-collapse: collapse;
+        }
+        .shortcut-table td { padding: 2px 0; }
+        .key-badge {
+            background: #444;
+            border: 1px solid #666;
+            border-radius: 3px;
+            padding: 0 4px;
+            font-family: monospace;
+            font-weight: bold;
+            color: #fff;
+        }
+
         @media (max-width: 900px) {
             .controls-panel { grid-template-columns: 1fr; gap: 20px; }
             .control-group { border-right: none; border-bottom: 1px solid #444; padding-bottom: 15px; padding-left: 0; padding-right: 0;}
@@ -206,7 +224,7 @@
     <h1>TIU ANALYST PRO</h1>
     <div id="mode-indicator" class="mode-viewing">VIEWING</div>
     <button onclick="toggleFullscreen()" class="secondary" style="margin-left:auto; font-size: 0.8rem;">
-        <span class="icon">&#x26F6;</span> Fullscreen
+        <span class="icon">&#x26F6;</span> Fullscreen (F)
     </button>
 </header>
 
@@ -229,16 +247,16 @@
         </div>
 
         <div class="tools-row" style="justify-content: space-between;">
-            <button onclick="frameStep(-1)" title="Prev Frame (Left Arrow)">&#9664; Frame</button>
-            <button onclick="togglePlay()" style="flex-grow: 2;">Play / Pause</button>
-            <button onclick="frameStep(1)" title="Next Frame (Right Arrow)">Frame &#9654;</button>
+            <button onclick="frameStep(-1)" title="Left Arrow">&#9664; Frame</button>
+            <button onclick="togglePlay()" style="flex-grow: 2;" title="Spacebar">Play / Pause</button>
+            <button onclick="frameStep(1)" title="Right Arrow">Frame &#9654;</button>
         </div>
 
         <div class="tools-row">
             <span style="font-size:0.8rem; color:#aaa;">Speed:</span>
-            <button onclick="setSpeed(0.25)" class="secondary">0.25x</button>
-            <button onclick="setSpeed(0.5)" class="secondary">0.5x</button>
-            <button onclick="setSpeed(1.0)" class="secondary">1.0x</button>
+            <button onclick="setSpeed(0.25)" class="secondary" title="Key: 1">0.25x</button>
+            <button onclick="setSpeed(0.5)" class="secondary" title="Key: 2">0.5x</button>
+            <button onclick="setSpeed(1.0)" class="secondary" title="Key: 3">1.0x</button>
         </div>
     </div>
 
@@ -247,15 +265,15 @@
         
         <div class="tools-row">
             <button id="draw-mode-btn" onclick="toggleDrawMode()" style="flex-grow:2;">Enable Drawing</button>
-            <button onclick="undoLast()" title="Undo (Ctrl+Z)"><span class="icon">&#8630;</span> Undo</button>
+            <button onclick="undoLast()" title="Ctrl+Z"><span class="icon">&#8630;</span> Undo</button>
             <button onclick="saveDrawing()" title="Save Image"><span class="icon">&#128190;</span> Save</button>
-            <button class="danger" onclick="clearCanvas()" title="Clear All"><span class="icon">&#10005;</span> Clear</button>
+            <button class="danger" onclick="clearCanvas()" title="Key: C"><span class="icon">&#10005;</span> Clear</button>
         </div>
 
         <div class="tools-row" style="background:#222; padding:5px; border-radius:4px; justify-content: space-between;">
             <div style="display:flex; gap:5px;">
-                <button class="tool-btn active" id="tool-pen" onclick="setTool('pen')">Pen</button>
-                <button class="tool-btn" id="tool-highlighter" onclick="setTool('highlighter')">Highlighter</button>
+                <button class="tool-btn active" id="tool-pen" onclick="setTool('pen')" title="Key: P">Pen</button>
+                <button class="tool-btn" id="tool-highlighter" onclick="setTool('highlighter')" title="Key: H">Highlighter</button>
             </div>
             <div style="display:flex; gap:5px;">
                 <button class="shape-btn active" id="shape-free" onclick="setShape('free')">&#x2710; Free</button>
@@ -279,12 +297,16 @@
     </div>
 
     <div class="control-group">
-        <div class="group-label">Help & Support</div>
-        <div style="font-size: 0.85rem; color: #ccc; line-height: 1.5; margin-bottom: 15px;">
-            <div style="margin-bottom: 5px;">&#8226; <strong>Arrows:</strong> Drag to create.</div>
-            <div style="margin-bottom: 5px;">&#8226; <strong>Keys:</strong> Left/Right arrows step frames.</div>
-            <div style="margin-bottom: 5px;">&#8226; <strong>Note:</strong> Check "Allow Embedding" on your video.</div>
-        </div>
+        <div class="group-label">Shortcuts & Support</div>
+        
+        <table class="shortcut-table">
+            <tr><td><span class="key-badge">Space</span></td><td>Play / Pause</td></tr>
+            <tr><td><span class="key-badge">&#8592;</span> / <span class="key-badge">&#8594;</span></td><td>Step Frame</td></tr>
+            <tr><td><span class="key-badge">&#8593;</span> / <span class="key-badge">&#8595;</span></td><td>+/- 5 Sec</td></tr>
+            <tr><td><span class="key-badge">P</span> / <span class="key-badge">H</span></td><td>Pen / Highlight</td></tr>
+            <tr><td><span class="key-badge">C</span></td><td>Clear All</td></tr>
+            <tr><td><span class="key-badge">1</span> <span class="key-badge">2</span> <span class="key-badge">3</span></td><td>Speed</td></tr>
+        </table>
         
         <div style="margin-top:auto; text-align: center;">
             <p style="margin: 0 0 8px 0; font-size: 0.8rem; color: #aaa;">Enjoying the app? Buy me a coffee!</p>
@@ -306,8 +328,8 @@
     let currentShape = 'free'; 
     let currentColor = '#fdd835';
     // Coordinates
-    let startX = 0, startY = 0; // For Shapes
-    let lastX = 0, lastY = 0;   // For Freehand
+    let startX = 0, startY = 0; 
+    let lastX = 0, lastY = 0;   
     
     // History
     let drawHistory = [];
@@ -381,21 +403,70 @@
         player.seekTo(currentTime + (dir * 0.04), true);
     }
     
-    document.addEventListener('keydown', (e) => {
-        if(e.target.tagName === 'INPUT') return; 
-        if(e.key === 'ArrowRight') frameStep(1);
-        if(e.key === 'ArrowLeft') frameStep(-1);
-        if(e.key === 'z' && (e.ctrlKey || e.metaKey)) {
-            e.preventDefault();
-            undoLast();
-        }
-    });
+    function seekVideo(seconds) {
+        if(!player) return;
+        const currentTime = player.getCurrentTime();
+        player.seekTo(currentTime + seconds, true);
+    }
 
     function toggleFullscreen() {
         if (!document.fullscreenElement) stage.requestFullscreen();
         else document.exitFullscreen();
     }
     document.addEventListener('fullscreenchange', resizeCanvas);
+
+    // --- KEYBOARD LISTENERS (UPDATED) ---
+    document.addEventListener('keydown', (e) => {
+        // Ignore if user is typing in the input box
+        if(e.target.tagName === 'INPUT') return;
+
+        switch(e.key.toLowerCase()) {
+            case ' ':
+            case 'k':
+                e.preventDefault(); // Prevent page scroll
+                togglePlay();
+                break;
+            case 'arrowleft':
+                frameStep(-1);
+                break;
+            case 'arrowright':
+                frameStep(1);
+                break;
+            case 'arrowup':
+                seekVideo(5); // +5s
+                break;
+            case 'arrowdown':
+                seekVideo(-5); // -5s
+                break;
+            case 'f':
+                toggleFullscreen();
+                break;
+            case 'c':
+                clearCanvas();
+                break;
+            case 'z':
+                if(e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    undoLast();
+                }
+                break;
+            case 'p':
+                setTool('pen');
+                break;
+            case 'h':
+                setTool('highlighter');
+                break;
+            case '1':
+                setSpeed(0.25);
+                break;
+            case '2':
+                setSpeed(0.5);
+                break;
+            case '3':
+                setSpeed(1.0);
+                break;
+        }
+    });
 
     // --- DRAWING ---
     function toggleDrawMode() {
@@ -481,15 +552,14 @@
         isDrawing = true;
         const pos = getPos(e);
         
-        startX = pos.x; // For shapes
+        startX = pos.x; 
         startY = pos.y;
-        lastX = pos.x;  // For freehand
+        lastX = pos.x;  
         lastY = pos.y;
 
         saveHistory(); 
         snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
 
-        // Important: Start a path immediately
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
     }
@@ -501,32 +571,26 @@
         const pos = getPos(e);
         const size = document.getElementById('pen-size').value;
         
-        // --- APPLY STYLES ---
         ctx.strokeStyle = currentColor;
         
         if(currentTool === 'highlighter') {
-            ctx.globalAlpha = 0.3; // Lower opacity for better see-through
+            ctx.globalAlpha = 0.3; 
             ctx.lineWidth = size * 4; 
-            ctx.lineCap = 'butt';  // Butt cap prevents "knots" at overlaps
+            ctx.lineCap = 'butt';  
         } else {
             ctx.globalAlpha = 1.0;
             ctx.lineWidth = size;
             ctx.lineCap = 'round';
         }
 
-        // --- DRAWING LOGIC ---
         if (currentShape === 'free') {
-            // FIX: Draw segment-by-segment to prevent opacity accumulation
             ctx.beginPath();
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
-            
-            // Update last position for next segment
             lastX = pos.x;
             lastY = pos.y;
         } else {
-            // Shapes: Clear and redraw
             ctx.putImageData(snapshot, 0, 0);
             ctx.beginPath();
             
@@ -546,7 +610,6 @@
     }
 
     function drawArrow(ctx, fromX, fromY, toX, toY, width) {
-        // Adjust arrow head size based on highlighter/pen
         const actualWidth = currentTool === 'highlighter' ? width * 4 : width;
         const headlen = actualWidth * 3; 
         const angle = Math.atan2(toY - fromY, toX - fromX);
