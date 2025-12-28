@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Analyst Suite PRO - v9 (Chromeless)</title>
+    <title>TIU Analyst Suite PRO - v10 (Cinema Mask)</title>
     <style>
         :root {
             --primary-color: #1a1a1a;
@@ -71,9 +71,22 @@
             width: 100%;
             height: 100%;
             z-index: 1;
-            pointer-events: none; /* Keeps clicks on the shield, not YouTube */
+            pointer-events: none; 
         }
         #player.interactive { pointer-events: auto; }
+
+        /* THE CINEMA MASK (New in v10) */
+        #cinema-mask {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 25%; /* Covers bottom 1/4 of screen */
+            background: black;
+            z-index: 4; /* Above player, below drawings */
+            display: none; /* Hidden by default */
+            pointer-events: none;
+        }
 
         #click-shield {
             position: absolute;
@@ -200,7 +213,7 @@
             flex-grow: 1;
         }
 
-        /* SCRUBBER BAR (NEW) */
+        /* SCRUBBER BAR */
         .scrubber-container {
             width: 100%;
             height: 20px;
@@ -325,7 +338,7 @@
 <div id="stage-wrapper">
     <div id="stage-container" tabindex="0"> 
         <div id="player"></div>
-        <div id="click-shield" onclick="onShieldClick()"></div>
+        <div id="cinema-mask"></div> <div id="click-shield" onclick="onShieldClick()"></div>
         <canvas id="drawing-canvas"></canvas>
         <div class="watermark">TIU</div>
         <div id="lock-btn" class="lock-indicator" onclick="togglePlayerLock(event)" title="Lock/Unlock YouTube Controls">
@@ -364,6 +377,13 @@
             <button onclick="setSpeed(0.25)" class="secondary" title="Key: 1">0.25x</button>
             <button onclick="setSpeed(0.5)" class="secondary" title="Key: 2">0.5x</button>
             <button onclick="setSpeed(1.0)" class="secondary" title="Key: 3">1.0x</button>
+        </div>
+        
+        <div style="margin-top:5px; display:flex; gap:10px;">
+             <label style="font-size:0.8rem; color:#888; display:flex; align-items:center; cursor:pointer;">
+                <input type="checkbox" id="mask-toggle" checked onchange="toggleMaskSetting()" style="margin-right:5px;">
+                Auto-Hide Popup (Mask)
+             </label>
         </div>
     </div>
 
@@ -448,6 +468,7 @@
     let annotations = []; 
     let isPlayerLocked = true;
     let updateTimer;
+    let maskEnabled = true; // New Mask Setting
     
     // Tools
     let currentTool = 'pen'; 
@@ -472,6 +493,7 @@
     const playerDiv = document.getElementById('player');
     const progressBar = document.getElementById('scrubber-progress');
     const timeDisplay = document.getElementById('time-display');
+    const cinemaMask = document.getElementById('cinema-mask');
 
     // --- SETUP ---
     function resizeCanvas() {
@@ -499,7 +521,6 @@
             height: '100%',
             width: '100%',
             videoId: 'tVoqA-LKGb4', 
-            // V9 CHANGE: controls: 0 (This is the magic fix for overlays)
             playerVars: { 
                 'playsinline': 1, 
                 'rel': 0, 
@@ -522,10 +543,28 @@
     }
     function onPlayerError(event) { if([101, 150, 153].includes(event.data)) alert("Video blocked. Try a different video."); }
     
+    // --- SMART MASK LOGIC ---
     function onPlayerStateChange(event) {
         if (event.data === 1) { // Playing
             clearCanvas();
+            cinemaMask.style.display = 'none'; // Always hide mask when playing
+        } else {
+            // Paused, Ended, or Buffering
+            updateMaskVisibility();
         }
+    }
+
+    function updateMaskVisibility() {
+        if (maskEnabled && player && player.getPlayerState() !== 1) {
+            cinemaMask.style.display = 'block';
+        } else {
+            cinemaMask.style.display = 'none';
+        }
+    }
+
+    function toggleMaskSetting() {
+        maskEnabled = document.getElementById('mask-toggle').checked;
+        updateMaskVisibility();
     }
 
     // --- CUSTOM SCRUBBER LOGIC ---
@@ -553,8 +592,6 @@
         const total = player.getDuration();
         
         player.seekTo(total * pct, true);
-        
-        // If paused, update bar manually immediately
         progressBar.style.width = (pct * 100) + "%";
     });
 
@@ -629,8 +666,9 @@
         if(!player) return;
         player.pauseVideo();
         const currentTime = player.getCurrentTime();
-        // Seek
         player.seekTo(currentTime + (dir * 0.04), true);
+        // Force update mask in case it blinked
+        setTimeout(updateMaskVisibility, 100);
     }
 
     function toggleFullscreen() {
