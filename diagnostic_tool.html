@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Symptom Diagnostic Hub</title>
+    <style>
+        :root {
+            --primary-color: #0056b3; /* Medical Blue */
+            --secondary-color: #e3f2fd; /* Light Blue */
+            --alert-color: #d32f2f; /* Warning Red */
+            --text-color: #333;
+            --white: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-color);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* --- TIU WATERMARK --- */
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 15rem;
+            font-weight: 900;
+            color: rgba(0, 0, 0, 0.03); /* Very subtle opacity */
+            pointer-events: none; /* Allows clicking through it */
+            z-index: 0;
+            user-select: none;
+        }
+
+        /* --- MAIN CONTAINER --- */
+        .app-container {
+            background: var(--white);
+            width: 90%;
+            max-width: 500px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 2rem;
+            z-index: 1;
+            position: relative;
+        }
+
+        /* --- HEADER --- */
+        header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin: 0;
+            font-size: 1.8rem;
+        }
+
+        p.subtitle {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        /* --- WARNING BOX --- */
+        .warning-box {
+            background-color: #ffebee;
+            border-left: 5px solid var(--alert-color);
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+        }
+
+        .warning-title {
+            color: var(--alert-color);
+            font-weight: bold;
+            display: block;
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+        }
+
+        .warning-text {
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #b71c1c;
+        }
+
+        /* --- INPUT SECTION --- */
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #444;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            resize: vertical;
+            font-size: 1rem;
+            transition: border 0.2s;
+        }
+
+        textarea:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        /* --- BUTTONS --- */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+            text-decoration: none;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-merck {
+            background-color: #00857c; /* Teal for Merck */
+            color: white;
+        }
+
+        .btn-webmd {
+            background-color: #2b3990; /* WebMD Blue */
+            color: white;
+        }
+
+        .btn-mayo {
+            background-color: #187bcd; /* Mayo Blue */
+            color: white;
+        }
+
+        .btn-clear {
+            background-color: #eee;
+            color: #555;
+            margin-top: 5px;
+        }
+
+        .btn-icon {
+            margin-right: 8px;
+            font-size: 1.2rem;
+        }
+
+        /* --- FOOTER --- */
+        footer {
+            margin-top: 2rem;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #999;
+            border-top: 1px solid #eee;
+            padding-top: 1rem;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <div class="app-container">
+        <header>
+            <h1>Diagnostic Search Hub</h1>
+            <p class="subtitle">Quick access to trusted medical databases</p>
+        </header>
+
+        <div class="warning-box">
+            <span class="warning-title">⚠️ MEDICAL DISCLAIMER</span>
+            <span class="warning-text">
+                This tool is for informational purposes only. It is <strong>not</strong> a replacement for a doctor or professional medical advice. If you are experiencing a medical emergency, call emergency services immediately.
+            </span>
+        </div>
+
+        <div class="input-group">
+            <label for="symptoms">Describe your symptoms:</label>
+            <textarea id="symptoms" placeholder="E.g., lower back pain, fever over 101, nausea..."></textarea>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-merck" onclick="searchMerck()">
+                <span class="btn-icon">🩺</span> Search Merck Manual
+            </button>
+
+            <button class="btn btn-webmd" onclick="searchWebMD()">
+                <span class="btn-icon">🔬</span> Search WebMD
+            </button>
+
+            <a href="https://www.mayoclinic.org/symptom-checker/select-symptom/itt-20009075" target="_blank" class="btn btn-mayo">
+                <span class="btn-icon">🏥</span> Launch Mayo Clinic Checker
+            </a>
+            
+            <button class="btn btn-clear" onclick="clearText()">Clear Symptoms</button>
+        </div>
+
+        <footer>
+            &copy; 2024 Diagnostic Hub. "TIU" Internal Tool.
+        </footer>
+    </div>
+
+    <script>
+        function getSymptoms() {
+            return document.getElementById('symptoms').value.trim();
+        }
+
+        function searchMerck() {
+            const symptoms = getSymptoms();
+            if(!symptoms) {
+                alert("Please enter symptoms first.");
+                return;
+            }
+            // Redirects to Merck Manual Consumer Version search
+            const url = `https://www.merckmanuals.com/home/search?query=${encodeURIComponent(symptoms)}`;
+            window.open(url, '_blank');
+        }
+
+        function searchWebMD() {
+            const symptoms = getSymptoms();
+            if(!symptoms) {
+                // If empty, just go to the symptom checker start page
+                window.open('https://symptoms.webmd.com/', '_blank');
+                return;
+            }
+            // WebMD search query
+            const url = `https://www.webmd.com/search/search_results/default.aspx?query=${encodeURIComponent(symptoms)}`;
+            window.open(url, '_blank');
+        }
+
+        function clearText() {
+            document.getElementById('symptoms').value = "";
+        }
+    </script>
+
+</body>
+</html>
