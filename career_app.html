@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareerPath | Evidence-Based Assessment</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #1e40af;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --subtle: #94a3b8;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Subtle TIU Watermark */
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 15rem;
+            font-weight: 900;
+            color: rgba(0, 0, 0, 0.03);
+            pointer-events: none;
+            user-select: none;
+            z-index: 0;
+            font-family: 'Times New Roman', serif;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            padding: 2rem;
+            z-index: 1;
+            position: relative;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--subtle);
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: transform 0.2s ease;
+        }
+
+        .question-block {
+            margin-bottom: 1.5rem;
+            display: none; /* Hidden by default */
+        }
+
+        .question-block.active {
+            display: block;
+            animation: fadeIn 0.4s ease-in;
+        }
+
+        h3 {
+            margin-top: 0;
+            font-weight: 600;
+        }
+
+        .options {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: 2px solid var(--primary);
+            background: transparent;
+            color: var(--primary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            flex: 1;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        button.selected {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        #result-section {
+            display: none;
+            text-align: center;
+        }
+
+        .trait-badge {
+            display: inline-block;
+            background: #eff6ff;
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .career-list {
+            list-style: none;
+            padding: 0;
+            text-align: left;
+            margin-top: 1.5rem;
+        }
+
+        .career-list li {
+            padding: 10px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn-restart {
+            margin-top: 2rem;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <div class="container">
+        <header>
+            <h1>Career Fit Analysis</h1>
+            <div class="subtitle">Based on the Peer-Reviewed RIASEC Model (Holland, 1997; Updated 2024)</div>
+        </header>
+
+        <div id="quiz-section">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress"></div>
+            </div>
+
+            <div id="question-container" class="card">
+                </div>
+        </div>
+
+        <div id="result-section" class="card">
+            <h2>Your Career Archetype</h2>
+            <div id="result-content"></div>
+            <button class="btn-restart" onclick="location.reload()">Start New Assessment</button>
+        </div>
+    </div>
+
+    <script>
+        // Based on RIASEC Model: Realistic, Investigative, Artistic, Social, Enterprising, Conventional
+        const questions = [
+            { id: 1, type: 'R', text: "I enjoy building things or working with tools and machinery." },
+            { id: 2, type: 'I', text: "I like solving complex problems and analyzing data/theories." },
+            { id: 3, type: 'A', text: "I prefer creative expression, design, and unstructured activities." },
+            { id: 4, type: 'S', text: "I find fulfillment in teaching, healing, or helping others grow." },
+            { id: 5, type: 'E', text: "I enjoy leading teams, persuading people, and selling ideas." },
+            { id: 6, type: 'C', text: "I like organizing information, structured rules, and clear procedures." },
+            { id: 7, type: 'R', text: "I prefer working outdoors or doing physical tasks over office work." },
+            { id: 8, type: 'I', text: "I am curious about how things work on a scientific level." },
+            { id: 9, type: 'A', text: "I value originality and imagination over following strict rules." },
+            { id: 10, type: 'S', text: "I am good at understanding people's feelings and social situations." },
+            { id: 11, type: 'E', text: "I am ambitious and enjoy taking risks for profit or success." },
+            { id: 12, type: 'C', text: "I am detail-oriented and good at keeping records accurate." }
+        ];
+
+        // Career mapping based on O*NET clusters
+        const careers = {
+            'R': { title: "The Doer (Realistic)", jobs: ["Engineer", "Architect", "Pilot", "Agricultural Scientist", "Network Technician"] },
+            'I': { title: "The Thinker (Investigative)", jobs: ["Data Scientist", "Biologist", "Psychologist", "Software Developer", "Market Researcher"] },
+            'A': { title: "The Creator (Artistic)", jobs: ["Graphic Designer", "Writer/Editor", "UX Designer", "Musician", "Marketing Specialist"] },
+            'S': { title: "The Helper (Social)", jobs: ["Counselor", "Teacher", "Nurse/Doctor", "HR Manager", "Social Worker"] },
+            'E': { title: "The Persuader (Enterprising)", jobs: ["Sales Manager", "Entrepreneur", "Attorney", "Project Manager", "Real Estate Agent"] },
+            'C': { title: "The Organizer (Conventional)", jobs: ["Accountant", "Data Analyst", "Financial Planner", "Logistics Manager", "Technical Writer"] }
+        };
+
+        let currentStep = 0;
+        let scores = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
+
+        const container = document.getElementById('question-container');
+        const progressBar = document.getElementById('progress');
+
+        function init() {
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            if (currentStep >= questions.length) {
+                showResults();
+                return;
+            }
+
+            const q = questions[currentStep];
+            const progressPercent = ((currentStep) / questions.length) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+
+            container.innerHTML = `
+                <div class="question-block active">
+                    <span class="trait-badge">Question ${currentStep + 1} of ${questions.length}</span>
+                    <h3>${q.text}</h3>
+                    <div class="options">
+                        <button onclick="handleAnswer('${q.type}', 0)">Disagree</button>
+                        <button onclick="handleAnswer('${q.type}', 1)">Neutral</button>
+                        <button onclick="handleAnswer('${q.type}', 2)">Agree</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleAnswer(type, value) {
+            scores[type] += value;
+            currentStep++;
+            renderQuestion();
+        }
+
+        function showResults() {
+            document.getElementById('quiz-section').style.display = 'none';
+            const resultSection = document.getElementById('result-section');
+            const resultDiv = document.getElementById('result-content');
+            
+            // Sort scores to find top trait
+            const sortedTraits = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+            const primaryTrait = sortedTraits[0][0];
+            const secondaryTrait = sortedTraits[1][0];
+
+            const primaryData = careers[primaryTrait];
+            const secondaryData = careers[secondaryTrait];
+
+            resultSection.style.display = 'block';
+            
+            resultDiv.innerHTML = `
+                <h3 style="color: var(--primary); font-size: 1.5rem;">${primaryData.title}</h3>
+                <p>Based on your responses, your primary alignment is <strong>${primaryData.title}</strong>, supported by <strong>${secondaryData.title}</strong> tendencies.</p>
+                
+                <div style="background: #f1f5f9; padding: 1rem; border-radius: 8px; margin-top: 1.5rem;">
+                    <h4 style="margin-top:0;">Recommended Careers:</h4>
+                    <ul class="career-list">
+                        ${primaryData.jobs.map(job => `<li><strong>${job}</strong></li>`).join('')}
+                        ${secondaryData.jobs.slice(0, 2).map(job => `<li>${job} (Secondary Fit)</li>`).join('')}
+                    </ul>
+                </div>
+                <p style="font-size: 0.8rem; color: #64748b; margin-top: 2rem;">
+                    *Methodology: This assessment utilizes the RIASEC protocol to determine vocational interest clusters, widely validated in psychometric literature (e.g., Journal of Vocational Behavior).
+                </p>
+            `;
+        }
+
+        init();
+    </script>
+</body>
+</html>
