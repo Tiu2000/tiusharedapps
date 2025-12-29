@@ -3,128 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Mixer - Watermark Edition</title>
+    <title>TIU Mixer Pro v8</title>
     <style>
         :root {
             --bg-color: #121212;
-            --panel-color: #1e1e1e;
-            --deck-color: #252525;
+            --deck-bg: #1e1e1e;
+            --panel-bg: #252525;
             --accent: #00ff9d; 
             --accent-dim: #008f58;
-            --cue-color: #ff9900; 
-            --sync-color: #00ccff;
+            --cue-active: #ff0055;
+            --loop-active: #ffee00;
             --text-color: #e0e0e0;
-            --log-bg: #000;
-            --log-text: #0f0;
         }
 
         body {
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
+            margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color);
+            font-family: 'Roboto', 'Arial', sans-serif; display: flex; flex-direction: column;
+            align-items: center; min-height: 100vh; user-select: none;
         }
 
-        /* --- WATERMARK --- */
+        /* WATERMARK */
         .watermark {
-            position: fixed;
-            bottom: 20px;
-            right: 30px;
-            font-family: Arial, sans-serif;
-            font-weight: 900;
-            font-size: 5rem;
-            color: rgba(255, 255, 255, 0.05); /* Very subtle opacity */
-            pointer-events: none; /* Click-through */
-            z-index: 200; /* sits on top of everything */
-            user-select: none;
+            position: fixed; bottom: 20px; right: 30px; font-weight: 900; font-size: 6rem;
+            color: rgba(255, 255, 255, 0.04); pointer-events: none; z-index: 0;
         }
 
-        /* Video Layer (Hidden) */
-        #video-layer {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 1; opacity: 0.01; pointer-events: none;
-            display: flex;
-        }
-        #video-layer div { width: 50%; height: 100%; }
+        /* HIDDEN VIDEO LAYER */
+        #video-layer { position: fixed; top: 0; z-index: -1; opacity: 0; pointer-events: none; }
 
-        /* Main UI Container */
+        /* MAIN UI */
         .app-layer {
-            position: relative;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background: rgba(30, 30, 30, 0.98);
-            padding: 25px;
-            border-radius: 20px;
-            margin-top: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-            border: 1px solid #333;
+            z-index: 100; display: flex; flex-direction: column; align-items: center;
+            background: #181818; padding: 20px; border-radius: 15px; margin-top: 20px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.9); border: 1px solid #333;
         }
 
-        header {
-            margin-bottom: 20px;
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            border-bottom: 2px solid var(--accent);
-            padding-bottom: 10px;
+        header { 
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 20px;
         }
+        h1 { margin: 0; font-size: 1.5rem; letter-spacing: 2px; color: #fff; }
 
-        /* --- MODE SWITCH --- */
-        .mode-switch-container {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 25px;
-            background: #111;
-            padding: 8px 20px;
-            border-radius: 30px;
-            border: 1px solid #444;
-        }
+        /* CONSOLE GRID */
+        .console { display: flex; gap: 15px; background: #000; padding: 20px; border-radius: 10px; border: 1px solid #333; }
 
-        .switch-label { font-size: 0.75rem; font-weight: bold; color: #666; transition: color 0.3s; }
-        .switch-label.active { color: var(--accent); text-shadow: 0 0 5px var(--accent-dim); }
-
-        .switch { position: relative; display: inline-block; width: 44px; height: 22px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--accent); }
-        input:checked + .slider:before { transform: translateX(22px); }
-
-        /* Console Layout */
-        .console {
-            display: flex; gap: 20px; background: #000; padding: 30px;
-            border-radius: 15px; border: 1px solid #333; flex-wrap: wrap; justify-content: center;
-        }
-
+        /* DECK STYLING */
         .deck {
-            background-color: var(--deck-color); padding: 20px; border-radius: 8px;
-            width: 280px; display: flex; flex-direction: column; align-items: center; border: 1px solid #444;
+            background: var(--deck-bg); width: 320px; padding: 15px; border-radius: 8px;
+            display: flex; flex-direction: column; gap: 15px; border: 1px solid #444; position: relative;
         }
 
-        .vinyl-container {
-            width: 190px; height: 190px; background: #111; border-radius: 50%;
+        /* TOP SECTION: INFO & VINYL */
+        .deck-top { display: flex; gap: 15px; height: 160px; }
+        
+        .vinyl-wrapper {
+            width: 160px; height: 160px; position: relative;
+        }
+        .vinyl {
+            width: 100%; height: 100%; background: #111; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.6); margin-bottom: 20px; position: relative;
-            border: 4px solid #111;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 2px solid #333;
         }
-
         .vinyl-grooves {
-            width: 180px; height: 180px; border-radius: 50%;
-            background: repeating-radial-gradient(#151515, #151515 2px, #2a2a2a 3px, #2a2a2a 4px); position: absolute;
+            width: 90%; height: 90%; border-radius: 50%; position: absolute;
+            background: repeating-radial-gradient(#151515, #151515 2px, #252525 3px, #252525 4px);
         }
-
         .vinyl-label {
-            width: 65px; height: 65px; background: #d32f2f; border-radius: 50%; z-index: 2;
+            width: 35%; height: 35%; background: #d32f2f; border-radius: 50%; z-index: 2;
             border: 2px solid #fff; display: flex; align-items: center; justify-content: center;
-            font-size: 0.8rem; font-weight: bold; color: white; text-align: center;
+            font-size: 0.8rem; font-weight: bold; color: white;
         }
         .deck-b .vinyl-label { background: #1976d2; }
 
@@ -132,85 +79,84 @@
         .spinning { animation: spin 1.8s linear infinite; }
         .paused { animation-play-state: paused; }
 
-        .controls { width: 100%; display: flex; flex-direction: column; gap: 12px; }
-        
-        input[type="text"] {
-            background: #111; border: 1px solid #444; color: var(--accent);
-            padding: 10px; width: calc(100% - 22px); font-family: inherit; font-size: 0.75rem; border-radius: 4px;
+        /* GAIN SLIDER (Vertical) */
+        .gain-container {
+            display: flex; flex-direction: column; align-items: center; flex: 1;
+            background: #111; border-radius: 4px; padding: 5px 0; border: 1px solid #333;
+        }
+        .gain-label { font-size: 0.6rem; color: #888; margin-bottom: 5px; }
+        input[type=range].vertical-fader {
+            writing-mode: bt-lr; -webkit-appearance: slider-vertical;
+            width: 8px; height: 100%; background: transparent;
         }
 
-        .btn-group { display: flex; gap: 8px; }
-        button {
-            background: #333; color: white; border: none; padding: 10px; cursor: pointer;
-            flex: 1; font-weight: bold; text-transform: uppercase; font-size: 0.75rem; border-radius: 4px;
-            transition: background 0.1s;
+        /* PERFORMANCE PADS */
+        .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+        .pad {
+            background: #333; border: none; color: #aaa; padding: 12px 0; font-size: 0.7rem; font-weight: bold;
+            border-radius: 4px; cursor: pointer; transition: all 0.1s; border-bottom: 2px solid #222;
         }
-        button:hover { background: #555; }
-        button:active { background: #222; transform: translateY(1px); }
-        button.cue-btn { background: #b36b00; flex: 0.4; }
-        button.cue-btn:hover { background: #cc7a00; }
-        button.play-btn.active { background: var(--accent-dim); color: white; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
+        .pad:active { transform: translateY(2px); border-bottom: none; }
+        .pad.set-mode { background: #500; color: #fff; animation: pulse 1s infinite; }
+        .pad.has-cue { background: var(--accent-dim); color: #fff; border-bottom: 2px solid var(--accent); }
+        .pad.loop-active { background: var(--loop-active); color: #000; box-shadow: 0 0 10px var(--loop-active); }
 
-        button.sync-btn {
-            background: var(--sync-dim); color: white; display: none; 
-            margin-bottom: 5px; font-size: 0.65rem; padding: 4px 8px; flex: none; width: auto;
-        }
-        button.sync-btn:hover { background: var(--sync-color); }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        /* --- SLIDERS (Pitch & Crossfader) --- */
-        .slider-group {
-            margin-top: 10px; text-align: center; background: #1a1a1a; padding: 12px;
-            border-radius: 6px; border: 1px solid #333;
+        /* TRANSPORT CONTROLS */
+        .transport { display: flex; gap: 10px; }
+        .btn-transport {
+            flex: 1; padding: 12px; background: #333; color: #fff; border: none;
+            border-radius: 4px; font-weight: 900; font-size: 0.8rem; cursor: pointer;
+            border-bottom: 3px solid #111;
         }
-        
-        input[type=range] {
-            -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; margin: 10px 0;
-        }
-        input[type=range]:focus { outline: none; }
-        
-        /* Track */
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 6px; cursor: pointer; background: #444; border-radius: 3px;
-        }
-        
-        /* Thumb (Handle) */
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
-            background: #fff; margin-top: -6px; box-shadow: 0 0 10px rgba(255,255,255,0.5); border: 1px solid #ccc;
-        }
-        /* Color the thumbs for different functions */
-        #crossfader::-webkit-slider-thumb { background: var(--accent); border-color: var(--accent); }
-        #pitch-a::-webkit-slider-thumb { background: #d32f2f; border-color: #d32f2f; }
-        #pitch-b::-webkit-slider-thumb { background: #1976d2; border-color: #1976d2; }
+        .btn-transport:active { transform: translateY(3px); border-bottom: none; }
+        .btn-play { background: #ccc; color: #000; }
+        .btn-play.active { background: var(--accent); box-shadow: 0 0 15px var(--accent); }
+        .btn-cue { background: #d32f2f; }
 
+        /* INFO DISPLAY */
+        .deck-info {
+            background: #0f0f0f; border: 1px solid #333; padding: 8px; border-radius: 4px;
+            font-family: 'Courier New', monospace; color: var(--accent); font-size: 0.9rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .bpm-display { color: #fff; font-weight: bold; }
+
+        /* PITCH FADER */
+        .pitch-container {
+            background: #111; padding: 10px; border-radius: 4px; border: 1px solid #333;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .pitch-slider { width: 100%; -webkit-appearance: none; background: transparent; }
+        .pitch-slider::-webkit-slider-track { height: 4px; background: #444; }
+        .pitch-slider::-webkit-slider-thumb { 
+            -webkit-appearance: none; height: 20px; width: 40px; background: #555; 
+            margin-top: -8px; border-radius: 2px; border: 1px solid #888; cursor: ns-resize;
+        }
+
+        /* INPUT AREA */
+        .track-load { display: flex; gap: 5px; }
+        .url-input { 
+            flex: 1; background: #111; border: 1px solid #444; color: #fff; 
+            padding: 5px; font-size: 0.7rem; 
+        }
+
+        /* MIXER SECTION */
         .mixer {
-            width: 150px; background: #151515; padding: 20px; border-radius: 10px;
-            display: flex; flex-direction: column; align-items: center; justify-content: space-between; border: 1px solid #444;
+            width: 140px; background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #444;
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
         }
-
-        .status-light {
-            width: 10px; height: 10px; border-radius: 50%; background: #000; margin: 10px auto;
-            border: 1px solid #333; transition: background 0.2s;
-        }
-        .status-light.ready { background: #ffe600; box-shadow: 0 0 8px #ffe600; }
-        .status-light.on { background: #ff0000; box-shadow: 0 0 10px #ff0000; }
-
-        /* Log */
+        
+        /* LOG */
         .log-container {
-            width: 100%; max-width: 800px; margin-top: 30px; margin-bottom: 20px;
-            border: 1px solid #333; background: #000; border-radius: 5px;
-            padding: 10px; display: flex; flex-direction: column; z-index: 100;
-        }
-        .log-header {
-            color: #666; border-bottom: 1px solid #333; padding-bottom: 5px;
-            margin-bottom: 5px; font-size: 0.7rem; display: flex; justify-content: space-between;
-        }
-        #system-log {
-            width: 100%; height: 80px; background: transparent; color: var(--log-text);
-            border: none; resize: none; font-family: 'Courier New', Courier, monospace;
-            font-size: 0.7rem; overflow-y: scroll; outline: none;
+            width: 100%; height: 80px; background: #000; border: 1px solid #333; 
+            margin-top: 20px; padding: 5px; color: #0f0; font-family: monospace; 
+            font-size: 0.7rem; overflow-y: scroll;
         }
 
+        /* UTILS */
+        .hidden { display: none; }
     </style>
 </head>
 <body>
@@ -223,246 +169,421 @@
     </div>
 
     <div class="app-layer">
-        <header><h1>TIU Vinyl Mixer</h1></header>
-
-        <div class="mode-switch-container">
-            <span class="switch-label active" id="label-manual">OLD SCHOOL</span>
-            <label class="switch">
-                <input type="checkbox" id="mode-toggle" onchange="toggleMode()">
-                <span class="slider"></span>
-            </label>
-            <span class="switch-label" id="label-sync">SYNC MODE</span>
-        </div>
+        <header>
+            <h1>TIU MIXER <span style="font-size:0.8rem; color:var(--accent); vertical-align: middle; border:1px solid var(--accent); padding:2px 5px; border-radius:4px;">PRO</span></h1>
+            
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:0.7rem; font-weight:bold; color:#666;">SYNC MODE</span>
+                <label class="switch" style="position:relative; width:40px; height:20px;">
+                    <input type="checkbox" id="sync-toggle">
+                    <span style="position:absolute; top:0; left:0; right:0; bottom:0; background:#333; border-radius:20px;">
+                        <span id="sync-knob" style="position:absolute; height:16px; width:16px; left:2px; bottom:2px; background:#fff; border-radius:50%; transition:0.3s;"></span>
+                    </span>
+                </label>
+            </div>
+        </header>
 
         <div class="console">
+            
             <div class="deck" id="deck-a">
-                <h2>DECK A</h2>
-                <div class="vinyl-container" id="vinyl-a"><div class="vinyl-grooves"></div><div class="vinyl-label">TIU<br>A</div></div>
-                <div class="status-light" id="status-a"></div>
-                <div class="controls">
-                    <input type="text" id="input-a" placeholder="URL..." value="https://www.youtube.com/watch?v=re08xV91V24">
-                    <div class="btn-group">
-                        <button onclick="loadTrack('A')">Load</button>
-                        <button class="cue-btn" onclick="cueTrack('A')">CUE</button>
-                        <button class="play-btn" onclick="togglePlay('A')" id="play-btn-a">Play</button>
-                    </div>
-                    <div class="slider-group">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-                            <label style="color:#888; font-size:0.6rem; letter-spacing:1px;">PITCH</label>
-                            <button class="sync-btn" id="sync-a" onclick="syncDeck('A')">SYNC</button>
+                <div class="track-load">
+                    <input type="text" class="url-input" id="input-a" value="re08xV91V24">
+                    <button onclick="loadTrack('A')" style="background:#444; color:white; border:none; cursor:pointer;">LOAD</button>
+                </div>
+
+                <div class="deck-top">
+                    <div class="vinyl-wrapper">
+                        <div class="vinyl" id="vinyl-a">
+                            <div class="vinyl-grooves"></div>
+                            <div class="vinyl-label">A</div>
                         </div>
-                        <input type="range" id="pitch-a" min="0.5" max="1.5" step="0.01" value="1" oninput="updatePitch('A')">
-                        <button style="width:100%; padding:4px; font-size:0.65rem; background:#333; margin-top:5px;" onclick="resetPitch('A')">RESET SPEED</button>
                     </div>
+                    <div class="gain-container">
+                        <span class="gain-label">GAIN</span>
+                        <input type="range" class="vertical-fader" id="gain-a" min="0" max="100" value="80" oninput="updateVolume()">
+                    </div>
+                </div>
+
+                <div class="deck-info">
+                    <span id="time-a">00:00</span>
+                    <span class="bpm-display" id="bpm-a">--- BPM</span>
+                </div>
+
+                <div class="pad-grid">
+                    <button class="pad" id="cue-a-1" onclick="triggerHotCue('A', 1)">1</button>
+                    <button class="pad" id="cue-a-2" onclick="triggerHotCue('A', 2)">2</button>
+                    <button class="pad" id="cue-a-3" onclick="triggerHotCue('A', 3)">3</button>
+                    <button class="pad" id="set-a" onclick="toggleSetMode('A')" style="color:#d32f2f;">SET</button>
+                    
+                    <button class="pad" onclick="loopIn('A')">IN</button>
+                    <button class="pad" onclick="loopOut('A')">OUT</button>
+                    <button class="pad" id="loop-exit-a" onclick="loopExit('A')">EXIT</button>
+                    <button class="pad" onclick="tapBpm('A')">TAP</button>
+                </div>
+
+                <div class="transport">
+                    <button class="btn-transport btn-cue" onclick="mainCue('A')">CUE</button>
+                    <button class="btn-transport btn-play" id="play-a" onclick="togglePlay('A')">PLAY</button>
+                    <button class="btn-transport" onclick="brake('A')" style="background:#555; font-size:0.6rem;">STOP</button>
+                </div>
+
+                <div class="pitch-container">
+                    <div style="display:flex; justify-content:space-between; width:100%; font-size:0.6rem; color:#666; margin-bottom:5px;">
+                        <span onclick="resetPitch('A')" style="cursor:pointer;">RESET</span>
+                        <button id="sync-btn-a" onclick="syncDeck('A')" style="display:none; background:#00ccff; border:none; font-size:0.6rem; padding:2px 4px; cursor:pointer;">SYNC</button>
+                    </div>
+                    <input type="range" class="pitch-slider" id="pitch-a" min="0.5" max="1.5" step="0.001" value="1" oninput="updatePitch('A')">
                 </div>
             </div>
 
             <div class="mixer">
-                <div style="font-size: 0.7rem; color:#888; letter-spacing:1px; margin-bottom:10px;">MASTER</div>
-                <input type="range" id="master-vol" min="0" max="100" value="100" oninput="updateCrossfader()" style="height:150px; writing-mode: bt-lr; -webkit-appearance: slider-vertical;">
-                
-                <div style="color:#333; font-size: 2rem; font-weight:bold; margin: 20px 0;">X</div>
-                
-                <div style="width:100%; text-align:center;">
-                    <label style="font-size:0.6rem; color:#888; letter-spacing:1px;">CROSSFADER</label>
-                    <input type="range" id="crossfader" min="0" max="100" value="50" oninput="updateCrossfader()">
-                    <div style="display:flex; justify-content:space-between; font-size:0.6rem; color:#555; font-weight:bold; padding:0 5px;">
+                <div style="text-align:center;">
+                    <div style="font-size:0.6rem; color:#666; margin-bottom:5px;">MASTER</div>
+                    <input type="range" class="vertical-fader" id="master-vol" min="0" max="100" value="100" style="height:180px;" oninput="updateVolume()">
+                </div>
+
+                <div style="width:100%;">
+                    <div style="text-align:center; font-size:0.6rem; color:#666; margin-bottom:5px;">CROSSFADER</div>
+                    <input type="range" id="crossfader" min="0" max="100" value="50" style="width:100%; cursor:pointer;" oninput="updateVolume()">
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#444; font-weight:bold; margin-top:5px;">
                         <span>A</span><span>B</span>
                     </div>
                 </div>
             </div>
 
             <div class="deck deck-b" id="deck-b">
-                <h2>DECK B</h2>
-                <div class="vinyl-container" id="vinyl-b"><div class="vinyl-grooves"></div><div class="vinyl-label">TIU<br>B</div></div>
-                <div class="status-light" id="status-b"></div>
-                <div class="controls">
-                    <input type="text" id="input-b" placeholder="URL..." value="https://youtu.be/jfKfPfyJRdk">
-                    <div class="btn-group">
-                        <button onclick="loadTrack('B')">Load</button>
-                        <button class="cue-btn" onclick="cueTrack('B')">CUE</button>
-                        <button class="play-btn" onclick="togglePlay('B')" id="play-btn-b">Play</button>
+                <div class="track-load">
+                    <input type="text" class="url-input" id="input-b" value="jfKfPfyJRdk">
+                    <button onclick="loadTrack('B')" style="background:#444; color:white; border:none; cursor:pointer;">LOAD</button>
+                </div>
+
+                <div class="deck-top">
+                    <div class="gain-container">
+                        <span class="gain-label">GAIN</span>
+                        <input type="range" class="vertical-fader" id="gain-b" min="0" max="100" value="80" oninput="updateVolume()">
                     </div>
-                    <div class="slider-group">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-                            <label style="color:#888; font-size:0.6rem; letter-spacing:1px;">PITCH</label>
-                            <button class="sync-btn" id="sync-b" onclick="syncDeck('B')">SYNC</button>
+                    <div class="vinyl-wrapper">
+                        <div class="vinyl" id="vinyl-b">
+                            <div class="vinyl-grooves"></div>
+                            <div class="vinyl-label">B</div>
                         </div>
-                        <input type="range" id="pitch-b" min="0.5" max="1.5" step="0.01" value="1" oninput="updatePitch('B')">
-                        <button style="width:100%; padding:4px; font-size:0.65rem; background:#333; margin-top:5px;" onclick="resetPitch('B')">RESET SPEED</button>
                     </div>
+                </div>
+
+                <div class="deck-info">
+                    <span id="time-b">00:00</span>
+                    <span class="bpm-display" id="bpm-b">--- BPM</span>
+                </div>
+
+                <div class="pad-grid">
+                    <button class="pad" id="cue-b-1" onclick="triggerHotCue('B', 1)">1</button>
+                    <button class="pad" id="cue-b-2" onclick="triggerHotCue('B', 2)">2</button>
+                    <button class="pad" id="cue-b-3" onclick="triggerHotCue('B', 3)">3</button>
+                    <button class="pad" id="set-b" onclick="toggleSetMode('B')" style="color:#d32f2f;">SET</button>
+                    
+                    <button class="pad" onclick="loopIn('B')">IN</button>
+                    <button class="pad" onclick="loopOut('B')">OUT</button>
+                    <button class="pad" id="loop-exit-b" onclick="loopExit('B')">EXIT</button>
+                    <button class="pad" onclick="tapBpm('B')">TAP</button>
+                </div>
+
+                <div class="transport">
+                    <button class="btn-transport btn-cue" onclick="mainCue('B')">CUE</button>
+                    <button class="btn-transport btn-play" id="play-b" onclick="togglePlay('B')">PLAY</button>
+                    <button class="btn-transport" onclick="brake('B')" style="background:#555; font-size:0.6rem;">STOP</button>
+                </div>
+
+                <div class="pitch-container">
+                    <div style="display:flex; justify-content:space-between; width:100%; font-size:0.6rem; color:#666; margin-bottom:5px;">
+                        <span onclick="resetPitch('B')" style="cursor:pointer;">RESET</span>
+                        <button id="sync-btn-b" onclick="syncDeck('B')" style="display:none; background:#00ccff; border:none; font-size:0.6rem; padding:2px 4px; cursor:pointer;">SYNC</button>
+                    </div>
+                    <input type="range" class="pitch-slider" id="pitch-b" min="0.5" max="1.5" step="0.001" value="1" oninput="updatePitch('B')">
                 </div>
             </div>
         </div>
-
-        <div class="log-container">
-            <div class="log-header">
-                <span>SYSTEM LOG</span>
-                <button onclick="document.getElementById('system-log').value=''" style="background:#222; flex:none; width:auto; padding:2px 8px; border:1px solid #444;">CLEAR</button>
-            </div>
-            <textarea id="system-log" readonly>Initializing System...</textarea>
-        </div>
+        
+        <div class="log-container" id="sys-log"></div>
     </div>
 
     <script>
-        function sysLog(msg) {
-            const el = document.getElementById('system-log');
-            const time = new Date().toLocaleTimeString();
-            el.value += `\n[${time}] ${msg}`;
-            el.scrollTop = el.scrollHeight; 
+        // --- CORE SYSTEM VARIABLES ---
+        var players = { A: null, B: null };
+        var ready = { A: false, B: false };
+        var loops = { 
+            A: { active: false, in: null, out: null }, 
+            B: { active: false, in: null, out: null } 
+        };
+        var hotCues = {
+            A: { 1: null, 2: null, 3: null, setMode: false },
+            B: { 1: null, 2: null, 3: null, setMode: false }
+        };
+        var tapData = {
+            A: { lastTap: 0, count: 0, total: 0 },
+            B: { lastTap: 0, count: 0, total: 0 }
+        };
+        var loopInterval;
+
+        // --- LOGGING ---
+        function log(msg) {
+            const div = document.getElementById('sys-log');
+            const p = document.createElement('div');
+            p.innerText = `> ${msg}`;
+            div.prepend(p);
         }
 
-        var playerA, playerB;
-        var isReadyA = false, isReadyB = false;
-
+        // --- YOUTUBE API ---
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         var firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
         window.onYouTubeIframeAPIReady = function() {
-            sysLog("API: YouTube Iframe API Loaded.");
-            
-            playerA = new YT.Player('player-a', {
-                height: '100%', width: '100%', videoId: '', 
-                playerVars: { 'playsinline': 1, 'controls': 0, 'origin': window.location.origin },
-                events: { 'onReady': onReadyA, 'onStateChange': onStateChangeA, 'onError': (e) => onError('A', e) }
-            });
-
-            playerB = new YT.Player('player-b', {
-                height: '100%', width: '100%', videoId: '',
-                playerVars: { 'playsinline': 1, 'controls': 0, 'origin': window.location.origin },
-                events: { 'onReady': onReadyB, 'onStateChange': onStateChangeB, 'onError': (e) => onError('B', e) }
-            });
+            createPlayer('A', 'player-a');
+            createPlayer('B', 'player-b');
+            // Start Loop Polling
+            loopInterval = setInterval(checkLoops, 50); // Check every 50ms
         };
 
-        function onReadyA(event) { 
-            isReadyA = true; 
-            document.getElementById('status-a').classList.add('ready');
-            sysLog("Deck A: Ready.");
-            updateCrossfader();
-        }
-        function onReadyB(event) { 
-            isReadyB = true; 
-            document.getElementById('status-b').classList.add('ready');
-            sysLog("Deck B: Ready.");
-            updateCrossfader();
-        }
-
-        function onStateChangeA(event) { updateVisuals('A', event.data); }
-        function onStateChangeB(event) { updateVisuals('B', event.data); }
-
-        function onError(deck, event) {
-            let errorMsg = "Unknown Error";
-            if(event.data == 150 || event.data == 101) errorMsg = "RESTRICTED (Try another video)";
-            sysLog(`ERROR [Deck ${deck}]: ${errorMsg}`);
+        function createPlayer(deck, id) {
+            players[deck] = new YT.Player(id, {
+                height: '100%', width: '100%', videoId: '',
+                playerVars: { 'playsinline': 1, 'controls': 0, 'origin': window.location.origin },
+                events: {
+                    'onReady': (e) => { ready[deck] = true; log(`Deck ${deck} Ready`); updateVolume(); },
+                    'onStateChange': (e) => updateVisuals(deck, e.data),
+                    'onError': (e) => log(`Error Deck ${deck}: ${e.data}`)
+                }
+            });
         }
 
-        function extractID(url) {
-            if(!url) return "";
-            var regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-            var match = url.match(regExp);
-            return (match && match[2].length == 11) ? match[2] : url;
-        }
-
+        // --- TRACK LOADING ---
         function loadTrack(deck) {
-            const input = document.getElementById(`input-${deck.toLowerCase()}`).value;
-            const vidId = extractID(input);
-            sysLog(`Deck ${deck}: Loading...`);
+            let val = document.getElementById(`input-${deck.toLowerCase()}`).value;
+            // Basic ID extraction
+            const match = val.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+            const id = (match && match[2].length === 11) ? match[2] : val;
             
-            if (deck === 'A' && isReadyA) { playerA.loadVideoById(vidId); resetPitch('A'); }
-            else if (deck === 'B' && isReadyB) { playerB.loadVideoById(vidId); resetPitch('B'); }
-            else sysLog(`Deck ${deck}: Not ready.`);
+            if(ready[deck]) {
+                players[deck].loadVideoById(id);
+                document.getElementById(`pitch-${deck.toLowerCase()}`).value = 1;
+                updatePitch(deck);
+                // Reset Cues/Loops
+                loops[deck] = { active: false, in: null, out: null };
+                hotCues[deck] = { 1: null, 2: null, 3: null, setMode: false };
+                updateLoopUI(deck);
+                updateCueUI(deck);
+            }
         }
 
+        // --- PLAYBACK CONTROLS ---
         function togglePlay(deck) {
-            let p = (deck === 'A') ? playerA : playerB;
-            let ready = (deck === 'A') ? isReadyA : isReadyB;
-            if(ready) {
-                const state = p.getPlayerState();
-                state === YT.PlayerState.PLAYING ? p.pauseVideo() : p.playVideo();
-            }
+            if(!ready[deck]) return;
+            const state = players[deck].getPlayerState();
+            state === 1 ? players[deck].pauseVideo() : players[deck].playVideo();
         }
 
-        function cueTrack(deck) {
-            let p = (deck === 'A') ? playerA : playerB;
-            if((deck === 'A' ? isReadyA : isReadyB)) {
-                p.seekTo(0, true);
-                sysLog(`Deck ${deck}: Cued to start.`);
-            }
+        function mainCue(deck) {
+            if(!ready[deck]) return;
+            players[deck].pauseVideo();
+            players[deck].seekTo(0);
         }
 
-        function updateVisuals(deck, state) {
-            const d = deck.toLowerCase();
-            const vinyl = document.getElementById(`vinyl-${d}`);
-            const btn = document.getElementById(`play-btn-${d}`);
-            const light = document.getElementById(`status-${d}`);
-
-            if (state === YT.PlayerState.PLAYING) {
-                vinyl.classList.add('spinning'); vinyl.classList.remove('paused');
-                btn.classList.add('active'); btn.innerText = "PAUSE";
-                light.classList.remove('ready'); light.classList.add('on');
-            } else {
-                vinyl.classList.add('paused'); btn.classList.remove('active');
-                btn.innerText = "PLAY";
-                light.classList.remove('on'); light.classList.add('ready');
-            }
+        function brake(deck) {
+            if(!ready[deck]) return;
+            // Simulated Vinyl Brake: cycle speeds down then pause
+            log(`Deck ${deck}: Braking...`);
+            players[deck].setPlaybackRate(0.5);
+            setTimeout(() => {
+                 players[deck].setPlaybackRate(0.25);
+                 setTimeout(() => {
+                     players[deck].pauseVideo();
+                     players[deck].setPlaybackRate(1); // Reset for next play
+                 }, 200);
+            }, 200);
         }
 
         function updatePitch(deck) {
             const val = document.getElementById(`pitch-${deck.toLowerCase()}`).value;
-            if(deck === 'A' && isReadyA) playerA.setPlaybackRate(parseFloat(val));
-            if(deck === 'B' && isReadyB) playerB.setPlaybackRate(parseFloat(val));
+            if(ready[deck]) players[deck].setPlaybackRate(parseFloat(val));
         }
-
+        
         function resetPitch(deck) {
             document.getElementById(`pitch-${deck.toLowerCase()}`).value = 1;
             updatePitch(deck);
         }
 
-        function updateCrossfader() {
-            const xVal = document.getElementById('crossfader').value;
-            const masterVal = document.getElementById('master-vol').value / 100;
-            let volA = 100, volB = 100;
-            
-            if (xVal < 50) volB = (xVal / 50) * 100;
-            else if (xVal > 50) volA = 100 - ((xVal - 50) / 50 * 100);
-
-            volA *= masterVal; volB *= masterVal;
-
-            if (isReadyA) playerA.setVolume(volA);
-            if (isReadyB) playerB.setVolume(volB);
+        // --- HOT CUES ---
+        function toggleSetMode(deck) {
+            hotCues[deck].setMode = !hotCues[deck].setMode;
+            const btn = document.getElementById(`set-${deck.toLowerCase()}`);
+            btn.classList.toggle('set-mode');
         }
 
-        function toggleMode() {
-            const isSync = document.getElementById('mode-toggle').checked;
-            const syncBtns = document.querySelectorAll('.sync-btn');
-            const labelM = document.getElementById('label-manual');
-            const labelS = document.getElementById('label-sync');
-
-            if(isSync) {
-                syncBtns.forEach(b => b.style.display = 'block');
-                labelM.classList.remove('active'); labelS.classList.add('active');
-                sysLog("MODE: Sync Enabled.");
+        function triggerHotCue(deck, num) {
+            if(!ready[deck]) return;
+            const d = deck.toLowerCase();
+            const btn = document.getElementById(`cue-${d}-${num}`);
+            
+            if (hotCues[deck].setMode) {
+                // SAVE CUE
+                hotCues[deck][num] = players[deck].getCurrentTime();
+                btn.classList.add('has-cue');
+                log(`Deck ${deck}: Hot Cue ${num} Saved.`);
+                toggleSetMode(deck); // Exit set mode automatically
             } else {
-                syncBtns.forEach(b => b.style.display = 'none');
-                labelM.classList.add('active'); labelS.classList.remove('active');
-                sysLog("MODE: Manual Pitch.");
+                // JUMP TO CUE
+                if(hotCues[deck][num] !== null) {
+                    players[deck].seekTo(hotCues[deck][num], true);
+                    players[deck].playVideo(); // Auto play on jump
+                } else {
+                    log(`Deck ${deck}: Hot Cue ${num} Empty`);
+                }
             }
         }
+        
+        function updateCueUI(deck) {
+            [1,2,3].forEach(n => {
+                const btn = document.getElementById(`cue-${deck.toLowerCase()}-${n}`);
+                btn.classList.remove('has-cue');
+            });
+        }
+
+        // --- LOOPING ---
+        function loopIn(deck) {
+            if(!ready[deck]) return;
+            loops[deck].in = players[deck].getCurrentTime();
+            log(`Deck ${deck}: Loop IN set`);
+        }
+
+        function loopOut(deck) {
+            if(!ready[deck]) return;
+            if(loops[deck].in === null) return; // Can't out without in
+            loops[deck].out = players[deck].getCurrentTime();
+            loops[deck].active = true;
+            document.getElementById(`loop-exit-${deck.toLowerCase()}`).classList.add('loop-active');
+            log(`Deck ${deck}: Loop ACTIVE`);
+        }
+
+        function loopExit(deck) {
+            loops[deck].active = false;
+            loops[deck].in = null;
+            loops[deck].out = null;
+            document.getElementById(`loop-exit-${deck.toLowerCase()}`).classList.remove('loop-active');
+            log(`Deck ${deck}: Loop CLEARED`);
+        }
+        
+        function updateLoopUI(deck) {
+            document.getElementById(`loop-exit-${deck.toLowerCase()}`).classList.remove('loop-active');
+        }
+
+        function checkLoops() {
+            // High frequency Polling
+            ['A', 'B'].forEach(deck => {
+                if(ready[deck] && loops[deck].active && loops[deck].out) {
+                    const ct = players[deck].getCurrentTime();
+                    // If we passed the OUT point, jump back to IN
+                    if (ct >= loops[deck].out) {
+                        players[deck].seekTo(loops[deck].in, true);
+                    }
+                }
+                
+                // Also update Time Display
+                if(ready[deck]) {
+                    const t = players[deck].getCurrentTime();
+                    const m = Math.floor(t / 60).toString().padStart(2,'0');
+                    const s = Math.floor(t % 60).toString().padStart(2,'0');
+                    document.getElementById(`time-${deck.toLowerCase()}`).innerText = `${m}:${s}`;
+                }
+            });
+        }
+
+        // --- BPM TAP ---
+        function tapBpm(deck) {
+            const now = Date.now();
+            const data = tapData[deck];
+            
+            // Reset if last tap was over 2 seconds ago
+            if (now - data.lastTap > 2000) {
+                data.count = 0;
+                data.total = 0;
+            }
+
+            if (data.count > 0) {
+                const diff = now - data.lastTap;
+                data.total += diff;
+                const avg = data.total / data.count;
+                const bpm = Math.round(60000 / avg);
+                document.getElementById(`bpm-${deck.toLowerCase()}`).innerText = `${bpm} BPM`;
+            }
+            
+            data.lastTap = now;
+            data.count++;
+        }
+
+        // --- VOLUME & MIXING ---
+        function updateVolume() {
+            const master = document.getElementById('master-vol').value / 100;
+            const xVal = document.getElementById('crossfader').value;
+            
+            const gainA = document.getElementById('gain-a').value / 100;
+            const gainB = document.getElementById('gain-b').value / 100;
+
+            let xVolA = 1, xVolB = 1;
+
+            if (xVal < 50) xVolB = (xVal / 50);
+            else if (xVal > 50) xVolA = 1 - ((xVal - 50) / 50);
+
+            // Final Volume = DeckGain * Crossfader * Master
+            const finalA = gainA * xVolA * master * 100;
+            const finalB = gainB * xVolB * master * 100;
+
+            if (ready.A) players.A.setVolume(finalA);
+            if (ready.B) players.B.setVolume(finalB);
+        }
+
+        // --- VISUALS ---
+        function updateVisuals(deck, state) {
+            const d = deck.toLowerCase();
+            const vinyl = document.getElementById(`vinyl-${d}`);
+            const btn = document.getElementById(`play-${d}`);
+            
+            if (state === 1) { // Playing
+                vinyl.classList.add('spinning'); vinyl.classList.remove('paused');
+                btn.classList.add('active');
+            } else {
+                vinyl.classList.add('paused');
+                btn.classList.remove('active');
+            }
+        }
+
+        // --- SYNC SWITCH ---
+        document.getElementById('sync-toggle').addEventListener('change', (e) => {
+            const knob = document.getElementById('sync-knob');
+            const btns = [document.getElementById('sync-btn-a'), document.getElementById('sync-btn-b')];
+            
+            if(e.target.checked) {
+                knob.style.transform = 'translateX(20px)';
+                knob.style.background = 'var(--accent)';
+                btns.forEach(b => b.style.display = 'block');
+            } else {
+                knob.style.transform = 'translateX(0)';
+                knob.style.background = '#fff';
+                btns.forEach(b => b.style.display = 'none');
+            }
+        });
 
         function syncDeck(target) {
-            let targetSlider = document.getElementById(`pitch-${target.toLowerCase()}`);
-            let sourceRate = 1;
-            if(target === 'A') {
-                if(!isReadyB) return; sourceRate = playerB.getPlaybackRate();
-            } else {
-                if(!isReadyA) return; sourceRate = playerA.getPlaybackRate();
-            }
-            targetSlider.value = sourceRate;
+            // Simple BPM sync (matches playback rate)
+            if(!ready.A || !ready.B) return;
+            const source = (target === 'A') ? players.B : players.A;
+            const rate = source.getPlaybackRate();
+            
+            document.getElementById(`pitch-${target.toLowerCase()}`).value = rate;
             updatePitch(target);
-            sysLog(`SYNC: Deck ${target} matched to ${sourceRate}x`);
+            log(`Synced Deck ${target} to ${rate}x`);
         }
+
     </script>
 </body>
 </html>
