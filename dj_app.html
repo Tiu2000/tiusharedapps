@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Mixer Pro v11 - Auto Titles</title>
+    <title>TIU Mixer Pro v12 - Session Manager</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -121,10 +121,15 @@
         .deck-info {
             background: #0f0f0f; border: 1px solid #333; padding: 10px; border-radius: 4px;
             font-family: 'Courier New', monospace; color: var(--accent); font-size: 0.9rem;
-            display: flex; flex-direction: column; gap: 2px;
+            display: flex; flex-direction: column; gap: 5px;
         }
-        .info-row { display: flex; justify-content: space-between; width: 100%; }
+        .info-row { display: flex; justify-content: space-between; width: 100%; align-items: center; }
         .bpm-display { color: #fff; font-weight: bold; cursor: pointer; }
+        .save-btn {
+            background: #333; color: #aaa; border: 1px solid #555; font-size: 0.6rem;
+            padding: 2px 6px; cursor: pointer; border-radius: 3px; font-family: sans-serif;
+        }
+        .save-btn:hover { background: var(--accent-dim); color: white; border-color: var(--accent); }
 
         /* CONTROLS */
         .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
@@ -171,15 +176,23 @@
         .crate-header {
             display: flex; gap: 10px; border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 10px;
         }
+        .session-controls {
+            display: flex; justify-content: flex-end; gap: 10px; padding-top: 10px; border-top: 1px solid #333; margin-top: 10px;
+        }
         .crate-input {
             background: #000; border: 1px solid #444; color: #fff; padding: 8px; 
             border-radius: 4px; font-family: inherit; font-size: 0.8rem;
         }
         .crate-btn {
             background: var(--accent-dim); color: #fff; border: none; padding: 8px 15px;
-            border-radius: 4px; cursor: pointer; font-weight: bold;
+            border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.7rem;
         }
         .crate-btn:hover { background: var(--accent); color: #000; }
+        .session-btn {
+            background: #333; color: #ccc; border: 1px solid #555; padding: 8px 15px;
+            border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.7rem;
+        }
+        .session-btn:hover { background: #555; color: #fff; }
 
         .crate-list {
             display: flex; flex-direction: column; gap: 5px; max-height: 200px; overflow-y: auto;
@@ -190,6 +203,7 @@
         }
         .crate-item:hover { background: #222; }
         .item-name { color: #fff; font-size: 0.85rem; flex: 1; }
+        .item-info { font-size: 0.7rem; color: var(--accent); margin-right: 10px; font-family: monospace; }
         .item-actions { display: flex; gap: 5px; }
         .load-btn {
             background: #333; color: #aaa; border: 1px solid #444; padding: 4px 8px;
@@ -197,14 +211,22 @@
         }
         .load-btn:hover { background: #555; color: #fff; }
 
-        /* LOADING SPINNER */
-        .loading-title { color: #888; font-style: italic; }
+        /* NOTIFICATION TOAST */
+        #toast {
+            visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center;
+            border-radius: 4px; padding: 16px; position: fixed; z-index: 1000; bottom: 30px; border: 1px solid var(--accent);
+        }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
 
     </style>
 </head>
 <body>
 
     <div class="watermark">TIU</div>
+    <div id="toast">Saved!</div>
+    <input type="file" id="import-file" style="display: none;" accept=".json" onchange="handleFileImport(this)">
 
     <div id="video-layer">
         <div id="player-a"></div>
@@ -247,6 +269,9 @@
                 <div class="deck-info">
                     <div class="info-row">
                         <span id="time-a">00:00</span>
+                        <button class="save-btn" onclick="saveDeckData('A')">💾 SAVE</button>
+                    </div>
+                    <div class="info-row">
                         <span class="bpm-display" id="bpm-a">TAP BPM</span>
                     </div>
                     <div class="beat-gauge-container">
@@ -314,6 +339,9 @@
                 <div class="deck-info">
                     <div class="info-row">
                         <span id="time-b">00:00</span>
+                        <button class="save-btn" onclick="saveDeckData('B')">💾 SAVE</button>
+                    </div>
+                    <div class="info-row">
                         <span class="bpm-display" id="bpm-b">TAP BPM</span>
                     </div>
                     <div class="beat-gauge-container">
@@ -350,7 +378,7 @@
         </div>
         
         <div class="crate-section">
-            <h3 style="margin-top:0; font-size:0.8rem; color:#888; text-transform:uppercase;">Session Crate (Auto-Fetch Titles)</h3>
+            <h3 style="margin-top:0; font-size:0.8rem; color:#888; text-transform:uppercase;">Session Manager</h3>
             
             <div class="crate-header">
                 <input type="text" id="crate-url" class="crate-input" style="flex:1;" placeholder="Paste YouTube URL here..." oninput="handleUrlPaste()">
@@ -359,7 +387,12 @@
             </div>
 
             <div class="crate-list" id="crate-list">
-                <div style="padding:10px; color:#444; text-align:center; font-style:italic;" id="empty-msg">Crate is empty. Paste a URL above.</div>
+                <div style="padding:10px; color:#444; text-align:center; font-style:italic;" id="empty-msg">Crate is empty.</div>
+            </div>
+
+            <div class="session-controls">
+                <button class="session-btn" onclick="document.getElementById('import-file').click()">📥 IMPORT SESSION</button>
+                <button class="session-btn" onclick="exportSession()">📤 EXPORT SESSION</button>
             </div>
         </div>
     </div>
@@ -371,8 +404,10 @@
         var loops = { A: { active: false, in: null, out: null }, B: { active: false, in: null, out: null } };
         var hotCues = { A: { 1: null, 2: null, 3: null, setMode: false }, B: { 1: null, 2: null, 3: null, setMode: false } };
         var tapData = { A: { lastTap: 0, count: 0, total: 0, bpm: 0 }, B: { lastTap: 0, count: 0, total: 0, bpm: 0 } };
+        var loadedTrackId = { A: null, B: null }; // Tracks which ID is loaded where
+        var crateData = []; // Stores our session data
         var loopInterval;
-        var fetchTimeout; // Timer for auto-fetch
+        var fetchTimeout;
 
         // --- YOUTUBE API ---
         var tag = document.createElement('script');
@@ -394,10 +429,10 @@
                     'onReady': (e) => { ready[deck] = true; updateVolume(); },
                     'onStateChange': (e) => {
                         updateVisuals(deck, e.data);
-                        // AUTO-TITLE FETCH FROM PLAYER
                         if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.CUED) {
                             const data = players[deck].getVideoData();
-                            if(data && data.title) {
+                            if(data && data.title && !loadedTrackId[deck]) {
+                                // Fallback title fetch
                                 document.getElementById(`track-title-${deck.toLowerCase()}`).innerText = data.title;
                             }
                         }
@@ -406,7 +441,69 @@
             });
         }
 
-        // --- CRATE & LOAD LOGIC ---
+        // --- DATA SAVING (DECK TO CRATE) ---
+        function saveDeckData(deck) {
+            const vidId = loadedTrackId[deck];
+            if (!vidId) { showToast("No track loaded to save!"); return; }
+
+            // Find track in crateData
+            const track = crateData.find(t => t.id === vidId);
+            if (track) {
+                // Update track data
+                track.bpm = tapData[deck].bpm;
+                track.hotCues = { ...hotCues[deck] }; // clone
+                delete track.hotCues.setMode; // don't need this
+                track.savedLoop = { in: loops[deck].in, out: loops[deck].out };
+                
+                showToast(`Saved Data for: ${track.name}`);
+                renderCrate(); // Update visual list if we want to show icons later
+            } else {
+                showToast("Track not found in crate.");
+            }
+        }
+
+        function showToast(msg) {
+            const x = document.getElementById("toast");
+            x.innerText = msg;
+            x.className = "show";
+            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+        }
+
+        // --- EXPORT / IMPORT ---
+        function exportSession() {
+            if(crateData.length === 0) { showToast("Nothing to export!"); return; }
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crateData));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "tiu_session.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function handleFileImport(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        crateData = imported;
+                        renderCrate();
+                        showToast("Session Imported Successfully!");
+                    } else {
+                        showToast("Invalid File Format");
+                    }
+                } catch(err) {
+                    showToast("Error reading file");
+                }
+            };
+            reader.readAsText(file);
+            input.value = ''; // clear input
+        }
+
+        // --- CRATE MANAGEMENT ---
         function handleUrlPaste() {
             clearTimeout(fetchTimeout);
             const url = document.getElementById('crate-url').value;
@@ -423,66 +520,106 @@
                             nameInput.placeholder = "Track Name";
                         }
                     })
-                    .catch(e => {
-                        console.log("Could not fetch title automatically");
-                        nameInput.placeholder = "Type Name Manually";
-                    });
-                }, 800); // Wait 800ms after typing stops
+                    .catch(e => { nameInput.placeholder = "Type Name Manually"; });
+                }, 800);
             }
         }
 
         function addToCrate() {
             const nameInput = document.getElementById('crate-name');
             const urlInput = document.getElementById('crate-url');
-            const list = document.getElementById('crate-list');
-            const emptyMsg = document.getElementById('empty-msg');
 
             const name = nameInput.value.trim() || "Unknown Track";
             const url = urlInput.value.trim();
 
             if(!url) { alert("Please enter a URL"); return; }
             
-            // Extract ID
             const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
             const vidId = (match && match[2].length === 11) ? match[2] : url;
 
-            if(emptyMsg) emptyMsg.remove();
+            // Push to Data Array
+            crateData.push({
+                id: vidId,
+                name: name,
+                bpm: 0,
+                hotCues: { 1: null, 2: null, 3: null },
+                savedLoop: { in: null, out: null }
+            });
 
-            const div = document.createElement('div');
-            div.className = 'crate-item';
-            div.innerHTML = `
-                <span class="item-name">${name}</span>
-                <div class="item-actions">
-                    <button class="load-btn" onclick="loadFromCrate('A', '${vidId}', '${name.replace(/'/g, "\\'")}')">LOAD A</button>
-                    <button class="load-btn" onclick="loadFromCrate('B', '${vidId}', '${name.replace(/'/g, "\\'")}')">LOAD B</button>
-                    <button class="load-btn" onclick="this.parentNode.parentNode.remove()" style="color:#f00; border-color:#500;">X</button>
-                </div>
-            `;
-            list.appendChild(div);
+            renderCrate();
 
             nameInput.value = '';
             urlInput.value = '';
             nameInput.placeholder = "Track Name (Auto-fills)";
         }
 
-        function loadFromCrate(deck, vidId, name) {
+        function renderCrate() {
+            const list = document.getElementById('crate-list');
+            const emptyMsg = document.getElementById('empty-msg');
+            list.innerHTML = '';
+
+            if (crateData.length === 0) {
+                if(emptyMsg) list.appendChild(emptyMsg);
+                else list.innerHTML = '<div style="padding:10px; color:#444; text-align:center; font-style:italic;" id="empty-msg">Crate is empty.</div>';
+                return;
+            }
+
+            crateData.forEach((track, index) => {
+                const div = document.createElement('div');
+                div.className = 'crate-item';
+                
+                // Show BPM if saved
+                const bpmBadge = track.bpm > 0 ? `<span class="item-info">${track.bpm} BPM</span>` : '';
+
+                div.innerHTML = `
+                    <span class="item-name">${track.name}</span>
+                    ${bpmBadge}
+                    <div class="item-actions">
+                        <button class="load-btn" onclick="loadFromCrate('A', ${index})">LOAD A</button>
+                        <button class="load-btn" onclick="loadFromCrate('B', ${index})">LOAD B</button>
+                        <button class="load-btn" onclick="removeFromCrate(${index})" style="color:#f00; border-color:#500;">X</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function removeFromCrate(index) {
+            crateData.splice(index, 1);
+            renderCrate();
+        }
+
+        function loadFromCrate(deck, index) {
             if(!ready[deck]) return;
             
-            // Update Title (Optimistic update, Player will confirm later)
-            document.getElementById(`track-title-${deck.toLowerCase()}`).innerText = name;
+            const track = crateData[index];
+            loadedTrackId[deck] = track.id; // Remember what we loaded
 
-            players[deck].loadVideoById(vidId);
+            // UI Updates
+            document.getElementById(`track-title-${deck.toLowerCase()}`).innerText = track.name;
+            players[deck].loadVideoById(track.id);
             
-            // Reset Deck State
+            // Reset Pitch
             document.getElementById(`pitch-${deck.toLowerCase()}`).value = 1;
             updatePitch(deck);
-            loops[deck] = { active: false, in: null, out: null };
-            hotCues[deck] = { 1: null, 2: null, 3: null, setMode: false };
+
+            // RESTORE SAVED DATA
+            loops[deck] = { active: false, in: track.savedLoop.in, out: track.savedLoop.out };
+            hotCues[deck] = { ...track.hotCues, setMode: false };
+            
+            // Restore BPM
+            if (track.bpm > 0) {
+                tapData[deck] = { lastTap: 0, count: 0, total: 0, bpm: track.bpm };
+                document.getElementById(`bpm-${deck.toLowerCase()}`).innerText = `${track.bpm} BPM`;
+                updateBeatGauge(deck, track.bpm);
+            } else {
+                tapData[deck] = { lastTap: 0, count: 0, total: 0, bpm: 0 };
+                document.getElementById(`bpm-${deck.toLowerCase()}`).innerText = "TAP BPM";
+                updateBeatGauge(deck, 0);
+            }
+
             updateLoopUI(deck);
             updateCueUI(deck);
-            tapData[deck] = { lastTap: 0, count: 0, total: 0, bpm: 0 };
-            document.getElementById(`bpm-${deck.toLowerCase()}`).innerText = "TAP BPM";
-            updateBeatGauge(deck, 0);
         }
 
         // --- PLAYBACK CONTROLS ---
@@ -578,7 +715,11 @@
         }
         
         function updateCueUI(deck) {
-            [1,2,3].forEach(n => document.getElementById(`cue-${deck.toLowerCase()}-${n}`).classList.remove('has-cue'));
+            [1,2,3].forEach(n => {
+                const btn = document.getElementById(`cue-${deck.toLowerCase()}-${n}`);
+                if(hotCues[deck][n] !== null) btn.classList.add('has-cue');
+                else btn.classList.remove('has-cue');
+            });
         }
 
         // --- LOOPING ---
@@ -590,14 +731,18 @@
             document.getElementById(`loop-exit-${deck.toLowerCase()}`).classList.add('loop-active');
         }
         function loopExit(deck) {
-            loops[deck].active = false; loops[deck].in = null; loops[deck].out = null;
+            loops[deck].active = false; // We don't clear In/Out here so they can be retriggered if we had a "reloop" button, but for now just stop loop
             document.getElementById(`loop-exit-${deck.toLowerCase()}`).classList.remove('loop-active');
         }
-        function updateLoopUI(deck) { document.getElementById(`loop-exit-${deck.toLowerCase()}`).classList.remove('loop-active'); }
+        function updateLoopUI(deck) { 
+            // If saved loops exist, we don't necessarily activate them immediately, 
+            // but we could visually indicate a loop is ready. For now, just reset.
+            document.getElementById(`loop-exit-${deck.toLowerCase()}`).classList.remove('loop-active'); 
+        }
 
         function checkLoops() {
             ['A', 'B'].forEach(deck => {
-                if(ready[deck] && loops[deck].active && loops[deck].out) {
+                if(ready[deck] && loops[deck].active && loops[deck].out && loops[deck].in !== null) {
                     if (players[deck].getCurrentTime() >= loops[deck].out) players[deck].seekTo(loops[deck].in, true);
                 }
                 if(ready[deck]) {
