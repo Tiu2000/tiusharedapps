@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Mixer Pro v12 - Session Manager</title>
+    <title>TIU Mixer Pro v14 - Playlist Support</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -174,7 +174,7 @@
             border-radius: 8px; padding: 15px; box-sizing: border-box;
         }
         .crate-header {
-            display: flex; gap: 10px; border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 10px;
+            display: flex; gap: 10px; border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 10px; flex-wrap: wrap;
         }
         .session-controls {
             display: flex; justify-content: flex-end; gap: 10px; padding-top: 10px; border-top: 1px solid #333; margin-top: 10px;
@@ -185,7 +185,7 @@
         }
         .crate-btn {
             background: var(--accent-dim); color: #fff; border: none; padding: 8px 15px;
-            border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.7rem;
+            border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.7rem; white-space: nowrap;
         }
         .crate-btn:hover { background: var(--accent); color: #000; }
         .session-btn {
@@ -193,6 +193,17 @@
             border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.7rem;
         }
         .session-btn:hover { background: #555; color: #fff; }
+
+        /* BULK AREA */
+        #bulk-container {
+            width: 100%; display: none; flex-direction: column; gap: 10px;
+            margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px;
+        }
+        #bulk-textarea {
+            width: 100%; height: 100px; background: #000; color: #bbb;
+            border: 1px solid #444; padding: 10px; font-family: monospace; font-size: 0.8rem;
+            box-sizing: border-box; resize: vertical;
+        }
 
         .crate-list {
             display: flex; flex-direction: column; gap: 5px; max-height: 200px; overflow-y: auto;
@@ -249,10 +260,8 @@
         </header>
 
         <div class="console">
-            
             <div class="deck" id="deck-a">
                 <div class="track-title" id="track-title-a">No Track Loaded</div>
-                
                 <div class="deck-top">
                     <div class="vinyl-wrapper">
                         <div class="vinyl" id="vinyl-a">
@@ -265,7 +274,6 @@
                         <input type="range" class="vertical-fader" id="gain-a" min="0" max="100" value="80" oninput="updateVolume()">
                     </div>
                 </div>
-
                 <div class="deck-info">
                     <div class="info-row">
                         <span id="time-a">00:00</span>
@@ -278,25 +286,21 @@
                         <div class="beat-piston" id="piston-a"></div>
                     </div>
                 </div>
-
                 <div class="pad-grid">
                     <button class="pad" id="cue-a-1" onclick="triggerHotCue('A', 1)">1</button>
                     <button class="pad" id="cue-a-2" onclick="triggerHotCue('A', 2)">2</button>
                     <button class="pad" id="cue-a-3" onclick="triggerHotCue('A', 3)">3</button>
                     <button class="pad" id="set-a" onclick="toggleSetMode('A')" style="color:#d32f2f;">SET</button>
-                    
                     <button class="pad" onclick="loopIn('A')">IN</button>
                     <button class="pad" onclick="loopOut('A')">OUT</button>
                     <button class="pad" id="loop-exit-a" onclick="loopExit('A')">EXIT</button>
                     <button class="pad" onclick="tapBpm('A')">TAP</button>
                 </div>
-
                 <div class="transport">
                     <button class="btn-transport btn-cue" onclick="mainCue('A')">CUE</button>
                     <button class="btn-transport btn-play" id="play-a" onclick="togglePlay('A')">PLAY</button>
                     <button class="btn-transport" onclick="brake('A')" style="background:#555; font-size:0.6rem;">STOP</button>
                 </div>
-
                 <div class="pitch-container">
                     <div style="display:flex; justify-content:space-between; width:100%; font-size:0.6rem; color:#666; margin-bottom:5px;">
                         <span onclick="resetPitch('A')" style="cursor:pointer;">RESET</span>
@@ -311,7 +315,6 @@
                     <div style="font-size:0.6rem; color:#666; margin-bottom:5px;">MASTER</div>
                     <input type="range" class="vertical-fader" id="master-vol" min="0" max="100" value="100" style="height:180px;" oninput="updateVolume()">
                 </div>
-
                 <div style="width:100%;">
                     <div style="text-align:center; font-size:0.6rem; color:#666; margin-bottom:5px;">CROSSFADER</div>
                     <input type="range" id="crossfader" min="0" max="100" value="50" style="width:100%; cursor:pointer;" oninput="updateVolume()">
@@ -335,7 +338,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="deck-info">
                     <div class="info-row">
                         <span id="time-b">00:00</span>
@@ -348,25 +350,21 @@
                         <div class="beat-piston" id="piston-b"></div>
                     </div>
                 </div>
-
                 <div class="pad-grid">
                     <button class="pad" id="cue-b-1" onclick="triggerHotCue('B', 1)">1</button>
                     <button class="pad" id="cue-b-2" onclick="triggerHotCue('B', 2)">2</button>
                     <button class="pad" id="cue-b-3" onclick="triggerHotCue('B', 3)">3</button>
                     <button class="pad" id="set-b" onclick="toggleSetMode('B')" style="color:#d32f2f;">SET</button>
-                    
                     <button class="pad" onclick="loopIn('B')">IN</button>
                     <button class="pad" onclick="loopOut('B')">OUT</button>
                     <button class="pad" id="loop-exit-b" onclick="loopExit('B')">EXIT</button>
                     <button class="pad" onclick="tapBpm('B')">TAP</button>
                 </div>
-
                 <div class="transport">
                     <button class="btn-transport btn-cue" onclick="mainCue('B')">CUE</button>
                     <button class="btn-transport btn-play" id="play-b" onclick="togglePlay('B')">PLAY</button>
                     <button class="btn-transport" onclick="brake('B')" style="background:#555; font-size:0.6rem;">STOP</button>
                 </div>
-
                 <div class="pitch-container">
                     <div style="display:flex; justify-content:space-between; width:100%; font-size:0.6rem; color:#666; margin-bottom:5px;">
                         <span onclick="resetPitch('B')" style="cursor:pointer;">RESET</span>
@@ -380,10 +378,20 @@
         <div class="crate-section">
             <h3 style="margin-top:0; font-size:0.8rem; color:#888; text-transform:uppercase;">Session Manager</h3>
             
+            <div id="bulk-container">
+                <div style="font-size:0.7rem; color:#666; margin-bottom:5px;">PASTE LINKS (ONE PER LINE) - OR - "ARTIST - TITLE HTTP://..."</div>
+                <textarea id="bulk-textarea" placeholder="https://youtube.com/watch?v=...\nhttps://youtube.com/watch?v=..."></textarea>
+                <div style="text-align:right;">
+                    <button class="crate-btn" onclick="processBulkAdd()">PROCESS LIST</button>
+                    <button class="crate-btn" onclick="toggleBulkMode()" style="background:#333;">CANCEL</button>
+                </div>
+            </div>
+
             <div class="crate-header">
-                <input type="text" id="crate-url" class="crate-input" style="flex:1;" placeholder="Paste YouTube URL here..." oninput="handleUrlPaste()">
-                <input type="text" id="crate-name" class="crate-input" style="flex:1;" placeholder="Track Name (Auto-fills)">
-                <button class="crate-btn" onclick="addToCrate()">ADD</button>
+                <button class="crate-btn" onclick="toggleBulkMode()" style="background:#333; margin-right:10px;">📝 BULK</button>
+                <input type="text" id="crate-url" class="crate-input" style="flex:1;" placeholder="Paste Video OR Playlist URL..." oninput="handleUrlPaste()">
+                <input type="text" id="crate-name" class="crate-input" style="flex:1;" placeholder="Track Name">
+                <button class="crate-btn" onclick="addSingleTrack()">ADD</button>
             </div>
 
             <div class="crate-list" id="crate-list">
@@ -404,8 +412,8 @@
         var loops = { A: { active: false, in: null, out: null }, B: { active: false, in: null, out: null } };
         var hotCues = { A: { 1: null, 2: null, 3: null, setMode: false }, B: { 1: null, 2: null, 3: null, setMode: false } };
         var tapData = { A: { lastTap: 0, count: 0, total: 0, bpm: 0 }, B: { lastTap: 0, count: 0, total: 0, bpm: 0 } };
-        var loadedTrackId = { A: null, B: null }; // Tracks which ID is loaded where
-        var crateData = []; // Stores our session data
+        var loadedTrackId = { A: null, B: null }; 
+        var crateData = []; 
         var loopInterval;
         var fetchTimeout;
 
@@ -432,7 +440,6 @@
                         if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.CUED) {
                             const data = players[deck].getVideoData();
                             if(data && data.title && !loadedTrackId[deck]) {
-                                // Fallback title fetch
                                 document.getElementById(`track-title-${deck.toLowerCase()}`).innerText = data.title;
                             }
                         }
@@ -445,18 +452,14 @@
         function saveDeckData(deck) {
             const vidId = loadedTrackId[deck];
             if (!vidId) { showToast("No track loaded to save!"); return; }
-
-            // Find track in crateData
             const track = crateData.find(t => t.id === vidId);
             if (track) {
-                // Update track data
                 track.bpm = tapData[deck].bpm;
-                track.hotCues = { ...hotCues[deck] }; // clone
-                delete track.hotCues.setMode; // don't need this
+                track.hotCues = { ...hotCues[deck] };
+                delete track.hotCues.setMode; 
                 track.savedLoop = { in: loops[deck].in, out: loops[deck].out };
-                
                 showToast(`Saved Data for: ${track.name}`);
-                renderCrate(); // Update visual list if we want to show icons later
+                renderCrate(); 
             } else {
                 showToast("Track not found in crate.");
             }
@@ -500,57 +503,167 @@
                 }
             };
             reader.readAsText(file);
-            input.value = ''; // clear input
+            input.value = ''; 
         }
 
-        // --- CRATE MANAGEMENT ---
+        // --- BULK ADD & CRATE MANAGEMENT ---
+        function toggleBulkMode() {
+            const cont = document.getElementById('bulk-container');
+            cont.style.display = (cont.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function processBulkAdd() {
+            const text = document.getElementById('bulk-textarea').value;
+            if(!text.trim()) return;
+            const lines = text.split('\n');
+            let addedCount = 0;
+            lines.forEach(line => {
+                line = line.trim();
+                if(!line) return;
+                const urlMatch = line.match(/(https?:\/\/[^\s]+)/);
+                if(urlMatch) {
+                    const url = urlMatch[0];
+                    let name = line.replace(url, '').trim();
+                    name = name.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+                    if(name.length < 2) name = null;
+                    performAdd(url, name);
+                    addedCount++;
+                }
+            });
+            document.getElementById('bulk-textarea').value = '';
+            toggleBulkMode();
+            showToast(`Processed ${addedCount} tracks.`);
+        }
+
         function handleUrlPaste() {
             clearTimeout(fetchTimeout);
             const url = document.getElementById('crate-url').value;
             const nameInput = document.getElementById('crate-name');
 
+            // Check if it's a playlist first
+            if (url.includes('list=')) {
+                nameInput.value = "Playlist Detected";
+                return;
+            }
+
             if (url.length > 10) {
                 nameInput.placeholder = "Fetching title...";
                 fetchTimeout = setTimeout(() => {
-                    fetch(`https://noembed.com/embed?url=${url}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.title) {
-                            nameInput.value = data.title;
+                    fetchTitle(url, (title) => {
+                         if(title) {
+                            nameInput.value = title;
                             nameInput.placeholder = "Track Name";
-                        }
-                    })
-                    .catch(e => { nameInput.placeholder = "Type Name Manually"; });
+                         } else {
+                             nameInput.placeholder = "Type Name Manually";
+                         }
+                    });
                 }, 800);
             }
         }
 
-        function addToCrate() {
+        function fetchTitle(url, callback) {
+             fetch(`https://noembed.com/embed?url=${url}`)
+                .then(response => response.json())
+                .then(data => callback(data.title))
+                .catch(e => callback(null));
+        }
+
+        function addSingleTrack() {
             const nameInput = document.getElementById('crate-name');
             const urlInput = document.getElementById('crate-url');
-
-            const name = nameInput.value.trim() || "Unknown Track";
+            const name = nameInput.value.trim();
             const url = urlInput.value.trim();
 
             if(!url) { alert("Please enter a URL"); return; }
-            
-            const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
-            const vidId = (match && match[2].length === 11) ? match[2] : url;
 
-            // Push to Data Array
-            crateData.push({
-                id: vidId,
-                name: name,
-                bpm: 0,
-                hotCues: { 1: null, 2: null, 3: null },
-                savedLoop: { in: null, out: null }
-            });
+            // === PLAYLIST HANDLING ===
+            const listMatch = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+            if (listMatch) {
+                fetchPlaylist(listMatch[1]);
+                urlInput.value = '';
+                nameInput.value = '';
+                return;
+            }
 
-            renderCrate();
+            performAdd(url, name || null); // null forces fetch
 
             nameInput.value = '';
             urlInput.value = '';
-            nameInput.placeholder = "Track Name (Auto-fills)";
+            nameInput.placeholder = "Track Name";
+        }
+
+        // --- FETCH PLAYLIST VIA INVIDIOUS API ---
+        function fetchPlaylist(listId) {
+            showToast("Fetching Playlist... Please Wait.");
+            // We use inv.tux.pizza as it is generally reliable. 
+            // Alternative: https://invidious.projectsegfau.lt/api/v1/playlists/
+            fetch(`https://inv.tux.pizza/api/v1/playlists/${listId}`)
+            .then(res => {
+                if(!res.ok) throw new Error("API Error");
+                return res.json();
+            })
+            .then(data => {
+                if(data.videos && data.videos.length > 0) {
+                    let count = 0;
+                    data.videos.forEach(video => {
+                        // Create structure for internal use
+                        const newTrack = {
+                            id: video.videoId,
+                            name: video.title,
+                            bpm: 0,
+                            hotCues: { 1: null, 2: null, 3: null },
+                            savedLoop: { in: null, out: null }
+                        };
+                        // Avoid duplicates
+                        if(!crateData.some(t => t.id === newTrack.id)) {
+                            crateData.push(newTrack);
+                            count++;
+                        }
+                    });
+                    renderCrate();
+                    showToast(`Imported ${count} tracks from playlist!`);
+                } else {
+                    showToast("Playlist is empty or private.");
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showToast("Error fetching playlist. Try again.");
+            });
+        }
+
+        function performAdd(url, explicitName) {
+            const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+            const vidId = (match && match[2].length === 11) ? match[2] : null;
+            
+            if(!vidId) return;
+
+            // Check duplicate
+            if(crateData.some(t => t.id === vidId)) return;
+
+            const newTrack = {
+                id: vidId,
+                name: explicitName || "Fetching Title...", // Temp name
+                bpm: 0,
+                hotCues: { 1: null, 2: null, 3: null },
+                savedLoop: { in: null, out: null }
+            };
+
+            crateData.push(newTrack);
+            renderCrate();
+
+            // If no name was provided, fetch it now
+            if(!explicitName) {
+                fetchTitle(url, (title) => {
+                    if(title) {
+                        newTrack.name = title;
+                        renderCrate(); // Re-render with new name
+                    } else {
+                        newTrack.name = "Unknown Track " + vidId;
+                        renderCrate();
+                    }
+                });
+            }
         }
 
         function renderCrate() {
@@ -567,12 +680,10 @@
             crateData.forEach((track, index) => {
                 const div = document.createElement('div');
                 div.className = 'crate-item';
-                
-                // Show BPM if saved
                 const bpmBadge = track.bpm > 0 ? `<span class="item-info">${track.bpm} BPM</span>` : '';
 
                 div.innerHTML = `
-                    <span class="item-name">${track.name}</span>
+                    <span class="item-name" onclick="renameTrack(${index})" title="Click to rename">${track.name}</span>
                     ${bpmBadge}
                     <div class="item-actions">
                         <button class="load-btn" onclick="loadFromCrate('A', ${index})">LOAD A</button>
@@ -583,6 +694,14 @@
                 list.appendChild(div);
             });
         }
+        
+        function renameTrack(index) {
+            const newName = prompt("Rename Track:", crateData[index].name);
+            if(newName) {
+                crateData[index].name = newName;
+                renderCrate();
+            }
+        }
 
         function removeFromCrate(index) {
             crateData.splice(index, 1);
@@ -591,23 +710,16 @@
 
         function loadFromCrate(deck, index) {
             if(!ready[deck]) return;
-            
             const track = crateData[index];
-            loadedTrackId[deck] = track.id; // Remember what we loaded
-
-            // UI Updates
+            loadedTrackId[deck] = track.id; 
             document.getElementById(`track-title-${deck.toLowerCase()}`).innerText = track.name;
             players[deck].loadVideoById(track.id);
-            
-            // Reset Pitch
             document.getElementById(`pitch-${deck.toLowerCase()}`).value = 1;
             updatePitch(deck);
 
-            // RESTORE SAVED DATA
             loops[deck] = { active: false, in: track.savedLoop.in, out: track.savedLoop.out };
             hotCues[deck] = { ...track.hotCues, setMode: false };
             
-            // Restore BPM
             if (track.bpm > 0) {
                 tapData[deck] = { lastTap: 0, count: 0, total: 0, bpm: track.bpm };
                 document.getElementById(`bpm-${deck.toLowerCase()}`).innerText = `${track.bpm} BPM`;
@@ -617,7 +729,6 @@
                 document.getElementById(`bpm-${deck.toLowerCase()}`).innerText = "TAP BPM";
                 updateBeatGauge(deck, 0);
             }
-
             updateLoopUI(deck);
             updateCueUI(deck);
         }
@@ -665,9 +776,7 @@
         function tapBpm(deck) {
             const now = Date.now();
             const data = tapData[deck];
-            
             if (now - data.lastTap > 2000) { data.count = 0; data.total = 0; }
-
             if (data.count > 0) {
                 const diff = now - data.lastTap;
                 data.total += diff;
@@ -701,7 +810,6 @@
         function triggerHotCue(deck, num) {
             if(!ready[deck]) return;
             const btn = document.getElementById(`cue-${deck.toLowerCase()}-${num}`);
-            
             if (hotCues[deck].setMode) {
                 hotCues[deck][num] = players[deck].getCurrentTime();
                 btn.classList.add('has-cue');
@@ -731,12 +839,10 @@
             document.getElementById(`loop-exit-${deck.toLowerCase()}`).classList.add('loop-active');
         }
         function loopExit(deck) {
-            loops[deck].active = false; // We don't clear In/Out here so they can be retriggered if we had a "reloop" button, but for now just stop loop
+            loops[deck].active = false; 
             document.getElementById(`loop-exit-${deck.toLowerCase()}`).classList.remove('loop-active');
         }
         function updateLoopUI(deck) { 
-            // If saved loops exist, we don't necessarily activate them immediately, 
-            // but we could visually indicate a loop is ready. For now, just reset.
             document.getElementById(`loop-exit-${deck.toLowerCase()}`).classList.remove('loop-active'); 
         }
 
@@ -760,11 +866,9 @@
             const xVal = document.getElementById('crossfader').value;
             const gainA = document.getElementById('gain-a').value / 100;
             const gainB = document.getElementById('gain-b').value / 100;
-
             let xVolA = 1, xVolB = 1;
             if (xVal < 50) xVolB = (xVal / 50);
             else if (xVal > 50) xVolA = 1 - ((xVal - 50) / 50);
-
             if (ready.A) players.A.setVolume(gainA * xVolA * master * 100);
             if (ready.B) players.B.setVolume(gainB * xVolB * master * 100);
         }
@@ -774,37 +878,4 @@
             const vinyl = document.getElementById(`vinyl-${d}`);
             const btn = document.getElementById(`play-${d}`);
             const piston = document.getElementById(`piston-${d}`);
-            if (state === 1) { 
-                vinyl.classList.add('spinning'); vinyl.classList.remove('paused');
-                btn.classList.add('active');
-                if(tapData[deck].bpm > 0) piston.classList.add('beating');
-            } else {
-                vinyl.classList.add('paused');
-                btn.classList.remove('active');
-                piston.classList.remove('beating');
-            }
-        }
-
-        // --- SYNC SWITCH ---
-        document.getElementById('sync-toggle').addEventListener('change', (e) => {
-            const knob = document.getElementById('sync-knob');
-            const btns = [document.getElementById('sync-btn-a'), document.getElementById('sync-btn-b')];
-            if(e.target.checked) {
-                knob.style.transform = 'translateX(20px)'; knob.style.background = 'var(--accent)';
-                btns.forEach(b => b.style.display = 'block');
-            } else {
-                knob.style.transform = 'translateX(0)'; knob.style.background = '#fff';
-                btns.forEach(b => b.style.display = 'none');
-            }
-        });
-
-        function syncDeck(target) {
-            if(!ready.A || !ready.B) return;
-            const source = (target === 'A') ? players.B : players.A;
-            const rate = source.getPlaybackRate();
-            document.getElementById(`pitch-${target.toLowerCase()}`).value = rate;
-            updatePitch(target);
-        }
-    </script>
-</body>
-</html>
+            if (state === 1) {
