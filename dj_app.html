@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Mixer Pro v9 - Visual Beat</title>
+    <title>TIU Mixer Pro v10 - Session Crate</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -32,10 +32,10 @@
         /* HIDDEN VIDEO LAYER */
         #video-layer { position: fixed; top: 0; z-index: -1; opacity: 0; pointer-events: none; }
 
-        /* MAIN UI */
+        /* MAIN UI CONTAINER */
         .app-layer {
             z-index: 100; display: flex; flex-direction: column; align-items: center;
-            background: #181818; padding: 20px; border-radius: 15px; margin-top: 20px;
+            background: #181818; padding: 20px; border-radius: 15px; margin-top: 20px; margin-bottom: 50px;
             box-shadow: 0 30px 80px rgba(0,0,0,0.9); border: 1px solid #333;
         }
 
@@ -45,16 +45,15 @@
         }
         h1 { margin: 0; font-size: 1.5rem; letter-spacing: 2px; color: #fff; }
 
-        /* CONSOLE GRID */
+        /* --- CONSOLE LAYOUT --- */
         .console { display: flex; gap: 15px; background: #000; padding: 20px; border-radius: 10px; border: 1px solid #333; }
 
-        /* DECK STYLING */
         .deck {
             background: var(--deck-bg); width: 320px; padding: 15px; border-radius: 8px;
             display: flex; flex-direction: column; gap: 15px; border: 1px solid #444; position: relative;
         }
 
-        /* TOP SECTION: INFO & VINYL */
+        /* DECK VISUALS */
         .deck-top { display: flex; gap: 15px; height: 160px; }
         
         .vinyl-wrapper { width: 160px; height: 160px; position: relative; }
@@ -89,20 +88,18 @@
             width: 8px; height: 100%; background: transparent;
         }
 
-        /* BEAT GAUGE */
+        /* --- VISUAL BEAT GAUGE --- */
         .beat-gauge-container {
-            width: 100%; height: 8px; background: #111; border-radius: 4px; overflow: hidden;
-            margin-top: 5px; border: 1px solid #333; position: relative;
+            width: 100%; height: 10px; background: #000; border-radius: 4px; overflow: hidden;
+            margin-top: 8px; border: 1px solid #333; position: relative;
         }
         .beat-piston {
             width: 20%; height: 100%; background: var(--bar-color);
-            position: absolute; left: 0; box-shadow: 0 0 10px var(--bar-color);
-            opacity: 0.5;
+            position: absolute; left: 0; box-shadow: 0 0 10px var(--bar-color); opacity: 0.3;
         }
-        /* Animation definition - duration set by JS */
         @keyframes bounce {
             0% { left: 0; }
-            50% { left: 80%; } /* Move to right */
+            50% { left: 80%; } 
             100% { left: 0; }
         }
         .beating {
@@ -114,14 +111,14 @@
 
         /* INFO DISPLAY */
         .deck-info {
-            background: #0f0f0f; border: 1px solid #333; padding: 8px; border-radius: 4px;
+            background: #0f0f0f; border: 1px solid #333; padding: 10px; border-radius: 4px;
             font-family: 'Courier New', monospace; color: var(--accent); font-size: 0.9rem;
-            display: flex; flex-direction: column; gap: 5px;
+            display: flex; flex-direction: column; gap: 2px;
         }
         .info-row { display: flex; justify-content: space-between; width: 100%; }
-        .bpm-display { color: #fff; font-weight: bold; }
+        .bpm-display { color: #fff; font-weight: bold; cursor: pointer; }
 
-        /* PADS & TRANSPORT */
+        /* CONTROLS */
         .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
         .pad {
             background: #333; border: none; color: #aaa; padding: 12px 0; font-size: 0.7rem; font-weight: bold;
@@ -138,10 +135,9 @@
             border-radius: 4px; font-weight: 900; font-size: 0.8rem; cursor: pointer;
             border-bottom: 3px solid #111;
         }
-        .btn-transport:active { transform: translateY(3px); border-bottom: none; }
         .btn-play.active { background: var(--accent); box-shadow: 0 0 15px var(--accent); color: #000;}
 
-        /* PITCH FADER */
+        /* PITCH */
         .pitch-container {
             background: #111; padding: 10px; border-radius: 4px; border: 1px solid #333;
             display: flex; flex-direction: column; align-items: center;
@@ -153,25 +149,46 @@
             margin-top: -8px; border-radius: 2px; border: 1px solid #888; cursor: ns-resize;
         }
 
-        /* INPUT AREA */
-        .track-load { display: flex; gap: 5px; }
-        .url-input { 
-            flex: 1; background: #111; border: 1px solid #444; color: #fff; 
-            padding: 5px; font-size: 0.7rem; 
-        }
-
-        /* MIXER SECTION */
+        /* MIXER */
         .mixer {
             width: 140px; background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #444;
             display: flex; flex-direction: column; align-items: center; justify-content: space-between;
         }
-        
-        /* LOG */
-        .log-container {
-            width: 100%; height: 60px; background: #000; border: 1px solid #333; 
-            margin-top: 20px; padding: 5px; color: #0f0; font-family: monospace; 
-            font-size: 0.7rem; overflow-y: scroll;
+
+        /* --- CRATE SECTION (NEW) --- */
+        .crate-section {
+            width: 100%; margin-top: 20px; background: #111; border: 1px solid #333;
+            border-radius: 8px; padding: 15px; box-sizing: border-box;
         }
+        .crate-header {
+            display: flex; gap: 10px; border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 10px;
+        }
+        .crate-input {
+            background: #000; border: 1px solid #444; color: #fff; padding: 8px; 
+            border-radius: 4px; font-family: inherit; font-size: 0.8rem;
+        }
+        .crate-btn {
+            background: var(--accent-dim); color: #fff; border: none; padding: 8px 15px;
+            border-radius: 4px; cursor: pointer; font-weight: bold;
+        }
+        .crate-btn:hover { background: var(--accent); color: #000; }
+
+        .crate-list {
+            display: flex; flex-direction: column; gap: 5px; max-height: 200px; overflow-y: auto;
+        }
+        .crate-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #1a1a1a; padding: 8px 15px; border-radius: 4px; border: 1px solid #333;
+        }
+        .crate-item:hover { background: #222; }
+        .item-name { color: #fff; font-size: 0.85rem; flex: 1; }
+        .item-actions { display: flex; gap: 5px; }
+        .load-btn {
+            background: #333; color: #aaa; border: 1px solid #444; padding: 4px 8px;
+            font-size: 0.65rem; cursor: pointer; border-radius: 3px;
+        }
+        .load-btn:hover { background: #555; color: #fff; }
+
     </style>
 </head>
 <body>
@@ -201,11 +218,7 @@
         <div class="console">
             
             <div class="deck" id="deck-a">
-                <div class="track-load">
-                    <input type="text" class="url-input" id="input-a" placeholder="Paste YouTube URL or ID here...">
-                    <button onclick="loadTrack('A')" style="background:#444; color:white; border:none; cursor:pointer;">LOAD</button>
-                </div>
-
+                <div style="font-size:0.7rem; color:#666; text-align:center; padding-bottom:5px;" id="track-title-a">No Track Loaded</div>
                 <div class="deck-top">
                     <div class="vinyl-wrapper">
                         <div class="vinyl" id="vinyl-a">
@@ -222,7 +235,7 @@
                 <div class="deck-info">
                     <div class="info-row">
                         <span id="time-a">00:00</span>
-                        <span class="bpm-display" id="bpm-a">TAP</span>
+                        <span class="bpm-display" id="bpm-a">TAP BPM</span>
                     </div>
                     <div class="beat-gauge-container">
                         <div class="beat-piston" id="piston-a"></div>
@@ -272,11 +285,7 @@
             </div>
 
             <div class="deck deck-b" id="deck-b">
-                <div class="track-load">
-                    <input type="text" class="url-input" id="input-b" placeholder="Paste YouTube URL or ID here...">
-                    <button onclick="loadTrack('B')" style="background:#444; color:white; border:none; cursor:pointer;">LOAD</button>
-                </div>
-
+                <div style="font-size:0.7rem; color:#666; text-align:center; padding-bottom:5px;" id="track-title-b">No Track Loaded</div>
                 <div class="deck-top">
                     <div class="gain-container">
                         <span class="gain-label">GAIN</span>
@@ -293,7 +302,7 @@
                 <div class="deck-info">
                     <div class="info-row">
                         <span id="time-b">00:00</span>
-                        <span class="bpm-display" id="bpm-b">TAP</span>
+                        <span class="bpm-display" id="bpm-b">TAP BPM</span>
                     </div>
                     <div class="beat-gauge-container">
                         <div class="beat-piston" id="piston-b"></div>
@@ -328,8 +337,18 @@
             </div>
         </div>
         
-        <div class="log-container" id="sys-log">
-            > Ready. Please paste YouTube URLs and click LOAD.
+        <div class="crate-section">
+            <h3 style="margin-top:0; font-size:0.8rem; color:#888; text-transform:uppercase;">Session Crate (Add Tracks)</h3>
+            
+            <div class="crate-header">
+                <input type="text" id="crate-name" class="crate-input" style="flex:1;" placeholder="Artist - Track Name">
+                <input type="text" id="crate-url" class="crate-input" style="flex:1;" placeholder="YouTube URL or ID">
+                <button class="crate-btn" onclick="addToCrate()">ADD</button>
+            </div>
+
+            <div class="crate-list" id="crate-list">
+                <div style="padding:10px; color:#444; text-align:center; font-style:italic;" id="empty-msg">Crate is empty. Add a track above.</div>
+            </div>
         </div>
     </div>
 
@@ -341,13 +360,6 @@
         var hotCues = { A: { 1: null, 2: null, 3: null, setMode: false }, B: { 1: null, 2: null, 3: null, setMode: false } };
         var tapData = { A: { lastTap: 0, count: 0, total: 0, bpm: 0 }, B: { lastTap: 0, count: 0, total: 0, bpm: 0 } };
         var loopInterval;
-
-        function log(msg) {
-            const div = document.getElementById('sys-log');
-            const p = document.createElement('div');
-            p.innerText = `> ${msg}`;
-            div.prepend(p);
-        }
 
         // --- YOUTUBE API ---
         var tag = document.createElement('script');
@@ -367,36 +379,71 @@
                 playerVars: { 'playsinline': 1, 'controls': 0, 'origin': window.location.origin },
                 events: {
                     'onReady': (e) => { ready[deck] = true; updateVolume(); },
-                    'onStateChange': (e) => updateVisuals(deck, e.data),
-                    'onError': (e) => log(`Error Deck ${deck}: ${e.data}`)
+                    'onStateChange': (e) => updateVisuals(deck, e.data)
                 }
             });
         }
 
-        // --- TRACK LOADING ---
-        function loadTrack(deck) {
-            let val = document.getElementById(`input-${deck.toLowerCase()}`).value;
-            if(!val) { log(`Deck ${deck}: Please paste a URL first.`); return; }
+        // --- CRATE & LOAD LOGIC ---
+        function addToCrate() {
+            const nameInput = document.getElementById('crate-name');
+            const urlInput = document.getElementById('crate-url');
+            const list = document.getElementById('crate-list');
+            const emptyMsg = document.getElementById('empty-msg');
 
-            const match = val.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
-            const id = (match && match[2].length === 11) ? match[2] : val;
+            const name = nameInput.value.trim();
+            const url = urlInput.value.trim();
+
+            if(!name || !url) { alert("Please enter a Name and URL"); return; }
             
-            if(ready[deck]) {
-                players[deck].loadVideoById(id);
-                document.getElementById(`pitch-${deck.toLowerCase()}`).value = 1;
-                updatePitch(deck);
-                // Reset Cues/Loops
-                loops[deck] = { active: false, in: null, out: null };
-                hotCues[deck] = { 1: null, 2: null, 3: null, setMode: false };
-                updateLoopUI(deck);
-                updateCueUI(deck);
-                // Reset BPM
-                tapData[deck] = { lastTap: 0, count: 0, total: 0, bpm: 0 };
-                document.getElementById(`bpm-${deck.toLowerCase()}`).innerText = "TAP";
-                updateBeatGauge(deck, 0);
-            }
+            // Extract ID
+            const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+            const vidId = (match && match[2].length === 11) ? match[2] : url;
+
+            // Remove empty msg
+            if(emptyMsg) emptyMsg.remove();
+
+            // Create Item
+            const div = document.createElement('div');
+            div.className = 'crate-item';
+            div.innerHTML = `
+                <span class="item-name">${name}</span>
+                <div class="item-actions">
+                    <button class="load-btn" onclick="loadFromCrate('A', '${vidId}', '${name}')">LOAD A</button>
+                    <button class="load-btn" onclick="loadFromCrate('B', '${vidId}', '${name}')">LOAD B</button>
+                    <button class="load-btn" onclick="this.parentNode.parentNode.remove()" style="color:#f00; border-color:#500;">X</button>
+                </div>
+            `;
+            list.appendChild(div);
+
+            // Clear inputs
+            nameInput.value = '';
+            urlInput.value = '';
         }
 
+        function loadFromCrate(deck, vidId, name) {
+            if(!ready[deck]) return;
+            
+            // Update Title
+            document.getElementById(`track-title-${deck.toLowerCase()}`).innerText = name;
+            document.getElementById(`track-title-${deck.toLowerCase()}`).style.color = "#fff";
+
+            // Load Video
+            players[deck].loadVideoById(vidId);
+            
+            // Reset Deck State
+            document.getElementById(`pitch-${deck.toLowerCase()}`).value = 1;
+            updatePitch(deck);
+            loops[deck] = { active: false, in: null, out: null };
+            hotCues[deck] = { 1: null, 2: null, 3: null, setMode: false };
+            updateLoopUI(deck);
+            updateCueUI(deck);
+            tapData[deck] = { lastTap: 0, count: 0, total: 0, bpm: 0 };
+            document.getElementById(`bpm-${deck.toLowerCase()}`).innerText = "TAP BPM";
+            updateBeatGauge(deck, 0);
+        }
+
+        // --- PLAYBACK CONTROLS ---
         function togglePlay(deck) {
             if(!ready[deck]) return;
             const state = players[deck].getPlayerState();
@@ -426,10 +473,7 @@
             const val = parseFloat(document.getElementById(`pitch-${deck.toLowerCase()}`).value);
             if(ready[deck]) {
                 players[deck].setPlaybackRate(val);
-                // UPDATE BEAT GAUGE SPEED
-                if(tapData[deck].bpm > 0) {
-                    updateBeatGauge(deck, tapData[deck].bpm);
-                }
+                if(tapData[deck].bpm > 0) updateBeatGauge(deck, tapData[deck].bpm);
             }
         }
         
@@ -453,7 +497,6 @@
                 document.getElementById(`bpm-${deck.toLowerCase()}`).innerText = `${data.bpm} BPM`;
                 updateBeatGauge(deck, data.bpm);
             }
-            
             data.lastTap = now;
             data.count++;
         }
@@ -464,18 +507,8 @@
                 piston.classList.remove('beating');
                 return;
             }
-            
-            // Get current pitch multiplier
             const pitch = parseFloat(document.getElementById(`pitch-${deck.toLowerCase()}`).value);
-            
-            // Calculate real animation duration (seconds per beat)
-            // 60 / (BPM * Pitch)
-            // We use 2 beats for a full left-right cycle? Or 1 beat?
-            // Let's do 1 beat = 1 cycle (Bounce Left, Bounce Right is 2 beats usually)
-            // Let's say the animation 'bounce' is 1 BEAT duration.
-            // 0% -> 50% -> 100% in one beat.
             const duration = 60 / (baseBpm * pitch);
-            
             piston.style.animationDuration = `${duration}s`;
             piston.classList.add('beating');
         }
@@ -508,19 +541,16 @@
 
         // --- LOOPING ---
         function loopIn(deck) { if(ready[deck]) loops[deck].in = players[deck].getCurrentTime(); }
-
         function loopOut(deck) {
             if(!ready[deck] || loops[deck].in === null) return;
             loops[deck].out = players[deck].getCurrentTime();
             loops[deck].active = true;
             document.getElementById(`loop-exit-${deck.toLowerCase()}`).classList.add('loop-active');
         }
-
         function loopExit(deck) {
             loops[deck].active = false; loops[deck].in = null; loops[deck].out = null;
             document.getElementById(`loop-exit-${deck.toLowerCase()}`).classList.remove('loop-active');
         }
-        
         function updateLoopUI(deck) { document.getElementById(`loop-exit-${deck.toLowerCase()}`).classList.remove('loop-active'); }
 
         function checkLoops() {
@@ -537,7 +567,7 @@
             });
         }
 
-        // --- VOLUME & MIXING ---
+        // --- VOLUME ---
         function updateVolume() {
             const master = document.getElementById('master-vol').value / 100;
             const xVal = document.getElementById('crossfader').value;
@@ -557,15 +587,14 @@
             const vinyl = document.getElementById(`vinyl-${d}`);
             const btn = document.getElementById(`play-${d}`);
             const piston = document.getElementById(`piston-${d}`);
-
             if (state === 1) { 
                 vinyl.classList.add('spinning'); vinyl.classList.remove('paused');
                 btn.classList.add('active');
-                if(tapData[deck].bpm > 0) piston.classList.add('beating'); // resume gauge
+                if(tapData[deck].bpm > 0) piston.classList.add('beating');
             } else {
                 vinyl.classList.add('paused');
                 btn.classList.remove('active');
-                piston.classList.remove('beating'); // pause gauge
+                piston.classList.remove('beating');
             }
         }
 
@@ -588,7 +617,6 @@
             const rate = source.getPlaybackRate();
             document.getElementById(`pitch-${target.toLowerCase()}`).value = rate;
             updatePitch(target);
-            log(`Synced Deck ${target} to ${rate}x`);
         }
     </script>
 </body>
