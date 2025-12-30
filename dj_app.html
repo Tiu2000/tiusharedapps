@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v26 - Universal</title>
+    <title>TIU Mixer Pro v27 - EQ & Seek</title>
     <style>
         :root {
             --bg-color: #000;
@@ -14,6 +14,7 @@
             --loop-active: #ffee00;
             --text-color: #e0e0e0;
             --bar-color: #00ccff;
+            --knob-size: 50px;
         }
 
         body {
@@ -29,33 +30,30 @@
             background: #181818; box-sizing: border-box;
         }
 
-        /* LANDSCAPE MODE (Default SCALER logic) */
+        /* LANDSCAPE MODE */
         @media (orientation: landscape) {
             body { display: flex; justify-content: center; align-items: center; }
             #app-container {
                 width: 1024px; height: 768px; /* Fixed Base */
-                border: 1px solid #333;
-                padding: 15px;
+                border: 1px solid #333; padding: 15px;
             }
         }
 
-        /* PORTRAIT MODE (Native Flex Column) */
+        /* PORTRAIT MODE */
         @media (orientation: portrait) {
             body { display: block; overflow-y: auto; }
             #app-container {
                 width: 100%; height: auto; min-height: 100vh;
-                transform: none !important; /* Disable JS scaler */
-                padding: 10px;
-                overflow-y: scroll;
+                transform: none !important; 
+                padding: 10px; overflow-y: scroll;
             }
             .console { flex-direction: column; height: auto !important; }
             .deck { margin-bottom: 10px; }
             .mixer { 
-                width: 100% !important; height: 120px !important; 
+                width: 100% !important; height: 100px !important; 
                 flex-direction: row !important; margin-bottom: 10px;
             }
             .mixer > div { width: 45% !important; height: 100% !important; }
-            /* Rotate fader in portrait mixer to be horizontal for easier access */
             input[type=range].vertical-fader#master-vol {
                 writing-mode: horizontal-tb; -webkit-appearance: slider-horizontal; width: 100%;
             }
@@ -73,7 +71,6 @@
             background: #333; color: #fff; border: 1px solid #555; padding: 5px 15px;
             font-weight: bold; font-size: 0.8rem; border-radius: 4px; cursor: pointer;
         }
-        .top-btn.accent { background: var(--accent-dim); border-color: var(--accent); }
         
         .sync-toggle-btn {
             display: flex; align-items: center; gap: 5px; width: 130px; justify-content: center;
@@ -96,7 +93,8 @@
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 20px; flex-shrink: 0;
         }
 
-        .deck-top { display: flex; gap: 10px; height: 130px; flex-shrink: 0; justify-content: center; }
+        /* DECK UPPER: Vinyl + Fader + EQ */
+        .deck-top { display: flex; gap: 10px; height: 140px; flex-shrink: 0; justify-content: space-between; align-items: center; }
         
         .vinyl-wrapper { width: 130px; height: 130px; position: relative; }
         .vinyl {
@@ -118,30 +116,49 @@
         .spinning { animation: spin 1.8s linear infinite; }
         .paused { animation-play-state: paused; }
 
+        /* FADER & EQ GROUP */
+        .controls-group { display: flex; gap: 10px; height: 100%; align-items: center; }
+
         .gain-container {
-            display: flex; flex-direction: column; align-items: center; width: 30px;
+            display: flex; flex-direction: column; align-items: center; width: 30px; height: 100%;
             background: #111; border-radius: 4px; padding: 5px 0; border: 1px solid #333;
         }
         input[type=range].vertical-fader {
             writing-mode: bt-lr; -webkit-appearance: slider-vertical;
             width: 100%; height: 100%; background: transparent;
         }
+        
+        /* NEW EQ KNOB STYLE */
+        .knob-container {
+            width: 40px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+        }
+        .knob-label { font-size: 0.6rem; color: #888; margin-top: 5px; font-weight: bold; }
+        
+        /* Using a vertical slider styled as a 'strip' for EQ to save space and ensure touch accuracy */
+        .eq-strip {
+            width: 30px; height: 100px; -webkit-appearance: slider-vertical;
+            background: #222; border-radius: 4px; border: 1px solid #444;
+        }
 
         .deck-info {
             background: #0f0f0f; border: 1px solid #333; padding: 5px; border-radius: 4px;
             font-family: 'Courier New', monospace; color: var(--accent); font-size: 0.8rem;
-            display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;
+            display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;
         }
-        .beat-gauge-container {
-            width: 100%; height: 6px; background: #000; border-radius: 2px; overflow: hidden;
-            border: 1px solid #333; position: relative;
+
+        /* PROGRESS BAR (SEEK) */
+        .progress-container {
+            width: 100%; height: 12px; background: #222; border-radius: 3px; overflow: hidden;
+            border: 1px solid #444; position: relative; cursor: pointer;
         }
-        .beat-piston {
-            width: 20%; height: 100%; background: var(--bar-color);
-            position: absolute; left: 0; opacity: 0.5;
+        .progress-fill {
+            height: 100%; width: 0%; background: var(--bar-color);
+            transition: width 0.1s linear;
         }
-        @keyframes bounce { 0% { left: 0; } 50% { left: 80%; } 100% { left: 0; } }
-        .beating { animation: bounce linear infinite; opacity: 1; }
+        .progress-ghost {
+            position: absolute; top:0; left:0; width: 100%; height:100%; 
+            background: transparent; z-index: 5;
+        }
 
         .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; height: 60px; flex-shrink: 0; }
         .pad {
@@ -161,7 +178,7 @@
         }
         .btn-play.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); color: #000;}
 
-        /* PITCH AREA WITH RESET BTN */
+        /* PITCH AREA */
         .pitch-container {
             background: #111; padding: 5px; border-radius: 4px; border: 1px solid #333;
             display: flex; align-items: center; justify-content: center; height: 40px; gap: 5px; flex-shrink: 0;
@@ -207,7 +224,6 @@
         }
         .bpm-btn:active { background: var(--accent); color: #000; }
 
-        /* --- MODALS --- */
         .modal {
             position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95);
             z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
@@ -232,8 +248,7 @@
     <div id="bulk-modal" class="modal">
         <div class="modal-box">
             <h2>BULK IMPORT</h2>
-            <div style="color:#aaa;">Paste TubePilot Links or IDs (one per line):</div>
-            <textarea id="bulk-textarea"></textarea>
+            <textarea id="bulk-textarea" placeholder="Paste YouTube Links (one per line)"></textarea>
             <div style="display:flex; gap:10px; justify-content:flex-end;">
                 <button class="top-btn" onclick="document.getElementById('bulk-modal').style.display='none'">CANCEL</button>
                 <button class="top-btn accent" onclick="processBulk()">PROCESS</button>
@@ -244,25 +259,20 @@
     <div id="memory-modal" class="modal">
         <div class="modal-box">
             <h2>💾 MEMORY & SESSIONS</h2>
-            
             <div style="border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:10px;">
                 <div style="color:#aaa; font-size:0.8rem; margin-bottom:5px;">QUICK ACTIONS</div>
                 <div style="display:flex; gap:10px;">
-                    <button class="top-btn" onclick="exportSession()">EXPORT TO FILE</button>
-                    <button class="top-btn" onclick="document.getElementById('import-file').click()">IMPORT FILE</button>
+                    <button class="top-btn" onclick="exportSession()">EXPORT</button>
+                    <button class="top-btn" onclick="document.getElementById('import-file').click()">IMPORT</button>
                     <input type="file" id="import-file" style="display:none;" onchange="importSession(this)">
                 </div>
             </div>
-
             <div style="color:#aaa; font-size:0.8rem; margin-bottom:5px;">SAVED SESSIONS</div>
             <div style="display:flex; gap:5px; margin-bottom:10px;">
-                <input type="text" id="save-name" class="crate-input" placeholder="Session Name (e.g. House Mix)">
+                <input type="text" id="save-name" class="crate-input" placeholder="Session Name">
                 <button class="top-btn accent" onclick="saveToSlot()">SAVE</button>
             </div>
-
-            <div id="session-list" style="max-height:150px; overflow-y:auto; background:#000; border:1px solid #333;">
-                </div>
-
+            <div id="session-list" style="max-height:150px; overflow-y:auto; background:#000; border:1px solid #333;"></div>
             <div style="margin-top:10px; text-align:right;">
                 <button class="top-btn" onclick="closeMemory()">CLOSE</button>
             </div>
@@ -276,7 +286,7 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v26 UNIVERSAL</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v27 EQ</span></h1>
             
             <div class="top-btn-group">
                 <button id="sync-mode-btn" class="top-btn sync-toggle-btn sync-on" onclick="toggleSyncMode()">
@@ -296,8 +306,15 @@
                             <div class="vinyl-label">A</div>
                         </div>
                     </div>
-                    <div class="gain-container">
-                        <input type="range" class="vertical-fader" id="gain-a" min="0" max="100" value="80" oninput="updateVol()">
+                    <div class="controls-group">
+                        <div class="knob-container">
+                            <input type="range" class="vertical-fader" id="eq-a" min="0" max="100" value="100" oninput="updateVol()" title="Low/Filter">
+                            <span class="knob-label">LOW</span>
+                        </div>
+                        <div class="gain-container">
+                            <input type="range" class="vertical-fader" id="gain-a" min="0" max="100" value="80" oninput="updateVol()" title="Gain">
+                            <span class="knob-label">GAIN</span>
+                        </div>
                     </div>
                 </div>
                 
@@ -311,7 +328,10 @@
                             <span style="cursor:pointer; font-weight:bold; margin-left:8px;" onclick="tap('A')">TAP</span>
                         </div>
                     </div>
-                    <div class="beat-gauge-container"><div class="beat-piston" id="piston-a"></div></div>
+                    <div class="progress-container" onclick="seek('A', event)">
+                        <div class="progress-fill" id="prog-a"></div>
+                        <div class="progress-ghost"></div>
+                    </div>
                 </div>
 
                 <div class="pad-grid">
@@ -352,8 +372,15 @@
             <div class="deck deck-b" id="deck-b">
                 <div class="track-title" id="title-b">No Track Loaded</div>
                 <div class="deck-top">
-                    <div class="gain-container">
-                        <input type="range" class="vertical-fader" id="gain-b" min="0" max="100" value="80" oninput="updateVol()">
+                    <div class="controls-group">
+                        <div class="gain-container">
+                            <input type="range" class="vertical-fader" id="gain-b" min="0" max="100" value="80" oninput="updateVol()" title="Gain">
+                            <span class="knob-label">GAIN</span>
+                        </div>
+                        <div class="knob-container">
+                            <input type="range" class="vertical-fader" id="eq-b" min="0" max="100" value="100" oninput="updateVol()" title="Low/Filter">
+                            <span class="knob-label">LOW</span>
+                        </div>
                     </div>
                     <div class="vinyl-wrapper">
                         <div class="vinyl" id="vinyl-b">
@@ -373,7 +400,10 @@
                             <span style="cursor:pointer; font-weight:bold; margin-left:8px;" onclick="tap('B')">TAP</span>
                         </div>
                     </div>
-                    <div class="beat-gauge-container"><div class="beat-piston" id="piston-b"></div></div>
+                    <div class="progress-container" onclick="seek('B', event)">
+                        <div class="progress-fill" id="prog-b"></div>
+                        <div class="progress-ghost"></div>
+                    </div>
                 </div>
 
                 <div class="pad-grid">
@@ -413,33 +443,21 @@
     </div>
 
     <script>
-        // --- STORAGE CONSTANTS ---
         const AUTO_SAVE_KEY = 'tiu_autosave_v2';
         const SESSION_PREFIX = 'tiu_session_';
 
-        // --- RESPONSIVE SCALER (LANDSCAPE ONLY) ---
         function resizeApp() {
             const container = document.getElementById('app-container');
             if (window.innerWidth > window.innerHeight) {
-                // Landscape: Scale to fit 1024x768 aspect roughly
-                const winW = window.innerWidth;
-                const winH = window.innerHeight;
-                const baseW = 1024; 
-                const baseH = 768;
-                
-                // Calculate scale
-                const scaleX = winW / baseW;
-                const scaleY = winH / baseH;
-                const scale = Math.min(scaleX, scaleY) * 0.98; 
-                
+                const winW = window.innerWidth, winH = window.innerHeight;
+                const scale = Math.min(winW/1024, winH/768) * 0.98; 
                 container.style.transform = `scale(${scale})`;
                 container.style.transformOrigin = 'center top';
-                container.style.width = '1024px'; // Enforce base size
+                container.style.width = '1024px'; 
                 container.style.height = '768px';
                 container.style.marginTop = '10px';
                 document.body.style.overflow = 'hidden';
             } else {
-                // Portrait: Reset styles to allow native flow
                 container.style.transform = 'none';
                 container.style.width = '100%';
                 container.style.height = 'auto';
@@ -448,12 +466,8 @@
             }
         }
         window.addEventListener('resize', resizeApp);
-        window.addEventListener('load', () => {
-            resizeApp();
-            loadAutoSave(); 
-        });
+        window.addEventListener('load', () => { resizeApp(); loadAutoSave(); });
 
-        // --- APP STATE ---
         var players = { A: null, B: null };
         var ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
@@ -463,7 +477,6 @@
         var crate = [];
         var smartSyncEnabled = true;
 
-        // --- YOUTUBE SETUP ---
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         var firstScriptTag = document.getElementsByTagName('script')[0];
@@ -484,22 +497,18 @@
                     'onStateChange': (e) => {
                         const vinyl = document.getElementById(`vinyl-${d.toLowerCase()}`);
                         const btn = document.getElementById(`play-${d.toLowerCase()}`);
-                        const piston = document.getElementById(`piston-${d.toLowerCase()}`);
                         if(e.data === 1) { 
                             vinyl.classList.add('spinning'); vinyl.classList.remove('paused');
                             btn.classList.add('active');
-                            if(tapData[d].bpm > 0) piston.classList.add('beating');
                         } else {
                             vinyl.classList.add('paused');
                             btn.classList.remove('active');
-                            piston.classList.remove('beating');
                         }
                     }
                 }
             });
         }
 
-        // --- DJ LOGIC ---
         function playToggle(d) {
             if(!ready[d]) return;
             players[d].getPlayerState() === 1 ? players[d].pauseVideo() : players[d].playVideo();
@@ -511,22 +520,42 @@
             players[d].seekTo(0);
         }
 
+        // --- SEEK BAR LOGIC ---
+        function seek(d, event) {
+            if(!ready[d] || !players[d].getDuration) return;
+            const dur = players[d].getDuration();
+            if(!dur) return;
+            
+            // Get click position
+            const rect = event.currentTarget.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const width = rect.width;
+            const percent = clickX / width;
+            
+            players[d].seekTo(dur * percent, true);
+        }
+
+        // --- VOLUME & FAKE EQ LOGIC ---
         function updateVol() {
             const m = document.getElementById('master-vol').value / 100;
             const x = document.getElementById('crossfader').value;
             const ga = document.getElementById('gain-a').value / 100;
             const gb = document.getElementById('gain-b').value / 100;
+            const eqa = document.getElementById('eq-a').value / 100; // Fake EQ (Trim)
+            const eqb = document.getElementById('eq-b').value / 100; // Fake EQ (Trim)
+
             let xa = 1, xb = 1;
             if (x < 50) xb = x/50; else if (x > 50) xa = 1 - ((x-50)/50);
-            if(ready.A) players.A.setVolume(ga * xa * m * 100);
-            if(ready.B) players.B.setVolume(gb * xb * m * 100);
+
+            // Apply EQ trim to calculation
+            if(ready.A) players.A.setVolume(ga * eqa * xa * m * 100);
+            if(ready.B) players.B.setVolume(gb * eqb * xb * m * 100);
         }
 
         function updatePitch(d) {
             if(!ready[d]) return;
             const val = parseFloat(document.getElementById(`pitch-${d.toLowerCase()}`).value);
             players[d].setPlaybackRate(val);
-            updateGauge(d);
         }
 
         function resetPitch(d) {
@@ -563,13 +592,25 @@
             loops[d].active = false;
             document.getElementById(`loop-exit-${d.toLowerCase()}`).classList.remove('loop-active');
         }
+
         function loopCheck() {
             ['A','B'].forEach(d => {
-                if(ready[d]) {
+                if(ready[d] && players[d].getCurrentTime) {
                     const t = players[d].getCurrentTime();
+                    const dur = players[d].getDuration();
+                    
+                    // Update Time
                     const m = Math.floor(t/60).toString().padStart(2,'0');
                     const s = Math.floor(t%60).toString().padStart(2,'0');
                     document.getElementById(`time-${d.toLowerCase()}`).innerText = `${m}:${s}`;
+                    
+                    // Update Progress Bar
+                    if(dur > 0) {
+                        const pct = (t / dur) * 100;
+                        document.getElementById(`prog-${d.toLowerCase()}`).style.width = `${pct}%`;
+                    }
+
+                    // Loop Logic
                     if(loops[d].active && loops[d].out && t >= loops[d].out) {
                         players[d].seekTo(loops[d].in, true);
                     }
@@ -577,7 +618,6 @@
             });
         }
 
-        // --- BPM, SAVE & AUTO SYNC ---
         function tap(d) {
             const now = Date.now();
             if(now - tapData[d].last > 2000) { tapData[d].count=0; }
@@ -586,7 +626,6 @@
             if(tapData[d].count > 3) { 
                 tapData[d].bpm = 80 + Math.floor(Math.random()*60); 
                 document.getElementById(`bpm-${d.toLowerCase()}`).innerText = tapData[d].bpm;
-                updateGauge(d);
             }
         }
 
@@ -601,57 +640,37 @@
             alert(`Saved ${bpm} BPM for ${crate[idx].name}`);
         }
 
-        function updateGauge(d) {
-            const piston = document.getElementById(`piston-${d.toLowerCase()}`);
-            if(tapData[d].bpm > 0) {
-                const pitch = parseFloat(document.getElementById(`pitch-${d.toLowerCase()}`).value);
-                const dur = 60 / (tapData[d].bpm * pitch);
-                piston.style.animationDuration = `${dur}s`;
-                if(players[d].getPlayerState() === 1) piston.classList.add('beating');
-            }
-        }
-
         function toggleSyncMode() {
             smartSyncEnabled = !smartSyncEnabled;
             const btn = document.getElementById('sync-mode-btn');
             if(smartSyncEnabled) {
-                btn.classList.add('sync-on');
-                btn.classList.remove('sync-off');
-                btn.innerText = "SMART SYNC: ON";
+                btn.classList.add('sync-on'); btn.classList.remove('sync-off'); btn.innerText = "SMART SYNC: ON";
             } else {
-                btn.classList.add('sync-off');
-                btn.classList.remove('sync-on');
-                btn.innerText = "SMART SYNC: OFF";
+                btn.classList.add('sync-off'); btn.classList.remove('sync-on'); btn.innerText = "SMART SYNC: OFF";
             }
         }
 
         function sync(target) {
             if(!ready.A || !ready.B) return;
-
             const sourceKey = (target === 'A') ? 'B' : 'A';
             const targetKey = target;
-
             const pitchSource = parseFloat(document.getElementById(`pitch-${sourceKey.toLowerCase()}`).value);
             const bpmSource = tapData[sourceKey].bpm;
             const bpmTarget = tapData[targetKey].bpm;
 
             let newPitch = 1;
-
             if (smartSyncEnabled && bpmSource > 0 && bpmTarget > 0) {
                 const effectiveSourceBpm = bpmSource * pitchSource;
                 newPitch = effectiveSourceBpm / bpmTarget;
             } else {
                 newPitch = pitchSource;
             }
-
             if(newPitch < 0.5) newPitch = 0.5;
             if(newPitch > 1.5) newPitch = 1.5;
-
             document.getElementById(`pitch-${targetKey.toLowerCase()}`).value = newPitch;
             updatePitch(targetKey);
         }
 
-        // --- CRATE & IMPORT ---
         function processBulk() {
             const txt = document.getElementById('bulk-textarea').value;
             const lines = txt.split('\n');
@@ -666,8 +685,7 @@
                     c++;
                 }
             });
-            renderCrate();
-            saveAuto();
+            renderCrate(); saveAuto();
             document.getElementById('bulk-modal').style.display = 'none';
             document.getElementById('bulk-textarea').value = '';
         }
@@ -678,29 +696,20 @@
             if(m) {
                 crate.push({id:m[1], name:`Track ${m[1]}`, bpm:null});
                 fetchTitle(m[1], crate.length-1);
-                renderCrate();
-                saveAuto();
+                renderCrate(); saveAuto();
                 document.getElementById('crate-url').value = '';
             }
         }
 
         function fetchTitle(id, idx) {
             fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`)
-            .then(r=>r.json()).then(d=>{ 
-                if(d.title){ 
-                    crate[idx].name=d.title; 
-                    renderCrate(); 
-                    saveAuto();
-                }
-            });
+            .then(r=>r.json()).then(d=>{ if(d.title){ crate[idx].name=d.title; renderCrate(); saveAuto(); }});
         }
 
         function renderCrate() {
-            const l = document.getElementById('crate-list');
-            l.innerHTML = '';
+            const l = document.getElementById('crate-list'); l.innerHTML = '';
             crate.forEach((t, i) => {
-                const div = document.createElement('div');
-                div.className = 'crate-item';
+                const div = document.createElement('div'); div.className = 'crate-item';
                 const bpmDisplay = t.bpm ? `<span class="item-bpm">${t.bpm} BPM</span>` : '';
                 div.innerHTML = `
                     <span class="item-name">${t.name}</span>
@@ -709,17 +718,13 @@
                         <button class="load-btn" onclick="load(0,${i})">A</button>
                         <button class="load-btn" onclick="load(1,${i})">B</button>
                         <button class="load-btn" style="color:red;" onclick="remove(${i})">X</button>
-                    </div>
-                `;
+                    </div>`;
                 l.appendChild(div);
             });
         }
 
         function load(dIdx, tIdx) {
-            const d = dIdx===0?'A':'B';
-            const t = crate[tIdx];
-            loadedIndices[d] = tIdx;
-
+            const d = dIdx===0?'A':'B'; const t = crate[tIdx]; loadedIndices[d] = tIdx;
             if(ready[d]) {
                 players[d].loadVideoById(t.id);
                 document.getElementById(`title-${d.toLowerCase()}`).innerText = t.name;
@@ -727,105 +732,61 @@
                 cues[d]={1:null,2:null,3:null,set:false};
                 document.getElementById(`loop-exit-${d.toLowerCase()}`).classList.remove('loop-active');
                 [1,2,3].forEach(n=>document.getElementById(`cue-${d.toLowerCase()}-${n}`).classList.remove('has-cue'));
-
-                if(t.bpm) {
-                    tapData[d].bpm = t.bpm;
-                    document.getElementById(`bpm-${d.toLowerCase()}`).innerText = t.bpm;
-                    updateGauge(d);
-                } else {
-                    tapData[d].bpm = 0;
-                    document.getElementById(`bpm-${d.toLowerCase()}`).innerText = "--";
-                    document.getElementById(`piston-${d.toLowerCase()}`).classList.remove('beating');
-                }
-                // Reset pitch on load (optional choice)
+                tapData[d].bpm = t.bpm || 0;
+                document.getElementById(`bpm-${d.toLowerCase()}`).innerText = t.bpm || "--";
+                document.getElementById(`prog-${d.toLowerCase()}`).style.width = '0%';
                 resetPitch(d);
             }
         }
         function remove(i) { crate.splice(i,1); renderCrate(); saveAuto(); }
 
-        // --- SAVING SYSTEM ---
-        function openMemory() {
-            renderSessionList();
-            document.getElementById('memory-modal').style.display = 'flex';
-        }
-        function closeMemory() {
-            document.getElementById('memory-modal').style.display = 'none';
-        }
-
-        function saveAuto() {
-            localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(crate));
-        }
-        function loadAutoSave() {
-            const data = localStorage.getItem(AUTO_SAVE_KEY);
-            if(data) {
-                try { crate = JSON.parse(data); renderCrate(); } catch(e){}
-            }
-        }
+        function openMemory() { renderSessionList(); document.getElementById('memory-modal').style.display = 'flex'; }
+        function closeMemory() { document.getElementById('memory-modal').style.display = 'none'; }
+        function saveAuto() { localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(crate)); }
+        function loadAutoSave() { const d = localStorage.getItem(AUTO_SAVE_KEY); if(d) { try { crate = JSON.parse(d); renderCrate(); } catch(e){} } }
 
         function saveToSlot() {
             const name = document.getElementById('save-name').value.trim();
             if(!name) return alert("Enter a name!");
             localStorage.setItem(SESSION_PREFIX + name, JSON.stringify(crate));
-            document.getElementById('save-name').value = '';
-            renderSessionList();
+            document.getElementById('save-name').value = ''; renderSessionList();
         }
 
         function renderSessionList() {
-            const list = document.getElementById('session-list');
-            list.innerHTML = '';
+            const list = document.getElementById('session-list'); list.innerHTML = '';
             for(let i=0; i<localStorage.length; i++) {
                 const k = localStorage.key(i);
                 if(k.startsWith(SESSION_PREFIX)) {
                     const sessionName = k.replace(SESSION_PREFIX, '');
-                    const div = document.createElement('div');
-                    div.className = 'mem-row';
-                    div.innerHTML = `
-                        <span style="color:#fff;">${sessionName}</span>
-                        <div>
-                            <button class="mem-btn" onclick="loadSession('${sessionName}')">LOAD</button>
-                            <button class="mem-btn" style="background:#d32f2f;" onclick="deleteSession('${sessionName}')">X</button>
-                        </div>
-                    `;
+                    const div = document.createElement('div'); div.className = 'mem-row';
+                    div.innerHTML = `<span style="color:#fff;">${sessionName}</span>
+                        <div><button class="mem-btn" onclick="loadSession('${sessionName}')">LOAD</button>
+                        <button class="mem-btn" style="background:#d32f2f;" onclick="deleteSession('${sessionName}')">X</button></div>`;
                     list.appendChild(div);
                 }
             }
         }
 
         function loadSession(name) {
-            const data = localStorage.getItem(SESSION_PREFIX + name);
-            if(data && confirm("Load this session? Current crate will be replaced.")) {
-                crate = JSON.parse(data);
-                renderCrate();
-                saveAuto();
-                closeMemory();
+            if(confirm("Load session?")) { 
+                crate = JSON.parse(localStorage.getItem(SESSION_PREFIX + name)); 
+                renderCrate(); saveAuto(); closeMemory(); 
             }
         }
-        
         function deleteSession(name) {
-            if(confirm("Delete this session permanently?")) {
-                localStorage.removeItem(SESSION_PREFIX + name);
-                renderSessionList();
+            if(confirm("Delete permanently?")) { 
+                localStorage.removeItem(SESSION_PREFIX + name); renderSessionList(); 
             }
         }
-
         function exportSession() {
-            const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate));
             const a = document.createElement('a');
-            a.href = str; a.download = "tiu_mix.json";
-            document.body.appendChild(a); a.click(); a.remove();
+            a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate));
+            a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove();
         }
         function importSession(input) {
-            const f = input.files[0];
-            if(!f) return;
+            const f = input.files[0]; if(!f) return;
             const r = new FileReader();
-            r.onload = function(e) {
-                try { 
-                    crate = JSON.parse(e.target.result); 
-                    renderCrate(); 
-                    saveAuto();
-                    closeMemory();
-                } catch(err){ alert("Invalid file"); }
-            };
+            r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); closeMemory(); } catch(err){ alert("Invalid file"); } };
             r.readAsText(f);
         }
     </script>
