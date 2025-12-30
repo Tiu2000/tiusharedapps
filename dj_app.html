@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v23 - BPM Save</title>
+    <title>TIU Mixer Pro v24 - Auto Sync</title>
     <style>
         :root {
             --bg-color: #000;
@@ -251,7 +251,7 @@
     <div id="scaler">
         <div class="app-layer">
             <header>
-                <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">PRO v23 BPM</span></h1>
+                <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">PRO v24 AUTO-SYNC</span></h1>
                 <div class="top-btn-group">
                     <button class="top-btn" onclick="openMemory()">💾 MEMORY</button>
                 </div>
@@ -401,7 +401,7 @@
         window.addEventListener('resize', resizeApp);
         window.addEventListener('load', () => {
             resizeApp();
-            loadAutoSave(); // Load data on startup
+            loadAutoSave(); 
         });
 
         // --- APP STATE ---
@@ -410,7 +410,7 @@
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
         var tapData = { A: {last:0,count:0,bpm:0}, B: {last:0,count:0,bpm:0} };
-        var loadedIndices = { A: -1, B: -1 }; // TRACKS which crate item is loaded
+        var loadedIndices = { A: -1, B: -1 };
         var crate = [];
 
         // --- YOUTUBE SETUP ---
@@ -522,14 +522,14 @@
             });
         }
 
-        // --- BPM LOGIC & SAVING ---
+        // --- BPM, SAVE & AUTO SYNC ---
         function tap(d) {
             const now = Date.now();
             if(now - tapData[d].last > 2000) { tapData[d].count=0; }
             tapData[d].last = now;
             tapData[d].count++;
             if(tapData[d].count > 3) { 
-                tapData[d].bpm = 80 + Math.floor(Math.random()*60); // Mock BPM logic for demo
+                tapData[d].bpm = 80 + Math.floor(Math.random()*60); 
                 document.getElementById(`bpm-${d.toLowerCase()}`).innerText = tapData[d].bpm;
                 updateGauge(d);
             }
@@ -540,11 +540,9 @@
             if(idx === -1) return alert("Load a track first!");
             const bpm = tapData[d].bpm;
             if(!bpm || bpm <= 0) return alert("Tap a BPM first!");
-
-            // Update Crate Data
             crate[idx].bpm = bpm;
-            saveAuto(); // Persist
-            renderCrate(); // Show update in list
+            saveAuto();
+            renderCrate();
             alert(`Saved ${bpm} BPM for ${crate[idx].name}`);
         }
 
@@ -558,12 +556,39 @@
             }
         }
 
+        // --- AUTO SYNC LOGIC ---
         function sync(target) {
             if(!ready.A || !ready.B) return;
-            const source = (target === 'A') ? players.B : players.A;
-            const val = source.getPlaybackRate();
-            document.getElementById(`pitch-${target.toLowerCase()}`).value = val;
-            updatePitch(target);
+
+            const sourceKey = (target === 'A') ? 'B' : 'A';
+            const targetKey = target;
+
+            // Get current pitch of source
+            const pitchSource = parseFloat(document.getElementById(`pitch-${sourceKey.toLowerCase()}`).value);
+            
+            const bpmSource = tapData[sourceKey].bpm;
+            const bpmTarget = tapData[targetKey].bpm;
+
+            let newPitch = 1;
+
+            // If we know both BPMs, CALCULATE the required pitch
+            if (bpmSource > 0 && bpmTarget > 0) {
+                // Effective Source BPM = base * pitch
+                const effectiveSourceBpm = bpmSource * pitchSource;
+                // We want Target * newPitch = Effective Source
+                newPitch = effectiveSourceBpm / bpmTarget;
+            } else {
+                // Fallback: Just copy the slider position
+                newPitch = pitchSource;
+            }
+
+            // Safety Clamps
+            if(newPitch < 0.5) newPitch = 0.5;
+            if(newPitch > 1.5) newPitch = 1.5;
+
+            // Apply to slider and engine
+            document.getElementById(`pitch-${targetKey.toLowerCase()}`).value = newPitch;
+            updatePitch(targetKey);
         }
 
         // --- CRATE & IMPORT ---
@@ -616,9 +641,7 @@
             crate.forEach((t, i) => {
                 const div = document.createElement('div');
                 div.className = 'crate-item';
-                // Show BPM if exists
                 const bpmDisplay = t.bpm ? `<span class="item-bpm">${t.bpm} BPM</span>` : '';
-                
                 div.innerHTML = `
                     <span class="item-name">${t.name}</span>
                     <div style="display:flex; gap:5px; align-items:center;">
@@ -635,7 +658,7 @@
         function load(dIdx, tIdx) {
             const d = dIdx===0?'A':'B';
             const t = crate[tIdx];
-            loadedIndices[d] = tIdx; // Record what is loaded
+            loadedIndices[d] = tIdx;
 
             if(ready[d]) {
                 players[d].loadVideoById(t.id);
@@ -645,7 +668,6 @@
                 document.getElementById(`loop-exit-${d.toLowerCase()}`).classList.remove('loop-active');
                 [1,2,3].forEach(n=>document.getElementById(`cue-${d.toLowerCase()}-${n}`).classList.remove('has-cue'));
 
-                // Load Saved BPM if exists
                 if(t.bpm) {
                     tapData[d].bpm = t.bpm;
                     document.getElementById(`bpm-${d.toLowerCase()}`).innerText = t.bpm;
@@ -653,7 +675,6 @@
                 } else {
                     tapData[d].bpm = 0;
                     document.getElementById(`bpm-${d.toLowerCase()}`).innerText = "--";
-                    // Clear gauge
                     document.getElementById(`piston-${d.toLowerCase()}`).classList.remove('beating');
                 }
             }
