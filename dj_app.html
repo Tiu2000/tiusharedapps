@@ -878,4 +878,36 @@
             const vinyl = document.getElementById(`vinyl-${d}`);
             const btn = document.getElementById(`play-${d}`);
             const piston = document.getElementById(`piston-${d}`);
-            if (state === 1) {
+            if (state === 1) { 
+                vinyl.classList.add('spinning'); vinyl.classList.remove('paused');
+                btn.classList.add('active');
+                if(tapData[deck].bpm > 0) piston.classList.add('beating');
+            } else {
+                vinyl.classList.add('paused');
+                btn.classList.remove('active');
+                piston.classList.remove('beating');
+            }
+        }
+
+        document.getElementById('sync-toggle').addEventListener('change', (e) => {
+            const knob = document.getElementById('sync-knob');
+            const btns = [document.getElementById('sync-btn-a'), document.getElementById('sync-btn-b')];
+            if(e.target.checked) {
+                knob.style.transform = 'translateX(20px)'; knob.style.background = 'var(--accent)';
+                btns.forEach(b => b.style.display = 'block');
+            } else {
+                knob.style.transform = 'translateX(0)'; knob.style.background = '#fff';
+                btns.forEach(b => b.style.display = 'none');
+            }
+        });
+
+        function syncDeck(target) {
+            if(!ready.A || !ready.B) return;
+            const source = (target === 'A') ? players.B : players.A;
+            const rate = source.getPlaybackRate();
+            document.getElementById(`pitch-${target.toLowerCase()}`).value = rate;
+            updatePitch(target);
+        }
+    </script>
+</body>
+</html>
