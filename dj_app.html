@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v27 - EQ & Seek</title>
+    <title>TIU Mixer Pro v27.1 - Debugged</title>
     <style>
         :root {
             --bg-color: #000;
@@ -14,7 +14,6 @@
             --loop-active: #ffee00;
             --text-color: #e0e0e0;
             --bar-color: #00ccff;
-            --knob-size: 50px;
         }
 
         body {
@@ -34,8 +33,9 @@
         @media (orientation: landscape) {
             body { display: flex; justify-content: center; align-items: center; }
             #app-container {
-                width: 1024px; height: 768px; /* Fixed Base */
+                width: 1024px; height: 768px;
                 border: 1px solid #333; padding: 15px;
+                position: relative;
             }
         }
 
@@ -57,7 +57,7 @@
             input[type=range].vertical-fader#master-vol {
                 writing-mode: horizontal-tb; -webkit-appearance: slider-horizontal; width: 100%;
             }
-            .crate-section { height: 300px; }
+            .crate-section { height: 400px; }
         }
 
         header { 
@@ -116,7 +116,6 @@
         .spinning { animation: spin 1.8s linear infinite; }
         .paused { animation-play-state: paused; }
 
-        /* FADER & EQ GROUP */
         .controls-group { display: flex; gap: 10px; height: 100%; align-items: center; }
 
         .gain-container {
@@ -128,25 +127,17 @@
             width: 100%; height: 100%; background: transparent;
         }
         
-        /* NEW EQ KNOB STYLE */
         .knob-container {
             width: 40px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: space-between;
         }
         .knob-label { font-size: 0.6rem; color: #888; margin-top: 5px; font-weight: bold; }
         
-        /* Using a vertical slider styled as a 'strip' for EQ to save space and ensure touch accuracy */
-        .eq-strip {
-            width: 30px; height: 100px; -webkit-appearance: slider-vertical;
-            background: #222; border-radius: 4px; border: 1px solid #444;
-        }
-
         .deck-info {
             background: #0f0f0f; border: 1px solid #333; padding: 5px; border-radius: 4px;
             font-family: 'Courier New', monospace; color: var(--accent); font-size: 0.8rem;
             display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;
         }
 
-        /* PROGRESS BAR (SEEK) */
         .progress-container {
             width: 100%; height: 12px; background: #222; border-radius: 3px; overflow: hidden;
             border: 1px solid #444; position: relative; cursor: pointer;
@@ -178,7 +169,6 @@
         }
         .btn-play.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); color: #000;}
 
-        /* PITCH AREA */
         .pitch-container {
             background: #111; padding: 5px; border-radius: 4px; border: 1px solid #333;
             display: flex; align-items: center; justify-content: center; height: 40px; gap: 5px; flex-shrink: 0;
@@ -198,11 +188,12 @@
             display: flex; flex-direction: column; align-items: center; justify-content: space-between; flex-shrink: 0;
         }
 
+        /* --- FIXED CRATE SECTION --- */
         .crate-section {
             width: 100%; 
             flex: 1; 
             min-height: 150px; 
-            margin-top: 50px; /* INCREASED MARGIN TO PREVENT OVERLAP */
+            margin-top: 50px; /* Space between decks and crate */
             background: #111; 
             border: 1px solid #333;
             border-radius: 8px; 
@@ -485,7 +476,10 @@
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
         var tapData = { A: {last:0,count:0,bpm:0}, B: {last:0,count:0,bpm:0} };
-        var loadedIndices = { A: -1, B: -1 };
+        
+        // BUG FIX: Track currently loaded IDs instead of crate indices
+        var loadedIDs = { A: null, B: null };
+        
         var crate = [];
         var smartSyncEnabled = true;
 
@@ -532,36 +526,31 @@
             players[d].seekTo(0);
         }
 
-        // --- SEEK BAR LOGIC ---
         function seek(d, event) {
             if(!ready[d] || !players[d].getDuration) return;
             const dur = players[d].getDuration();
             if(!dur) return;
-            
-            // Get click position
             const rect = event.currentTarget.getBoundingClientRect();
             const clickX = event.clientX - rect.left;
             const width = rect.width;
             const percent = clickX / width;
-            
             players[d].seekTo(dur * percent, true);
         }
 
-        // --- VOLUME & FAKE EQ LOGIC ---
         function updateVol() {
             const m = document.getElementById('master-vol').value / 100;
             const x = document.getElementById('crossfader').value;
             const ga = document.getElementById('gain-a').value / 100;
             const gb = document.getElementById('gain-b').value / 100;
-            const eqa = document.getElementById('eq-a').value / 100; // Fake EQ (Trim)
-            const eqb = document.getElementById('eq-b').value / 100; // Fake EQ (Trim)
+            const eqa = document.getElementById('eq-a').value / 100;
+            const eqb = document.getElementById('eq-b').value / 100;
 
             let xa = 1, xb = 1;
             if (x < 50) xb = x/50; else if (x > 50) xa = 1 - ((x-50)/50);
 
-            // Apply EQ trim to calculation
-            if(ready.A) players.A.setVolume(ga * eqa * xa * m * 100);
-            if(ready.B) players.B.setVolume(gb * eqb * xb * m * 100);
+            // BUG FIX: Round volume to integer to prevent errors
+            if(ready.A) players.A.setVolume(Math.round(ga * eqa * xa * m * 100));
+            if(ready.B) players.B.setVolume(Math.round(gb * eqb * xb * m * 100));
         }
 
         function updatePitch(d) {
@@ -611,18 +600,15 @@
                     const t = players[d].getCurrentTime();
                     const dur = players[d].getDuration();
                     
-                    // Update Time
                     const m = Math.floor(t/60).toString().padStart(2,'0');
                     const s = Math.floor(t%60).toString().padStart(2,'0');
                     document.getElementById(`time-${d.toLowerCase()}`).innerText = `${m}:${s}`;
                     
-                    // Update Progress Bar
                     if(dur > 0) {
                         const pct = (t / dur) * 100;
                         document.getElementById(`prog-${d.toLowerCase()}`).style.width = `${pct}%`;
                     }
 
-                    // Loop Logic
                     if(loops[d].active && loops[d].out && t >= loops[d].out) {
                         players[d].seekTo(loops[d].in, true);
                     }
@@ -642,14 +628,23 @@
         }
 
         function saveBPM(d) {
-            const idx = loadedIndices[d];
-            if(idx === -1) return alert("Load a track first!");
+            const currentID = loadedIDs[d];
+            if(!currentID) return alert("Load a track first!");
+            
+            // BUG FIX: Find track by ID, not static index
+            const track = crate.find(t => t.id === currentID);
+            
             const bpm = tapData[d].bpm;
             if(!bpm || bpm <= 0) return alert("Tap a BPM first!");
-            crate[idx].bpm = bpm;
-            saveAuto();
-            renderCrate();
-            alert(`Saved ${bpm} BPM for ${crate[idx].name}`);
+            
+            if(track) {
+                track.bpm = bpm;
+                saveAuto();
+                renderCrate();
+                alert(`Saved ${bpm} BPM for ${track.name}`);
+            } else {
+                alert("Error: Track not found in crate (did you delete it?)");
+            }
         }
 
         function toggleSyncMode() {
@@ -693,7 +688,7 @@
                 if(m) id = m[1]; else if(l.trim().length === 11) id = l.trim();
                 if(id && !crate.some(t=>t.id===id)) {
                     crate.push({id:id, name:`Track ${id}`, bpm:null});
-                    fetchTitle(id, crate.length-1);
+                    fetchTitle(id, id); // Pass ID to find track later
                     c++;
                 }
             });
@@ -706,16 +701,26 @@
             const url = document.getElementById('crate-url').value;
             const m = url.match(/(?:v=|youtu\.be\/|\/)([a-zA-Z0-9_-]{11})/);
             if(m) {
-                crate.push({id:m[1], name:`Track ${m[1]}`, bpm:null});
-                fetchTitle(m[1], crate.length-1);
+                const id = m[1];
+                if(crate.some(t=>t.id===id)) return alert("Track already in crate!");
+                crate.push({id:id, name:`Track ${id}`, bpm:null});
+                fetchTitle(id, id);
                 renderCrate(); saveAuto();
                 document.getElementById('crate-url').value = '';
             }
         }
 
-        function fetchTitle(id, idx) {
+        function fetchTitle(id, lookupId) {
+            // Added catch block for network errors
             fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`)
-            .then(r=>r.json()).then(d=>{ if(d.title){ crate[idx].name=d.title; renderCrate(); saveAuto(); }});
+            .then(r=>r.json())
+            .then(d=>{ 
+                if(d.title){ 
+                    const t = crate.find(x => x.id === lookupId);
+                    if(t) { t.name = d.title; renderCrate(); saveAuto(); }
+                }
+            })
+            .catch(e => console.log("Title fetch failed, keeping default name."));
         }
 
         function renderCrate() {
@@ -723,20 +728,26 @@
             crate.forEach((t, i) => {
                 const div = document.createElement('div'); div.className = 'crate-item';
                 const bpmDisplay = t.bpm ? `<span class="item-bpm">${t.bpm} BPM</span>` : '';
+                // Pass index for loading (visual), but load function uses crate data
                 div.innerHTML = `
                     <span class="item-name">${t.name}</span>
                     <div style="display:flex; gap:5px; align-items:center;">
                         ${bpmDisplay}
-                        <button class="load-btn" onclick="load(0,${i})">A</button>
-                        <button class="load-btn" onclick="load(1,${i})">B</button>
+                        <button class="load-btn" onclick="load('A',${i})">A</button>
+                        <button class="load-btn" onclick="load('B',${i})">B</button>
                         <button class="load-btn" style="color:red;" onclick="remove(${i})">X</button>
                     </div>`;
                 l.appendChild(div);
             });
         }
 
-        function load(dIdx, tIdx) {
-            const d = dIdx===0?'A':'B'; const t = crate[tIdx]; loadedIndices[d] = tIdx;
+        function load(d, tIdx) {
+            const t = crate[tIdx]; 
+            if(!t) return;
+            
+            // BUG FIX: Store the ID, not the index
+            loadedIDs[d] = t.id;
+
             if(ready[d]) {
                 players[d].loadVideoById(t.id);
                 document.getElementById(`title-${d.toLowerCase()}`).innerText = t.name;
@@ -754,21 +765,32 @@
 
         function openMemory() { renderSessionList(); document.getElementById('memory-modal').style.display = 'flex'; }
         function closeMemory() { document.getElementById('memory-modal').style.display = 'none'; }
-        function saveAuto() { localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(crate)); }
-        function loadAutoSave() { const d = localStorage.getItem(AUTO_SAVE_KEY); if(d) { try { crate = JSON.parse(d); renderCrate(); } catch(e){} } }
+        
+        // BUG FIX: Try/Catch for storage to prevent crashes
+        function saveAuto() { 
+            try { localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(crate)); } catch(e) { console.error("Storage full"); }
+        }
+        function loadAutoSave() { 
+            try { 
+                const d = localStorage.getItem(AUTO_SAVE_KEY); 
+                if(d) { crate = JSON.parse(d); renderCrate(); } 
+            } catch(e){} 
+        }
 
         function saveToSlot() {
             const name = document.getElementById('save-name').value.trim();
             if(!name) return alert("Enter a name!");
-            localStorage.setItem(SESSION_PREFIX + name, JSON.stringify(crate));
-            document.getElementById('save-name').value = ''; renderSessionList();
+            try {
+                localStorage.setItem(SESSION_PREFIX + name, JSON.stringify(crate));
+                document.getElementById('save-name').value = ''; renderSessionList();
+            } catch(e) { alert("Could not save. Storage might be full."); }
         }
 
         function renderSessionList() {
             const list = document.getElementById('session-list'); list.innerHTML = '';
             for(let i=0; i<localStorage.length; i++) {
                 const k = localStorage.key(i);
-                if(k.startsWith(SESSION_PREFIX)) {
+                if(k && k.startsWith(SESSION_PREFIX)) {
                     const sessionName = k.replace(SESSION_PREFIX, '');
                     const div = document.createElement('div'); div.className = 'mem-row';
                     div.innerHTML = `<span style="color:#fff;">${sessionName}</span>
@@ -781,8 +803,10 @@
 
         function loadSession(name) {
             if(confirm("Load session?")) { 
-                crate = JSON.parse(localStorage.getItem(SESSION_PREFIX + name)); 
-                renderCrate(); saveAuto(); closeMemory(); 
+                try {
+                    crate = JSON.parse(localStorage.getItem(SESSION_PREFIX + name)); 
+                    renderCrate(); saveAuto(); closeMemory(); 
+                } catch(e) { alert("Error loading session"); }
             }
         }
         function deleteSession(name) {
