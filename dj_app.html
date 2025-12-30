@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Mixer Pro v17 - Proxy Edition</title>
+    <title>TIU Mixer Pro v18 - Robust Import</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -390,10 +390,10 @@
             
             <div id="bulk-container">
                 <div style="font-size:0.7rem; color:#666; margin-bottom:5px;">
-                    <b>OPTION A:</b> PASTE LINKS (ONE PER LINE)<br>
-                    <b>OPTION B:</b> GO TO YOUTUBE PLAYLIST -> CTRL+A (SELECT ALL) -> CTRL+C (COPY) -> PASTE HERE
+                    <b>USE THE CONSOLE TRICK FOR BEST RESULTS!</b><br>
+                    Paste list of URLs (one per line) OR raw 11-char video IDs.
                 </div>
-                <textarea id="bulk-textarea" placeholder="Paste data here..."></textarea>
+                <textarea id="bulk-textarea" placeholder="https://youtube.com/watch?v=...\nOR\ndQw4w9WgXcQ"></textarea>
                 <div style="text-align:right;">
                     <button class="crate-btn" onclick="processBulkAdd()">PROCESS LIST</button>
                     <button class="crate-btn" onclick="toggleBulkMode()" style="background:#333;">CANCEL</button>
@@ -402,7 +402,7 @@
 
             <div class="crate-header">
                 <button class="crate-btn" onclick="toggleBulkMode()" style="background:#333; margin-right:10px;">📝 BULK</button>
-                <input type="text" id="crate-url" class="crate-input" style="flex:1;" placeholder="Paste Video OR Playlist URL..." oninput="handleUrlPaste()">
+                <input type="text" id="crate-url" class="crate-input" style="flex:1;" placeholder="Paste Video URL..." oninput="handleUrlPaste()">
                 <input type="text" id="crate-name" class="crate-input" style="flex:1;" placeholder="Track Name">
                 <button class="crate-btn" onclick="addSingleTrack()">ADD</button>
             </div>
@@ -446,14 +446,6 @@
         var crateData = []; 
         var loopInterval;
         var fetchTimeout;
-
-        // --- PUBLIC API MIRRORS ---
-        const apiMirrors = [
-            "https://invidious.projectsegfau.lt",
-            "https://vid.puffyan.us",
-            "https://invidious.jing.rocks",
-            "https://inv.tux.pizza"
-        ];
 
         // --- YOUTUBE API ---
         var tag = document.createElement('script');
@@ -556,37 +548,57 @@
             const text = document.getElementById('bulk-textarea').value;
             if(!text.trim()) return;
             
-            // Smart Scraper regex for messy text
-            const urlRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^"&?\/\s]{11})/g;
-            let match;
+            // Regex to find ANY 11-char string that looks like a YouTube ID
+            // or a full URL.
+            // 1. Look for full youtube.com/watch?v=XXXXXX
+            // 2. Look for youtu.be/XXXXXX
+            // 3. Fallback: Look for standalone 11-char alphanumerics if user pastes raw IDs.
+            
+            const lines = text.split('\n');
             let addedCount = 0;
-            const foundIds = new Set();
 
-            // First pass: Find all video IDs in the text blob
-            while ((match = urlRegex.exec(text)) !== null) {
-                if(!foundIds.has(match[1])) {
-                    foundIds.add(match[1]);
-                    // Try to find a title near the URL in the text line
-                    const lineStart = text.lastIndexOf('\n', match.index) + 1;
-                    const lineEnd = text.indexOf('\n', match.index);
-                    const line = text.substring(lineStart, lineEnd !== -1 ? lineEnd : text.length);
+            lines.forEach(line => {
+                line = line.trim();
+                if(!line) return;
+
+                // Pattern A: Standard URL
+                let match = line.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^"&?\/\s]{11})/);
+                let vidId = null;
+
+                if (match) {
+                    vidId = match[1];
+                } else {
+                    // Pattern B: Raw ID (11 chars, safe characters)
+                    if (/^[a-zA-Z0-9_-]{11}$/.test(line)) {
+                        vidId = line;
+                    }
+                }
+
+                if (vidId) {
+                    // Try to guess name from line if it was a URL line
+                    let name = null;
+                    if(match) {
+                        name = line.replace(match[0], '').trim();
+                        // cleanup dashes
+                        name = name.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+                    }
                     
-                    // Simple cleanup of the line to guess a title
-                    let name = line.replace(match[0], '').trim();
-                    if(name.length < 3) name = null;
+                    if(!name || name.length < 2) name = null;
                     
-                    performAddById(match[1], name);
+                    performAddById(vidId, name);
                     addedCount++;
                 }
-            }
+            });
 
             document.getElementById('bulk-textarea').value = '';
             toggleBulkMode();
+            
             if (addedCount > 0) {
-                showToast(`Scraped & Added ${addedCount} tracks.`);
-                sysLog(`Bulk Scrape: Found ${addedCount} unique video IDs.`);
+                showToast(`Processed ${addedCount} tracks.`);
+                sysLog(`Bulk add: ${addedCount} tracks.`);
             } else {
-                showToast("No YouTube links found.");
+                showToast("No valid IDs/URLs found.");
+                sysLog("Bulk add failed: No IDs found in text.", 'warn');
             }
         }
 
@@ -594,11 +606,6 @@
             clearTimeout(fetchTimeout);
             const url = document.getElementById('crate-url').value;
             const nameInput = document.getElementById('crate-name');
-
-            if (url.includes('list=')) {
-                nameInput.value = "Playlist Detected (Click ADD)";
-                return;
-            }
 
             if (url.length > 10) {
                 nameInput.placeholder = "Fetching title...";
@@ -616,7 +623,6 @@
         }
 
         function fetchTitle(url, callback) {
-            // Using a CORS proxy for the oembed title fetch as well
              fetch(`https://noembed.com/embed?url=${url}`)
                 .then(response => response.json())
                 .then(data => { callback(data.title); })
@@ -631,15 +637,6 @@
 
             if(!url) { alert("Please enter a URL"); return; }
 
-            const listMatch = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
-            if (listMatch) {
-                sysLog(`Detected Playlist ID: ${listMatch[1]}`);
-                startPlaylistFetch(listMatch[1]);
-                urlInput.value = '';
-                nameInput.value = '';
-                return;
-            }
-
             const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
             const vidId = (match && match[2].length === 11) ? match[2] : null;
 
@@ -653,67 +650,8 @@
             }
         }
 
-        // --- PLAYLIST FETCHING WITH PROXY ---
-        function startPlaylistFetch(listId) {
-            sysLog("Starting playlist fetch via Proxy...");
-            tryMirror(listId, 0);
-        }
-
-        function tryMirror(listId, index) {
-            if (index >= apiMirrors.length) {
-                sysLog("All mirrors failed. Try 'BULK' copy/paste method.", 'error');
-                showToast("Connection Failed. Try Bulk Paste.");
-                return;
-            }
-
-            const mirror = apiMirrors[index];
-            const targetUrl = `${mirror}/api/v1/playlists/${listId}`;
-            // WE USE 'ALLORIGINS' AS A PROXY BRIDGE
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-
-            sysLog(`Attempting Proxy to Mirror ${index + 1}...`);
-
-            const fetchPromise = fetch(proxyUrl);
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error("Timeout")), 8000)
-            );
-
-            Promise.race([fetchPromise, timeoutPromise])
-            .then(res => {
-                if(!res.ok) throw new Error(`HTTP ${res.status}`);
-                return res.json();
-            })
-            .then(data => {
-                if(data.videos && data.videos.length > 0) {
-                    let count = 0;
-                    data.videos.forEach(video => {
-                        if(!crateData.some(t => t.id === video.videoId)) {
-                            crateData.push({
-                                id: video.videoId,
-                                name: video.title,
-                                bpm: 0,
-                                hotCues: { 1: null, 2: null, 3: null },
-                                savedLoop: { in: null, out: null }
-                            });
-                            count++;
-                        }
-                    });
-                    renderCrate();
-                    sysLog(`Success! Imported ${count} tracks.`);
-                    showToast(`Added ${count} tracks.`);
-                } else {
-                    throw new Error("Empty Data");
-                }
-            })
-            .catch(err => {
-                sysLog(`Mirror ${index + 1} Failed: ${err.message}`, 'warn');
-                tryMirror(listId, index + 1);
-            });
-        }
-
         function performAddById(vidId, explicitName) {
             if(crateData.some(t => t.id === vidId)) {
-                sysLog(`Track already exists: ${vidId}`);
                 return;
             }
             const newTrack = {
