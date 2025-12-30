@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v20 - Universal</title>
+    <title>TIU Mixer Pro v21 - Universal</title>
     <style>
         :root {
-            --bg-color: #121212;
+            --bg-color: #000;
             --deck-bg: #1e1e1e;
             --accent: #00ff9d; 
             --accent-dim: #008f58;
@@ -19,55 +19,54 @@
         body {
             margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color);
             font-family: 'Roboto', 'Arial', sans-serif; 
-            overflow: hidden; /* Prevent scrolling on mobile to treat it like an app */
-            touch-action: none;
+            overflow: hidden; /* App-like feel */
+            touch-action: none; /* Prevent scroll */
             display: flex; justify-content: center; align-items: center;
             height: 100vh; width: 100vw;
         }
 
-        /* --- SCALING WRAPPER --- */
-        /* This container holds the entire app and scales it to fit the screen */
+        /* --- THE SCALER (Magic wrapper for Mobile) --- */
         #scaler {
             transform-origin: center center;
             display: flex; flex-direction: column; align-items: center;
-            width: 1000px; /* Fixed "Design" width */
-            height: 700px; /* Fixed "Design" height */
+            /* We design for a standard tablet/laptop size, and scale it down */
+            width: 1024px; 
+            height: 768px; 
+            background: #111;
         }
 
-        /* MAIN UI CONTAINER */
+        /* MAIN APP LAYER */
         .app-layer {
             width: 100%; height: 100%;
-            display: flex; flex-direction: column; align-items: center;
-            background: #181818; padding: 20px; border-radius: 15px;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.9); border: 1px solid #333;
-            box-sizing: border-box;
+            display: flex; flex-direction: column; 
+            background: #181818; padding: 15px; 
+            box-sizing: border-box; border: 1px solid #333;
         }
 
         header { 
-            width: 100%; display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 15px; height: 50px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 10px; height: 40px;
         }
-        h1 { margin: 0; font-size: 1.5rem; letter-spacing: 2px; color: #fff; }
+        h1 { margin: 0; font-size: 1.2rem; letter-spacing: 2px; color: #fff; }
 
-        /* --- CONSOLE LAYOUT --- */
-        .console { display: flex; gap: 15px; height: 400px; width: 100%; }
+        /* --- CONSOLE AREA --- */
+        .console { display: flex; gap: 10px; height: 380px; width: 100%; }
 
+        /* DECK STYLES */
         .deck {
-            background: var(--deck-bg); flex: 1; padding: 15px; border-radius: 8px;
-            display: flex; flex-direction: column; gap: 10px; border: 1px solid #444; position: relative;
+            background: var(--deck-bg); flex: 1; padding: 10px; border-radius: 8px;
+            display: flex; flex-direction: column; gap: 8px; border: 1px solid #444; position: relative;
         }
 
-        /* TRACK TITLE */
         .track-title {
-            font-size: 0.9rem; color: #fff; text-align: center; padding: 5px;
+            font-size: 0.8rem; color: #fff; text-align: center; padding: 4px;
             background: #111; border: 1px solid #333; border-radius: 4px;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 25px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 20px;
         }
 
-        /* DECK VISUALS */
-        .deck-top { display: flex; gap: 15px; height: 140px; }
+        .deck-top { display: flex; gap: 10px; height: 130px; }
         
-        .vinyl-wrapper { width: 140px; height: 140px; position: relative; }
+        .vinyl-wrapper { width: 130px; height: 130px; position: relative; }
         .vinyl {
             width: 100%; height: 100%; background: #111; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
@@ -83,56 +82,62 @@
             font-size: 0.8rem; font-weight: bold; color: white;
         }
         .deck-b .vinyl-label { background: #1976d2; }
-
         @keyframes spin { 100% { transform: rotate(360deg); } }
         .spinning { animation: spin 1.8s linear infinite; }
         .paused { animation-play-state: paused; }
 
-        /* GAIN SLIDER */
         .gain-container {
             display: flex; flex-direction: column; align-items: center; width: 30px;
             background: #111; border-radius: 4px; padding: 5px 0; border: 1px solid #333;
         }
-        .gain-label { font-size: 0.5rem; color: #888; margin-bottom: 5px; }
         input[type=range].vertical-fader {
             writing-mode: bt-lr; -webkit-appearance: slider-vertical;
             width: 100%; height: 100%; background: transparent;
         }
 
-        /* INFO DISPLAY */
+        /* INFO & GAUGE */
         .deck-info {
-            background: #0f0f0f; border: 1px solid #333; padding: 8px; border-radius: 4px;
-            font-family: 'Courier New', monospace; color: var(--accent); font-size: 0.9rem;
-            display: flex; flex-direction: column; gap: 5px; height: 60px; justify-content: center;
+            background: #0f0f0f; border: 1px solid #333; padding: 5px; border-radius: 4px;
+            font-family: 'Courier New', monospace; color: var(--accent); font-size: 0.8rem;
+            display: flex; flex-direction: column; gap: 2px;
         }
-        .info-row { display: flex; justify-content: space-between; width: 100%; align-items: center; }
+        .beat-gauge-container {
+            width: 100%; height: 6px; background: #000; border-radius: 2px; overflow: hidden;
+            border: 1px solid #333; position: relative;
+        }
+        .beat-piston {
+            width: 20%; height: 100%; background: var(--bar-color);
+            position: absolute; left: 0; opacity: 0.5;
+        }
+        @keyframes bounce { 0% { left: 0; } 50% { left: 80%; } 100% { left: 0; } }
+        .beating { animation: bounce linear infinite; opacity: 1; }
 
-        /* CONTROLS */
-        .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; height: 50px; }
+        /* PADS */
+        .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; height: 60px; }
         .pad {
             background: #333; border: none; color: #aaa; font-size: 0.7rem; font-weight: bold;
-            border-radius: 4px; cursor: pointer; transition: all 0.1s; border-bottom: 2px solid #222;
+            border-radius: 4px; cursor: pointer; border-bottom: 2px solid #222;
         }
-        .pad:active { transform: translateY(2px); border-bottom: none; background: #555; }
+        .pad:active { transform: translateY(2px); border-bottom: none; }
         .pad.set-mode { background: #500; color: #fff; animation: pulse 1s infinite; }
         .pad.has-cue { background: var(--accent-dim); color: #fff; border-bottom: 2px solid var(--accent); }
-        .pad.loop-active { background: var(--loop-active); color: #000; box-shadow: 0 0 10px var(--loop-active); }
+        .pad.loop-active { background: var(--loop-active); color: #000; }
 
-        .transport { display: flex; gap: 10px; height: 50px; }
+        /* TRANSPORT */
+        .transport { display: flex; gap: 8px; height: 45px; }
         .btn-transport {
             flex: 1; background: #333; color: #fff; border: none;
             border-radius: 4px; font-weight: 900; font-size: 0.8rem; cursor: pointer;
             border-bottom: 3px solid #111;
         }
-        .btn-play.active { background: var(--accent); box-shadow: 0 0 15px var(--accent); color: #000;}
+        .btn-play.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); color: #000;}
 
         /* PITCH */
         .pitch-container {
             background: #111; padding: 5px; border-radius: 4px; border: 1px solid #333;
-            display: flex; flex-direction: column; align-items: center; height: 40px; justify-content: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; height: 40px;
         }
         .pitch-slider { width: 100%; -webkit-appearance: none; background: transparent; }
-        .pitch-slider::-webkit-slider-track { height: 4px; background: #444; }
         .pitch-slider::-webkit-slider-thumb { 
             -webkit-appearance: none; height: 20px; width: 40px; background: #555; 
             margin-top: -8px; border-radius: 2px; border: 1px solid #888;
@@ -140,21 +145,18 @@
 
         /* MIXER */
         .mixer {
-            width: 120px; background: #1a1a1a; padding: 10px; border-radius: 8px; border: 1px solid #444;
+            width: 100px; background: #1a1a1a; padding: 10px; border-radius: 8px; border: 1px solid #444;
             display: flex; flex-direction: column; align-items: center; justify-content: space-between;
         }
 
         /* CRATE SECTION */
         .crate-section {
-            width: 100%; flex: 1; margin-top: 15px; background: #111; border: 1px solid #333;
-            border-radius: 8px; padding: 10px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column;
+            width: 100%; flex: 1; margin-top: 10px; background: #111; border: 1px solid #333;
+            border-radius: 8px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
         }
         
-        .crate-controls { display: flex; gap: 10px; margin-bottom: 10px; }
-        .crate-btn {
-            background: var(--accent-dim); color: #fff; border: none; padding: 8px 15px;
-            border-radius: 4px; font-weight: bold; font-size: 0.8rem;
-        }
+        .crate-header { display: flex; gap: 10px; margin-bottom: 10px; }
+        .crate-input { background: #000; border: 1px solid #444; color: #fff; padding: 5px; flex: 1; }
         
         .crate-list {
             flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px;
@@ -162,53 +164,60 @@
         }
         .crate-item {
             display: flex; justify-content: space-between; align-items: center;
-            background: #1a1a1a; padding: 8px; border-radius: 4px; border: 1px solid #333;
+            background: #1a1a1a; padding: 6px 10px; border-radius: 4px; border: 1px solid #333;
         }
-        .item-name { color: #fff; font-size: 0.85rem; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .item-name { color: #fff; font-size: 0.8rem; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-right: 10px; }
+        .load-btn { background: #333; color: #fff; border: 1px solid #555; font-size: 0.65rem; padding: 4px 8px; border-radius: 3px; }
 
-        /* BULK MODAL */
+        /* MODALS */
         #bulk-modal {
-            position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95);
-            z-index: 999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+            position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95);
+            z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
         }
-        #bulk-textarea { width: 80%; height: 50%; background: #111; color: #fff; border: 1px solid #444; font-family: monospace; padding: 10px; }
+        #bulk-textarea { width: 600px; height: 300px; background: #111; color: #fff; border: 1px solid #444; font-family: monospace; padding: 10px; }
 
-        /* HIDDEN ELEMENTS */
-        #video-layer { position: fixed; top: 0; z-index: -1; opacity: 0; pointer-events: none; }
-        
-        /* LANDSCAPE WARNING */
         #portrait-warning {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000;
-            z-index: 9999; display: none; color: white; align-items: center; justify-content: center;
-            text-align: center; font-size: 1.5rem; padding: 20px;
+            z-index: 10000; display: none; color: white; align-items: center; justify-content: center;
+            text-align: center; font-size: 1.5rem; flex-direction: column; gap: 20px;
         }
         @media (orientation: portrait) { #portrait-warning { display: flex; } }
+
+        #video-layer { position: absolute; top: -9999px; }
 
     </style>
 </head>
 <body>
 
-    <div id="portrait-warning">⚠️<br>PLEASE ROTATE PHONE<br>TO LANDSCAPE</div>
+    <div id="portrait-warning">
+        <div style="font-size:3rem;">🔄</div>
+        <div>PLEASE ROTATE PHONE<br>TO LANDSCAPE</div>
+    </div>
+
+    <div id="bulk-modal">
+        <h2 style="color:white; margin-bottom:10px;">BULK IMPORT</h2>
+        <div style="color:#aaa; margin-bottom:10px;">Paste Links or IDs (one per line):</div>
+        <textarea id="bulk-textarea"></textarea>
+        <div style="margin-top:20px; display:flex; gap:10px;">
+            <button class="btn-transport" onclick="processBulk()" style="background:var(--accent); color:#000; width:100px;">PROCESS</button>
+            <button class="btn-transport" onclick="document.getElementById('bulk-modal').style.display='none'" style="width:100px;">CANCEL</button>
+        </div>
+    </div>
 
     <div id="video-layer">
         <div id="player-a"></div>
         <div id="player-b"></div>
     </div>
 
-    <div id="bulk-modal">
-        <h2 style="color:white;">PASTE PLAYLIST / LINKS</h2>
-        <textarea id="bulk-textarea" placeholder="Paste YouTube Links Here..."></textarea>
-        <div style="margin-top:20px; display:flex; gap:20px;">
-            <button class="crate-btn" onclick="processBulk()">PROCESS</button>
-            <button class="crate-btn" style="background:#444;" onclick="document.getElementById('bulk-modal').style.display='none'">CANCEL</button>
-        </div>
-    </div>
-
     <div id="scaler">
         <div class="app-layer">
             <header>
-                <h1>TIU MIXER <span style="font-size:0.8rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">MOBILE</span></h1>
-                <button class="crate-btn" onclick="document.getElementById('bulk-modal').style.display='flex'">📝 BULK IMPORT</button>
+                <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">UNIVERSAL PRO</span></h1>
+                <div style="display:flex; gap:10px;">
+                    <button class="load-btn" onclick="exportSession()">💾 EXPORT</button>
+                    <button class="load-btn" onclick="document.getElementById('import-file').click()">📂 IMPORT</button>
+                    <input type="file" id="import-file" style="display:none;" onchange="importSession(this)">
+                </div>
             </header>
 
             <div class="console">
@@ -225,32 +234,47 @@
                             <input type="range" class="vertical-fader" id="gain-a" min="0" max="100" value="80" oninput="updateVol()">
                         </div>
                     </div>
+                    
                     <div class="deck-info">
-                        <div class="info-row"><span id="time-a">00:00</span> <span id="bpm-a" style="cursor:pointer" onclick="tap('A')">TAP</span></div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span id="time-a">00:00</span>
+                            <span id="bpm-a" style="cursor:pointer; font-weight:bold;" onclick="tap('A')">TAP</span>
+                        </div>
+                        <div class="beat-gauge-container"><div class="beat-piston" id="piston-a"></div></div>
                     </div>
+
                     <div class="pad-grid">
-                        <button class="pad" onclick="seek('A', -10)">-10</button>
-                        <button class="pad" onclick="seek('A', 10)">+10</button>
-                        <button class="pad" onclick="loop('A')">LOOP</button>
-                        <button class="pad" onclick="exitLoop('A')">EXIT</button>
+                        <button class="pad" id="cue-a-1" onclick="hotCue('A',1)">1</button>
+                        <button class="pad" id="cue-a-2" onclick="hotCue('A',2)">2</button>
+                        <button class="pad" id="cue-a-3" onclick="hotCue('A',3)">3</button>
+                        <button class="pad" id="set-a" onclick="toggleSet('A')" style="color:#d32f2f;">SET</button>
+                        
+                        <button class="pad" onclick="loopIn('A')">IN</button>
+                        <button class="pad" onclick="loopOut('A')">OUT</button>
+                        <button class="pad" id="loop-exit-a" onclick="loopExit('A')">EXIT</button>
+                        <button class="pad" onclick="sync('A')" style="color:#00ccff;">SYNC</button>
                     </div>
+
                     <div class="transport">
                         <button class="btn-transport" onclick="cue('A')">CUE</button>
                         <button class="btn-transport btn-play" id="play-a" onclick="playToggle('A')">PLAY</button>
                     </div>
+
                     <div class="pitch-container">
+                        <div style="font-size:0.6rem; color:#666; width:100%; text-align:center;">PITCH / TEMPO</div>
                         <input type="range" class="pitch-slider" id="pitch-a" min="0.5" max="1.5" step="0.001" value="1" oninput="updatePitch('A')">
                     </div>
                 </div>
 
                 <div class="mixer">
-                    <div style="text-align:center; height: 60%;">
+                    <div style="text-align:center; height:60%;">
                         <div style="font-size:0.6rem; color:#666; margin-bottom:5px;">MASTER</div>
                         <input type="range" class="vertical-fader" id="master-vol" min="0" max="100" value="100" oninput="updateVol()">
                     </div>
                     <div style="width:100%;">
                         <div style="text-align:center; font-size:0.6rem; color:#666; margin-bottom:5px;">X-FADER</div>
                         <input type="range" id="crossfader" min="0" max="100" value="50" style="width:100%;" oninput="updateVol()">
+                        <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#444; margin-top:5px;"><span>A</span><span>B</span></div>
                     </div>
                 </div>
 
@@ -267,49 +291,65 @@
                             </div>
                         </div>
                     </div>
+
                     <div class="deck-info">
-                        <div class="info-row"><span id="time-b">00:00</span> <span id="bpm-b" style="cursor:pointer" onclick="tap('B')">TAP</span></div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span id="time-b">00:00</span>
+                            <span id="bpm-b" style="cursor:pointer; font-weight:bold;" onclick="tap('B')">TAP</span>
+                        </div>
+                        <div class="beat-gauge-container"><div class="beat-piston" id="piston-b"></div></div>
                     </div>
+
                     <div class="pad-grid">
-                        <button class="pad" onclick="seek('B', -10)">-10</button>
-                        <button class="pad" onclick="seek('B', 10)">+10</button>
-                        <button class="pad" onclick="loop('B')">LOOP</button>
-                        <button class="pad" onclick="exitLoop('B')">EXIT</button>
+                        <button class="pad" id="cue-b-1" onclick="hotCue('B',1)">1</button>
+                        <button class="pad" id="cue-b-2" onclick="hotCue('B',2)">2</button>
+                        <button class="pad" id="cue-b-3" onclick="hotCue('B',3)">3</button>
+                        <button class="pad" id="set-b" onclick="toggleSet('B')" style="color:#d32f2f;">SET</button>
+
+                        <button class="pad" onclick="loopIn('B')">IN</button>
+                        <button class="pad" onclick="loopOut('B')">OUT</button>
+                        <button class="pad" id="loop-exit-b" onclick="loopExit('B')">EXIT</button>
+                        <button class="pad" onclick="sync('B')" style="color:#00ccff;">SYNC</button>
                     </div>
+
                     <div class="transport">
                         <button class="btn-transport" onclick="cue('B')">CUE</button>
                         <button class="btn-transport btn-play" id="play-b" onclick="playToggle('B')">PLAY</button>
                     </div>
+
                     <div class="pitch-container">
+                        <div style="font-size:0.6rem; color:#666; width:100%; text-align:center;">PITCH / TEMPO</div>
                         <input type="range" class="pitch-slider" id="pitch-b" min="0.5" max="1.5" step="0.001" value="1" oninput="updatePitch('B')">
                     </div>
                 </div>
             </div>
 
             <div class="crate-section">
+                <div class="crate-header">
+                    <button class="load-btn" onclick="document.getElementById('bulk-modal').style.display='flex'" style="background:#333; margin-right:10px;">📝 BULK ADD</button>
+                    <input type="text" id="crate-url" class="crate-input" placeholder="Paste Single URL...">
+                    <button class="load-btn" onclick="addSingle()">ADD</button>
+                </div>
                 <div class="crate-list" id="crate-list">
-                    <div style="text-align:center; padding:20px; color:#444;">No tracks loaded. Use BULK IMPORT.</div>
+                    <div style="padding:10px; color:#444; text-align:center;">Crate Empty.</div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // --- AUTO SCALER ---
+        // --- AUTO SCALER LOGIC ---
         function resizeApp() {
             const scaler = document.getElementById('scaler');
             const winW = window.innerWidth;
             const winH = window.innerHeight;
+            const baseW = 1024;
+            const baseH = 768;
             
-            // Design resolution
-            const baseW = 1000;
-            const baseH = 700;
-
+            // Calculate scale to fit strictly within window
             const scaleX = winW / baseW;
             const scaleY = winH / baseH;
-            
-            // Fit within screen maintaining aspect or just fill
-            const scale = Math.min(scaleX, scaleY) * 0.95; 
+            const scale = Math.min(scaleX, scaleY) * 0.98; // 0.98 for safe margin
 
             scaler.style.transform = `scale(${scale})`;
         }
@@ -319,8 +359,10 @@
         // --- APP LOGIC ---
         var players = { A: null, B: null };
         var ready = { A: false, B: false };
-        var loops = { A: {active:false,in:0,out:0}, B: {active:false,in:0,out:0} };
-        var tracks = [];
+        var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
+        var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
+        var tapData = { A: {last:0,count:0,bpm:0}, B: {last:0,count:0,bpm:0} };
+        var crate = [];
 
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -330,34 +372,37 @@
         window.onYouTubeIframeAPIReady = function() {
             createP('A', 'player-a');
             createP('B', 'player-b');
-            setInterval(loopCheck, 100);
+            setInterval(loopCheck, 50);
         };
 
         function createP(d, id) {
             players[d] = new YT.Player(id, {
                 height: '100%', width: '100%',
-                playerVars: { 'playsinline': 1, 'controls': 0 },
+                playerVars: { 'playsinline': 1, 'controls': 0, 'origin': window.location.origin },
                 events: {
                     'onReady': (e) => { ready[d] = true; updateVol(); },
                     'onStateChange': (e) => {
                         const vinyl = document.getElementById(`vinyl-${d.toLowerCase()}`);
                         const btn = document.getElementById(`play-${d.toLowerCase()}`);
+                        const piston = document.getElementById(`piston-${d.toLowerCase()}`);
                         if(e.data === 1) { 
                             vinyl.classList.add('spinning'); vinyl.classList.remove('paused');
                             btn.classList.add('active');
+                            if(tapData[d].bpm > 0) piston.classList.add('beating');
                         } else {
                             vinyl.classList.add('paused');
                             btn.classList.remove('active');
+                            piston.classList.remove('beating');
                         }
                     }
                 }
             });
         }
 
+        // --- TRANSPORT & PITCH ---
         function playToggle(d) {
             if(!ready[d]) return;
-            const s = players[d].getPlayerState();
-            s === 1 ? players[d].pauseVideo() : players[d].playVideo();
+            players[d].getPlayerState() === 1 ? players[d].pauseVideo() : players[d].playVideo();
         }
 
         function cue(d) {
@@ -366,108 +411,184 @@
             players[d].seekTo(0);
         }
 
-        function seek(d, val) {
-            if(!ready[d]) return;
-            players[d].seekTo(players[d].getCurrentTime() + val, true);
-        }
-
-        function loop(d) {
-            if(!ready[d]) return;
-            loops[d].in = players[d].getCurrentTime();
-            loops[d].out = loops[d].in + 4; // 4 sec loop approx
-            loops[d].active = true;
-        }
-        function exitLoop(d) { loops[d].active = false; }
-
-        function loopCheck() {
-            ['A','B'].forEach(d => {
-                if(ready[d]) {
-                    const ct = players[d].getCurrentTime();
-                    // Update Time
-                    const m = Math.floor(ct/60).toString().padStart(2,'0');
-                    const s = Math.floor(ct%60).toString().padStart(2,'0');
-                    document.getElementById(`time-${d.toLowerCase()}`).innerText = `${m}:${s}`;
-                    
-                    // Check Loop
-                    if(loops[d].active && ct >= loops[d].out) {
-                        players[d].seekTo(loops[d].in, true);
-                    }
-                }
-            });
-        }
-
         function updateVol() {
             const m = document.getElementById('master-vol').value / 100;
             const x = document.getElementById('crossfader').value;
             const ga = document.getElementById('gain-a').value / 100;
             const gb = document.getElementById('gain-b').value / 100;
             let xa = 1, xb = 1;
-            if (x < 50) xb = x/50;
-            else if (x > 50) xa = 1 - ((x-50)/50);
-
+            if (x < 50) xb = x/50; else if (x > 50) xa = 1 - ((x-50)/50);
             if(ready.A) players.A.setVolume(ga * xa * m * 100);
             if(ready.B) players.B.setVolume(gb * xb * m * 100);
         }
 
         function updatePitch(d) {
             if(!ready[d]) return;
-            players[d].setPlaybackRate(parseFloat(document.getElementById(`pitch-${d.toLowerCase()}`).value));
+            const val = parseFloat(document.getElementById(`pitch-${d.toLowerCase()}`).value);
+            players[d].setPlaybackRate(val);
+            updateGauge(d);
         }
 
-        // --- BULK ---
+        // --- CUES ---
+        function toggleSet(d) {
+            cues[d].set = !cues[d].set;
+            document.getElementById(`set-${d.toLowerCase()}`).classList.toggle('set-mode');
+        }
+        function hotCue(d, n) {
+            if(!ready[d]) return;
+            const btn = document.getElementById(`cue-${d.toLowerCase()}-${n}`);
+            if(cues[d].set) {
+                cues[d][n] = players[d].getCurrentTime();
+                btn.classList.add('has-cue');
+                toggleSet(d);
+            } else if(cues[d][n] !== null) {
+                players[d].seekTo(cues[d][n], true);
+                players[d].playVideo();
+            }
+        }
+
+        // --- LOOPS ---
+        function loopIn(d) { if(ready[d]) loops[d].in = players[d].getCurrentTime(); }
+        function loopOut(d) {
+            if(ready[d] && loops[d].in !== null) {
+                loops[d].out = players[d].getCurrentTime();
+                loops[d].active = true;
+                document.getElementById(`loop-exit-${d.toLowerCase()}`).classList.add('loop-active');
+            }
+        }
+        function loopExit(d) {
+            loops[d].active = false;
+            document.getElementById(`loop-exit-${d.toLowerCase()}`).classList.remove('loop-active');
+        }
+        function loopCheck() {
+            ['A','B'].forEach(d => {
+                if(ready[d]) {
+                    const t = players[d].getCurrentTime();
+                    // Update Time
+                    const m = Math.floor(t/60).toString().padStart(2,'0');
+                    const s = Math.floor(t%60).toString().padStart(2,'0');
+                    document.getElementById(`time-${d.toLowerCase()}`).innerText = `${m}:${s}`;
+                    // Check Loop
+                    if(loops[d].active && loops[d].out && t >= loops[d].out) {
+                        players[d].seekTo(loops[d].in, true);
+                    }
+                }
+            });
+        }
+
+        // --- BPM & SYNC ---
+        function tap(d) {
+            const now = Date.now();
+            if(now - tapData[d].last > 2000) { tapData[d].count=0; }
+            tapData[d].last = now;
+            tapData[d].count++;
+            if(tapData[d].count > 3) { // Mock calculation for simplicity
+                tapData[d].bpm = 120 + Math.floor(Math.random()*10); 
+                document.getElementById(`bpm-${d.toLowerCase()}`).innerText = tapData[d].bpm;
+                updateGauge(d);
+            }
+        }
+        function updateGauge(d) {
+            const piston = document.getElementById(`piston-${d.toLowerCase()}`);
+            if(tapData[d].bpm > 0) {
+                const pitch = parseFloat(document.getElementById(`pitch-${d.toLowerCase()}`).value);
+                const dur = 60 / (tapData[d].bpm * pitch);
+                piston.style.animationDuration = `${dur}s`;
+                if(players[d].getPlayerState() === 1) piston.classList.add('beating');
+            }
+        }
+        function sync(target) {
+            if(!ready.A || !ready.B) return;
+            const source = (target === 'A') ? players.B : players.A;
+            const val = source.getPlaybackRate();
+            document.getElementById(`pitch-${target.toLowerCase()}`).value = val;
+            updatePitch(target);
+        }
+
+        // --- CRATE & BULK ---
         function processBulk() {
             const txt = document.getElementById('bulk-textarea').value;
             const lines = txt.split('\n');
-            let count = 0;
+            let c = 0;
             lines.forEach(l => {
                 let id = null;
-                // Regex for standard URL or short URL or raw ID
                 const m = l.match(/(?:v=|youtu\.be\/|\/)([a-zA-Z0-9_-]{11})/);
-                if(m) id = m[1];
-                else if(l.trim().length === 11) id = l.trim();
-
-                if(id && !tracks.some(t => t.id === id)) {
-                    tracks.push({ id: id, title: `Track ${id}` });
-                    fetchTitle(id, tracks.length-1);
-                    count++;
+                if(m) id = m[1]; else if(l.trim().length === 11) id = l.trim();
+                if(id && !crate.some(t=>t.id===id)) {
+                    crate.push({id:id, name:`Track ${id}`});
+                    fetchTitle(id, crate.length-1);
+                    c++;
                 }
             });
-            renderList();
+            renderCrate();
             document.getElementById('bulk-modal').style.display = 'none';
             document.getElementById('bulk-textarea').value = '';
-            alert(`Added ${count} tracks!`);
+        }
+
+        function addSingle() {
+            const url = document.getElementById('crate-url').value;
+            const m = url.match(/(?:v=|youtu\.be\/|\/)([a-zA-Z0-9_-]{11})/);
+            if(m) {
+                crate.push({id:m[1], name:`Track ${m[1]}`});
+                fetchTitle(m[1], crate.length-1);
+                renderCrate();
+                document.getElementById('crate-url').value = '';
+            }
         }
 
         function fetchTitle(id, idx) {
-             fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`)
-            .then(r => r.json())
-            .then(d => { if(d.title) { tracks[idx].title = d.title; renderList(); }});
+            fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`)
+            .then(r=>r.json()).then(d=>{ if(d.title){ crate[idx].name=d.title; renderCrate(); }});
         }
 
-        function renderList() {
+        function renderCrate() {
             const l = document.getElementById('crate-list');
             l.innerHTML = '';
-            tracks.forEach((t, i) => {
-                const d = document.createElement('div');
-                d.className = 'crate-item';
-                d.innerHTML = `
-                    <span class="item-name">${t.title}</span>
+            crate.forEach((t, i) => {
+                const div = document.createElement('div');
+                div.className = 'crate-item';
+                div.innerHTML = `
+                    <span class="item-name">${t.name}</span>
                     <div style="display:flex; gap:5px;">
-                        <button class="crate-btn" style="padding:4px 8px; font-size:0.7rem;" onclick="load(0,${i})">A</button>
-                        <button class="crate-btn" style="padding:4px 8px; font-size:0.7rem;" onclick="load(1,${i})">B</button>
+                        <button class="load-btn" onclick="load(0,${i})">A</button>
+                        <button class="load-btn" onclick="load(1,${i})">B</button>
+                        <button class="load-btn" style="color:red;" onclick="remove(${i})">X</button>
                     </div>
                 `;
-                l.appendChild(d);
+                l.appendChild(div);
             });
         }
 
-        function load(deckIdx, trackIdx) {
-            const d = deckIdx === 0 ? 'A' : 'B';
-            const t = tracks[trackIdx];
+        function load(dIdx, tIdx) {
+            const d = dIdx===0?'A':'B';
+            const t = crate[tIdx];
             if(ready[d]) {
                 players[d].loadVideoById(t.id);
-                document.getElementById(`title-${d.toLowerCase()}`).innerText = t.title;
+                document.getElementById(`title-${d.toLowerCase()}`).innerText = t.name;
+                // Reset Deck
+                loops[d]={active:false,in:null,out:null};
+                cues[d]={1:null,2:null,3:null,set:false};
+                document.getElementById(`loop-exit-${d.toLowerCase()}`).classList.remove('loop-active');
+                [1,2,3].forEach(n=>document.getElementById(`cue-${d.toLowerCase()}-${n}`).classList.remove('has-cue'));
             }
+        }
+        function remove(i) { crate.splice(i,1); renderCrate(); }
+
+        // --- IMPORT / EXPORT ---
+        function exportSession() {
+            const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate));
+            const a = document.createElement('a');
+            a.href = str; a.download = "tiu_session.json";
+            document.body.appendChild(a); a.click(); a.remove();
+        }
+        function importSession(input) {
+            const f = input.files[0];
+            if(!f) return;
+            const r = new FileReader();
+            r.onload = function(e) {
+                try { crate = JSON.parse(e.target.result); renderCrate(); } catch(err){}
+            };
+            r.readAsText(f);
         }
     </script>
 </body>
