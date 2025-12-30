@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v21 - Universal</title>
+    <title>TIU Mixer Pro v22 - Memory Ed.</title>
     <style>
         :root {
             --bg-color: #000;
@@ -19,28 +19,21 @@
         body {
             margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color);
             font-family: 'Roboto', 'Arial', sans-serif; 
-            overflow: hidden; /* App-like feel */
-            touch-action: none; /* Prevent scroll */
+            overflow: hidden; touch-action: none;
             display: flex; justify-content: center; align-items: center;
             height: 100vh; width: 100vw;
         }
 
-        /* --- THE SCALER (Magic wrapper for Mobile) --- */
+        /* --- AUTO SCALER --- */
         #scaler {
             transform-origin: center center;
             display: flex; flex-direction: column; align-items: center;
-            /* We design for a standard tablet/laptop size, and scale it down */
-            width: 1024px; 
-            height: 768px; 
-            background: #111;
+            width: 1024px; height: 768px; background: #111;
         }
 
-        /* MAIN APP LAYER */
         .app-layer {
-            width: 100%; height: 100%;
-            display: flex; flex-direction: column; 
-            background: #181818; padding: 15px; 
-            box-sizing: border-box; border: 1px solid #333;
+            width: 100%; height: 100%; display: flex; flex-direction: column; 
+            background: #181818; padding: 15px; box-sizing: border-box; border: 1px solid #333;
         }
 
         header { 
@@ -48,11 +41,17 @@
             border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 10px; height: 40px;
         }
         h1 { margin: 0; font-size: 1.2rem; letter-spacing: 2px; color: #fff; }
+        
+        .top-btn-group { display: flex; gap: 10px; }
+        .top-btn {
+            background: #333; color: #fff; border: 1px solid #555; padding: 5px 15px;
+            font-weight: bold; font-size: 0.8rem; border-radius: 4px; cursor: pointer;
+        }
+        .top-btn.accent { background: var(--accent-dim); border-color: var(--accent); }
 
-        /* --- CONSOLE AREA --- */
+        /* --- CONSOLE --- */
         .console { display: flex; gap: 10px; height: 380px; width: 100%; }
 
-        /* DECK STYLES */
         .deck {
             background: var(--deck-bg); flex: 1; padding: 10px; border-radius: 8px;
             display: flex; flex-direction: column; gap: 8px; border: 1px solid #444; position: relative;
@@ -95,7 +94,6 @@
             width: 100%; height: 100%; background: transparent;
         }
 
-        /* INFO & GAUGE */
         .deck-info {
             background: #0f0f0f; border: 1px solid #333; padding: 5px; border-radius: 4px;
             font-family: 'Courier New', monospace; color: var(--accent); font-size: 0.8rem;
@@ -112,7 +110,6 @@
         @keyframes bounce { 0% { left: 0; } 50% { left: 80%; } 100% { left: 0; } }
         .beating { animation: bounce linear infinite; opacity: 1; }
 
-        /* PADS */
         .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; height: 60px; }
         .pad {
             background: #333; border: none; color: #aaa; font-size: 0.7rem; font-weight: bold;
@@ -123,7 +120,6 @@
         .pad.has-cue { background: var(--accent-dim); color: #fff; border-bottom: 2px solid var(--accent); }
         .pad.loop-active { background: var(--loop-active); color: #000; }
 
-        /* TRANSPORT */
         .transport { display: flex; gap: 8px; height: 45px; }
         .btn-transport {
             flex: 1; background: #333; color: #fff; border: none;
@@ -132,7 +128,6 @@
         }
         .btn-play.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); color: #000;}
 
-        /* PITCH */
         .pitch-container {
             background: #111; padding: 5px; border-radius: 4px; border: 1px solid #333;
             display: flex; flex-direction: column; align-items: center; justify-content: center; height: 40px;
@@ -143,13 +138,11 @@
             margin-top: -8px; border-radius: 2px; border: 1px solid #888;
         }
 
-        /* MIXER */
         .mixer {
             width: 100px; background: #1a1a1a; padding: 10px; border-radius: 8px; border: 1px solid #444;
             display: flex; flex-direction: column; align-items: center; justify-content: space-between;
         }
 
-        /* CRATE SECTION */
         .crate-section {
             width: 100%; flex: 1; margin-top: 10px; background: #111; border: 1px solid #333;
             border-radius: 8px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
@@ -167,14 +160,23 @@
             background: #1a1a1a; padding: 6px 10px; border-radius: 4px; border: 1px solid #333;
         }
         .item-name { color: #fff; font-size: 0.8rem; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-right: 10px; }
-        .load-btn { background: #333; color: #fff; border: 1px solid #555; font-size: 0.65rem; padding: 4px 8px; border-radius: 3px; }
+        .load-btn { background: #333; color: #fff; border: 1px solid #555; font-size: 0.65rem; padding: 4px 8px; border-radius: 3px; cursor: pointer; }
 
-        /* MODALS */
-        #bulk-modal {
+        /* --- MODALS --- */
+        .modal {
             position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95);
             z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
         }
-        #bulk-textarea { width: 600px; height: 300px; background: #111; color: #fff; border: 1px solid #444; font-family: monospace; padding: 10px; }
+        .modal-box { 
+            width: 500px; background: #181818; border: 1px solid #444; padding: 20px; 
+            border-radius: 8px; display: flex; flex-direction: column; gap: 10px; 
+        }
+        .modal h2 { color: #fff; margin-top: 0; }
+        
+        #bulk-textarea { width: 100%; height: 150px; background: #000; color: #fff; border: 1px solid #444; font-family: monospace; padding: 10px; box-sizing: border-box; }
+        
+        .mem-row { display: flex; justify-content: space-between; padding: 10px; background: #111; margin-bottom: 5px; border: 1px solid #333; align-items: center; }
+        .mem-btn { background: var(--accent-dim); color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
 
         #portrait-warning {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000;
@@ -194,13 +196,43 @@
         <div>PLEASE ROTATE PHONE<br>TO LANDSCAPE</div>
     </div>
 
-    <div id="bulk-modal">
-        <h2 style="color:white; margin-bottom:10px;">BULK IMPORT</h2>
-        <div style="color:#aaa; margin-bottom:10px;">Paste Links or IDs (one per line):</div>
-        <textarea id="bulk-textarea"></textarea>
-        <div style="margin-top:20px; display:flex; gap:10px;">
-            <button class="btn-transport" onclick="processBulk()" style="background:var(--accent); color:#000; width:100px;">PROCESS</button>
-            <button class="btn-transport" onclick="document.getElementById('bulk-modal').style.display='none'" style="width:100px;">CANCEL</button>
+    <div id="bulk-modal" class="modal">
+        <div class="modal-box">
+            <h2>BULK IMPORT</h2>
+            <div style="color:#aaa;">Paste TubePilot Links or IDs (one per line):</div>
+            <textarea id="bulk-textarea"></textarea>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="top-btn" onclick="document.getElementById('bulk-modal').style.display='none'">CANCEL</button>
+                <button class="top-btn accent" onclick="processBulk()">PROCESS</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="memory-modal" class="modal">
+        <div class="modal-box">
+            <h2>💾 MEMORY & SESSIONS</h2>
+            
+            <div style="border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:10px;">
+                <div style="color:#aaa; font-size:0.8rem; margin-bottom:5px;">QUICK ACTIONS</div>
+                <div style="display:flex; gap:10px;">
+                    <button class="top-btn" onclick="exportSession()">EXPORT TO FILE</button>
+                    <button class="top-btn" onclick="document.getElementById('import-file').click()">IMPORT FILE</button>
+                    <input type="file" id="import-file" style="display:none;" onchange="importSession(this)">
+                </div>
+            </div>
+
+            <div style="color:#aaa; font-size:0.8rem; margin-bottom:5px;">SAVED SESSIONS (BROWSER)</div>
+            <div style="display:flex; gap:5px; margin-bottom:10px;">
+                <input type="text" id="save-name" class="crate-input" placeholder="Session Name (e.g. House Mix)">
+                <button class="top-btn accent" onclick="saveToSlot()">SAVE</button>
+            </div>
+
+            <div id="session-list" style="max-height:150px; overflow-y:auto; background:#000; border:1px solid #333;">
+                </div>
+
+            <div style="margin-top:10px; text-align:right;">
+                <button class="top-btn" onclick="closeMemory()">CLOSE</button>
+            </div>
         </div>
     </div>
 
@@ -212,11 +244,9 @@
     <div id="scaler">
         <div class="app-layer">
             <header>
-                <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">UNIVERSAL PRO</span></h1>
-                <div style="display:flex; gap:10px;">
-                    <button class="load-btn" onclick="exportSession()">💾 EXPORT</button>
-                    <button class="load-btn" onclick="document.getElementById('import-file').click()">📂 IMPORT</button>
-                    <input type="file" id="import-file" style="display:none;" onchange="importSession(this)">
+                <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">PRO v22</span></h1>
+                <div class="top-btn-group">
+                    <button class="top-btn" onclick="openMemory()">💾 MEMORY</button>
                 </div>
             </header>
 
@@ -338,25 +368,28 @@
     </div>
 
     <script>
-        // --- AUTO SCALER LOGIC ---
+        // --- STORAGE CONSTANTS ---
+        const AUTO_SAVE_KEY = 'tiu_autosave_v2';
+        const SESSION_PREFIX = 'tiu_session_';
+
+        // --- AUTO SCALER ---
         function resizeApp() {
             const scaler = document.getElementById('scaler');
             const winW = window.innerWidth;
             const winH = window.innerHeight;
-            const baseW = 1024;
-            const baseH = 768;
-            
-            // Calculate scale to fit strictly within window
+            const baseW = 1024; const baseH = 768;
             const scaleX = winW / baseW;
             const scaleY = winH / baseH;
-            const scale = Math.min(scaleX, scaleY) * 0.98; // 0.98 for safe margin
-
+            const scale = Math.min(scaleX, scaleY) * 0.98; 
             scaler.style.transform = `scale(${scale})`;
         }
         window.addEventListener('resize', resizeApp);
-        window.addEventListener('load', resizeApp);
+        window.addEventListener('load', () => {
+            resizeApp();
+            loadAutoSave(); // Load data on startup
+        });
 
-        // --- APP LOGIC ---
+        // --- APP STATE ---
         var players = { A: null, B: null };
         var ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
@@ -364,6 +397,7 @@
         var tapData = { A: {last:0,count:0,bpm:0}, B: {last:0,count:0,bpm:0} };
         var crate = [];
 
+        // --- YOUTUBE SETUP ---
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         var firstScriptTag = document.getElementsByTagName('script')[0];
@@ -399,7 +433,7 @@
             });
         }
 
-        // --- TRANSPORT & PITCH ---
+        // --- DJ LOGIC (Same as previous) ---
         function playToggle(d) {
             if(!ready[d]) return;
             players[d].getPlayerState() === 1 ? players[d].pauseVideo() : players[d].playVideo();
@@ -429,7 +463,6 @@
             updateGauge(d);
         }
 
-        // --- CUES ---
         function toggleSet(d) {
             cues[d].set = !cues[d].set;
             document.getElementById(`set-${d.toLowerCase()}`).classList.toggle('set-mode');
@@ -447,7 +480,6 @@
             }
         }
 
-        // --- LOOPS ---
         function loopIn(d) { if(ready[d]) loops[d].in = players[d].getCurrentTime(); }
         function loopOut(d) {
             if(ready[d] && loops[d].in !== null) {
@@ -464,11 +496,9 @@
             ['A','B'].forEach(d => {
                 if(ready[d]) {
                     const t = players[d].getCurrentTime();
-                    // Update Time
                     const m = Math.floor(t/60).toString().padStart(2,'0');
                     const s = Math.floor(t%60).toString().padStart(2,'0');
                     document.getElementById(`time-${d.toLowerCase()}`).innerText = `${m}:${s}`;
-                    // Check Loop
                     if(loops[d].active && loops[d].out && t >= loops[d].out) {
                         players[d].seekTo(loops[d].in, true);
                     }
@@ -476,13 +506,12 @@
             });
         }
 
-        // --- BPM & SYNC ---
         function tap(d) {
             const now = Date.now();
             if(now - tapData[d].last > 2000) { tapData[d].count=0; }
             tapData[d].last = now;
             tapData[d].count++;
-            if(tapData[d].count > 3) { // Mock calculation for simplicity
+            if(tapData[d].count > 3) { 
                 tapData[d].bpm = 120 + Math.floor(Math.random()*10); 
                 document.getElementById(`bpm-${d.toLowerCase()}`).innerText = tapData[d].bpm;
                 updateGauge(d);
@@ -505,7 +534,7 @@
             updatePitch(target);
         }
 
-        // --- CRATE & BULK ---
+        // --- CRATE & IMPORT ---
         function processBulk() {
             const txt = document.getElementById('bulk-textarea').value;
             const lines = txt.split('\n');
@@ -521,6 +550,7 @@
                 }
             });
             renderCrate();
+            saveAuto();
             document.getElementById('bulk-modal').style.display = 'none';
             document.getElementById('bulk-textarea').value = '';
         }
@@ -532,13 +562,20 @@
                 crate.push({id:m[1], name:`Track ${m[1]}`});
                 fetchTitle(m[1], crate.length-1);
                 renderCrate();
+                saveAuto();
                 document.getElementById('crate-url').value = '';
             }
         }
 
         function fetchTitle(id, idx) {
             fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`)
-            .then(r=>r.json()).then(d=>{ if(d.title){ crate[idx].name=d.title; renderCrate(); }});
+            .then(r=>r.json()).then(d=>{ 
+                if(d.title){ 
+                    crate[idx].name=d.title; 
+                    renderCrate(); 
+                    saveAuto();
+                }
+            });
         }
 
         function renderCrate() {
@@ -565,20 +602,88 @@
             if(ready[d]) {
                 players[d].loadVideoById(t.id);
                 document.getElementById(`title-${d.toLowerCase()}`).innerText = t.name;
-                // Reset Deck
                 loops[d]={active:false,in:null,out:null};
                 cues[d]={1:null,2:null,3:null,set:false};
                 document.getElementById(`loop-exit-${d.toLowerCase()}`).classList.remove('loop-active');
                 [1,2,3].forEach(n=>document.getElementById(`cue-${d.toLowerCase()}-${n}`).classList.remove('has-cue'));
             }
         }
-        function remove(i) { crate.splice(i,1); renderCrate(); }
+        function remove(i) { crate.splice(i,1); renderCrate(); saveAuto(); }
 
-        // --- IMPORT / EXPORT ---
+        // --- SAVING SYSTEM (MEMORY) ---
+        function openMemory() {
+            renderSessionList();
+            document.getElementById('memory-modal').style.display = 'flex';
+        }
+        function closeMemory() {
+            document.getElementById('memory-modal').style.display = 'none';
+        }
+
+        // 1. Auto Save
+        function saveAuto() {
+            localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(crate));
+        }
+        function loadAutoSave() {
+            const data = localStorage.getItem(AUTO_SAVE_KEY);
+            if(data) {
+                try { crate = JSON.parse(data); renderCrate(); } catch(e){}
+            }
+        }
+
+        // 2. Named Sessions
+        function saveToSlot() {
+            const name = document.getElementById('save-name').value.trim();
+            if(!name) return alert("Enter a name!");
+            localStorage.setItem(SESSION_PREFIX + name, JSON.stringify(crate));
+            document.getElementById('save-name').value = '';
+            renderSessionList();
+        }
+
+        function renderSessionList() {
+            const list = document.getElementById('session-list');
+            list.innerHTML = '';
+            for(let i=0; i<localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if(k.startsWith(SESSION_PREFIX)) {
+                    const sessionName = k.replace(SESSION_PREFIX, '');
+                    const div = document.createElement('div');
+                    div.className = 'mem-row';
+                    div.innerHTML = `
+                        <span style="color:#fff;">${sessionName}</span>
+                        <div>
+                            <button class="mem-btn" onclick="loadSession('${sessionName}')">LOAD</button>
+                            <button class="mem-btn" style="background:#d32f2f;" onclick="deleteSession('${sessionName}')">X</button>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                }
+            }
+        }
+
+        function loadSession(name) {
+            const data = localStorage.getItem(SESSION_PREFIX + name);
+            if(data) {
+                if(confirm("Load this session? Current crate will be replaced.")) {
+                    crate = JSON.parse(data);
+                    renderCrate();
+                    saveAuto();
+                    closeMemory();
+                }
+            }
+        }
+        
+        function deleteSession(name) {
+            if(confirm("Delete this session permanently?")) {
+                localStorage.removeItem(SESSION_PREFIX + name);
+                renderSessionList();
+            }
+        }
+
+        // 3. File Import/Export
         function exportSession() {
             const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate));
             const a = document.createElement('a');
-            a.href = str; a.download = "tiu_session.json";
+            a.href = str; a.download = "tiu_mix.json";
             document.body.appendChild(a); a.click(); a.remove();
         }
         function importSession(input) {
@@ -586,10 +691,16 @@
             if(!f) return;
             const r = new FileReader();
             r.onload = function(e) {
-                try { crate = JSON.parse(e.target.result); renderCrate(); } catch(err){}
+                try { 
+                    crate = JSON.parse(e.target.result); 
+                    renderCrate(); 
+                    saveAuto();
+                    closeMemory();
+                } catch(err){ alert("Invalid file"); }
             };
             r.readAsText(f);
         }
+
     </script>
 </body>
 </html>
