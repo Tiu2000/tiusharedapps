@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Mixer Pro v15 - Diagnostic Mode</title>
+    <title>TIU Mixer Pro v16 - Multi-Mirror</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -230,6 +230,7 @@
         }
         .log-line { margin: 2px 0; border-bottom: 1px solid #111; }
         .log-err { color: #f00; }
+        .log-warn { color: #ff0; }
 
         /* NOTIFICATION TOAST */
         #toast {
@@ -421,10 +422,10 @@
 
     <script>
         // --- LOGGING UTILITY ---
-        function sysLog(msg, isError = false) {
+        function sysLog(msg, type = 'info') {
             const panel = document.getElementById('log-panel');
             const line = document.createElement('div');
-            line.className = 'log-line ' + (isError ? 'log-err' : '');
+            line.className = 'log-line ' + (type === 'error' ? 'log-err' : (type === 'warn' ? 'log-warn' : ''));
             const time = new Date().toLocaleTimeString().split(' ')[0];
             line.innerText = `[${time}] ${msg}`;
             panel.appendChild(line);
@@ -443,6 +444,15 @@
         var loopInterval;
         var fetchTimeout;
 
+        // --- PUBLIC API MIRRORS ---
+        // If one fails, we switch to the next.
+        const apiMirrors = [
+            "https://invidious.projectsegfau.lt",
+            "https://vid.puffyan.us",
+            "https://invidious.jing.rocks",
+            "https://inv.tux.pizza"
+        ];
+
         // --- YOUTUBE API ---
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -450,7 +460,7 @@
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
         window.onYouTubeIframeAPIReady = function() {
-            sysLog("YouTube API Ready");
+            sysLog("YouTube Player API Ready");
             createPlayer('A', 'player-a');
             createPlayer('B', 'player-b');
             loopInterval = setInterval(checkLoops, 50);
@@ -571,7 +581,6 @@
             // Check if it's a playlist first
             if (url.includes('list=')) {
                 nameInput.value = "Playlist Detected (Click ADD)";
-                sysLog("Playlist URL pattern detected.");
                 return;
             }
 
@@ -591,15 +600,13 @@
         }
 
         function fetchTitle(url, callback) {
-             sysLog("Fetching Title for single URL...");
              fetch(`https://noembed.com/embed?url=${url}`)
                 .then(response => response.json())
                 .then(data => {
-                    sysLog("Title fetch success: " + data.title);
                     callback(data.title);
                 })
                 .catch(e => {
-                    sysLog("Title fetch failed", true);
+                    sysLog("Title fetch failed: " + e.message, 'warn');
                     callback(null);
                 });
         }
@@ -615,14 +622,13 @@
             // === PLAYLIST HANDLING ===
             const listMatch = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
             if (listMatch) {
-                sysLog(`Starting playlist import for ID: ${listMatch[1]}`);
-                fetchPlaylist(listMatch[1]);
+                sysLog(`Detected Playlist ID: ${listMatch[1]}`);
+                startPlaylistFetch(listMatch[1]);
                 urlInput.value = '';
                 nameInput.value = '';
                 return;
             } else if (url.includes("list=")) {
-                // Regex failed but URL has list?
-                sysLog("Regex failed to extract List ID. Check URL format.", true);
+                sysLog("Error parsing Playlist ID. Check URL.", 'error');
             }
 
             performAdd(url, name || null); // null forces fetch
@@ -632,25 +638,36 @@
             nameInput.placeholder = "Track Name";
         }
 
-        // --- FETCH PLAYLIST VIA INVIDIOUS API ---
-        function fetchPlaylist(listId) {
-            showToast("Fetching Playlist... Check Log.");
-            sysLog(`Connecting to API for playlist: ${listId}...`);
-            
-            // Using a reliable Invidious instance
-            const apiEndpoint = `https://inv.tux.pizza/api/v1/playlists/${listId}`;
-            sysLog(`Requesting: ${apiEndpoint}`);
+        // --- ROBUST PLAYLIST FETCHING (Multi-Mirror) ---
+        function startPlaylistFetch(listId) {
+            sysLog("Starting playlist fetch sequence...");
+            tryMirror(listId, 0);
+        }
 
-            fetch(apiEndpoint)
+        function tryMirror(listId, index) {
+            if (index >= apiMirrors.length) {
+                sysLog("ALL MIRRORS FAILED. Playlist could not be loaded.", 'error');
+                showToast("Connection Failed. Try again later.");
+                return;
+            }
+
+            const mirror = apiMirrors[index];
+            sysLog(`Attempting connection to Mirror ${index + 1}: ${mirror}...`);
+
+            // Use a timeout promise to fail faster if the server hangs
+            const fetchPromise = fetch(`${mirror}/api/v1/playlists/${listId}`);
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("Request Timed Out")), 8000)
+            );
+
+            Promise.race([fetchPromise, timeoutPromise])
             .then(res => {
-                if(!res.ok) {
-                    sysLog(`API HTTP Error: ${res.status} ${res.statusText}`, true);
-                    throw new Error("API Error");
-                }
+                if(!res.ok) throw new Error(`HTTP ${res.status}`);
                 return res.json();
             })
             .then(data => {
-                sysLog("Data received. Parsing videos...");
+                // Success!
+                sysLog(`Connected to Mirror ${index + 1}. Processing...`);
                 if(data.videos && data.videos.length > 0) {
                     let count = 0;
                     data.videos.forEach(video => {
@@ -661,23 +678,23 @@
                             hotCues: { 1: null, 2: null, 3: null },
                             savedLoop: { in: null, out: null }
                         };
-                        // Avoid duplicates
                         if(!crateData.some(t => t.id === newTrack.id)) {
                             crateData.push(newTrack);
                             count++;
                         }
                     });
                     renderCrate();
-                    sysLog(`Success! Added ${count} tracks.`);
-                    showToast(`Imported ${count} tracks!`);
+                    sysLog(`Success! Imported ${count} tracks from playlist.`);
+                    showToast(`Success! Added ${count} tracks.`);
                 } else {
-                    sysLog("Playlist data is empty or private.", true);
-                    showToast("Playlist is empty or private.");
+                    sysLog("Playlist seems empty or private.", 'warn');
+                    showToast("Playlist is empty.");
                 }
             })
             .catch(err => {
-                sysLog(`Fetch failed: ${err.message}`, true);
-                showToast("Error fetching playlist.");
+                sysLog(`Mirror ${index + 1} Failed: ${err.message}`, 'warn');
+                // Recursively try the next mirror
+                tryMirror(listId, index + 1);
             });
         }
 
@@ -686,19 +703,18 @@
             const vidId = (match && match[2].length === 11) ? match[2] : null;
             
             if(!vidId) {
-                sysLog(`Could not parse Video ID from: ${url}`, true);
+                sysLog(`Invalid Video URL: ${url}`, 'error');
                 return;
             }
 
-            // Check duplicate
             if(crateData.some(t => t.id === vidId)) {
-                sysLog(`Duplicate ignored: ${vidId}`);
+                sysLog(`Track already exists in crate: ${vidId}`);
                 return;
             }
 
             const newTrack = {
                 id: vidId,
-                name: explicitName || "Fetching Title...", // Temp name
+                name: explicitName || "Fetching Title...", 
                 bpm: 0,
                 hotCues: { 1: null, 2: null, 3: null },
                 savedLoop: { in: null, out: null }
@@ -706,9 +722,8 @@
 
             crateData.push(newTrack);
             renderCrate();
-            sysLog(`Added track ID: ${vidId}`);
+            sysLog(`Added track: ${vidId}`);
 
-            // If no name was provided, fetch it now
             if(!explicitName) {
                 fetchTitle(url, (title) => {
                     if(title) {
@@ -767,7 +782,7 @@
         function loadFromCrate(deck, index) {
             if(!ready[deck]) return;
             const track = crateData[index];
-            sysLog(`Loading ${track.id} to Deck ${deck}`);
+            sysLog(`Loading track to Deck ${deck}: ${track.name}`);
             loadedTrackId[deck] = track.id; 
             document.getElementById(`track-title-${deck.toLowerCase()}`).innerText = track.name;
             players[deck].loadVideoById(track.id);
