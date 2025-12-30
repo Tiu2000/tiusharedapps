@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v24 - Auto Sync</title>
+    <title>TIU Mixer Pro v25 - Smart Toggle</title>
     <style>
         :root {
             --bg-color: #000;
@@ -48,6 +48,14 @@
             font-weight: bold; font-size: 0.8rem; border-radius: 4px; cursor: pointer;
         }
         .top-btn.accent { background: var(--accent-dim); border-color: var(--accent); }
+        
+        /* SYNC TOGGLE STYLES */
+        .sync-toggle-btn {
+            display: flex; align-items: center; gap: 5px; width: 130px; justify-content: center;
+            transition: all 0.2s;
+        }
+        .sync-on { background: var(--bar-color); color: #000; border: 1px solid #fff; box-shadow: 0 0 8px var(--bar-color); }
+        .sync-off { background: #333; color: #777; border: 1px solid #444; }
 
         /* --- CONSOLE --- */
         .console { display: flex; gap: 10px; height: 380px; width: 100%; }
@@ -251,8 +259,12 @@
     <div id="scaler">
         <div class="app-layer">
             <header>
-                <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">PRO v24 AUTO-SYNC</span></h1>
+                <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">PRO v25</span></h1>
+                
                 <div class="top-btn-group">
+                    <button id="sync-mode-btn" class="top-btn sync-toggle-btn sync-on" onclick="toggleSyncMode()">
+                        SMART SYNC: ON
+                    </button>
                     <button class="top-btn" onclick="openMemory()">💾 MEMORY</button>
                 </div>
             </header>
@@ -412,6 +424,7 @@
         var tapData = { A: {last:0,count:0,bpm:0}, B: {last:0,count:0,bpm:0} };
         var loadedIndices = { A: -1, B: -1 };
         var crate = [];
+        var smartSyncEnabled = true; // Default to ON
 
         // --- YOUTUBE SETUP ---
         var tag = document.createElement('script');
@@ -556,14 +569,28 @@
             }
         }
 
-        // --- AUTO SYNC LOGIC ---
+        // --- NEW SYNC TOGGLE LOGIC ---
+        function toggleSyncMode() {
+            smartSyncEnabled = !smartSyncEnabled;
+            const btn = document.getElementById('sync-mode-btn');
+            if(smartSyncEnabled) {
+                btn.classList.add('sync-on');
+                btn.classList.remove('sync-off');
+                btn.innerText = "SMART SYNC: ON";
+            } else {
+                btn.classList.add('sync-off');
+                btn.classList.remove('sync-on');
+                btn.innerText = "SMART SYNC: OFF";
+            }
+        }
+
         function sync(target) {
             if(!ready.A || !ready.B) return;
 
             const sourceKey = (target === 'A') ? 'B' : 'A';
             const targetKey = target;
 
-            // Get current pitch of source
+            // Get pitch of source deck
             const pitchSource = parseFloat(document.getElementById(`pitch-${sourceKey.toLowerCase()}`).value);
             
             const bpmSource = tapData[sourceKey].bpm;
@@ -571,22 +598,20 @@
 
             let newPitch = 1;
 
-            // If we know both BPMs, CALCULATE the required pitch
-            if (bpmSource > 0 && bpmTarget > 0) {
-                // Effective Source BPM = base * pitch
+            if (smartSyncEnabled && bpmSource > 0 && bpmTarget > 0) {
+                // SMART MODE: Calculate exact math
                 const effectiveSourceBpm = bpmSource * pitchSource;
-                // We want Target * newPitch = Effective Source
                 newPitch = effectiveSourceBpm / bpmTarget;
             } else {
-                // Fallback: Just copy the slider position
+                // MANUAL/DUMB MODE: Just copy the other fader's position
                 newPitch = pitchSource;
             }
 
-            // Safety Clamps
+            // Safety Clamps (0.5x to 1.5x)
             if(newPitch < 0.5) newPitch = 0.5;
             if(newPitch > 1.5) newPitch = 1.5;
 
-            // Apply to slider and engine
+            // Apply
             document.getElementById(`pitch-${targetKey.toLowerCase()}`).value = newPitch;
             updatePitch(targetKey);
         }
