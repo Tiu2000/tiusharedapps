@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v25 - Smart Toggle</title>
+    <title>TIU Mixer Pro v26 - Universal</title>
     <style>
         :root {
             --bg-color: #000;
@@ -20,25 +20,51 @@
             margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color);
             font-family: 'Roboto', 'Arial', sans-serif; 
             overflow: hidden; touch-action: none;
-            display: flex; justify-content: center; align-items: center;
             height: 100vh; width: 100vw;
         }
 
-        /* --- AUTO SCALER --- */
-        #scaler {
-            transform-origin: center center;
-            display: flex; flex-direction: column; align-items: center;
-            width: 1024px; height: 768px; background: #111;
+        /* --- LAYOUT WRAPPER --- */
+        #app-container {
+            width: 100%; height: 100%; display: flex; flex-direction: column;
+            background: #181818; box-sizing: border-box;
         }
 
-        .app-layer {
-            width: 100%; height: 100%; display: flex; flex-direction: column; 
-            background: #181818; padding: 15px; box-sizing: border-box; border: 1px solid #333;
+        /* LANDSCAPE MODE (Default SCALER logic) */
+        @media (orientation: landscape) {
+            body { display: flex; justify-content: center; align-items: center; }
+            #app-container {
+                width: 1024px; height: 768px; /* Fixed Base */
+                border: 1px solid #333;
+                padding: 15px;
+            }
+        }
+
+        /* PORTRAIT MODE (Native Flex Column) */
+        @media (orientation: portrait) {
+            body { display: block; overflow-y: auto; }
+            #app-container {
+                width: 100%; height: auto; min-height: 100vh;
+                transform: none !important; /* Disable JS scaler */
+                padding: 10px;
+                overflow-y: scroll;
+            }
+            .console { flex-direction: column; height: auto !important; }
+            .deck { margin-bottom: 10px; }
+            .mixer { 
+                width: 100% !important; height: 120px !important; 
+                flex-direction: row !important; margin-bottom: 10px;
+            }
+            .mixer > div { width: 45% !important; height: 100% !important; }
+            /* Rotate fader in portrait mixer to be horizontal for easier access */
+            input[type=range].vertical-fader#master-vol {
+                writing-mode: horizontal-tb; -webkit-appearance: slider-horizontal; width: 100%;
+            }
+            .crate-section { height: 300px; }
         }
 
         header { 
             display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 10px; height: 40px;
+            border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 10px; height: 40px; flex-shrink: 0;
         }
         h1 { margin: 0; font-size: 1.2rem; letter-spacing: 2px; color: #fff; }
         
@@ -49,7 +75,6 @@
         }
         .top-btn.accent { background: var(--accent-dim); border-color: var(--accent); }
         
-        /* SYNC TOGGLE STYLES */
         .sync-toggle-btn {
             display: flex; align-items: center; gap: 5px; width: 130px; justify-content: center;
             transition: all 0.2s;
@@ -58,7 +83,7 @@
         .sync-off { background: #333; color: #777; border: 1px solid #444; }
 
         /* --- CONSOLE --- */
-        .console { display: flex; gap: 10px; height: 380px; width: 100%; }
+        .console { display: flex; gap: 10px; flex: 1; width: 100%; min-height: 0; }
 
         .deck {
             background: var(--deck-bg); flex: 1; padding: 10px; border-radius: 8px;
@@ -68,10 +93,10 @@
         .track-title {
             font-size: 0.8rem; color: #fff; text-align: center; padding: 4px;
             background: #111; border: 1px solid #333; border-radius: 4px;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 20px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 20px; flex-shrink: 0;
         }
 
-        .deck-top { display: flex; gap: 10px; height: 130px; }
+        .deck-top { display: flex; gap: 10px; height: 130px; flex-shrink: 0; justify-content: center; }
         
         .vinyl-wrapper { width: 130px; height: 130px; position: relative; }
         .vinyl {
@@ -105,7 +130,7 @@
         .deck-info {
             background: #0f0f0f; border: 1px solid #333; padding: 5px; border-radius: 4px;
             font-family: 'Courier New', monospace; color: var(--accent); font-size: 0.8rem;
-            display: flex; flex-direction: column; gap: 2px;
+            display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;
         }
         .beat-gauge-container {
             width: 100%; height: 6px; background: #000; border-radius: 2px; overflow: hidden;
@@ -118,7 +143,7 @@
         @keyframes bounce { 0% { left: 0; } 50% { left: 80%; } 100% { left: 0; } }
         .beating { animation: bounce linear infinite; opacity: 1; }
 
-        .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; height: 60px; }
+        .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; height: 60px; flex-shrink: 0; }
         .pad {
             background: #333; border: none; color: #aaa; font-size: 0.7rem; font-weight: bold;
             border-radius: 4px; cursor: pointer; border-bottom: 2px solid #222;
@@ -128,7 +153,7 @@
         .pad.has-cue { background: var(--accent-dim); color: #fff; border-bottom: 2px solid var(--accent); }
         .pad.loop-active { background: var(--loop-active); color: #000; }
 
-        .transport { display: flex; gap: 8px; height: 45px; }
+        .transport { display: flex; gap: 8px; height: 45px; flex-shrink: 0; }
         .btn-transport {
             flex: 1; background: #333; color: #fff; border: none;
             border-radius: 4px; font-weight: 900; font-size: 0.8rem; cursor: pointer;
@@ -136,23 +161,28 @@
         }
         .btn-play.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); color: #000;}
 
+        /* PITCH AREA WITH RESET BTN */
         .pitch-container {
             background: #111; padding: 5px; border-radius: 4px; border: 1px solid #333;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; height: 40px;
+            display: flex; align-items: center; justify-content: center; height: 40px; gap: 5px; flex-shrink: 0;
         }
-        .pitch-slider { width: 100%; -webkit-appearance: none; background: transparent; }
+        .pitch-slider { flex: 1; -webkit-appearance: none; background: transparent; }
         .pitch-slider::-webkit-slider-thumb { 
             -webkit-appearance: none; height: 20px; width: 40px; background: #555; 
             margin-top: -8px; border-radius: 2px; border: 1px solid #888;
         }
+        .pitch-reset-btn {
+            width: 30px; height: 30px; background: #333; border: 1px solid #555; color: #fff;
+            border-radius: 4px; font-size: 0.7rem; font-weight: bold; cursor: pointer;
+        }
 
         .mixer {
             width: 100px; background: #1a1a1a; padding: 10px; border-radius: 8px; border: 1px solid #444;
-            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between; flex-shrink: 0;
         }
 
         .crate-section {
-            width: 100%; flex: 1; margin-top: 10px; background: #111; border: 1px solid #333;
+            width: 100%; flex: 1; min-height: 150px; margin-top: 10px; background: #111; border: 1px solid #333;
             border-radius: 8px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
         }
         
@@ -183,7 +213,7 @@
             z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
         }
         .modal-box { 
-            width: 500px; background: #181818; border: 1px solid #444; padding: 20px; 
+            width: 90%; max-width: 500px; background: #181818; border: 1px solid #444; padding: 20px; 
             border-radius: 8px; display: flex; flex-direction: column; gap: 10px; 
         }
         .modal h2 { color: #fff; margin-top: 0; }
@@ -193,23 +223,11 @@
         .mem-row { display: flex; justify-content: space-between; padding: 10px; background: #111; margin-bottom: 5px; border: 1px solid #333; align-items: center; }
         .mem-btn { background: var(--accent-dim); color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
 
-        #portrait-warning {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000;
-            z-index: 10000; display: none; color: white; align-items: center; justify-content: center;
-            text-align: center; font-size: 1.5rem; flex-direction: column; gap: 20px;
-        }
-        @media (orientation: portrait) { #portrait-warning { display: flex; } }
-
         #video-layer { position: absolute; top: -9999px; }
 
     </style>
 </head>
 <body>
-
-    <div id="portrait-warning">
-        <div style="font-size:3rem;">🔄</div>
-        <div>PLEASE ROTATE PHONE<br>TO LANDSCAPE</div>
-    </div>
 
     <div id="bulk-modal" class="modal">
         <div class="modal-box">
@@ -256,140 +274,140 @@
         <div id="player-b"></div>
     </div>
 
-    <div id="scaler">
-        <div class="app-layer">
-            <header>
-                <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">PRO v25</span></h1>
+    <div id="app-container">
+        <header>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v26 UNIVERSAL</span></h1>
+            
+            <div class="top-btn-group">
+                <button id="sync-mode-btn" class="top-btn sync-toggle-btn sync-on" onclick="toggleSyncMode()">
+                    SMART SYNC: ON
+                </button>
+                <button class="top-btn" onclick="openMemory()">💾 MEMORY</button>
+            </div>
+        </header>
+
+        <div class="console">
+            <div class="deck" id="deck-a">
+                <div class="track-title" id="title-a">No Track Loaded</div>
+                <div class="deck-top">
+                    <div class="vinyl-wrapper">
+                        <div class="vinyl" id="vinyl-a">
+                            <div class="vinyl-grooves"></div>
+                            <div class="vinyl-label">A</div>
+                        </div>
+                    </div>
+                    <div class="gain-container">
+                        <input type="range" class="vertical-fader" id="gain-a" min="0" max="100" value="80" oninput="updateVol()">
+                    </div>
+                </div>
                 
-                <div class="top-btn-group">
-                    <button id="sync-mode-btn" class="top-btn sync-toggle-btn sync-on" onclick="toggleSyncMode()">
-                        SMART SYNC: ON
-                    </button>
-                    <button class="top-btn" onclick="openMemory()">💾 MEMORY</button>
-                </div>
-            </header>
-
-            <div class="console">
-                <div class="deck" id="deck-a">
-                    <div class="track-title" id="title-a">No Track Loaded</div>
-                    <div class="deck-top">
-                        <div class="vinyl-wrapper">
-                            <div class="vinyl" id="vinyl-a">
-                                <div class="vinyl-grooves"></div>
-                                <div class="vinyl-label">A</div>
-                            </div>
-                        </div>
-                        <div class="gain-container">
-                            <input type="range" class="vertical-fader" id="gain-a" min="0" max="100" value="80" oninput="updateVol()">
+                <div class="deck-info">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span id="time-a">00:00</span>
+                        <div style="display:flex; align-items:center;">
+                            <span style="font-size:0.7rem; color:#666; margin-right:5px;">BPM:</span>
+                            <span id="bpm-a" style="color:var(--accent); font-weight:bold;">--</span>
+                            <button class="bpm-btn" onclick="saveBPM('A')" title="Save BPM">💾</button>
+                            <span style="cursor:pointer; font-weight:bold; margin-left:8px;" onclick="tap('A')">TAP</span>
                         </div>
                     </div>
+                    <div class="beat-gauge-container"><div class="beat-piston" id="piston-a"></div></div>
+                </div>
+
+                <div class="pad-grid">
+                    <button class="pad" id="cue-a-1" onclick="hotCue('A',1)">1</button>
+                    <button class="pad" id="cue-a-2" onclick="hotCue('A',2)">2</button>
+                    <button class="pad" id="cue-a-3" onclick="hotCue('A',3)">3</button>
+                    <button class="pad" id="set-a" onclick="toggleSet('A')" style="color:#d32f2f;">SET</button>
                     
-                    <div class="deck-info">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span id="time-a">00:00</span>
-                            <div style="display:flex; align-items:center;">
-                                <span style="font-size:0.7rem; color:#666; margin-right:5px;">BPM:</span>
-                                <span id="bpm-a" style="color:var(--accent); font-weight:bold;">--</span>
-                                <button class="bpm-btn" onclick="saveBPM('A')" title="Save BPM">💾</button>
-                                <span style="cursor:pointer; font-weight:bold; margin-left:8px;" onclick="tap('A')">TAP</span>
-                            </div>
-                        </div>
-                        <div class="beat-gauge-container"><div class="beat-piston" id="piston-a"></div></div>
-                    </div>
-
-                    <div class="pad-grid">
-                        <button class="pad" id="cue-a-1" onclick="hotCue('A',1)">1</button>
-                        <button class="pad" id="cue-a-2" onclick="hotCue('A',2)">2</button>
-                        <button class="pad" id="cue-a-3" onclick="hotCue('A',3)">3</button>
-                        <button class="pad" id="set-a" onclick="toggleSet('A')" style="color:#d32f2f;">SET</button>
-                        
-                        <button class="pad" onclick="loopIn('A')">IN</button>
-                        <button class="pad" onclick="loopOut('A')">OUT</button>
-                        <button class="pad" id="loop-exit-a" onclick="loopExit('A')">EXIT</button>
-                        <button class="pad" onclick="sync('A')" style="color:#00ccff;">SYNC</button>
-                    </div>
-
-                    <div class="transport">
-                        <button class="btn-transport" onclick="cue('A')">CUE</button>
-                        <button class="btn-transport btn-play" id="play-a" onclick="playToggle('A')">PLAY</button>
-                    </div>
-
-                    <div class="pitch-container">
-                        <input type="range" class="pitch-slider" id="pitch-a" min="0.5" max="1.5" step="0.001" value="1" oninput="updatePitch('A')">
-                    </div>
+                    <button class="pad" onclick="loopIn('A')">IN</button>
+                    <button class="pad" onclick="loopOut('A')">OUT</button>
+                    <button class="pad" id="loop-exit-a" onclick="loopExit('A')">EXIT</button>
+                    <button class="pad" onclick="sync('A')" style="color:#00ccff;">SYNC</button>
                 </div>
 
-                <div class="mixer">
-                    <div style="text-align:center; height:60%;">
-                        <div style="font-size:0.6rem; color:#666; margin-bottom:5px;">MASTER</div>
-                        <input type="range" class="vertical-fader" id="master-vol" min="0" max="100" value="100" oninput="updateVol()">
-                    </div>
-                    <div style="width:100%;">
-                        <div style="text-align:center; font-size:0.6rem; color:#666; margin-bottom:5px;">X-FADER</div>
-                        <input type="range" id="crossfader" min="0" max="100" value="50" style="width:100%;" oninput="updateVol()">
-                        <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#444; margin-top:5px;"><span>A</span><span>B</span></div>
-                    </div>
+                <div class="transport">
+                    <button class="btn-transport" onclick="cue('A')">CUE</button>
+                    <button class="btn-transport btn-play" id="play-a" onclick="playToggle('A')">PLAY</button>
                 </div>
 
-                <div class="deck deck-b" id="deck-b">
-                    <div class="track-title" id="title-b">No Track Loaded</div>
-                    <div class="deck-top">
-                        <div class="gain-container">
-                            <input type="range" class="vertical-fader" id="gain-b" min="0" max="100" value="80" oninput="updateVol()">
-                        </div>
-                        <div class="vinyl-wrapper">
-                            <div class="vinyl" id="vinyl-b">
-                                <div class="vinyl-grooves"></div>
-                                <div class="vinyl-label">B</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="deck-info">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span id="time-b">00:00</span>
-                            <div style="display:flex; align-items:center;">
-                                <span style="font-size:0.7rem; color:#666; margin-right:5px;">BPM:</span>
-                                <span id="bpm-b" style="color:var(--accent); font-weight:bold;">--</span>
-                                <button class="bpm-btn" onclick="saveBPM('B')" title="Save BPM">💾</button>
-                                <span style="cursor:pointer; font-weight:bold; margin-left:8px;" onclick="tap('B')">TAP</span>
-                            </div>
-                        </div>
-                        <div class="beat-gauge-container"><div class="beat-piston" id="piston-b"></div></div>
-                    </div>
-
-                    <div class="pad-grid">
-                        <button class="pad" id="cue-b-1" onclick="hotCue('B',1)">1</button>
-                        <button class="pad" id="cue-b-2" onclick="hotCue('B',2)">2</button>
-                        <button class="pad" id="cue-b-3" onclick="hotCue('B',3)">3</button>
-                        <button class="pad" id="set-b" onclick="toggleSet('B')" style="color:#d32f2f;">SET</button>
-
-                        <button class="pad" onclick="loopIn('B')">IN</button>
-                        <button class="pad" onclick="loopOut('B')">OUT</button>
-                        <button class="pad" id="loop-exit-b" onclick="loopExit('B')">EXIT</button>
-                        <button class="pad" onclick="sync('B')" style="color:#00ccff;">SYNC</button>
-                    </div>
-
-                    <div class="transport">
-                        <button class="btn-transport" onclick="cue('B')">CUE</button>
-                        <button class="btn-transport btn-play" id="play-b" onclick="playToggle('B')">PLAY</button>
-                    </div>
-
-                    <div class="pitch-container">
-                        <input type="range" class="pitch-slider" id="pitch-b" min="0.5" max="1.5" step="0.001" value="1" oninput="updatePitch('B')">
-                    </div>
+                <div class="pitch-container">
+                    <button class="pitch-reset-btn" onclick="resetPitch('A')">R</button>
+                    <input type="range" class="pitch-slider" id="pitch-a" min="0.5" max="1.5" step="0.001" value="1" oninput="updatePitch('A')">
                 </div>
             </div>
 
-            <div class="crate-section">
-                <div class="crate-header">
-                    <button class="load-btn" onclick="document.getElementById('bulk-modal').style.display='flex'" style="background:#333; margin-right:10px;">📝 BULK ADD</button>
-                    <input type="text" id="crate-url" class="crate-input" placeholder="Paste Single URL...">
-                    <button class="load-btn" onclick="addSingle()">ADD</button>
+            <div class="mixer">
+                <div style="text-align:center; height:60%; display:flex; flex-direction:column; justify-content:center;">
+                    <div style="font-size:0.6rem; color:#666; margin-bottom:5px;">MASTER</div>
+                    <input type="range" class="vertical-fader" id="master-vol" min="0" max="100" value="100" oninput="updateVol()">
                 </div>
-                <div class="crate-list" id="crate-list">
-                    <div style="padding:10px; color:#444; text-align:center;">Crate Empty.</div>
+                <div style="width:100%; display:flex; flex-direction:column; justify-content:center;">
+                    <div style="text-align:center; font-size:0.6rem; color:#666; margin-bottom:5px;">X-FADER</div>
+                    <input type="range" id="crossfader" min="0" max="100" value="50" style="width:100%;" oninput="updateVol()">
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#444; margin-top:5px;"><span>A</span><span>B</span></div>
                 </div>
+            </div>
+
+            <div class="deck deck-b" id="deck-b">
+                <div class="track-title" id="title-b">No Track Loaded</div>
+                <div class="deck-top">
+                    <div class="gain-container">
+                        <input type="range" class="vertical-fader" id="gain-b" min="0" max="100" value="80" oninput="updateVol()">
+                    </div>
+                    <div class="vinyl-wrapper">
+                        <div class="vinyl" id="vinyl-b">
+                            <div class="vinyl-grooves"></div>
+                            <div class="vinyl-label">B</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="deck-info">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span id="time-b">00:00</span>
+                        <div style="display:flex; align-items:center;">
+                            <span style="font-size:0.7rem; color:#666; margin-right:5px;">BPM:</span>
+                            <span id="bpm-b" style="color:var(--accent); font-weight:bold;">--</span>
+                            <button class="bpm-btn" onclick="saveBPM('B')" title="Save BPM">💾</button>
+                            <span style="cursor:pointer; font-weight:bold; margin-left:8px;" onclick="tap('B')">TAP</span>
+                        </div>
+                    </div>
+                    <div class="beat-gauge-container"><div class="beat-piston" id="piston-b"></div></div>
+                </div>
+
+                <div class="pad-grid">
+                    <button class="pad" id="cue-b-1" onclick="hotCue('B',1)">1</button>
+                    <button class="pad" id="cue-b-2" onclick="hotCue('B',2)">2</button>
+                    <button class="pad" id="cue-b-3" onclick="hotCue('B',3)">3</button>
+                    <button class="pad" id="set-b" onclick="toggleSet('B')" style="color:#d32f2f;">SET</button>
+
+                    <button class="pad" onclick="loopIn('B')">IN</button>
+                    <button class="pad" onclick="loopOut('B')">OUT</button>
+                    <button class="pad" id="loop-exit-b" onclick="loopExit('B')">EXIT</button>
+                    <button class="pad" onclick="sync('B')" style="color:#00ccff;">SYNC</button>
+                </div>
+
+                <div class="transport">
+                    <button class="btn-transport" onclick="cue('B')">CUE</button>
+                    <button class="btn-transport btn-play" id="play-b" onclick="playToggle('B')">PLAY</button>
+                </div>
+
+                <div class="pitch-container">
+                    <button class="pitch-reset-btn" onclick="resetPitch('B')">R</button>
+                    <input type="range" class="pitch-slider" id="pitch-b" min="0.5" max="1.5" step="0.001" value="1" oninput="updatePitch('B')">
+                </div>
+            </div>
+        </div>
+
+        <div class="crate-section">
+            <div class="crate-header">
+                <button class="load-btn" onclick="document.getElementById('bulk-modal').style.display='flex'" style="background:#333; margin-right:10px;">📝 BULK ADD</button>
+                <input type="text" id="crate-url" class="crate-input" placeholder="Paste Single URL...">
+                <button class="load-btn" onclick="addSingle()">ADD</button>
+            </div>
+            <div class="crate-list" id="crate-list">
+                <div style="padding:10px; color:#444; text-align:center;">Crate Empty.</div>
             </div>
         </div>
     </div>
@@ -399,16 +417,35 @@
         const AUTO_SAVE_KEY = 'tiu_autosave_v2';
         const SESSION_PREFIX = 'tiu_session_';
 
-        // --- AUTO SCALER ---
+        // --- RESPONSIVE SCALER (LANDSCAPE ONLY) ---
         function resizeApp() {
-            const scaler = document.getElementById('scaler');
-            const winW = window.innerWidth;
-            const winH = window.innerHeight;
-            const baseW = 1024; const baseH = 768;
-            const scaleX = winW / baseW;
-            const scaleY = winH / baseH;
-            const scale = Math.min(scaleX, scaleY) * 0.98; 
-            scaler.style.transform = `scale(${scale})`;
+            const container = document.getElementById('app-container');
+            if (window.innerWidth > window.innerHeight) {
+                // Landscape: Scale to fit 1024x768 aspect roughly
+                const winW = window.innerWidth;
+                const winH = window.innerHeight;
+                const baseW = 1024; 
+                const baseH = 768;
+                
+                // Calculate scale
+                const scaleX = winW / baseW;
+                const scaleY = winH / baseH;
+                const scale = Math.min(scaleX, scaleY) * 0.98; 
+                
+                container.style.transform = `scale(${scale})`;
+                container.style.transformOrigin = 'center top';
+                container.style.width = '1024px'; // Enforce base size
+                container.style.height = '768px';
+                container.style.marginTop = '10px';
+                document.body.style.overflow = 'hidden';
+            } else {
+                // Portrait: Reset styles to allow native flow
+                container.style.transform = 'none';
+                container.style.width = '100%';
+                container.style.height = 'auto';
+                container.style.marginTop = '0';
+                document.body.style.overflowY = 'auto';
+            }
         }
         window.addEventListener('resize', resizeApp);
         window.addEventListener('load', () => {
@@ -424,7 +461,7 @@
         var tapData = { A: {last:0,count:0,bpm:0}, B: {last:0,count:0,bpm:0} };
         var loadedIndices = { A: -1, B: -1 };
         var crate = [];
-        var smartSyncEnabled = true; // Default to ON
+        var smartSyncEnabled = true;
 
         // --- YOUTUBE SETUP ---
         var tag = document.createElement('script');
@@ -490,6 +527,11 @@
             const val = parseFloat(document.getElementById(`pitch-${d.toLowerCase()}`).value);
             players[d].setPlaybackRate(val);
             updateGauge(d);
+        }
+
+        function resetPitch(d) {
+            document.getElementById(`pitch-${d.toLowerCase()}`).value = 1;
+            updatePitch(d);
         }
 
         function toggleSet(d) {
@@ -569,7 +611,6 @@
             }
         }
 
-        // --- NEW SYNC TOGGLE LOGIC ---
         function toggleSyncMode() {
             smartSyncEnabled = !smartSyncEnabled;
             const btn = document.getElementById('sync-mode-btn');
@@ -590,28 +631,22 @@
             const sourceKey = (target === 'A') ? 'B' : 'A';
             const targetKey = target;
 
-            // Get pitch of source deck
             const pitchSource = parseFloat(document.getElementById(`pitch-${sourceKey.toLowerCase()}`).value);
-            
             const bpmSource = tapData[sourceKey].bpm;
             const bpmTarget = tapData[targetKey].bpm;
 
             let newPitch = 1;
 
             if (smartSyncEnabled && bpmSource > 0 && bpmTarget > 0) {
-                // SMART MODE: Calculate exact math
                 const effectiveSourceBpm = bpmSource * pitchSource;
                 newPitch = effectiveSourceBpm / bpmTarget;
             } else {
-                // MANUAL/DUMB MODE: Just copy the other fader's position
                 newPitch = pitchSource;
             }
 
-            // Safety Clamps (0.5x to 1.5x)
             if(newPitch < 0.5) newPitch = 0.5;
             if(newPitch > 1.5) newPitch = 1.5;
 
-            // Apply
             document.getElementById(`pitch-${targetKey.toLowerCase()}`).value = newPitch;
             updatePitch(targetKey);
         }
@@ -702,6 +737,8 @@
                     document.getElementById(`bpm-${d.toLowerCase()}`).innerText = "--";
                     document.getElementById(`piston-${d.toLowerCase()}`).classList.remove('beating');
                 }
+                // Reset pitch on load (optional choice)
+                resetPitch(d);
             }
         }
         function remove(i) { crate.splice(i,1); renderCrate(); saveAuto(); }
