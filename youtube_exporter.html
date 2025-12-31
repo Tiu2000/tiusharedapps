@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Playlist to CSV</title>
+    <style>
+        :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: #f4f4f9; display: flex; justify-content: center; padding: 40px; color: #333; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        h2 { text-align: center; margin-bottom: 20px; color: #cc0000; }
+        label { font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px; margin-top: 15px; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        .hint { font-size: 12px; color: #666; margin-top: 4px; }
+        button { width: 100%; padding: 12px; background-color: #cc0000; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 25px; transition: background 0.2s; }
+        button:hover { background-color: #aa0000; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        #status { margin-top: 20px; text-align: center; font-size: 14px; min-height: 20px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Playlist Exporter</h2>
+    
+    <label for="apiKey">YouTube API Key</label>
+    <input type="password" id="apiKey" placeholder="Paste your API Key here">
+    <div class="hint">Required. <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Get a free key here</a>.</div>
+
+    <label for="playlistUrl">Playlist Link</label>
+    <input type="text" id="playlistUrl" placeholder="https://www.youtube.com/playlist?list=...">
+
+    <button id="exportBtn" onclick="startExport()">Export to CSV</button>
+    <div id="status"></div>
+</div>
+
+<script>
+    async function startExport() {
+        const apiKey = document.getElementById('apiKey').value.trim();
+        const playlistInput = document.getElementById('playlistUrl').value.trim();
+        const statusDiv = document.getElementById('status');
+        const btn = document.getElementById('exportBtn');
+
+        // Reset Status
+        statusDiv.className = '';
+        statusDiv.innerText = '';
+
+        if (!apiKey) {
+            showStatus("Please enter an API Key.", "error");
+            return;
+        }
+
+        // Extract Playlist ID from URL
+        let playlistId = "";
+        try {
+            const urlObj = new URL(playlistInput);
+            playlistId = urlObj.searchParams.get("list");
+        } catch (e) {
+            // Maybe user pasted just the ID
+            playlistId = playlistInput;
+        }
+
+        if (!playlistId) {
+            showStatus("Invalid Playlist URL. Make sure it contains '?list='", "error");
+            return;
+        }
+
+        // UI Loading State
+        btn.disabled = true;
+        btn.innerText = "Fetching data...";
+        
+        let videos = [];
+        let nextPageToken = "";
+        let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}`;
+
+        try {
+            // Loop through pagination to get ALL videos
+            do {
+                const fetchUrl = nextPageToken ? `${url}&pageToken=${nextPageToken}` : url;
+                const response = await fetch(fetchUrl);
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+
+                data.items.forEach(item => {
+                    const snippet = item.snippet;
+                    videos.push({
+                        title: snippet.title,
+                        url: `https://www.youtube.com/watch?v=${snippet.resourceId.videoId}`,
+                        position: snippet.position + 1,
+                        channel: snippet.videoOwnerChannelTitle,
+                        publishedAt: snippet.publishedAt
+                    });
+                });
+
+                nextPageToken = data.nextPageToken;
+                statusDiv.innerText = `Fetched ${videos.length} videos...`;
+
+            } while (nextPageToken);
+
+            downloadCSV(videos);
+            showStatus(`Success! Exported ${videos.length} videos.`, "success");
+
+        } catch (error) {
+            showStatus("Error: " + error.message, "error");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Export to CSV";
+        }
+    }
+
+    function downloadCSV(data) {
+        const headers = ["Position", "Title", "URL", "Channel", "Date"];
+        const rows = data.map(v => 
+            `"${v.position}","${escapeCsv(v.title)}","${v.url}","${escapeCsv(v.channel)}","${v.publishedAt}"`
+        );
+        
+        const csvContent = "data:text/csv;charset=utf-8," 
+            + headers.join(",") + "\n" 
+            + rows.join("\n");
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "youtube_playlist.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function escapeCsv(text) {
+        if (!text) return "";
+        return text.replace(/"/g, '""'); // Escape double quotes
+    }
+
+    function showStatus(msg, type) {
+        const el = document.getElementById('status');
+        el.innerText = msg;
+        el.className = type;
+    }
+</script>
+
+</body>
+</html>
