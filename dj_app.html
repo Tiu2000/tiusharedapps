@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v30 - Voting & Normalize</title>
+    <title>TIU Mixer Pro v31 - Requests & Fixes</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -25,16 +25,16 @@
             height: 100vh; width: 100vw;
         }
 
-        /* --- FIXED VISIBLE WATERMARK --- */
+        /* --- VISIBLE WATERMARK --- */
         .watermark {
             position: fixed;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%) rotate(-30deg);
-            font-size: 15vw; /* Responsive size */
+            font-size: 15vw;
             font-weight: 900;
-            color: rgba(255, 255, 255, 0.05); /* Very subtle opacity */
-            pointer-events: none; /* Allows clicking through it */
-            z-index: 9999; /* Sit on top of everything */
+            color: rgba(255, 255, 255, 0.05);
+            pointer-events: none;
+            z-index: 9999;
             white-space: nowrap;
             user-select: none;
         }
@@ -42,7 +42,7 @@
         /* --- LAYOUT WRAPPER --- */
         #app-container {
             width: 100%; height: 100%; display: flex; flex-direction: column;
-            background: transparent; /* Changed to see background */
+            background: transparent;
             box-sizing: border-box;
             position: relative;
             z-index: 1;
@@ -54,7 +54,7 @@
             #app-container {
                 width: 1024px; height: 768px;
                 border: 1px solid #333; padding: 15px;
-                background: #181818; /* Container bg */
+                background: #181818;
             }
         }
 
@@ -67,11 +67,12 @@
                 background: #181818;
             }
             .console { flex-direction: column; height: auto !important; }
-            .deck { margin-bottom: 10px; }
+            .deck { margin-bottom: 20px; } /* Added margin to separate decks */
             .mixer { width: 100% !important; height: 100px !important; flex-direction: row !important; margin-bottom: 10px; }
             .mixer > div { width: 45% !important; height: 100% !important; }
             input[type=range].vertical-fader#master-vol { writing-mode: horizontal-tb; -webkit-appearance: slider-horizontal; width: 100%; }
             .crate-section { height: 400px; }
+            .watermark { font-size: 8rem; }
         }
 
         header { 
@@ -134,14 +135,29 @@
         .btn-transport { flex: 1; background: #333; color: #fff; border: none; border-radius: 4px; font-weight: 900; font-size: 0.8rem; cursor: pointer; border-bottom: 3px solid #111; }
         .btn-play.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); color: #000;}
 
-        .pitch-container { background: #111; padding: 5px; border-radius: 4px; border: 1px solid #333; display: flex; align-items: center; justify-content: center; height: 40px; gap: 5px; flex-shrink: 0; }
+        /* FIXED PITCH CONTAINER */
+        .pitch-container { 
+            background: #111; 
+            padding: 8px; /* Increased padding */
+            border-radius: 4px; 
+            border: 1px solid #333; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            height: 50px; /* Increased height */
+            gap: 5px; 
+            flex-shrink: 0;
+            z-index: 10; /* Ensure it stays on top */
+            position: relative;
+        }
         .pitch-slider { flex: 1; -webkit-appearance: none; background: transparent; }
-        .pitch-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 40px; background: #555; margin-top: -8px; border-radius: 2px; border: 1px solid #888; }
-        
+        .pitch-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 25px; width: 40px; background: #555; margin-top: -10px; border-radius: 2px; border: 1px solid #888; cursor: ns-resize; }
+        .pitch-reset-btn { width: 35px; height: 35px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+
         .mixer { width: 100px; background: #1a1a1a; padding: 10px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; justify-content: space-between; flex-shrink: 0; }
 
         /* --- CRATE & VOTING --- */
-        .crate-section { width: 100%; flex: 1; min-height: 150px; margin-top: 50px; background: #111; border: 1px solid #333; border-radius: 8px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 5; }
+        .crate-section { width: 100%; flex: 1; min-height: 150px; margin-top: 20px; background: #111; border: 1px solid #333; border-radius: 8px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 5; }
         .crate-header { display: flex; gap: 10px; margin-bottom: 10px; }
         .crate-input { background: #000; border: 1px solid #444; color: #fff; padding: 5px; flex: 1; }
         .crate-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; background: #000; padding: 5px; border: 1px solid #333; }
@@ -163,6 +179,10 @@
         /* VOTER INTERFACE (When accessed as Guest) */
         #voter-app { display: none; width: 100%; height: 100%; background: #000; color: #fff; flex-direction: column; padding: 20px; box-sizing: border-box; }
         .vote-btn { background: var(--vote-color); color: black; font-weight: bold; border: none; padding: 8px; border-radius: 4px; cursor: pointer; }
+        
+        /* Suggestion Box */
+        #suggest-box { display: none; margin-bottom: 20px; background: #222; padding: 15px; border-radius: 8px; border: 1px solid #444; }
+        .suggest-toggle { background: #333; color: #aaa; border: none; width: 100%; padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 10px; }
 
         #video-layer { position: absolute; top: -9999px; }
 
@@ -174,7 +194,7 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v30</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v31</span></h1>
             
             <div class="top-btn-group">
                 <button id="vote-btn" class="top-btn" onclick="openVoteModal()" style="color:var(--vote-color);">📶 VOTE</button>
@@ -287,6 +307,13 @@
 
     <div id="voter-app">
         <h1 style="color:var(--vote-color)">VOTE FOR NEXT TRACK</h1>
+        <button class="suggest-toggle" onclick="toggleSuggestBox()">➕ Suggest a Song</button>
+        
+        <div id="suggest-box">
+            <input type="text" id="guest-url" class="crate-input" style="width:100%; margin-bottom:10px;" placeholder="Paste YouTube Link...">
+            <button class="vote-btn" style="width:100%;" onclick="sendGuestSuggestion()">SEND REQUEST</button>
+        </div>
+
         <p style="color:#888;">Tap a track to vote!</p>
         <div id="voter-list" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px;"></div>
     </div>
@@ -345,6 +372,14 @@
                 <button class="top-btn accent" onclick="saveToSlot()">SAVE</button>
             </div>
             <div id="session-list" style="max-height:150px; overflow-y:auto; background:#000; border:1px solid #333;"></div>
+            
+            <div style="border-top:1px solid #333; margin-top:10px; padding-top:10px; display:flex; justify-content:space-between;">
+                <button class="top-btn" onclick="document.getElementById('import-file').click()">📂 IMPORT FILE</button>
+                <input type="file" id="import-file" style="display:none;" onchange="importSession(this)">
+                
+                <button class="top-btn" onclick="exportSession()">EXPORT</button>
+            </div>
+
             <button class="top-btn" style="margin-top:10px; float:right;" onclick="document.getElementById('memory-modal').style.display='none'">CLOSE</button>
         </div>
     </div>
@@ -352,7 +387,7 @@
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v30';
+        const AUTO_SAVE_KEY = 'tiu_v31';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
@@ -362,76 +397,57 @@
         var smartSyncEnabled = true, autoMixEnabled = false, isMixing = false;
         var mediaRecorder, audioChunks = [], isRecording = false;
         
-        // P2P Vars
-        var peer, conn, myPeerId;
-        var isHost = true; // Default to host unless URL param exists
+        var peer, conn, myPeerId, isHost = true;
 
-        // INIT
         window.addEventListener('resize', resizeApp);
-        window.addEventListener('load', () => { 
-            resizeApp(); 
-            loadAutoSave(); 
-            checkP2PMode();
-        });
+        window.addEventListener('load', () => { resizeApp(); loadAutoSave(); checkP2PMode(); });
 
         // --- P2P VOTING SYSTEM ---
         function checkP2PMode() {
             const urlParams = new URLSearchParams(window.location.search);
             const hostId = urlParams.get('host');
-            
             if (hostId) {
-                // GUEST MODE
                 isHost = false;
                 document.getElementById('app-container').style.display = 'none';
                 document.getElementById('voter-app').style.display = 'flex';
                 document.querySelector('.watermark').style.display = 'none';
                 initGuest(hostId);
             } else {
-                // HOST MODE
                 initHost();
             }
         }
-
         function initHost() {
-            peer = new Peer(); // Auto-gen ID from Cloud
+            peer = new Peer();
             peer.on('open', (id) => {
                 myPeerId = id;
-                console.log('Host ID: ' + id);
                 document.getElementById('peer-status').innerText = "Network Ready. ID: " + id;
-                // Generate QR
                 const url = window.location.href.split('?')[0] + '?host=' + id;
                 document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
             });
             peer.on('connection', (c) => {
-                // Send current crate to guest
                 c.on('open', () => { c.send({type:'crate', data:crate}); });
                 c.on('data', (data) => {
                     if(data.type === 'vote') {
-                        // Handle Vote
                         const track = crate.find(t => t.id === data.id);
-                        if(track) {
-                            track.votes = (track.votes || 0) + 1;
-                            renderCrate();
-                            // Sort by votes? Optional.
-                        }
+                        if(track) { track.votes = (track.votes || 0) + 1; renderCrate(); }
+                    }
+                    // HANDLE GUEST REQUEST
+                    if(data.type === 'suggest') {
+                        addSingle(data.url, true); // true = isRequest
                     }
                 });
             });
         }
-
         function initGuest(hostId) {
             peer = new Peer();
             peer.on('open', () => {
                 conn = peer.connect(hostId);
                 conn.on('open', () => { console.log("Connected to Host"); });
                 conn.on('data', (data) => {
-                    if(data.type === 'crate') {
-                        renderVoterList(data.data);
-                    }
+                    if(data.type === 'crate') renderVoterList(data.data);
                 });
             });
         }
-
         function renderVoterList(list) {
             const el = document.getElementById('voter-list');
             el.innerHTML = '';
@@ -439,16 +455,25 @@
                 const btn = document.createElement('div');
                 btn.style.cssText = "padding:15px; border-bottom:1px solid #333; cursor:pointer;";
                 btn.innerHTML = `<div style="font-weight:bold;">${t.name}</div><div style="font-size:0.8rem; color:#aaa;">${t.bpm || '--'} BPM</div>`;
-                btn.onclick = () => {
-                    conn.send({type:'vote', id:t.id});
-                    alert("Voted for " + t.name);
-                };
+                btn.onclick = () => { conn.send({type:'vote', id:t.id}); alert("Voted for " + t.name); };
                 el.appendChild(btn);
             });
         }
-
         function openVoteModal() { document.getElementById('vote-modal').style.display = 'flex'; }
 
+        // --- GUEST SUGGESTION LOGIC ---
+        function toggleSuggestBox() {
+            const box = document.getElementById('suggest-box');
+            box.style.display = box.style.display === 'block' ? 'none' : 'block';
+        }
+        function sendGuestSuggestion() {
+            const url = document.getElementById('guest-url').value;
+            if(!url) return alert("Enter a URL");
+            conn.send({type:'suggest', url: url});
+            alert("Request sent to DJ!");
+            document.getElementById('guest-url').value = '';
+            toggleSuggestBox();
+        }
 
         // --- YOUTUBE API ---
         var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
@@ -468,7 +493,7 @@
             });
         }
 
-        // --- CORE DJ LOGIC ---
+        // --- DJ LOGIC ---
         function playToggle(d) { if(ready[d]) players[d].getPlayerState()===1 ? players[d].pauseVideo() : players[d].playVideo(); }
         function cue(d) { if(ready[d]) { players[d].pauseVideo(); players[d].seekTo(0); } }
         function seek(d,e) { if(ready[d]){ const r=e.currentTarget.getBoundingClientRect(); players[d].seekTo(players[d].getDuration()*((e.clientX-r.left)/r.width), true); } }
@@ -482,29 +507,15 @@
         }
         function updatePitch(d) { if(ready[d]) players[d].setPlaybackRate(parseFloat(document.getElementById('pitch-'+d.toLowerCase()).value)); }
         function resetPitch(d) { document.getElementById('pitch-'+d.toLowerCase()).value = 1; updatePitch(d); }
-        
-        // --- NEW: GRADUAL NORMALIZE ---
         function normalizePitch(d) {
-            // Slides pitch back to 1.0 over 10 seconds
             const slider = document.getElementById('pitch-'+d.toLowerCase());
             let current = parseFloat(slider.value);
-            const step = (1.0 - current) / 100; // 100 steps
+            const step = (1.0 - current) / 100; 
             let count = 0;
-            const intv = setInterval(() => {
-                current += step;
-                slider.value = current;
-                updatePitch(d);
-                count++;
-                if(count >= 100) clearInterval(intv);
-            }, 100); // 100ms * 100 = 10s
+            const intv = setInterval(() => { current += step; slider.value = current; updatePitch(d); count++; if(count >= 100) clearInterval(intv); }, 100);
         }
 
-        // --- AUTOMIX ---
-        function toggleAutoMix() {
-            autoMixEnabled = !autoMixEnabled;
-            const btn = document.getElementById('automix-btn');
-            btn.classList.toggle('automix-on');
-        }
+        function toggleAutoMix() { autoMixEnabled = !autoMixEnabled; document.getElementById('automix-btn').classList.toggle('automix-on'); }
         function loopCheck() {
             ['A','B'].forEach(d => {
                 if(ready[d] && players[d].getCurrentTime) {
@@ -513,8 +524,6 @@
                         document.getElementById(`prog-${d.toLowerCase()}`).style.width = ((t/dur)*100)+'%';
                         const m=Math.floor(t/60).toString().padStart(2,'0'), s=Math.floor(t%60).toString().padStart(2,'0');
                         document.getElementById(`time-${d.toLowerCase()}`).innerText = `${m}:${s}`;
-                        
-                        // AutoMix Logic
                         if(autoMixEnabled && !isMixing && players[d].getPlayerState()===1) {
                             const cf = parseInt(document.getElementById('crossfader').value);
                             const active = (d==='A' && cf<50) || (d==='B' && cf>50);
@@ -528,52 +537,64 @@
         function triggerAutoMix(currD) {
             isMixing = true;
             const nextD = currD==='A'?'B':'A';
-            let nextIdx = -1;
-            // Find currently playing index
             const currID = loadedIDs[currD];
             const currIdx = crate.findIndex(t => t.id === currID);
-            if(currIdx >= 0 && currIdx < crate.length-1) nextIdx = currIdx + 1;
-            else nextIdx = 0;
-
+            let nextIdx = (currIdx >= 0 && currIdx < crate.length-1) ? currIdx + 1 : 0;
             load(nextD, nextIdx);
-            setTimeout(() => {
-                sync(nextD);
-                players[nextD].playVideo();
-                doCrossfade(currD, nextD);
-            }, 2000);
+            setTimeout(() => { sync(nextD); players[nextD].playVideo(); doCrossfade(currD, nextD); }, 2000);
         }
         function doCrossfade(fromD, toD) {
             let cf = document.getElementById('crossfader');
-            let target = fromD==='A' ? 100 : 0;
-            let step = fromD==='A' ? 1 : -1;
+            let target = fromD==='A' ? 100 : 0, step = fromD==='A' ? 1 : -1;
             let intv = setInterval(() => {
                 let val = parseInt(cf.value) + step;
                 cf.value = val; updateVol();
-                if(val === target) {
-                    clearInterval(intv);
-                    isMixing = false;
-                    // NORMALIZE BEAT AFTER MIX
-                    normalizePitch(toD);
-                }
+                if(val === target) { clearInterval(intv); isMixing = false; normalizePitch(toD); }
             }, 100);
         }
 
-        // --- CRATE & SYNC ---
         function generateAutoBpm(id) { let h=0; for(let i=0;i<id.length;i++) h=id.charCodeAt(i)+((h<<5)-h); return Math.abs(h%65)+75; }
         function processBulk() {
             document.getElementById('bulk-textarea').value.split('\n').forEach(l => {
                 const m = l.match(/(?:v=|youtu\.be\/|\/)([a-zA-Z0-9_-]{11})/);
                 if(m && !crate.some(t=>t.id===m[1])) {
                     const id=m[1]; crate.push({id:id, name:`Track ${id}`, bpm:generateAutoBpm(id), votes:0});
-                    fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`).then(r=>r.json()).then(d=>{if(d.title){crate.find(t=>t.id===id).name=d.title; renderCrate();}});
+                    fetchTitle(id, id);
                 }
             });
             renderCrate(); document.getElementById('bulk-modal').style.display='none';
         }
+        
+        // MODIFIED ADDSINGLE FOR REQUESTS
+        function addSingle(urlOverride, isRequest) {
+            const url = urlOverride || document.getElementById('crate-url').value;
+            const m = url.match(/(?:v=|youtu\.be\/|\/)([a-zA-Z0-9_-]{11})/);
+            if(m) {
+                const id = m[1];
+                if(crate.some(t=>t.id===id)) return !isRequest && alert("Track already in crate!");
+                const prefix = isRequest ? "(REQUEST) " : "";
+                crate.push({id:id, name:`${prefix}Track ${id}`, bpm:generateAutoBpm(id), votes:0});
+                fetchTitle(id, id, isRequest);
+                renderCrate(); saveAuto();
+                if(!isRequest) document.getElementById('crate-url').value = '';
+            }
+        }
+        
+        function fetchTitle(id, lookupId, isRequest) {
+            fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`)
+            .then(r=>r.json()).then(d=>{ 
+                if(d.title){ 
+                    const t = crate.find(x => x.id === lookupId); 
+                    if(t) { 
+                        const prefix = isRequest ? "(REQUEST) " : "";
+                        t.name = prefix + d.title; 
+                        renderCrate(); saveAuto(); 
+                    } 
+                } 
+            }).catch(e=>{});
+        }
+
         function renderCrate() {
-            // Optional: Sort by votes descending?
-            // crate.sort((a,b) => (b.votes||0) - (a.votes||0)); 
-            
             const l = document.getElementById('crate-list'); l.innerHTML='';
             crate.forEach((t,i) => {
                 const d=document.createElement('div'); d.className='crate-item';
@@ -599,7 +620,6 @@
         function remove(i){ crate.splice(i,1); renderCrate(); }
         function shuffleCrate(){ for(let i=crate.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[crate[i],crate[j]]=[crate[j],crate[i]];} renderCrate(); }
         
-        // --- SYNC ---
         function toggleSyncMode() { smartSyncEnabled=!smartSyncEnabled; document.getElementById('sync-mode-btn').classList.toggle('sync-on'); }
         function sync(t) {
             const s=t==='A'?'B':'A'; 
@@ -609,8 +629,6 @@
                 document.getElementById('pitch-'+t.toLowerCase()).value=r; updatePitch(t);
             }
         }
-        
-        // --- RECORDER ---
         async function toggleRecord() {
             if(!isRecording) {
                 try {
@@ -629,7 +647,6 @@
             } else { mediaRecorder.stop(); }
         }
 
-        // --- UTILS ---
         function resizeApp() {
             const c=document.getElementById('app-container');
             if(window.innerWidth>window.innerHeight){
@@ -645,18 +662,28 @@
         function tap(d) {
             const n=Date.now(); if(n-tapData[d].last>2000)tapData[d].count=0;
             tapData[d].last=n; tapData[d].count++;
-            if(tapData[d].count>3) { tapData[d].bpm=Math.floor(60000/((n-(n-1000))/4)); /* Mock calc */ document.getElementById('bpm-'+d.toLowerCase()).innerText=tapData[d].bpm; }
+            if(tapData[d].count>3) { tapData[d].bpm=Math.floor(60000/((n-(n-1000))/4)); document.getElementById('bpm-'+d.toLowerCase()).innerText=tapData[d].bpm; }
         }
-        // Hotcues & Loops (Simulated for brevity)
         function hotCue(d,n){ if(cues[d].set){cues[d][n]=players[d].getCurrentTime(); toggleSet(d);} else if(cues[d][n]){players[d].seekTo(cues[d][n],true); players[d].playVideo();} }
         function toggleSet(d){cues[d].set=!cues[d].set; document.getElementById('set-'+d.toLowerCase()).classList.toggle('set-mode');}
         function loopIn(d){loops[d].in=players[d].getCurrentTime();}
         function loopOut(d){loops[d].out=players[d].getCurrentTime(); loops[d].active=true; document.getElementById('loop-exit-'+d.toLowerCase()).classList.add('loop-active');}
         function loopExit(d){loops[d].active=false; document.getElementById('loop-exit-'+d.toLowerCase()).classList.remove('loop-active');}
+        
         function saveToSlot(){localStorage.setItem('tiu_s_'+document.getElementById('save-name').value,JSON.stringify(crate));}
         function openMemory(){document.getElementById('memory-modal').style.display='flex';}
+        function exportSession() {
+            const a = document.createElement('a');
+            a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate));
+            a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove();
+        }
+        function importSession(input) {
+            const f = input.files[0]; if(!f) return;
+            const r = new FileReader();
+            r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); closeMemory(); } catch(err){ alert("Invalid file"); } };
+            r.readAsText(f);
+        }
 
-        // Keyboard
         document.addEventListener('keydown',e=>{
             if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
             const k=e.key.toLowerCase();
