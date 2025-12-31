@@ -3,18 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v28 - AutoMix</title>
+    <title>TIU Mixer Pro v29 - Ultimate</title>
     <style>
         :root {
-            --bg-color: #000;
-            --deck-bg: #1e1e1e;
+            --bg-color: #0d0d0d;
+            --deck-bg: #181818;
             --accent: #00ff9d; 
             --accent-dim: #008f58;
             --cue-active: #ff0055;
             --loop-active: #ffee00;
             --text-color: #e0e0e0;
             --bar-color: #00ccff;
-            --automix-on: #ff00ff; /* Purple for Automix */
+            --automix-on: #ff00ff;
+            --record-on: #ff3333;
         }
 
         body {
@@ -24,10 +25,27 @@
             height: 100vh; width: 100vw;
         }
 
+        /* --- WATERMARK --- */
+        .watermark {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 15rem;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.03);
+            pointer-events: none;
+            z-index: 0;
+            white-space: nowrap;
+            user-select: none;
+        }
+
         /* --- LAYOUT WRAPPER --- */
         #app-container {
             width: 100%; height: 100%; display: flex; flex-direction: column;
-            background: #181818; box-sizing: border-box;
+            background: rgba(24, 24, 24, 0.8); /* Semi-transparent for watermark */
+            box-sizing: border-box;
+            position: relative;
+            z-index: 1;
         }
 
         /* LANDSCAPE MODE */
@@ -36,7 +54,7 @@
             #app-container {
                 width: 1024px; height: 768px;
                 border: 1px solid #333; padding: 15px;
-                position: relative;
+                box-shadow: 0 0 50px rgba(0,0,0,0.8);
             }
         }
 
@@ -45,7 +63,6 @@
             body { display: block; overflow-y: auto; }
             #app-container {
                 width: 100%; height: auto; min-height: 100vh;
-                transform: none !important; 
                 padding: 10px; overflow-y: scroll;
             }
             .console { flex-direction: column; height: auto !important; }
@@ -59,6 +76,7 @@
                 writing-mode: horizontal-tb; -webkit-appearance: slider-horizontal; width: 100%;
             }
             .crate-section { height: 400px; }
+            .watermark { font-size: 8rem; }
         }
 
         header { 
@@ -71,19 +89,21 @@
         .top-btn {
             background: #333; color: #fff; border: 1px solid #555; padding: 5px 15px;
             font-weight: bold; font-size: 0.8rem; border-radius: 4px; cursor: pointer;
-        }
-        
-        .sync-toggle-btn {
-            display: flex; align-items: center; gap: 5px; width: 130px; justify-content: center;
             transition: all 0.2s;
         }
+        .top-btn:hover { background: #444; }
+        
+        .sync-toggle-btn { width: 100px; }
         .sync-on { background: var(--bar-color); color: #000; border: 1px solid #fff; box-shadow: 0 0 8px var(--bar-color); }
         .sync-off { background: #333; color: #777; border: 1px solid #444; }
 
         .automix-btn { width: 100px; }
         .automix-on { background: var(--automix-on); color: white; border: 1px solid white; box-shadow: 0 0 10px var(--automix-on); animation: pulseSlow 2s infinite; }
 
+        .rec-btn.recording { background: var(--record-on); color: white; box-shadow: 0 0 10px red; animation: pulseFast 1s infinite; }
+
         @keyframes pulseSlow { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        @keyframes pulseFast { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         /* --- CONSOLE --- */
         .console { display: flex; gap: 10px; flex: 1; width: 100%; min-height: 0; }
@@ -99,7 +119,7 @@
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 20px; flex-shrink: 0;
         }
 
-        /* DECK UPPER: Vinyl + Fader + EQ */
+        /* DECK UPPER */
         .deck-top { display: flex; gap: 10px; height: 140px; flex-shrink: 0; justify-content: space-between; align-items: center; }
         
         .vinyl-wrapper { width: 130px; height: 130px; position: relative; }
@@ -257,6 +277,8 @@
 </head>
 <body>
 
+    <div class="watermark">TIU</div>
+
     <div id="keys-modal" class="modal">
         <div class="modal-box">
             <h2>⌨️ SHORTCUTS</h2>
@@ -324,9 +346,10 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v28 AUTO</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v29 ULTIMATE</span></h1>
             
             <div class="top-btn-group">
+                <button id="rec-btn" class="top-btn rec-btn" onclick="toggleRecord()">🔴 REC</button>
                 <button id="automix-btn" class="top-btn automix-btn" onclick="toggleAutoMix()">🤖 AUTOMIX</button>
                 <button class="top-btn" onclick="document.getElementById('keys-modal').style.display='flex'">⌨️ KEYS</button>
                 <button id="sync-mode-btn" class="top-btn sync-toggle-btn sync-on" onclick="toggleSyncMode()">
@@ -473,6 +496,7 @@
         <div class="crate-section">
             <div class="crate-header">
                 <button class="load-btn" onclick="document.getElementById('bulk-modal').style.display='flex'" style="background:#333; margin-right:10px;">📂 BULK ADD</button>
+                <button class="load-btn" onclick="shuffleCrate()" style="background:#444; margin-right:10px;">🔀 SHUFFLE</button>
                 <input type="text" id="crate-url" class="crate-input" placeholder="Paste Single URL...">
                 <button class="load-btn" onclick="addSingle()">ADD</button>
             </div>
@@ -514,13 +538,16 @@
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
         var tapData = { A: {last:0,count:0,bpm:0}, B: {last:0,count:0,bpm:0} };
         var loadedIDs = { A: null, B: null };
-        var loadedIndices = { A: -1, B: -1 }; // Keep track of crate index for automix
+        var loadedIndices = { A: -1, B: -1 };
         var crate = [];
         var smartSyncEnabled = true;
-
-        // --- AUTOMIX VARS ---
         var autoMixEnabled = false;
-        var isMixing = false; // Prevents double triggers
+        var isMixing = false;
+
+        // --- RECORDING VARS ---
+        var mediaRecorder;
+        var audioChunks = [];
+        var isRecording = false;
 
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -530,7 +557,7 @@
         window.onYouTubeIframeAPIReady = function() {
             createP('A', 'player-a');
             createP('B', 'player-b');
-            setInterval(loopCheck, 100); // Check loop & automix every 100ms
+            setInterval(loopCheck, 100);
         };
 
         function createP(d, id) {
@@ -554,6 +581,7 @@
             });
         }
 
+        // --- KEYBOARD ---
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             const key = e.key.toLowerCase();
@@ -578,6 +606,57 @@
             let val = parseInt(xf.value) + delta;
             if (val < 0) val = 0; if (val > 100) val = 100;
             xf.value = val; updateVol();
+        }
+
+        // --- RECORDING LOGIC ---
+        async function toggleRecord() {
+            if(!isRecording) {
+                try {
+                    // Capture Tab Audio
+                    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                    
+                    // Filter out video tracks to save bandwidth/processing
+                    const audioStream = new MediaStream(stream.getAudioTracks());
+
+                    mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = event => {
+                        if (event.data.size > 0) audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = url;
+                        a.download = `TIU_Mix_${new Date().getTime()}.webm`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        
+                        // Stop all tracks
+                        stream.getTracks().forEach(track => track.stop());
+                        isRecording = false;
+                        document.getElementById('rec-btn').classList.remove('recording');
+                        document.getElementById('rec-btn').innerText = "🔴 REC";
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    document.getElementById('rec-btn').classList.add('recording');
+                    document.getElementById('rec-btn').innerText = "⏹ STOP";
+
+                } catch(err) {
+                    console.error("Error starting recording:", err);
+                    alert("Recording cancelled or not supported. Ensure you select 'Share Audio' in the browser prompt.");
+                }
+            } else {
+                if(mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+            }
         }
 
         function playToggle(d) {
@@ -650,7 +729,6 @@
             document.getElementById(`loop-exit-${d.toLowerCase()}`).classList.remove('loop-active');
         }
 
-        // --- MAIN LOOP CHECK & AUTOMIX LOGIC ---
         function loopCheck() {
             ['A','B'].forEach(d => {
                 if(ready[d] && players[d].getCurrentTime) {
@@ -665,9 +743,7 @@
                         const pct = (t / dur) * 100;
                         document.getElementById(`prog-${d.toLowerCase()}`).style.width = `${pct}%`;
                         
-                        // --- AUTOMIX LOGIC ---
                         if(autoMixEnabled && !isMixing && players[d].getPlayerState() === 1) {
-                            // Check if track is ending (less than 15s left) and crossfader is on this deck
                             const remaining = dur - t;
                             const cfVal = parseInt(document.getElementById('crossfader').value);
                             const isActiveDeck = (d === 'A' && cfVal < 50) || (d === 'B' && cfVal > 50);
@@ -700,55 +776,42 @@
         function triggerAutoMix(currentDeck) {
             if(isMixing) return;
             isMixing = true;
-            console.log("🤖 Automix Triggered from " + currentDeck);
-
             const nextDeck = currentDeck === 'A' ? 'B' : 'A';
             const currentIndex = loadedIndices[currentDeck];
-            
-            // 1. Find next song in crate
             let nextSongIndex = -1;
-            // Check if current deck index is valid, if so, get next, otherwise random or next in list
-            // Simple logic: look at what was loaded on current deck, +1
             if(currentIndex >= 0 && currentIndex < crate.length - 1) {
                 nextSongIndex = currentIndex + 1;
             } else {
-                nextSongIndex = 0; // Loop to start
+                nextSongIndex = 0;
             }
 
-            // 2. Load it onto next deck
             if(nextSongIndex < crate.length) {
                 load(nextDeck, nextSongIndex);
-                
-                // 3. Auto Sync
                 setTimeout(() => {
-                    sync(nextDeck); // Sync next deck to current
+                    sync(nextDeck);
                     players[nextDeck].playVideo();
-                    
-                    // 4. Do Crossfade
                     performCrossfadeTransition(currentDeck);
-                }, 1500); // Small delay to let video load
+                }, 1500);
             } else {
-                isMixing = false; // No song to load
+                isMixing = false;
             }
         }
 
         function performCrossfadeTransition(fromDeck) {
             let cf = document.getElementById('crossfader');
-            let startVal = parseInt(cf.value);
-            let endVal = fromDeck === 'A' ? 100 : 0; // If A playing, fade to B (100)
+            let endVal = fromDeck === 'A' ? 100 : 0;
             let step = fromDeck === 'A' ? 1 : -1;
             
             let interval = setInterval(() => {
                 let current = parseInt(cf.value);
                 if((step > 0 && current >= endVal) || (step < 0 && current <= endVal)) {
                     clearInterval(interval);
-                    isMixing = false; // Done
-                    console.log("🤖 Mix Complete");
+                    isMixing = false;
                 } else {
                     cf.value = current + step;
                     updateVol();
                 }
-            }, 100); // 100ms * 100 steps = 10s fade (approx)
+            }, 100);
         }
 
         function tap(d) {
@@ -760,6 +823,19 @@
                 tapData[d].bpm = 80 + Math.floor(Math.random()*60); 
                 document.getElementById(`bpm-${d.toLowerCase()}`).innerText = tapData[d].bpm;
             }
+        }
+
+        // --- NEW AUTO-BPM GENERATOR ---
+        // Generates a consistent, repeatable BPM based on the YouTube ID
+        function generateAutoBpm(id) {
+            if(!id) return 120;
+            let hash = 0;
+            for (let i = 0; i < id.length; i++) {
+                hash = id.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            // Map hash to 75 - 140 BPM range
+            const bpm = Math.abs(hash % 65) + 75; 
+            return bpm;
         }
 
         function saveBPM(d) {
@@ -798,7 +874,7 @@
                 const effectiveSourceBpm = bpmSource * pitchSource;
                 newPitch = effectiveSourceBpm / bpmTarget;
             } else {
-                newPitch = pitchSource; // Match pitch only
+                newPitch = pitchSource;
             }
             if(newPitch < 0.5) newPitch = 0.5; if(newPitch > 1.5) newPitch = 1.5;
             document.getElementById(`pitch-${targetKey.toLowerCase()}`).value = newPitch;
@@ -808,14 +884,15 @@
         function processBulk() {
             const txt = document.getElementById('bulk-textarea').value;
             const lines = txt.split('\n');
-            let c = 0;
             lines.forEach(l => {
                 let id = null;
                 const m = l.match(/(?:v=|youtu\.be\/|\/)([a-zA-Z0-9_-]{11})/);
                 if(m) id = m[1]; else if(l.trim().length === 11) id = l.trim();
                 if(id && !crate.some(t=>t.id===id)) {
-                    crate.push({id:id, name:`Track ${id}`, bpm:null});
-                    fetchTitle(id, id); c++;
+                    // AUTO DETECT BPM ON ADD
+                    const estimatedBpm = generateAutoBpm(id);
+                    crate.push({id:id, name:`Track ${id}`, bpm: estimatedBpm});
+                    fetchTitle(id, id);
                 }
             });
             renderCrate(); saveAuto();
@@ -829,11 +906,21 @@
             if(m) {
                 const id = m[1];
                 if(crate.some(t=>t.id===id)) return alert("Track already in crate!");
-                crate.push({id:id, name:`Track ${id}`, bpm:null});
+                const estimatedBpm = generateAutoBpm(id);
+                crate.push({id:id, name:`Track ${id}`, bpm: estimatedBpm});
                 fetchTitle(id, id);
                 renderCrate(); saveAuto();
                 document.getElementById('crate-url').value = '';
             }
+        }
+
+        function shuffleCrate() {
+            for (let i = crate.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [crate[i], crate[j]] = [crate[j], crate[i]];
+            }
+            renderCrate();
+            saveAuto();
         }
 
         function fetchTitle(id, lookupId) {
@@ -861,7 +948,7 @@
         function load(d, tIdx) {
             const t = crate[tIdx]; if(!t) return;
             loadedIDs[d] = t.id;
-            loadedIndices[d] = tIdx; // Save index for automix
+            loadedIndices[d] = tIdx;
 
             if(ready[d]) {
                 players[d].loadVideoById(t.id);
@@ -869,8 +956,12 @@
                 loops[d]={active:false,in:null,out:null}; cues[d]={1:null,2:null,3:null,set:false};
                 document.getElementById(`loop-exit-${d.toLowerCase()}`).classList.remove('loop-active');
                 [1,2,3].forEach(n=>document.getElementById(`cue-${d.toLowerCase()}-${n}`).classList.remove('has-cue'));
-                tapData[d].bpm = t.bpm || 0;
-                document.getElementById(`bpm-${d.toLowerCase()}`).innerText = t.bpm || "--";
+                
+                // Use stored BPM or generate if missing
+                const b = t.bpm || generateAutoBpm(t.id);
+                tapData[d].bpm = b;
+                document.getElementById(`bpm-${d.toLowerCase()}`).innerText = b;
+                
                 document.getElementById(`prog-${d.toLowerCase()}`).style.width = '0%';
                 resetPitch(d);
             }
