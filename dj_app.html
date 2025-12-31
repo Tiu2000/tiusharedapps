@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v27.3 - Keyboard</title>
+    <title>TIU Mixer Pro v28 - AutoMix</title>
     <style>
         :root {
             --bg-color: #000;
@@ -14,6 +14,7 @@
             --loop-active: #ffee00;
             --text-color: #e0e0e0;
             --bar-color: #00ccff;
+            --automix-on: #ff00ff; /* Purple for Automix */
         }
 
         body {
@@ -78,6 +79,11 @@
         }
         .sync-on { background: var(--bar-color); color: #000; border: 1px solid #fff; box-shadow: 0 0 8px var(--bar-color); }
         .sync-off { background: #333; color: #777; border: 1px solid #444; }
+
+        .automix-btn { width: 100px; }
+        .automix-on { background: var(--automix-on); color: white; border: 1px solid white; box-shadow: 0 0 10px var(--automix-on); animation: pulseSlow 2s infinite; }
+
+        @keyframes pulseSlow { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
 
         /* --- CONSOLE --- */
         .console { display: flex; gap: 10px; flex: 1; width: 100%; min-height: 0; }
@@ -254,7 +260,6 @@
     <div id="keys-modal" class="modal">
         <div class="modal-box">
             <h2>⌨️ SHORTCUTS</h2>
-            
             <div style="display:flex; gap:20px;">
                 <div style="flex:1;">
                     <div style="color:var(--accent); font-weight:bold; margin-bottom:10px;">DECK A (Left)</div>
@@ -269,11 +274,9 @@
                     <div class="key-row"><span>Hotcues 1-3</span> <span class="key-badge">8, 9, 0</span></div>
                 </div>
             </div>
-            
             <div style="margin-top:15px; border-top:1px solid #444; padding-top:10px;">
                 <div class="key-row"><span>Crossfader</span> <span class="key-badge">⬅️ Arrow Left / Right ➡️</span></div>
             </div>
-
             <div style="margin-top:20px; text-align:right;">
                 <button class="top-btn" onclick="document.getElementById('keys-modal').style.display='none'">CLOSE</button>
             </div>
@@ -321,12 +324,13 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v27.3</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v28 AUTO</span></h1>
             
             <div class="top-btn-group">
+                <button id="automix-btn" class="top-btn automix-btn" onclick="toggleAutoMix()">🤖 AUTOMIX</button>
                 <button class="top-btn" onclick="document.getElementById('keys-modal').style.display='flex'">⌨️ KEYS</button>
                 <button id="sync-mode-btn" class="top-btn sync-toggle-btn sync-on" onclick="toggleSyncMode()">
-                    SMART SYNC: ON
+                    SYNC: ON
                 </button>
                 <button class="top-btn" onclick="openMemory()">💾 MEMORY</button>
             </div>
@@ -510,8 +514,13 @@
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
         var tapData = { A: {last:0,count:0,bpm:0}, B: {last:0,count:0,bpm:0} };
         var loadedIDs = { A: null, B: null };
+        var loadedIndices = { A: -1, B: -1 }; // Keep track of crate index for automix
         var crate = [];
         var smartSyncEnabled = true;
+
+        // --- AUTOMIX VARS ---
+        var autoMixEnabled = false;
+        var isMixing = false; // Prevents double triggers
 
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -521,7 +530,7 @@
         window.onYouTubeIframeAPIReady = function() {
             createP('A', 'player-a');
             createP('B', 'player-b');
-            setInterval(loopCheck, 50);
+            setInterval(loopCheck, 100); // Check loop & automix every 100ms
         };
 
         function createP(d, id) {
@@ -545,47 +554,30 @@
             });
         }
 
-        // --- KEYBOARD LISTENERS ---
         document.addEventListener('keydown', (e) => {
-            // Do not trigger shortcuts if user is typing in input or textarea
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
             const key = e.key.toLowerCase();
-
             switch(key) {
-                // --- DECK A ---
                 case 's': playToggle('A'); break;
                 case 'a': cue('A'); break;
                 case '1': hotCue('A', 1); break;
                 case '2': hotCue('A', 2); break;
                 case '3': hotCue('A', 3); break;
-                
-                // --- DECK B ---
                 case 'k': playToggle('B'); break;
                 case 'l': cue('B'); break;
                 case '8': hotCue('B', 1); break;
                 case '9': hotCue('B', 2); break;
                 case '0': hotCue('B', 3); break;
-
-                // --- X-FADER ---
-                case 'arrowleft': 
-                    changeCrossfader(-5); 
-                    e.preventDefault(); 
-                    break;
-                case 'arrowright': 
-                    changeCrossfader(5); 
-                    e.preventDefault(); 
-                    break;
+                case 'arrowleft': changeCrossfader(-5); e.preventDefault(); break;
+                case 'arrowright': changeCrossfader(5); e.preventDefault(); break;
             }
         });
 
         function changeCrossfader(delta) {
             const xf = document.getElementById('crossfader');
             let val = parseInt(xf.value) + delta;
-            if (val < 0) val = 0; 
-            if (val > 100) val = 100;
-            xf.value = val;
-            updateVol();
+            if (val < 0) val = 0; if (val > 100) val = 100;
+            xf.value = val; updateVol();
         }
 
         function playToggle(d) {
@@ -595,19 +587,15 @@
 
         function cue(d) {
             if(!ready[d]) return;
-            players[d].pauseVideo();
-            players[d].seekTo(0);
+            players[d].pauseVideo(); players[d].seekTo(0);
         }
 
         function seek(d, event) {
             if(!ready[d] || !players[d].getDuration) return;
             const dur = players[d].getDuration();
-            if(!dur) return;
             const rect = event.currentTarget.getBoundingClientRect();
             const clickX = event.clientX - rect.left;
-            const width = rect.width;
-            const percent = clickX / width;
-            players[d].seekTo(dur * percent, true);
+            players[d].seekTo(dur * (clickX / rect.width), true);
         }
 
         function updateVol() {
@@ -630,10 +618,8 @@
             const val = parseFloat(document.getElementById(`pitch-${d.toLowerCase()}`).value);
             players[d].setPlaybackRate(val);
         }
-
         function resetPitch(d) {
-            document.getElementById(`pitch-${d.toLowerCase()}`).value = 1;
-            updatePitch(d);
+            document.getElementById(`pitch-${d.toLowerCase()}`).value = 1; updatePitch(d);
         }
 
         function toggleSet(d) {
@@ -645,11 +631,9 @@
             const btn = document.getElementById(`cue-${d.toLowerCase()}-${n}`);
             if(cues[d].set) {
                 cues[d][n] = players[d].getCurrentTime();
-                btn.classList.add('has-cue');
-                toggleSet(d);
+                btn.classList.add('has-cue'); toggleSet(d);
             } else if(cues[d][n] !== null) {
-                players[d].seekTo(cues[d][n], true);
-                players[d].playVideo();
+                players[d].seekTo(cues[d][n], true); players[d].playVideo();
             }
         }
 
@@ -666,6 +650,7 @@
             document.getElementById(`loop-exit-${d.toLowerCase()}`).classList.remove('loop-active');
         }
 
+        // --- MAIN LOOP CHECK & AUTOMIX LOGIC ---
         function loopCheck() {
             ['A','B'].forEach(d => {
                 if(ready[d] && players[d].getCurrentTime) {
@@ -679,6 +664,18 @@
                     if(dur > 0) {
                         const pct = (t / dur) * 100;
                         document.getElementById(`prog-${d.toLowerCase()}`).style.width = `${pct}%`;
+                        
+                        // --- AUTOMIX LOGIC ---
+                        if(autoMixEnabled && !isMixing && players[d].getPlayerState() === 1) {
+                            // Check if track is ending (less than 15s left) and crossfader is on this deck
+                            const remaining = dur - t;
+                            const cfVal = parseInt(document.getElementById('crossfader').value);
+                            const isActiveDeck = (d === 'A' && cfVal < 50) || (d === 'B' && cfVal > 50);
+
+                            if(isActiveDeck && remaining < 15) {
+                                triggerAutoMix(d);
+                            }
+                        }
                     }
 
                     if(loops[d].active && loops[d].out && t >= loops[d].out) {
@@ -686,6 +683,72 @@
                     }
                 }
             });
+        }
+
+        function toggleAutoMix() {
+            autoMixEnabled = !autoMixEnabled;
+            const btn = document.getElementById('automix-btn');
+            if(autoMixEnabled) {
+                btn.classList.add('automix-on');
+                btn.innerText = "🤖 ON";
+            } else {
+                btn.classList.remove('automix-on');
+                btn.innerText = "🤖 AUTOMIX";
+            }
+        }
+
+        function triggerAutoMix(currentDeck) {
+            if(isMixing) return;
+            isMixing = true;
+            console.log("🤖 Automix Triggered from " + currentDeck);
+
+            const nextDeck = currentDeck === 'A' ? 'B' : 'A';
+            const currentIndex = loadedIndices[currentDeck];
+            
+            // 1. Find next song in crate
+            let nextSongIndex = -1;
+            // Check if current deck index is valid, if so, get next, otherwise random or next in list
+            // Simple logic: look at what was loaded on current deck, +1
+            if(currentIndex >= 0 && currentIndex < crate.length - 1) {
+                nextSongIndex = currentIndex + 1;
+            } else {
+                nextSongIndex = 0; // Loop to start
+            }
+
+            // 2. Load it onto next deck
+            if(nextSongIndex < crate.length) {
+                load(nextDeck, nextSongIndex);
+                
+                // 3. Auto Sync
+                setTimeout(() => {
+                    sync(nextDeck); // Sync next deck to current
+                    players[nextDeck].playVideo();
+                    
+                    // 4. Do Crossfade
+                    performCrossfadeTransition(currentDeck);
+                }, 1500); // Small delay to let video load
+            } else {
+                isMixing = false; // No song to load
+            }
+        }
+
+        function performCrossfadeTransition(fromDeck) {
+            let cf = document.getElementById('crossfader');
+            let startVal = parseInt(cf.value);
+            let endVal = fromDeck === 'A' ? 100 : 0; // If A playing, fade to B (100)
+            let step = fromDeck === 'A' ? 1 : -1;
+            
+            let interval = setInterval(() => {
+                let current = parseInt(cf.value);
+                if((step > 0 && current >= endVal) || (step < 0 && current <= endVal)) {
+                    clearInterval(interval);
+                    isMixing = false; // Done
+                    console.log("🤖 Mix Complete");
+                } else {
+                    cf.value = current + step;
+                    updateVol();
+                }
+            }, 100); // 100ms * 100 steps = 10s fade (approx)
         }
 
         function tap(d) {
@@ -707,11 +770,8 @@
             if(!bpm || bpm <= 0) return alert("Tap a BPM first!");
             if(track) {
                 track.bpm = bpm;
-                saveAuto();
-                renderCrate();
-                alert(`Saved ${bpm} BPM for ${track.name}`);
-            } else {
-                alert("Error: Track not found in crate");
+                saveAuto(); renderCrate();
+                alert(`Saved ${bpm} BPM`);
             }
         }
 
@@ -719,9 +779,9 @@
             smartSyncEnabled = !smartSyncEnabled;
             const btn = document.getElementById('sync-mode-btn');
             if(smartSyncEnabled) {
-                btn.classList.add('sync-on'); btn.classList.remove('sync-off'); btn.innerText = "SMART SYNC: ON";
+                btn.classList.add('sync-on'); btn.classList.remove('sync-off'); btn.innerText = "SYNC: ON";
             } else {
-                btn.classList.add('sync-off'); btn.classList.remove('sync-on'); btn.innerText = "SMART SYNC: OFF";
+                btn.classList.add('sync-off'); btn.classList.remove('sync-on'); btn.innerText = "SYNC: OFF";
             }
         }
 
@@ -738,10 +798,9 @@
                 const effectiveSourceBpm = bpmSource * pitchSource;
                 newPitch = effectiveSourceBpm / bpmTarget;
             } else {
-                newPitch = pitchSource;
+                newPitch = pitchSource; // Match pitch only
             }
-            if(newPitch < 0.5) newPitch = 0.5;
-            if(newPitch > 1.5) newPitch = 1.5;
+            if(newPitch < 0.5) newPitch = 0.5; if(newPitch > 1.5) newPitch = 1.5;
             document.getElementById(`pitch-${targetKey.toLowerCase()}`).value = newPitch;
             updatePitch(targetKey);
         }
@@ -756,8 +815,7 @@
                 if(m) id = m[1]; else if(l.trim().length === 11) id = l.trim();
                 if(id && !crate.some(t=>t.id===id)) {
                     crate.push({id:id, name:`Track ${id}`, bpm:null});
-                    fetchTitle(id, id);
-                    c++;
+                    fetchTitle(id, id); c++;
                 }
             });
             renderCrate(); saveAuto();
@@ -780,14 +838,7 @@
 
         function fetchTitle(id, lookupId) {
             fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`)
-            .then(r=>r.json())
-            .then(d=>{ 
-                if(d.title){ 
-                    const t = crate.find(x => x.id === lookupId);
-                    if(t) { t.name = d.title; renderCrate(); saveAuto(); }
-                }
-            })
-            .catch(e => console.log("Title fetch failed, keeping default name."));
+            .then(r=>r.json()).then(d=>{ if(d.title){ const t = crate.find(x => x.id === lookupId); if(t) { t.name = d.title; renderCrate(); saveAuto(); } } }).catch(e=>{});
         }
 
         function renderCrate() {
@@ -808,15 +859,14 @@
         }
 
         function load(d, tIdx) {
-            const t = crate[tIdx]; 
-            if(!t) return;
+            const t = crate[tIdx]; if(!t) return;
             loadedIDs[d] = t.id;
+            loadedIndices[d] = tIdx; // Save index for automix
 
             if(ready[d]) {
                 players[d].loadVideoById(t.id);
                 document.getElementById(`title-${d.toLowerCase()}`).innerText = t.name;
-                loops[d]={active:false,in:null,out:null};
-                cues[d]={1:null,2:null,3:null,set:false};
+                loops[d]={active:false,in:null,out:null}; cues[d]={1:null,2:null,3:null,set:false};
                 document.getElementById(`loop-exit-${d.toLowerCase()}`).classList.remove('loop-active');
                 [1,2,3].forEach(n=>document.getElementById(`cue-${d.toLowerCase()}-${n}`).classList.remove('has-cue'));
                 tapData[d].bpm = t.bpm || 0;
@@ -830,25 +880,14 @@
         function openMemory() { renderSessionList(); document.getElementById('memory-modal').style.display = 'flex'; }
         function closeMemory() { document.getElementById('memory-modal').style.display = 'none'; }
         
-        function saveAuto() { 
-            try { localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(crate)); } catch(e) { console.error("Storage full"); }
-        }
-        function loadAutoSave() { 
-            try { 
-                const d = localStorage.getItem(AUTO_SAVE_KEY); 
-                if(d) { crate = JSON.parse(d); renderCrate(); } 
-            } catch(e){} 
-        }
-
+        function saveAuto() { try { localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(crate)); } catch(e) {} }
+        function loadAutoSave() { try { const d = localStorage.getItem(AUTO_SAVE_KEY); if(d) { crate = JSON.parse(d); renderCrate(); } } catch(e){} }
+        
         function saveToSlot() {
             const name = document.getElementById('save-name').value.trim();
             if(!name) return alert("Enter a name!");
-            try {
-                localStorage.setItem(SESSION_PREFIX + name, JSON.stringify(crate));
-                document.getElementById('save-name').value = ''; renderSessionList();
-            } catch(e) { alert("Could not save. Storage might be full."); }
+            try { localStorage.setItem(SESSION_PREFIX + name, JSON.stringify(crate)); document.getElementById('save-name').value = ''; renderSessionList(); } catch(e){}
         }
-
         function renderSessionList() {
             const list = document.getElementById('session-list'); list.innerHTML = '';
             for(let i=0; i<localStorage.length; i++) {
@@ -856,38 +895,15 @@
                 if(k && k.startsWith(SESSION_PREFIX)) {
                     const sessionName = k.replace(SESSION_PREFIX, '');
                     const div = document.createElement('div'); div.className = 'mem-row';
-                    div.innerHTML = `<span style="color:#fff;">${sessionName}</span>
-                        <div><button class="mem-btn" onclick="loadSession('${sessionName}')">LOAD</button>
-                        <button class="mem-btn" style="background:#d32f2f;" onclick="deleteSession('${sessionName}')">X</button></div>`;
+                    div.innerHTML = `<span style="color:#fff;">${sessionName}</span><div><button class="mem-btn" onclick="loadSession('${sessionName}')">LOAD</button><button class="mem-btn" style="background:#d32f2f;" onclick="deleteSession('${sessionName}')">X</button></div>`;
                     list.appendChild(div);
                 }
             }
         }
-
-        function loadSession(name) {
-            if(confirm("Load session?")) { 
-                try {
-                    crate = JSON.parse(localStorage.getItem(SESSION_PREFIX + name)); 
-                    renderCrate(); saveAuto(); closeMemory(); 
-                } catch(e) { alert("Error loading session"); }
-            }
-        }
-        function deleteSession(name) {
-            if(confirm("Delete permanently?")) { 
-                localStorage.removeItem(SESSION_PREFIX + name); renderSessionList(); 
-            }
-        }
-        function exportSession() {
-            const a = document.createElement('a');
-            a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate));
-            a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove();
-        }
-        function importSession(input) {
-            const f = input.files[0]; if(!f) return;
-            const r = new FileReader();
-            r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); closeMemory(); } catch(err){ alert("Invalid file"); } };
-            r.readAsText(f);
-        }
+        function loadSession(name) { if(confirm("Load session?")) { try { crate = JSON.parse(localStorage.getItem(SESSION_PREFIX + name)); renderCrate(); saveAuto(); closeMemory(); } catch(e){} } }
+        function deleteSession(name) { if(confirm("Delete?")) { localStorage.removeItem(SESSION_PREFIX + name); renderSessionList(); } }
+        function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
+        function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); closeMemory(); } catch(err){} }; r.readAsText(f); }
     </script>
 </body>
 </html>
