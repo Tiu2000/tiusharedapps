@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v38 - Logic Fix</title>
+    <title>TIU Mixer Pro v39 - Requests Fixed</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -23,6 +23,16 @@
         .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 15vw; font-weight: 900; color: rgba(255, 255, 255, 0.03); pointer-events: none; z-index: 0; white-space: nowrap; user-select: none; }
 
         #app-container { width: 100%; height: 100%; display: flex; flex-direction: column; background: transparent; box-sizing: border-box; position: relative; z-index: 1; }
+
+        /* NOTIFICATION TOAST */
+        #toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--accent); color: black; padding: 10px 20px;
+            border-radius: 50px; font-weight: bold; font-size: 0.9rem;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 99999;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        #toast.show { opacity: 1; }
 
         /* START OVERLAY */
         #start-overlay {
@@ -120,7 +130,6 @@
         .vote-badge.visible { display: inline-block; }
         .load-btn { background: #333; color: #fff; border: 1px solid #555; font-size: 0.65rem; padding: 3px 6px; border-radius: 3px; cursor: pointer; }
 
-        /* MODALS */
         .modal { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index: 99999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .modal-box { width: 90%; max-width: 500px; background: #181818; border: 1px solid #444; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         .key-row { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding: 8px 0; color: #bbb; font-size: 0.85rem; }
@@ -146,12 +155,13 @@
         <p style="color:#888; margin-top:10px;">Click to Initialize Audio</p>
     </div>
 
+    <div id="toast">New Request Received!</div>
     <div id="automix-status">🤖 AUTOMIX: LOADING...</div>
     <div class="watermark">TIU</div>
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v38 FIXED</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v39 REQUESTS</span></h1>
             <div class="top-btn-group">
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
                 <button id="vote-btn" class="top-btn" onclick="openVoteModal()" style="color:var(--vote-color);">📶 VOTE</button>
@@ -336,7 +346,7 @@
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v38';
+        const AUTO_SAVE_KEY = 'tiu_v39';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
@@ -356,6 +366,13 @@
                 var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
                 document.head.appendChild(tag);
             }
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
         }
 
         window.addEventListener('resize', resizeApp);
@@ -391,7 +408,7 @@
             } catch(e) { lastError = e.message; }
         }
 
-        // --- AUTOMIX LOGIC (FIXED v38) ---
+        // --- AUTOMIX LOGIC ---
         function toggleAutoMix() { 
             autoMixEnabled = !autoMixEnabled; 
             document.getElementById('automix-btn').classList.toggle('automix-on');
@@ -408,7 +425,6 @@
                         const m=Math.floor(t/60).toString().padStart(2,'0'), s=Math.floor(t%60).toString().padStart(2,'0');
                         document.getElementById(`time-${d.toLowerCase()}`).innerText = `${m}:${s}`;
                         
-                        // AUTOMIX TRIGGER
                         if(autoMixEnabled && !isMixing && players[d].getPlayerState()===1) {
                             const cf = parseInt(document.getElementById('crossfader').value);
                             const active = (d==='A' && cf<50) || (d==='B' && cf>50);
@@ -425,40 +441,20 @@
             const nextD = currD==='A'?'B':'A';
             autoMixRetryCount = 0;
             
-            // 1. Find Current Index
+            let nextTrack = crate.reduce((prev, curr) => (curr.votes || 0) > (prev.votes || 0) ? curr : prev, crate[0]);
             const currID = loadedIDs[currD];
-            let endingIndex = crate.findIndex(t => t.id === currID);
-            if (endingIndex === -1) endingIndex = 0;
-
-            // 2. Logic: Default to Next, check for votes
-            let nextIndex = (endingIndex + 1) % crate.length; // Default to next sequential
-            
-            // Check for Highest Voted (Votes > 0)
-            let highestVote = 0;
-            let votedIndex = -1;
-            
-            crate.forEach((t, i) => {
-                // Ensure we don't pick the song currently playing on EITHER deck
-                if (t.id !== loadedIDs['A'] && t.id !== loadedIDs['B']) {
-                    if ((t.votes || 0) > highestVote) {
-                        highestVote = t.votes;
-                        votedIndex = i;
-                    }
-                }
-            });
-
-            if (votedIndex !== -1 && highestVote > 0) {
-                nextIndex = votedIndex;
+            if(nextTrack.id === currID) {
+                const currIdx = crate.findIndex(t => t.id === currID);
+                let nextIdx = (currIdx >= 0 && currIdx < crate.length-1) ? currIdx + 1 : 0;
+                nextTrack = crate[nextIdx];
             }
 
-            const nextTrack = crate[nextIndex];
+            const nextIdx = crate.findIndex(t => t.id === nextTrack.id);
             document.getElementById('automix-status').innerText = `🤖 LOADING: ${nextTrack.name}`;
-            load(nextD, nextIndex);
+            load(nextD, nextIdx);
             
-            // AGGRESSIVE PLAY CHECKER
             const playCheckIntv = setInterval(() => {
                 if(!ready[nextD]) return;
-                
                 const state = players[nextD].getPlayerState();
                 if(state === 1) {
                     clearInterval(playCheckIntv);
@@ -471,8 +467,7 @@
                     if(autoMixRetryCount > 20) {
                         clearInterval(playCheckIntv);
                         document.getElementById('automix-status').innerText = "❌ TIMEOUT: SKIPPING...";
-                        // Skip to next in list
-                        const skipIdx = (nextIndex + 1) % crate.length;
+                        const skipIdx = (nextIdx + 1) % crate.length;
                         load(nextD, skipIdx);
                         autoMixRetryCount = 0;
                         setTimeout(() => triggerAutoMix(currD), 1000);
@@ -496,7 +491,6 @@
             }, 100);
         }
 
-        // --- SORTING & CRATE ---
         function sortCrateVotes() { crate.sort((a, b) => (b.votes || 0) - (a.votes || 0)); renderCrate(); }
         function generateAutoBpm(id) { let h=0; for(let i=0;i<id.length;i++) h=id.charCodeAt(i)+((h<<5)-h); return Math.abs(h%65)+75; }
         function processBulk() {
@@ -508,15 +502,31 @@
         }
         function addSingle(url, isReq) {
             const u = url || document.getElementById('crate-url').value;
-            const m = u.match(/(?:v=|youtu\.be\/|\/)([a-zA-Z0-9_-]{11})/);
-            if(m) { addTrackToCrate(m[1], isReq); if(!isReq) document.getElementById('crate-url').value=''; }
+            if(!u) return;
+            // Clean input (remove accidental spaces)
+            const cleanU = u.trim();
+            const m = cleanU.match(/(?:v=|youtu\.be\/|\/)([a-zA-Z0-9_-]{11})/);
+            if(m) { 
+                const id = m[1];
+                const existing = crate.find(t => t.id === id);
+                if(existing) {
+                    // IF DUPLICATE: Convert to VOTE
+                    existing.votes = (existing.votes || 0) + 1;
+                    renderCrate();
+                    if(isReq) showToast(`Re-Request: ${existing.name} (+1 Vote)`);
+                    else alert("Track already in crate! Added a vote instead.");
+                } else {
+                    addTrackToCrate(id, isReq); 
+                }
+                if(!isReq) document.getElementById('crate-url').value=''; 
+            }
         }
         function addTrackToCrate(id, isReq) {
-            if(crate.some(t=>t.id===id)) return;
             const p = isReq ? "(REQUEST) " : "";
             crate.push({id:id, name:`${p}Track ${id}`, bpm:generateAutoBpm(id), votes:0});
             fetchTitle(id, id, isReq);
             renderCrate(); saveAuto();
+            if(isReq) showToast("New Request Added!");
         }
         function fetchTitle(id, lookupId, isReq) {
             fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`)
@@ -559,6 +569,7 @@
                 document.getElementById('voter-app').style.display = 'flex';
                 document.querySelector('.watermark').style.display = 'none';
                 document.getElementById('automix-status').style.display = 'none';
+                document.getElementById('start-overlay').style.display = 'none';
                 initGuest(hostId);
             } else { initHost(); }
         }
@@ -573,7 +584,7 @@
             peer.on('connection', (c) => {
                 c.on('open', () => { c.send({type:'crate', data:crate}); });
                 c.on('data', (data) => {
-                    if(data.type === 'vote') { const t=crate.find(x=>x.id===data.id); if(t){t.votes=(t.votes||0)+1; renderCrate();} }
+                    if(data.type === 'vote') { const t=crate.find(x=>x.id===data.id); if(t){t.votes=(t.votes||0)+1; renderCrate(); showToast(`Vote: ${t.name}`);} }
                     if(data.type === 'suggest') addSingle(data.url, true);
                 });
             });
@@ -679,7 +690,7 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v38 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v39 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         function resizeApp() {
