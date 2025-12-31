@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v34 - Stability</title>
+    <title>TIU Mixer Pro v35 - Automix Fixed</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -20,10 +20,8 @@
 
         body { margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); font-family: 'Roboto', 'Arial', sans-serif; overflow: hidden; touch-action: none; height: 100vh; width: 100vw; }
 
-        /* VISIBLE WATERMARK */
         .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 15vw; font-weight: 900; color: rgba(255, 255, 255, 0.03); pointer-events: none; z-index: 0; white-space: nowrap; user-select: none; }
 
-        /* LAYOUT */
         #app-container { width: 100%; height: 100%; display: flex; flex-direction: column; background: transparent; box-sizing: border-box; position: relative; z-index: 1; }
 
         @media (orientation: landscape) { body { display: flex; justify-content: center; align-items: center; } #app-container { width: 1024px; height: 768px; border: 1px solid #333; padding: 15px; background: #181818; } }
@@ -42,11 +40,23 @@
         @keyframes pulseSlow { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         @keyframes pulseFast { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        /* DECKS */
-        .console { display: flex; gap: 10px; flex: 1; width: 100%; min-height: 0; margin-bottom: 10px; }
-        .deck { background: var(--deck-bg); flex: 1; padding: 10px; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; border: 1px solid #444; position: relative; z-index: 5; }
-        .deck-top { display: flex; gap: 10px; height: 120px; flex-shrink: 0; justify-content: space-between; align-items: center; }
-        .vinyl-wrapper { width: 110px; height: 110px; position: relative; }
+        /* CONSOLE */
+        .console { display: flex; gap: 10px; flex: 1; width: 100%; min-height: 0; margin-bottom: 10px; overflow: hidden; }
+        .deck { background: var(--deck-bg); flex: 1; padding: 10px; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; border: 1px solid #444; position: relative; justify-content: flex-start; }
+        
+        /* VISIBLE TRACK TITLE AT TOP */
+        .track-title { 
+            font-size: 0.9rem; color: #fff; text-align: center; padding: 6px; 
+            background: #222; border: 1px solid #444; border-radius: 4px; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+            height: 25px; flex-shrink: 0; margin-bottom: 5px; font-weight: bold;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+        #title-a { color: #ff9999; }
+        #title-b { color: #99ccff; }
+
+        .deck-top { display: flex; gap: 10px; height: 110px; flex-shrink: 0; justify-content: space-between; align-items: center; }
+        .vinyl-wrapper { width: 100px; height: 100px; position: relative; }
         .vinyl { width: 100%; height: 100%; background: #111; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 2px solid #333; }
         .vinyl-grooves { width: 90%; height: 90%; border-radius: 50%; position: absolute; background: repeating-radial-gradient(#151515, #151515 2px, #252525 3px, #252525 4px); }
         .vinyl-label { width: 35%; height: 35%; background: #d32f2f; border-radius: 50%; z-index: 2; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: white; }
@@ -74,8 +84,8 @@
         .btn-transport { flex: 1; background: #333; color: #fff; border: none; border-radius: 4px; font-weight: 900; font-size: 0.8rem; cursor: pointer; border-bottom: 3px solid #111; }
         .btn-play.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); color: #000;}
 
-        /* FIXED TEMPO */
-        .pitch-container { background: #111; padding: 8px; border-radius: 4px; border: 1px solid #333; display: flex; align-items: center; justify-content: center; height: 40px; gap: 5px; flex-shrink: 0; z-index: 50; position: relative; margin-top: auto; }
+        /* FIXED PITCH SLIDER */
+        .pitch-container { background: #111; padding: 5px; border-radius: 4px; border: 1px solid #333; display: flex; align-items: center; justify-content: center; height: 40px; gap: 5px; flex-shrink: 0; z-index: 50; position: relative; margin-top: auto; }
         .pitch-slider { flex: 1; -webkit-appearance: none; background: transparent; }
         .pitch-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 25px; width: 40px; background: #555; margin-top: -10px; border-radius: 2px; border: 1px solid #888; cursor: ns-resize; }
         .pitch-reset-btn { width: 35px; height: 35px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
@@ -108,16 +118,20 @@
         .vote-btn { background: var(--vote-color); color: black; font-weight: bold; border: none; padding: 8px; border-radius: 4px; cursor: pointer; }
         #suggest-box { display: none; margin-bottom: 20px; background: #222; padding: 15px; border-radius: 8px; border: 1px solid #444; }
         .suggest-toggle { background: #333; color: #aaa; border: none; width: 100%; padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 10px; }
+        
+        #automix-status { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: var(--automix-on); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: none; z-index: 100; box-shadow: 0 0 10px var(--automix-on); }
 
         #video-layer { position: absolute; top: -9999px; }
     </style>
 </head>
 <body>
 
+    <div id="automix-status">🤖 AUTOMIX: LOADING...</div>
+    <div class="watermark">TIU</div>
+
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v34 STABLE</span></h1>
-            
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v35 FIXED</span></h1>
             <div class="top-btn-group">
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
                 <button id="rec-btn" class="top-btn rec-btn" onclick="toggleRecord()">🔴 REC</button>
@@ -130,6 +144,7 @@
 
         <div class="console">
             <div class="deck" id="deck-a">
+                <div class="track-title" id="title-a">No Track Loaded</div>
                 <div class="deck-top">
                     <div class="vinyl-wrapper"><div class="vinyl" id="vinyl-a"><div class="vinyl-grooves"></div><div class="vinyl-label">A</div></div></div>
                     <div class="controls-group">
@@ -162,7 +177,6 @@
                     <button class="pitch-reset-btn" onclick="resetPitch('A')">R</button>
                     <input type="range" class="pitch-slider" id="pitch-a" min="0.5" max="1.5" step="0.001" value="1" oninput="updatePitch('A')">
                 </div>
-                <div class="track-title" id="title-a">No Track Loaded</div>
             </div>
 
             <div class="mixer">
@@ -178,6 +192,7 @@
             </div>
 
             <div class="deck deck-b" id="deck-b">
+                <div class="track-title" id="title-b">No Track Loaded</div>
                 <div class="deck-top">
                     <div class="controls-group">
                         <div class="gain-container"><input type="range" class="vertical-fader" id="gain-b" min="0" max="100" value="80" oninput="updateVol()"></div>
@@ -210,7 +225,6 @@
                     <button class="pitch-reset-btn" onclick="resetPitch('B')">R</button>
                     <input type="range" class="pitch-slider" id="pitch-b" min="0.5" max="1.5" step="0.001" value="1" oninput="updatePitch('B')">
                 </div>
-                <div class="track-title" id="title-b">No Track Loaded</div>
             </div>
         </div>
 
@@ -299,17 +313,16 @@
     </div>
 
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
-    <div class="watermark">TIU</div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v34';
+        const AUTO_SAVE_KEY = 'tiu_v35';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
         var tapData = { A: {last:0,count:0,bpm:0}, B: {last:0,count:0,bpm:0} };
         var loadedIDs = { A: null, B: null };
         var crate = [];
-        var smartSyncEnabled = true, autoMixEnabled = false, isMixing = false, automixPending = false;
+        var smartSyncEnabled = true, autoMixEnabled = false, isMixing = false;
         var mediaRecorder, audioChunks = [], isRecording = false;
         var lastError = "None";
         var peer, conn, myPeerId, isHost = true;
@@ -335,14 +348,6 @@
                              const v = document.getElementById(`vinyl-${d.toLowerCase()}`);
                              e.data===1 ? v.classList.add('spinning','active') : v.classList.remove('spinning','active');
                              e.data===1 ? v.classList.remove('paused') : v.classList.add('paused');
-                             // AUTOMIX LISTENER
-                             if(automixPending && e.data === 1 && isMixing) {
-                                 // Target deck started playing, safe to crossfade
-                                 automixPending = false;
-                                 const otherD = d==='A'?'B':'A';
-                                 sync(d);
-                                 doCrossfade(otherD, d);
-                             }
                         },
                         'onError': (e)=> { 
                             lastError = `YT Error Deck ${d}: ${e.data}`;
@@ -353,8 +358,13 @@
             } catch(e) { lastError = e.message; }
         }
 
-        // --- AUTOMIX LOGIC (IMPROVED) ---
-        function toggleAutoMix() { autoMixEnabled = !autoMixEnabled; document.getElementById('automix-btn').classList.toggle('automix-on'); }
+        // --- AUTOMIX LOGIC (FIXED v35) ---
+        function toggleAutoMix() { 
+            autoMixEnabled = !autoMixEnabled; 
+            document.getElementById('automix-btn').classList.toggle('automix-on');
+            document.getElementById('automix-status').style.display = autoMixEnabled ? 'block' : 'none';
+            if(autoMixEnabled) document.getElementById('automix-status').innerText = "🤖 AUTOMIX STANDBY";
+        }
         
         function loopCheck() {
             ['A','B'].forEach(d => {
@@ -365,7 +375,7 @@
                         const m=Math.floor(t/60).toString().padStart(2,'0'), s=Math.floor(t%60).toString().padStart(2,'0');
                         document.getElementById(`time-${d.toLowerCase()}`).innerText = `${m}:${s}`;
                         
-                        // TRIGGER AUTOMIX
+                        // AUTOMIX TRIGGER
                         if(autoMixEnabled && !isMixing && players[d].getPlayerState()===1) {
                             const cf = parseInt(document.getElementById('crossfader').value);
                             const active = (d==='A' && cf<50) || (d==='B' && cf>50);
@@ -379,21 +389,37 @@
 
         function triggerAutoMix(currD) {
             isMixing = true;
-            automixPending = true; // Wait for state change
             const nextD = currD==='A'?'B':'A';
-            const currID = loadedIDs[currD];
-            const currIdx = crate.findIndex(t => t.id === currID);
-            let nextIdx = (currIdx >= 0 && currIdx < crate.length-1) ? currIdx + 1 : 0;
             
-            console.log(`Automix: Loading next track onto ${nextD}`);
+            // PRIORITY QUEUE LOGIC: Check for Votes first
+            let nextTrack = crate.reduce((prev, curr) => (curr.votes || 0) > (prev.votes || 0) ? curr : prev, crate[0]);
+            
+            // If top vote is already playing, pick random or next sequential
+            const currID = loadedIDs[currD];
+            if(nextTrack.id === currID) {
+                // Find next index
+                const currIdx = crate.findIndex(t => t.id === currID);
+                let nextIdx = (currIdx >= 0 && currIdx < crate.length-1) ? currIdx + 1 : 0;
+                nextTrack = crate[nextIdx];
+            }
+
+            // Find index of chosen track
+            const nextIdx = crate.findIndex(t => t.id === nextTrack.id);
+            
+            document.getElementById('automix-status').innerText = `🤖 LOADING NEXT: ${nextTrack.name}`;
             load(nextD, nextIdx);
             
-            // Failsafe if state change doesn't fire (e.g. fast load)
+            // FORCE START AND FADE (Removed dependency on onStateChange)
             setTimeout(() => {
-                if(ready[nextD] && automixPending) {
+                if(ready[nextD]) {
                     players[nextD].playVideo(); 
+                    sync(nextD);
+                    document.getElementById('automix-status').innerText = `🤖 MIXING...`;
+                    doCrossfade(currD, nextD); 
+                } else {
+                    isMixing = false; // Abort if fail
                 }
-            }, 1000);
+            }, 500); // 0.5s pre-buffer
         }
 
         function doCrossfade(fromD, toD) {
@@ -402,15 +428,18 @@
             let intv = setInterval(() => {
                 let val = parseInt(cf.value) + step;
                 cf.value = val; updateVol();
-                if(val === target) { clearInterval(intv); isMixing = false; automixPending=false; normalizePitch(toD); }
+                if(val === target) { 
+                    clearInterval(intv); 
+                    isMixing = false; 
+                    normalizePitch(toD); 
+                    document.getElementById('automix-status').innerText = "🤖 AUTOMIX STANDBY";
+                    // Reset votes for played track? Optional.
+                }
             }, 100);
         }
 
         // --- SORTING & CRATE ---
-        function sortCrateVotes() {
-            crate.sort((a, b) => (b.votes || 0) - (a.votes || 0));
-            renderCrate();
-        }
+        function sortCrateVotes() { crate.sort((a, b) => (b.votes || 0) - (a.votes || 0)); renderCrate(); }
         function generateAutoBpm(id) { let h=0; for(let i=0;i<id.length;i++) h=id.charCodeAt(i)+((h<<5)-h); return Math.abs(h%65)+75; }
         function processBulk() {
             document.getElementById('bulk-textarea').value.split('\n').forEach(l => {
@@ -471,6 +500,7 @@
                 document.getElementById('app-container').style.display = 'none';
                 document.getElementById('voter-app').style.display = 'flex';
                 document.querySelector('.watermark').style.display = 'none';
+                document.getElementById('automix-status').style.display = 'none';
                 initGuest(hostId);
             } else { initHost(); }
         }
@@ -514,7 +544,7 @@
             if(u){ conn.send({type:'suggest', url:u}); alert("Sent!"); toggleSuggestBox(); }
         }
 
-        // --- CORE FUNCTIONS ---
+        // --- CORE ---
         function playToggle(d) { if(ready[d]) players[d].getPlayerState()===1 ? players[d].pauseVideo() : players[d].playVideo(); }
         function cue(d) { if(ready[d]) { players[d].pauseVideo(); players[d].seekTo(0); } }
         function seek(d,e) { if(ready[d]){ const r=e.currentTarget.getBoundingClientRect(); players[d].seekTo(players[d].getDuration()*((e.clientX-r.left)/r.width), true); } }
@@ -591,7 +621,7 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v34 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v35 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         function resizeApp() {
