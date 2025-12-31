@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v39 - Requests Fixed</title>
+    <title>TIU Mixer Pro v40 - Support Edition</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -16,6 +16,7 @@
             --automix-on: #ff00ff;
             --record-on: #ff3333;
             --vote-color: #ffaa00;
+            --cash-app: #00d632;
         }
 
         body { margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); font-family: 'Roboto', 'Arial', sans-serif; overflow: hidden; touch-action: none; height: 100vh; width: 100vw; }
@@ -130,6 +131,7 @@
         .vote-badge.visible { display: inline-block; }
         .load-btn { background: #333; color: #fff; border: 1px solid #555; font-size: 0.65rem; padding: 3px 6px; border-radius: 3px; cursor: pointer; }
 
+        /* MODALS */
         .modal { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index: 99999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .modal-box { width: 90%; max-width: 500px; background: #181818; border: 1px solid #444; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         .key-row { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding: 8px 0; color: #bbb; font-size: 0.85rem; }
@@ -143,6 +145,10 @@
         #suggest-box { display: none; margin-bottom: 20px; background: #222; padding: 15px; border-radius: 8px; border: 1px solid #444; }
         .suggest-toggle { background: #333; color: #aaa; border: none; width: 100%; padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 10px; }
         
+        /* CASH APP BUTTON STYLE */
+        .cash-btn { background: var(--cash-app); color: white; border: none; font-weight: bold; padding: 10px; border-radius: 4px; cursor: pointer; text-decoration: none; text-align: center; display: block; margin-top: 10px; }
+        .cash-btn:hover { opacity: 0.9; }
+
         #automix-status { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: var(--automix-on); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: none; z-index: 100; box-shadow: 0 0 10px var(--automix-on); white-space:nowrap; }
         #video-layer { position: absolute; top: -9999px; }
     </style>
@@ -161,8 +167,9 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v39 REQUESTS</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v40 SUPPORT</span></h1>
             <div class="top-btn-group">
+                <button class="top-btn" onclick="openSupport()">☕ DONATE</button>
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
                 <button id="vote-btn" class="top-btn" onclick="openVoteModal()" style="color:var(--vote-color);">📶 VOTE</button>
                 <button id="rec-btn" class="top-btn rec-btn" onclick="toggleRecord()">🔴 REC</button>
@@ -304,6 +311,15 @@
         </div>
     </div>
 
+    <div id="support-modal" class="modal">
+        <div class="modal-box" style="align-items:center;">
+            <h2 style="color:var(--cash-app)">SUPPORT THE DEV</h2>
+            <p style="text-align:center; color:#ddd;">If you like my work, buy me a cup of coffee!</p>
+            <a href="https://cash.app/$AnthonyTiu" target="_blank" class="cash-btn">Send Cash App ($AnthonyTiu)</a>
+            <button class="top-btn" style="margin-top:15px;" onclick="document.getElementById('support-modal').style.display='none'">CLOSE</button>
+        </div>
+    </div>
+
     <div id="diag-modal" class="modal">
         <div class="modal-box">
             <h2>🔧 DIAGNOSTICS</h2>
@@ -346,7 +362,7 @@
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v39';
+        const AUTO_SAVE_KEY = 'tiu_v40';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
@@ -374,6 +390,8 @@
             t.classList.add('show');
             setTimeout(() => t.classList.remove('show'), 3000);
         }
+
+        function openSupport() { document.getElementById('support-modal').style.display = 'flex'; }
 
         window.addEventListener('resize', resizeApp);
         window.addEventListener('load', () => { resizeApp(); loadAutoSave(); renderSessionList(); checkP2PMode(); });
@@ -503,14 +521,12 @@
         function addSingle(url, isReq) {
             const u = url || document.getElementById('crate-url').value;
             if(!u) return;
-            // Clean input (remove accidental spaces)
             const cleanU = u.trim();
             const m = cleanU.match(/(?:v=|youtu\.be\/|\/)([a-zA-Z0-9_-]{11})/);
             if(m) { 
                 const id = m[1];
                 const existing = crate.find(t => t.id === id);
                 if(existing) {
-                    // IF DUPLICATE: Convert to VOTE
                     existing.votes = (existing.votes || 0) + 1;
                     renderCrate();
                     if(isReq) showToast(`Re-Request: ${existing.name} (+1 Vote)`);
@@ -536,12 +552,12 @@
             const l = document.getElementById('crate-list'); l.innerHTML='';
             crate.forEach((t,i) => {
                 const d=document.createElement('div'); d.className='crate-item';
-                const vb = t.votes>0 ? `<span class="vote-badge visible">★ ${t.votes}</span>` : '';
-                d.innerHTML=`<span class="item-name">${vb}${t.name}</span>
-                <div style="font-size:0.7rem; display:flex; gap:5px; align-items:center;">
+                const vb = t.votes>0 ? `<span class=\"vote-badge visible\">★ ${t.votes}</span>` : '';
+                d.innerHTML=`<span class=\"item-name\">${vb}${t.name}</span>
+                <div style=\"font-size:0.7rem; display:flex; gap:5px; align-items:center;\">
                 ${t.bpm} BPM
-                <button class="load-btn" onclick="load('A',${i})">A</button><button class="load-btn" onclick="load('B',${i})">B</button>
-                <button class="load-btn" style="color:#d32f2f;" onclick="remove(${i})">X</button></div>`;
+                <button class=\"load-btn\" onclick=\"load('A',${i})\">A</button><button class=\"load-btn\" onclick=\"load('B',${i})\">B</button>
+                <button class=\"load-btn\" style=\"color:#d32f2f;\" onclick=\"remove(${i})\">X</button></div>`;
                 l.appendChild(d);
             });
             saveAuto();
@@ -690,7 +706,7 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v39 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v40 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         function resizeApp() {
