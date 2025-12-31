@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v36 - Compact</title>
+    <title>TIU Mixer Pro v37 - Unlocked</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -24,9 +24,34 @@
 
         #app-container { width: 100%; height: 100%; display: flex; flex-direction: column; background: transparent; box-sizing: border-box; position: relative; z-index: 1; }
 
-        /* RESPONSIVE LAYOUT */
+        /* --- START OVERLAY (REQUIRED FOR AUDIO) --- */
+        #start-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 99999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .start-btn {
+            background: var(--accent); color: #000;
+            font-size: 2rem; font-weight: 900; padding: 20px 40px;
+            border: none; border-radius: 50px; cursor: pointer;
+            box-shadow: 0 0 30px var(--accent);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        /* LAYOUT */
         @media (orientation: landscape) { body { display: flex; justify-content: center; align-items: center; } #app-container { width: 1024px; height: 768px; border: 1px solid #333; padding: 10px; background: #181818; } }
-        @media (orientation: portrait) { body { display: block; overflow-y: auto; } #app-container { width: 100%; height: auto; min-height: 100vh; padding: 5px; overflow-y: scroll; background: #181818; } .console { flex-direction: column; height: auto !important; margin-bottom: 20px; } .deck { margin-bottom: 20px; height: 500px; } .mixer { width: 100% !important; height: 80px !important; flex-direction: row !important; margin-bottom: 10px; } .mixer > div { width: 45% !important; height: 100% !important; } input[type=range].vertical-fader#master-vol { writing-mode: horizontal-tb; -webkit-appearance: slider-horizontal; width: 100%; } .crate-section { height: 400px; } .watermark { font-size: 8rem; } }
+        @media (orientation: portrait) { 
+            body { display: block; overflow-y: auto; } 
+            #app-container { width: 100%; height: auto; min-height: 100vh; padding: 5px; overflow-y: scroll; background: #181818; } 
+            .console { flex-direction: column; height: auto !important; margin-bottom: 20px; } 
+            .deck { margin-bottom: 20px; min-height: 480px; } 
+            .mixer { width: 100% !important; height: 80px !important; flex-direction: row !important; margin-bottom: 10px; } 
+            .mixer > div { width: 45% !important; height: 100% !important; } 
+            input[type=range].vertical-fader#master-vol { writing-mode: horizontal-tb; -webkit-appearance: slider-horizontal; width: 100%; } 
+            .crate-section { height: 400px; } 
+            .watermark { font-size: 8rem; } 
+        }
 
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 5px; margin-bottom: 5px; height: 35px; flex-shrink: 0; }
         h1 { margin: 0; font-size: 1.1rem; letter-spacing: 2px; color: #fff; }
@@ -41,22 +66,13 @@
         @keyframes pulseSlow { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         @keyframes pulseFast { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        /* CONSOLE & DECKS */
         .console { display: flex; gap: 5px; flex: 1; width: 100%; min-height: 0; margin-bottom: 5px; }
+        .deck { background: var(--deck-bg); flex: 1; padding: 5px; border-radius: 6px; display: flex; flex-direction: column; gap: 4px; border: 1px solid #444; position: relative; z-index: 5; overflow: hidden; }
         
-        .deck { 
-            background: var(--deck-bg); flex: 1; padding: 5px; border-radius: 6px; 
-            display: flex; flex-direction: column; gap: 4px; border: 1px solid #444; 
-            position: relative; z-index: 5; 
-            /* COMPACT MODE: Ensure it fits */
-            overflow: hidden; 
-        }
-        
-        .track-title { font-size: 0.8rem; color: #fff; text-align: center; padding: 4px; background: #222; border: 1px solid #444; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 20px; flex-shrink: 0; font-weight: bold; margin-bottom: 2px; }
+        .track-title { font-size: 0.8rem; color: #fff; text-align: center; padding: 4px; background: #222; border: 1px solid #444; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 20px; flex-shrink: 0; font-weight: bold; margin-bottom: 2px; z-index: 20; position: relative; }
         #title-a { color: #ff9999; }
         #title-b { color: #99ccff; }
 
-        /* Compact Vinyl Section */
         .deck-top { display: flex; gap: 5px; height: 90px; flex-shrink: 0; justify-content: space-between; align-items: center; }
         .vinyl-wrapper { width: 80px; height: 80px; position: relative; }
         .vinyl { width: 100%; height: 100%; background: #111; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 2px solid #333; }
@@ -77,38 +93,23 @@
         .progress-container { width: 100%; height: 10px; background: #222; border-radius: 3px; overflow: hidden; border: 1px solid #444; position: relative; cursor: pointer; }
         .progress-fill { height: 100%; width: 0%; background: var(--bar-color); transition: width 0.1s linear; }
 
-        .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; height: 40px; flex-shrink: 0; }
-        .pad { background: #333; border: none; color: #aaa; font-size: 0.6rem; font-weight: bold; border-radius: 3px; cursor: pointer; border-bottom: 2px solid #222; }
+        .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; height: 40px; flex-shrink: 0; z-index: 50; }
+        .pad { background: #333; border: none; color: #aaa; font-size: 0.6rem; font-weight: bold; border-radius: 3px; cursor: pointer; border-bottom: 2px solid #222; position: relative; }
         .pad:active { transform: translateY(2px); border-bottom: none; }
         .pad.has-cue { background: var(--accent-dim); color: #fff; border-bottom: 2px solid var(--accent); }
         .pad.set-mode { background: #500; color: #fff; animation: pulseSlow 1s infinite; }
 
-        .transport { display: flex; gap: 5px; height: 35px; flex-shrink: 0; }
+        .transport { display: flex; gap: 5px; height: 35px; flex-shrink: 0; z-index: 100; /* FIXED CLICK ISSUE */ position: relative; }
         .btn-transport { flex: 1; background: #333; color: #fff; border: none; border-radius: 4px; font-weight: 900; font-size: 0.8rem; cursor: pointer; border-bottom: 3px solid #111; }
         .btn-play.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); color: #000;}
 
-        /* FIXED PITCH SLIDER - FORCED VISIBILITY */
-        .pitch-container { 
-            background: #222; /* Lighter bg to spot it */
-            padding: 5px; 
-            border-radius: 4px; 
-            border: 1px solid #555; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            height: 35px; 
-            gap: 5px; 
-            flex-shrink: 0; 
-            z-index: 50; 
-            margin-top: auto; /* Push to absolute bottom of flex container */
-        }
+        .pitch-container { background: #222; padding: 5px; border-radius: 4px; border: 1px solid #555; display: flex; align-items: center; justify-content: center; height: 35px; gap: 5px; flex-shrink: 0; z-index: 50; margin-top: auto; }
         .pitch-slider { flex: 1; -webkit-appearance: none; background: transparent; }
         .pitch-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 30px; background: #666; margin-top: -8px; border-radius: 2px; border: 1px solid #999; cursor: ns-resize; }
         .pitch-reset-btn { width: 30px; height: 100%; background: #333; border: 1px solid #555; color: #fff; border-radius: 3px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
 
         .mixer { width: 80px; background: #1a1a1a; padding: 5px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; justify-content: space-between; flex-shrink: 0; }
 
-        /* CRATE */
         .crate-section { width: 100%; flex: 1; min-height: 150px; background: #111; border: 1px solid #333; border-radius: 8px; padding: 5px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 20; box-shadow: 0 -5px 15px rgba(0,0,0,0.5); }
         .crate-header { display: flex; gap: 5px; margin-bottom: 5px; position: relative; z-index: 21; }
         .crate-input { background: #000; border: 1px solid #444; color: #fff; padding: 5px; flex: 1; font-size: 0.8rem; }
@@ -119,7 +120,6 @@
         .vote-badge.visible { display: inline-block; }
         .load-btn { background: #333; color: #fff; border: 1px solid #555; font-size: 0.65rem; padding: 3px 6px; border-radius: 3px; cursor: pointer; }
 
-        /* MODALS */
         .modal { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index: 99999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .modal-box { width: 90%; max-width: 500px; background: #181818; border: 1px solid #444; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         .key-row { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding: 8px 0; color: #bbb; font-size: 0.85rem; }
@@ -134,18 +134,23 @@
         .suggest-toggle { background: #333; color: #aaa; border: none; width: 100%; padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 10px; }
         
         #automix-status { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: var(--automix-on); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: none; z-index: 100; box-shadow: 0 0 10px var(--automix-on); white-space:nowrap; }
-
         #video-layer { position: absolute; top: -9999px; }
     </style>
 </head>
 <body>
+
+    <div id="start-overlay">
+        <h1 style="color:white; margin-bottom:20px;">TIU MIXER PRO SYSTEM</h1>
+        <button class="start-btn" onclick="startSystem()">🚀 START SYSTEM</button>
+        <p style="color:#888; margin-top:10px;">Click to initialize Audio Engine & Drivers</p>
+    </div>
 
     <div id="automix-status">🤖 AUTOMIX: LOADING...</div>
     <div class="watermark">TIU</div>
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v36 COMPACT</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v37 UNLOCKED</span></h1>
             <div class="top-btn-group">
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
                 <button id="rec-btn" class="top-btn rec-btn" onclick="toggleRecord()">🔴 REC</button>
@@ -329,27 +334,35 @@
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v36';
+        const AUTO_SAVE_KEY = 'tiu_v37';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
         var tapData = { A: {last:0,count:0,bpm:0}, B: {last:0,count:0,bpm:0} };
         var loadedIDs = { A: null, B: null };
         var crate = [];
-        var smartSyncEnabled = true, autoMixEnabled = false, isMixing = false;
+        var smartSyncEnabled = true, autoMixEnabled = false, isMixing = false, automixPending = false;
         var mediaRecorder, audioChunks = [], isRecording = false;
         var lastError = "None";
         var peer, conn, myPeerId, isHost = true;
         var autoMixRetryCount = 0;
+        var apiReady = false;
+
+        function startSystem() {
+            document.getElementById('start-overlay').style.display = 'none';
+            if(!apiReady) {
+                var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
+                document.head.appendChild(tag);
+            }
+        }
 
         window.addEventListener('resize', resizeApp);
         window.addEventListener('load', () => { resizeApp(); loadAutoSave(); renderSessionList(); checkP2PMode(); });
         window.onerror = function(msg, url, line) { lastError = `${msg} line ${line}`; };
 
         // --- YOUTUBE API ---
-        var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
-        document.head.appendChild(tag);
         window.onYouTubeIframeAPIReady = function() { 
+            apiReady = true;
             createP('A'); setTimeout(() => createP('B'), 500); 
             setInterval(loopCheck, 150); 
         };
@@ -376,7 +389,7 @@
             } catch(e) { lastError = e.message; }
         }
 
-        // --- AUTOMIX LOGIC (AGGRESSIVE STARTER v36) ---
+        // --- AUTOMIX LOGIC ---
         function toggleAutoMix() { 
             autoMixEnabled = !autoMixEnabled; 
             document.getElementById('automix-btn').classList.toggle('automix-on');
@@ -410,10 +423,8 @@
             const nextD = currD==='A'?'B':'A';
             autoMixRetryCount = 0;
             
-            // Priority: Votes -> Next Sequential
             let nextTrack = crate.reduce((prev, curr) => (curr.votes || 0) > (prev.votes || 0) ? curr : prev, crate[0]);
             
-            // If top vote is current track, move to next
             const currID = loadedIDs[currD];
             if(nextTrack.id === currID) {
                 const currIdx = crate.findIndex(t => t.id === currID);
@@ -425,34 +436,28 @@
             document.getElementById('automix-status').innerText = `🤖 LOADING: ${nextTrack.name}`;
             load(nextD, nextIdx);
             
-            // AGGRESSIVE PLAY CHECKER
             const playCheckIntv = setInterval(() => {
-                if(!ready[nextD]) return; // Wait for player ready
+                if(!ready[nextD]) return;
                 
                 const state = players[nextD].getPlayerState();
                 if(state === 1) {
-                    // It's playing! Start Fade
                     clearInterval(playCheckIntv);
                     sync(nextD);
                     document.getElementById('automix-status').innerText = `🤖 FADING...`;
                     doCrossfade(currD, nextD);
                 } else {
-                    // Not playing yet? SMASH THAT PLAY BUTTON
-                    console.log(`🤖 AutoMix: Force Play ${nextD} (Attempt ${autoMixRetryCount})`);
                     players[nextD].playVideo();
                     autoMixRetryCount++;
-                    
-                    if(autoMixRetryCount > 20) { // 5 seconds failure
+                    if(autoMixRetryCount > 20) {
                         clearInterval(playCheckIntv);
                         document.getElementById('automix-status').innerText = "❌ TIMEOUT: SKIPPING...";
-                        // Force skip to next track in crate to avoid stuck loop
                         const skipIdx = (nextIdx + 1) % crate.length;
-                        load(nextD, skipIdx); // Try next song
+                        load(nextD, skipIdx);
                         autoMixRetryCount = 0;
-                        setTimeout(() => triggerAutoMix(currD), 1000); // Retry logic
+                        setTimeout(() => triggerAutoMix(currD), 1000);
                     }
                 }
-            }, 250); // Check every 250ms
+            }, 250);
         }
 
         function doCrossfade(fromD, toD) {
@@ -532,7 +537,7 @@
                 document.getElementById('app-container').style.display = 'none';
                 document.getElementById('voter-app').style.display = 'flex';
                 document.querySelector('.watermark').style.display = 'none';
-                document.getElementById('automix-status').style.display = 'none';
+                document.getElementById('start-overlay').style.display = 'none'; // Guests don't need audio
                 initGuest(hostId);
             } else { initHost(); }
         }
@@ -653,7 +658,7 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v36 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v37 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         function resizeApp() {
