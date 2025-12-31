@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v37 - Unlocked</title>
+    <title>TIU Mixer Pro v38 - Logic Fix</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -24,10 +24,10 @@
 
         #app-container { width: 100%; height: 100%; display: flex; flex-direction: column; background: transparent; box-sizing: border-box; position: relative; z-index: 1; }
 
-        /* --- START OVERLAY (REQUIRED FOR AUDIO) --- */
+        /* START OVERLAY */
         #start-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 99999;
+            background: rgba(0,0,0,0.95); z-index: 99999;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
         .start-btn {
@@ -99,7 +99,7 @@
         .pad.has-cue { background: var(--accent-dim); color: #fff; border-bottom: 2px solid var(--accent); }
         .pad.set-mode { background: #500; color: #fff; animation: pulseSlow 1s infinite; }
 
-        .transport { display: flex; gap: 5px; height: 35px; flex-shrink: 0; z-index: 100; /* FIXED CLICK ISSUE */ position: relative; }
+        .transport { display: flex; gap: 5px; height: 35px; flex-shrink: 0; z-index: 100; position: relative; }
         .btn-transport { flex: 1; background: #333; color: #fff; border: none; border-radius: 4px; font-weight: 900; font-size: 0.8rem; cursor: pointer; border-bottom: 3px solid #111; }
         .btn-play.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); color: #000;}
 
@@ -120,6 +120,7 @@
         .vote-badge.visible { display: inline-block; }
         .load-btn { background: #333; color: #fff; border: 1px solid #555; font-size: 0.65rem; padding: 3px 6px; border-radius: 3px; cursor: pointer; }
 
+        /* MODALS */
         .modal { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index: 99999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .modal-box { width: 90%; max-width: 500px; background: #181818; border: 1px solid #444; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         .key-row { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding: 8px 0; color: #bbb; font-size: 0.85rem; }
@@ -140,9 +141,9 @@
 <body>
 
     <div id="start-overlay">
-        <h1 style="color:white; margin-bottom:20px;">TIU MIXER PRO SYSTEM</h1>
+        <h1 style="color:white; margin-bottom:20px;">TIU MIXER SYSTEM</h1>
         <button class="start-btn" onclick="startSystem()">🚀 START SYSTEM</button>
-        <p style="color:#888; margin-top:10px;">Click to initialize Audio Engine & Drivers</p>
+        <p style="color:#888; margin-top:10px;">Click to Initialize Audio</p>
     </div>
 
     <div id="automix-status">🤖 AUTOMIX: LOADING...</div>
@@ -150,9 +151,10 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v37 UNLOCKED</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v38 FIXED</span></h1>
             <div class="top-btn-group">
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
+                <button id="vote-btn" class="top-btn" onclick="openVoteModal()" style="color:var(--vote-color);">📶 VOTE</button>
                 <button id="rec-btn" class="top-btn rec-btn" onclick="toggleRecord()">🔴 REC</button>
                 <button id="automix-btn" class="top-btn automix-btn" onclick="toggleAutoMix()">🤖 AUTOMIX</button>
                 <button class="top-btn" onclick="document.getElementById('keys-modal').style.display='flex'">⌨️ KEYS</button>
@@ -334,7 +336,7 @@
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v37';
+        const AUTO_SAVE_KEY = 'tiu_v38';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
@@ -389,7 +391,7 @@
             } catch(e) { lastError = e.message; }
         }
 
-        // --- AUTOMIX LOGIC ---
+        // --- AUTOMIX LOGIC (FIXED v38) ---
         function toggleAutoMix() { 
             autoMixEnabled = !autoMixEnabled; 
             document.getElementById('automix-btn').classList.toggle('automix-on');
@@ -423,19 +425,37 @@
             const nextD = currD==='A'?'B':'A';
             autoMixRetryCount = 0;
             
-            let nextTrack = crate.reduce((prev, curr) => (curr.votes || 0) > (prev.votes || 0) ? curr : prev, crate[0]);
-            
+            // 1. Find Current Index
             const currID = loadedIDs[currD];
-            if(nextTrack.id === currID) {
-                const currIdx = crate.findIndex(t => t.id === currID);
-                let nextIdx = (currIdx >= 0 && currIdx < crate.length-1) ? currIdx + 1 : 0;
-                nextTrack = crate[nextIdx];
+            let endingIndex = crate.findIndex(t => t.id === currID);
+            if (endingIndex === -1) endingIndex = 0;
+
+            // 2. Logic: Default to Next, check for votes
+            let nextIndex = (endingIndex + 1) % crate.length; // Default to next sequential
+            
+            // Check for Highest Voted (Votes > 0)
+            let highestVote = 0;
+            let votedIndex = -1;
+            
+            crate.forEach((t, i) => {
+                // Ensure we don't pick the song currently playing on EITHER deck
+                if (t.id !== loadedIDs['A'] && t.id !== loadedIDs['B']) {
+                    if ((t.votes || 0) > highestVote) {
+                        highestVote = t.votes;
+                        votedIndex = i;
+                    }
+                }
+            });
+
+            if (votedIndex !== -1 && highestVote > 0) {
+                nextIndex = votedIndex;
             }
 
-            const nextIdx = crate.findIndex(t => t.id === nextTrack.id);
+            const nextTrack = crate[nextIndex];
             document.getElementById('automix-status').innerText = `🤖 LOADING: ${nextTrack.name}`;
-            load(nextD, nextIdx);
+            load(nextD, nextIndex);
             
+            // AGGRESSIVE PLAY CHECKER
             const playCheckIntv = setInterval(() => {
                 if(!ready[nextD]) return;
                 
@@ -451,7 +471,8 @@
                     if(autoMixRetryCount > 20) {
                         clearInterval(playCheckIntv);
                         document.getElementById('automix-status').innerText = "❌ TIMEOUT: SKIPPING...";
-                        const skipIdx = (nextIdx + 1) % crate.length;
+                        // Skip to next in list
+                        const skipIdx = (nextIndex + 1) % crate.length;
                         load(nextD, skipIdx);
                         autoMixRetryCount = 0;
                         setTimeout(() => triggerAutoMix(currD), 1000);
@@ -537,7 +558,7 @@
                 document.getElementById('app-container').style.display = 'none';
                 document.getElementById('voter-app').style.display = 'flex';
                 document.querySelector('.watermark').style.display = 'none';
-                document.getElementById('start-overlay').style.display = 'none'; // Guests don't need audio
+                document.getElementById('automix-status').style.display = 'none';
                 initGuest(hostId);
             } else { initHost(); }
         }
@@ -658,7 +679,7 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v37 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v38 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         function resizeApp() {
