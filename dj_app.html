@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v35 - Automix Fixed</title>
+    <title>TIU Mixer Pro v36 - Compact</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
             --bg-color: #0d0d0d;
-            --deck-bg: #181818;
+            --deck-bg: #141414;
             --accent: #00ff9d; 
             --accent-dim: #008f58;
             --text-color: #e0e0e0;
@@ -24,14 +24,15 @@
 
         #app-container { width: 100%; height: 100%; display: flex; flex-direction: column; background: transparent; box-sizing: border-box; position: relative; z-index: 1; }
 
-        @media (orientation: landscape) { body { display: flex; justify-content: center; align-items: center; } #app-container { width: 1024px; height: 768px; border: 1px solid #333; padding: 15px; background: #181818; } }
-        @media (orientation: portrait) { body { display: block; overflow-y: auto; } #app-container { width: 100%; height: auto; min-height: 100vh; padding: 10px; overflow-y: scroll; background: #181818; } .console { flex-direction: column; height: auto !important; margin-bottom: 20px; } .deck { margin-bottom: 20px; } .mixer { width: 100% !important; height: 100px !important; flex-direction: row !important; margin-bottom: 10px; } .mixer > div { width: 45% !important; height: 100% !important; } input[type=range].vertical-fader#master-vol { writing-mode: horizontal-tb; -webkit-appearance: slider-horizontal; width: 100%; } .crate-section { height: 400px; } .watermark { font-size: 8rem; } }
+        /* RESPONSIVE LAYOUT */
+        @media (orientation: landscape) { body { display: flex; justify-content: center; align-items: center; } #app-container { width: 1024px; height: 768px; border: 1px solid #333; padding: 10px; background: #181818; } }
+        @media (orientation: portrait) { body { display: block; overflow-y: auto; } #app-container { width: 100%; height: auto; min-height: 100vh; padding: 5px; overflow-y: scroll; background: #181818; } .console { flex-direction: column; height: auto !important; margin-bottom: 20px; } .deck { margin-bottom: 20px; height: 500px; } .mixer { width: 100% !important; height: 80px !important; flex-direction: row !important; margin-bottom: 10px; } .mixer > div { width: 45% !important; height: 100% !important; } input[type=range].vertical-fader#master-vol { writing-mode: horizontal-tb; -webkit-appearance: slider-horizontal; width: 100%; } .crate-section { height: 400px; } .watermark { font-size: 8rem; } }
 
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 10px; height: 40px; flex-shrink: 0; }
-        h1 { margin: 0; font-size: 1.2rem; letter-spacing: 2px; color: #fff; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 5px; margin-bottom: 5px; height: 35px; flex-shrink: 0; }
+        h1 { margin: 0; font-size: 1.1rem; letter-spacing: 2px; color: #fff; }
         
-        .top-btn-group { display: flex; gap: 10px; }
-        .top-btn { background: #333; color: #fff; border: 1px solid #555; padding: 5px 15px; font-weight: bold; font-size: 0.8rem; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+        .top-btn-group { display: flex; gap: 5px; }
+        .top-btn { background: #333; color: #fff; border: 1px solid #555; padding: 4px 10px; font-weight: bold; font-size: 0.7rem; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
         .top-btn:hover { background: #444; }
         .sync-on { background: var(--bar-color); color: #000; border: 1px solid #fff; box-shadow: 0 0 8px var(--bar-color); }
         .automix-on { background: var(--automix-on); color: white; border: 1px solid white; box-shadow: 0 0 10px var(--automix-on); animation: pulseSlow 2s infinite; }
@@ -40,70 +41,83 @@
         @keyframes pulseSlow { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         @keyframes pulseFast { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        /* CONSOLE */
-        .console { display: flex; gap: 10px; flex: 1; width: 100%; min-height: 0; margin-bottom: 10px; overflow: hidden; }
-        .deck { background: var(--deck-bg); flex: 1; padding: 10px; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; border: 1px solid #444; position: relative; justify-content: flex-start; }
+        /* CONSOLE & DECKS */
+        .console { display: flex; gap: 5px; flex: 1; width: 100%; min-height: 0; margin-bottom: 5px; }
         
-        /* VISIBLE TRACK TITLE AT TOP */
-        .track-title { 
-            font-size: 0.9rem; color: #fff; text-align: center; padding: 6px; 
-            background: #222; border: 1px solid #444; border-radius: 4px; 
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
-            height: 25px; flex-shrink: 0; margin-bottom: 5px; font-weight: bold;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        .deck { 
+            background: var(--deck-bg); flex: 1; padding: 5px; border-radius: 6px; 
+            display: flex; flex-direction: column; gap: 4px; border: 1px solid #444; 
+            position: relative; z-index: 5; 
+            /* COMPACT MODE: Ensure it fits */
+            overflow: hidden; 
         }
+        
+        .track-title { font-size: 0.8rem; color: #fff; text-align: center; padding: 4px; background: #222; border: 1px solid #444; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 20px; flex-shrink: 0; font-weight: bold; margin-bottom: 2px; }
         #title-a { color: #ff9999; }
         #title-b { color: #99ccff; }
 
-        .deck-top { display: flex; gap: 10px; height: 110px; flex-shrink: 0; justify-content: space-between; align-items: center; }
-        .vinyl-wrapper { width: 100px; height: 100px; position: relative; }
+        /* Compact Vinyl Section */
+        .deck-top { display: flex; gap: 5px; height: 90px; flex-shrink: 0; justify-content: space-between; align-items: center; }
+        .vinyl-wrapper { width: 80px; height: 80px; position: relative; }
         .vinyl { width: 100%; height: 100%; background: #111; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 2px solid #333; }
         .vinyl-grooves { width: 90%; height: 90%; border-radius: 50%; position: absolute; background: repeating-radial-gradient(#151515, #151515 2px, #252525 3px, #252525 4px); }
-        .vinyl-label { width: 35%; height: 35%; background: #d32f2f; border-radius: 50%; z-index: 2; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: white; }
+        .vinyl-label { width: 35%; height: 35%; background: #d32f2f; border-radius: 50%; z-index: 2; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; color: white; }
         .deck-b .vinyl-label { background: #1976d2; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         .spinning { animation: spin 1.8s linear infinite; }
         .paused { animation-play-state: paused; }
 
-        .controls-group { display: flex; gap: 10px; height: 100%; align-items: center; }
-        .knob-container { width: 40px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
-        .gain-container { display: flex; flex-direction: column; align-items: center; width: 30px; height: 100%; background: #111; border-radius: 4px; padding: 5px 0; border: 1px solid #333; }
+        .controls-group { display: flex; gap: 5px; height: 100%; align-items: center; }
+        .knob-container { width: 35px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
+        .gain-container { display: flex; flex-direction: column; align-items: center; width: 25px; height: 100%; background: #111; border-radius: 4px; padding: 2px 0; border: 1px solid #333; }
+        .knob-label { font-size: 0.5rem; color: #888; }
         input[type=range].vertical-fader { writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 100%; height: 100%; background: transparent; }
 
-        .deck-info { background: #0f0f0f; border: 1px solid #333; padding: 5px; border-radius: 4px; font-family: 'Courier New', monospace; color: var(--accent); font-size: 0.8rem; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
-        .progress-container { width: 100%; height: 12px; background: #222; border-radius: 3px; overflow: hidden; border: 1px solid #444; position: relative; cursor: pointer; }
+        .deck-info { background: #0f0f0f; border: 1px solid #333; padding: 4px; border-radius: 4px; font-family: 'Courier New', monospace; color: var(--accent); font-size: 0.75rem; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+        .progress-container { width: 100%; height: 10px; background: #222; border-radius: 3px; overflow: hidden; border: 1px solid #444; position: relative; cursor: pointer; }
         .progress-fill { height: 100%; width: 0%; background: var(--bar-color); transition: width 0.1s linear; }
 
-        .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; height: 50px; flex-shrink: 0; }
-        .pad { background: #333; border: none; color: #aaa; font-size: 0.7rem; font-weight: bold; border-radius: 4px; cursor: pointer; border-bottom: 2px solid #222; }
+        .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; height: 40px; flex-shrink: 0; }
+        .pad { background: #333; border: none; color: #aaa; font-size: 0.6rem; font-weight: bold; border-radius: 3px; cursor: pointer; border-bottom: 2px solid #222; }
         .pad:active { transform: translateY(2px); border-bottom: none; }
         .pad.has-cue { background: var(--accent-dim); color: #fff; border-bottom: 2px solid var(--accent); }
         .pad.set-mode { background: #500; color: #fff; animation: pulseSlow 1s infinite; }
 
-        .transport { display: flex; gap: 8px; height: 40px; flex-shrink: 0; }
+        .transport { display: flex; gap: 5px; height: 35px; flex-shrink: 0; }
         .btn-transport { flex: 1; background: #333; color: #fff; border: none; border-radius: 4px; font-weight: 900; font-size: 0.8rem; cursor: pointer; border-bottom: 3px solid #111; }
         .btn-play.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); color: #000;}
 
-        /* FIXED PITCH SLIDER */
-        .pitch-container { background: #111; padding: 5px; border-radius: 4px; border: 1px solid #333; display: flex; align-items: center; justify-content: center; height: 40px; gap: 5px; flex-shrink: 0; z-index: 50; position: relative; margin-top: auto; }
+        /* FIXED PITCH SLIDER - FORCED VISIBILITY */
+        .pitch-container { 
+            background: #222; /* Lighter bg to spot it */
+            padding: 5px; 
+            border-radius: 4px; 
+            border: 1px solid #555; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            height: 35px; 
+            gap: 5px; 
+            flex-shrink: 0; 
+            z-index: 50; 
+            margin-top: auto; /* Push to absolute bottom of flex container */
+        }
         .pitch-slider { flex: 1; -webkit-appearance: none; background: transparent; }
-        .pitch-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 25px; width: 40px; background: #555; margin-top: -10px; border-radius: 2px; border: 1px solid #888; cursor: ns-resize; }
-        .pitch-reset-btn { width: 35px; height: 35px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+        .pitch-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 30px; background: #666; margin-top: -8px; border-radius: 2px; border: 1px solid #999; cursor: ns-resize; }
+        .pitch-reset-btn { width: 30px; height: 100%; background: #333; border: 1px solid #555; color: #fff; border-radius: 3px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
 
-        .mixer { width: 100px; background: #1a1a1a; padding: 10px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .mixer { width: 80px; background: #1a1a1a; padding: 5px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; justify-content: space-between; flex-shrink: 0; }
 
         /* CRATE */
-        .crate-section { width: 100%; flex: 1; min-height: 160px; background: #111; border: 1px solid #333; border-radius: 8px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 20; box-shadow: 0 -5px 15px rgba(0,0,0,0.5); }
-        .crate-header { display: flex; gap: 10px; margin-bottom: 10px; position: relative; z-index: 21; }
-        .crate-input { background: #000; border: 1px solid #444; color: #fff; padding: 5px; flex: 1; }
-        .crate-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; background: #000; padding: 5px; border: 1px solid #333; }
-        .crate-item { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 6px 10px; border-radius: 4px; border: 1px solid #333; transition: all 0.2s; }
+        .crate-section { width: 100%; flex: 1; min-height: 150px; background: #111; border: 1px solid #333; border-radius: 8px; padding: 5px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 20; box-shadow: 0 -5px 15px rgba(0,0,0,0.5); }
+        .crate-header { display: flex; gap: 5px; margin-bottom: 5px; position: relative; z-index: 21; }
+        .crate-input { background: #000; border: 1px solid #444; color: #fff; padding: 5px; flex: 1; font-size: 0.8rem; }
+        .crate-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; background: #000; padding: 5px; border: 1px solid #333; }
+        .crate-item { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 5px 8px; border-radius: 4px; border: 1px solid #333; transition: all 0.2s; }
         .item-name { color: #fff; font-size: 0.8rem; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-right: 10px; }
-        
-        .vote-badge { background: var(--vote-color); color: #000; font-size: 0.8rem; font-weight: 900; padding: 2px 6px; border-radius: 3px; margin-right: 8px; display: none; border: 1px solid #fff; }
+        .vote-badge { background: var(--vote-color); color: #000; font-size: 0.7rem; font-weight: 900; padding: 2px 6px; border-radius: 3px; margin-right: 8px; display: none; border: 1px solid #fff; }
         .vote-badge.visible { display: inline-block; }
-
-        .load-btn { background: #333; color: #fff; border: 1px solid #555; font-size: 0.65rem; padding: 4px 8px; border-radius: 3px; cursor: pointer; }
+        .load-btn { background: #333; color: #fff; border: 1px solid #555; font-size: 0.65rem; padding: 3px 6px; border-radius: 3px; cursor: pointer; }
 
         /* MODALS */
         .modal { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index: 99999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
@@ -119,7 +133,7 @@
         #suggest-box { display: none; margin-bottom: 20px; background: #222; padding: 15px; border-radius: 8px; border: 1px solid #444; }
         .suggest-toggle { background: #333; color: #aaa; border: none; width: 100%; padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 10px; }
         
-        #automix-status { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: var(--automix-on); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: none; z-index: 100; box-shadow: 0 0 10px var(--automix-on); }
+        #automix-status { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: var(--automix-on); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: none; z-index: 100; box-shadow: 0 0 10px var(--automix-on); white-space:nowrap; }
 
         #video-layer { position: absolute; top: -9999px; }
     </style>
@@ -131,7 +145,7 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v35 FIXED</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v36 COMPACT</span></h1>
             <div class="top-btn-group">
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
                 <button id="rec-btn" class="top-btn rec-btn" onclick="toggleRecord()">🔴 REC</button>
@@ -315,7 +329,7 @@
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v35';
+        const AUTO_SAVE_KEY = 'tiu_v36';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
@@ -326,6 +340,7 @@
         var mediaRecorder, audioChunks = [], isRecording = false;
         var lastError = "None";
         var peer, conn, myPeerId, isHost = true;
+        var autoMixRetryCount = 0;
 
         window.addEventListener('resize', resizeApp);
         window.addEventListener('load', () => { resizeApp(); loadAutoSave(); renderSessionList(); checkP2PMode(); });
@@ -336,7 +351,7 @@
         document.head.appendChild(tag);
         window.onYouTubeIframeAPIReady = function() { 
             createP('A'); setTimeout(() => createP('B'), 500); 
-            setInterval(loopCheck, 200); 
+            setInterval(loopCheck, 150); 
         };
         function createP(d) {
             try {
@@ -351,14 +366,17 @@
                         },
                         'onError': (e)=> { 
                             lastError = `YT Error Deck ${d}: ${e.data}`;
-                            if(isMixing) { console.log("Skipping bad track..."); triggerAutoMix(d==='A'?'B':'A'); }
+                            if(isMixing) { 
+                                document.getElementById('automix-status').innerText = "❌ ERROR: SKIPPING...";
+                                setTimeout(() => triggerAutoMix(d==='A'?'B':'A'), 1000); 
+                            }
                         }
                     }
                 });
             } catch(e) { lastError = e.message; }
         }
 
-        // --- AUTOMIX LOGIC (FIXED v35) ---
+        // --- AUTOMIX LOGIC (AGGRESSIVE STARTER v36) ---
         function toggleAutoMix() { 
             autoMixEnabled = !autoMixEnabled; 
             document.getElementById('automix-btn').classList.toggle('automix-on');
@@ -390,36 +408,51 @@
         function triggerAutoMix(currD) {
             isMixing = true;
             const nextD = currD==='A'?'B':'A';
+            autoMixRetryCount = 0;
             
-            // PRIORITY QUEUE LOGIC: Check for Votes first
+            // Priority: Votes -> Next Sequential
             let nextTrack = crate.reduce((prev, curr) => (curr.votes || 0) > (prev.votes || 0) ? curr : prev, crate[0]);
             
-            // If top vote is already playing, pick random or next sequential
+            // If top vote is current track, move to next
             const currID = loadedIDs[currD];
             if(nextTrack.id === currID) {
-                // Find next index
                 const currIdx = crate.findIndex(t => t.id === currID);
                 let nextIdx = (currIdx >= 0 && currIdx < crate.length-1) ? currIdx + 1 : 0;
                 nextTrack = crate[nextIdx];
             }
 
-            // Find index of chosen track
             const nextIdx = crate.findIndex(t => t.id === nextTrack.id);
-            
-            document.getElementById('automix-status').innerText = `🤖 LOADING NEXT: ${nextTrack.name}`;
+            document.getElementById('automix-status').innerText = `🤖 LOADING: ${nextTrack.name}`;
             load(nextD, nextIdx);
             
-            // FORCE START AND FADE (Removed dependency on onStateChange)
-            setTimeout(() => {
-                if(ready[nextD]) {
-                    players[nextD].playVideo(); 
+            // AGGRESSIVE PLAY CHECKER
+            const playCheckIntv = setInterval(() => {
+                if(!ready[nextD]) return; // Wait for player ready
+                
+                const state = players[nextD].getPlayerState();
+                if(state === 1) {
+                    // It's playing! Start Fade
+                    clearInterval(playCheckIntv);
                     sync(nextD);
-                    document.getElementById('automix-status').innerText = `🤖 MIXING...`;
-                    doCrossfade(currD, nextD); 
+                    document.getElementById('automix-status').innerText = `🤖 FADING...`;
+                    doCrossfade(currD, nextD);
                 } else {
-                    isMixing = false; // Abort if fail
+                    // Not playing yet? SMASH THAT PLAY BUTTON
+                    console.log(`🤖 AutoMix: Force Play ${nextD} (Attempt ${autoMixRetryCount})`);
+                    players[nextD].playVideo();
+                    autoMixRetryCount++;
+                    
+                    if(autoMixRetryCount > 20) { // 5 seconds failure
+                        clearInterval(playCheckIntv);
+                        document.getElementById('automix-status').innerText = "❌ TIMEOUT: SKIPPING...";
+                        // Force skip to next track in crate to avoid stuck loop
+                        const skipIdx = (nextIdx + 1) % crate.length;
+                        load(nextD, skipIdx); // Try next song
+                        autoMixRetryCount = 0;
+                        setTimeout(() => triggerAutoMix(currD), 1000); // Retry logic
+                    }
                 }
-            }, 500); // 0.5s pre-buffer
+            }, 250); // Check every 250ms
         }
 
         function doCrossfade(fromD, toD) {
@@ -433,7 +466,6 @@
                     isMixing = false; 
                     normalizePitch(toD); 
                     document.getElementById('automix-status').innerText = "🤖 AUTOMIX STANDBY";
-                    // Reset votes for played track? Optional.
                 }
             }, 100);
         }
@@ -621,7 +653,7 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v35 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v36 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         function resizeApp() {
