@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v32 - Layout Fix</title>
+    <title>TIU Mixer Pro v33 - System Repair</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -23,20 +23,6 @@
             font-family: 'Roboto', 'Arial', sans-serif; 
             overflow: hidden; touch-action: none;
             height: 100vh; width: 100vw;
-        }
-
-        /* --- VISIBLE WATERMARK --- */
-        .watermark {
-            position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%) rotate(-30deg);
-            font-size: 15vw;
-            font-weight: 900;
-            color: rgba(255, 255, 255, 0.03); /* Faded further to prevent distraction */
-            pointer-events: none;
-            z-index: 0; /* Behind everything */
-            white-space: nowrap;
-            user-select: none;
         }
 
         /* --- LAYOUT WRAPPER --- */
@@ -72,7 +58,6 @@
             .mixer > div { width: 45% !important; height: 100% !important; }
             input[type=range].vertical-fader#master-vol { writing-mode: horizontal-tb; -webkit-appearance: slider-horizontal; width: 100%; }
             .crate-section { height: 400px; }
-            .watermark { font-size: 8rem; }
         }
 
         header { 
@@ -88,6 +73,7 @@
             transition: all 0.2s;
         }
         .top-btn:hover { background: #444; }
+        .top-btn.active-mode { background: var(--accent); color:#000; box-shadow: 0 0 10px var(--accent); }
         
         .sync-on { background: var(--bar-color); color: #000; border: 1px solid #fff; box-shadow: 0 0 8px var(--bar-color); }
         .automix-on { background: var(--automix-on); color: white; border: 1px solid white; box-shadow: 0 0 10px var(--automix-on); animation: pulseSlow 2s infinite; }
@@ -97,14 +83,16 @@
         @keyframes pulseFast { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         /* --- CONSOLE & DECKS --- */
-        .console { display: flex; gap: 10px; flex: 1; width: 100%; min-height: 0; margin-bottom: 10px; }
+        .console { display: flex; gap: 10px; flex: 1; width: 100%; min-height: 0; margin-bottom: 10px; overflow: hidden; }
         .deck {
             background: var(--deck-bg); flex: 1; padding: 10px; border-radius: 8px;
-            display: flex; flex-direction: column; gap: 8px; border: 1px solid #444; position: relative;
-            z-index: 5; /* Lower than crate */
+            display: flex; flex-direction: column; gap: 6px; border: 1px solid #444; position: relative;
+            justify-content: space-between; /* Helps distribute space */
         }
-        .deck-top { display: flex; gap: 10px; height: 140px; flex-shrink: 0; justify-content: space-between; align-items: center; }
-        .vinyl-wrapper { width: 130px; height: 130px; position: relative; }
+        
+        /* Compact deck top to save space for pitch slider */
+        .deck-top { display: flex; gap: 10px; height: 120px; flex-shrink: 0; justify-content: space-between; align-items: center; }
+        .vinyl-wrapper { width: 110px; height: 110px; position: relative; }
         .vinyl {
             width: 100%; height: 100%; background: #111; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
@@ -126,17 +114,17 @@
         .progress-container { width: 100%; height: 12px; background: #222; border-radius: 3px; overflow: hidden; border: 1px solid #444; position: relative; cursor: pointer; }
         .progress-fill { height: 100%; width: 0%; background: var(--bar-color); transition: width 0.1s linear; }
 
-        .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; height: 60px; flex-shrink: 0; }
+        .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; height: 50px; flex-shrink: 0; }
         .pad { background: #333; border: none; color: #aaa; font-size: 0.7rem; font-weight: bold; border-radius: 4px; cursor: pointer; border-bottom: 2px solid #222; }
         .pad:active { transform: translateY(2px); border-bottom: none; }
         .pad.has-cue { background: var(--accent-dim); color: #fff; border-bottom: 2px solid var(--accent); }
         .pad.set-mode { background: #500; color: #fff; animation: pulseSlow 1s infinite; }
 
-        .transport { display: flex; gap: 8px; height: 45px; flex-shrink: 0; }
+        .transport { display: flex; gap: 8px; height: 40px; flex-shrink: 0; }
         .btn-transport { flex: 1; background: #333; color: #fff; border: none; border-radius: 4px; font-weight: 900; font-size: 0.8rem; cursor: pointer; border-bottom: 3px solid #111; }
         .btn-play.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); color: #000;}
 
-        /* FIXED PITCH CONTAINER */
+        /* FIXED PITCH CONTAINER - ENFORCED VISIBILITY */
         .pitch-container { 
             background: #111; 
             padding: 8px;
@@ -145,11 +133,11 @@
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            height: 50px;
+            height: 40px; /* Specific height */
             gap: 5px; 
             flex-shrink: 0;
-            z-index: 10;
-            position: relative;
+            z-index: 50; /* Ensure it floats above accidental overlaps */
+            margin-top: auto; /* Push to bottom of deck */
         }
         .pitch-slider { flex: 1; -webkit-appearance: none; background: transparent; }
         .pitch-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 25px; width: 40px; background: #555; margin-top: -10px; border-radius: 2px; border: 1px solid #888; cursor: ns-resize; }
@@ -157,11 +145,10 @@
 
         .mixer { width: 100px; background: #1a1a1a; padding: 10px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; justify-content: space-between; flex-shrink: 0; }
 
-        /* --- CRATE SECTION (FIXED Z-INDEX) --- */
         .crate-section { 
             width: 100%; 
             flex: 1; 
-            min-height: 160px; /* Slight increase */
+            min-height: 160px;
             background: #111; 
             border: 1px solid #333; 
             border-radius: 8px; 
@@ -171,10 +158,9 @@
             flex-direction: column; 
             overflow: hidden; 
             position: relative; 
-            z-index: 20; /* FIXED: Higher than decks to prevent button blocking */
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.5); /* Visual separation */
+            z-index: 10;
         }
-        .crate-header { display: flex; gap: 10px; margin-bottom: 10px; position: relative; z-index: 21; }
+        .crate-header { display: flex; gap: 10px; margin-bottom: 10px; }
         .crate-input { background: #000; border: 1px solid #444; color: #fff; padding: 5px; flex: 1; }
         .crate-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; background: #000; padding: 5px; border: 1px solid #333; }
         .crate-item { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 6px 10px; border-radius: 4px; border: 1px solid #333; transition: all 0.2s; }
@@ -187,33 +173,31 @@
 
         /* --- MODALS --- */
         .modal { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index: 99999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .modal-box { width: 90%; max-width: 500px; background: #181818; border: 1px solid #444; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }
+        .modal-box { width: 90%; max-width: 500px; background: #181818; border: 1px solid #444; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         .key-row { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding: 8px 0; color: #bbb; font-size: 0.85rem; }
         .key-badge { background: #333; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: bold; border: 1px solid #555; }
         #bulk-textarea { width: 100%; height: 150px; background: #000; color: #fff; border: 1px solid #444; font-family: monospace; padding: 10px; box-sizing: border-box; }
+        #diag-textarea { width: 100%; height: 200px; background: #111; color: #00ff9d; border: 1px solid #333; font-family: monospace; padding: 10px; font-size:0.7rem; white-space: pre; overflow: auto; }
+
+        /* Session List Styles */
+        .session-item { display:flex; justify-content:space-between; align-items:center; background:#222; padding:8px; margin-bottom:4px; border:1px solid #333; }
         
         /* VOTER INTERFACE (When accessed as Guest) */
         #voter-app { display: none; width: 100%; height: 100%; background: #000; color: #fff; flex-direction: column; padding: 20px; box-sizing: border-box; }
         .vote-btn { background: var(--vote-color); color: black; font-weight: bold; border: none; padding: 8px; border-radius: 4px; cursor: pointer; }
         
-        /* Suggestion Box */
-        #suggest-box { display: none; margin-bottom: 20px; background: #222; padding: 15px; border-radius: 8px; border: 1px solid #444; }
-        .suggest-toggle { background: #333; color: #aaa; border: none; width: 100%; padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 10px; }
-
         #video-layer { position: absolute; top: -9999px; }
 
     </style>
 </head>
 <body>
 
-    <div class="watermark">TIU</div>
-
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v32</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v33 REPAIR</span></h1>
             
             <div class="top-btn-group">
-                <button id="vote-btn" class="top-btn" onclick="openVoteModal()" style="color:var(--vote-color);">📶 VOTE</button>
+                <button class="top-btn" onclick="openDiag()">❓ HELP</button>
                 <button id="rec-btn" class="top-btn rec-btn" onclick="toggleRecord()">🔴 REC</button>
                 <button id="automix-btn" class="top-btn automix-btn" onclick="toggleAutoMix()">🤖 AUTOMIX</button>
                 <button class="top-btn" onclick="document.getElementById('keys-modal').style.display='flex'">⌨️ KEYS</button>
@@ -324,28 +308,38 @@
     <div id="voter-app">
         <h1 style="color:var(--vote-color)">VOTE FOR NEXT TRACK</h1>
         <button class="suggest-toggle" onclick="toggleSuggestBox()">➕ Suggest a Song</button>
-        
-        <div id="suggest-box">
+        <div id="suggest-box" style="display:none; margin-bottom:10px;">
             <input type="text" id="guest-url" class="crate-input" style="width:100%; margin-bottom:10px;" placeholder="Paste YouTube Link...">
             <button class="vote-btn" style="width:100%;" onclick="sendGuestSuggestion()">SEND REQUEST</button>
         </div>
-
-        <p style="color:#888;">Tap a track to vote!</p>
         <div id="voter-list" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px;"></div>
     </div>
 
-    <div id="vote-modal" class="modal">
-        <div class="modal-box" style="align-items:center;">
-            <h2 style="color:var(--vote-color)">P2P VOTING HOST</h2>
-            <div style="background:white; padding:10px; border-radius:4px;">
-                <img id="qr-code-img" src="" style="width:200px; height:200px;">
+    <div id="diag-modal" class="modal">
+        <div class="modal-box">
+            <h2>🔧 SYSTEM DIAGNOSTICS</h2>
+            <textarea id="diag-textarea" readonly></textarea>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="top-btn" onclick="generateDiag()">REFRESH</button>
+                <button class="top-btn" onclick="document.getElementById('diag-modal').style.display='none'">CLOSE</button>
             </div>
-            <p style="text-align:center; font-size:0.8rem; color:#aaa;">
-                Scan with phone to vote.<br>
-                (Requires file hosted on web or local network)
-            </p>
-            <p id="peer-status" style="color:#00ff9d; font-size:0.8rem;">Initializing P2P Network...</p>
-            <button class="top-btn" onclick="document.getElementById('vote-modal').style.display='none'">CLOSE</button>
+        </div>
+    </div>
+
+    <div id="memory-modal" class="modal">
+        <div class="modal-box">
+            <h2>💾 SESSIONS</h2>
+            <div style="display:flex; gap:5px; margin-bottom:10px;">
+                <input type="text" id="save-name" class="crate-input" placeholder="Session Name">
+                <button class="top-btn accent" onclick="saveToSlot()">SAVE</button>
+            </div>
+            <div id="session-list" style="max-height:150px; overflow-y:auto; background:#000; border:1px solid #333; margin-bottom:10px;"></div>
+            <div style="display:flex; justify-content:space-between;">
+                <button class="top-btn" onclick="document.getElementById('import-file').click()">📂 IMPORT FILE</button>
+                <input type="file" id="import-file" style="display:none;" onchange="importSession(this)">
+                <button class="top-btn" onclick="exportSession()">EXPORT JSON</button>
+            </div>
+            <button class="top-btn" style="margin-top:10px; float:right;" onclick="document.getElementById('memory-modal').style.display='none'">CLOSE</button>
         </div>
     </div>
 
@@ -353,17 +347,8 @@
         <div class="modal-box">
             <h2>⌨️ SHORTCUTS</h2>
             <div style="display:flex; gap:20px;">
-                <div style="flex:1;">
-                    <div class="key-row"><span>Play Deck A</span> <span class="key-badge">S</span></div>
-                    <div class="key-row"><span>Cue Deck A</span> <span class="key-badge">A</span></div>
-                </div>
-                <div style="flex:1;">
-                    <div class="key-row"><span>Play Deck B</span> <span class="key-badge">K</span></div>
-                    <div class="key-row"><span>Cue Deck B</span> <span class="key-badge">L</span></div>
-                </div>
-            </div>
-            <div style="margin-top:15px; border-top:1px solid #444; padding-top:10px;">
-                <div class="key-row"><span>Crossfader</span> <span class="key-badge">⬅️ Arrows ➡️</span></div>
+                <div style="flex:1;"><div class="key-row"><span>Play A</span> <span class="key-badge">S</span></div></div>
+                <div style="flex:1;"><div class="key-row"><span>Play B</span> <span class="key-badge">K</span></div></div>
             </div>
             <button class="top-btn" style="margin-top:20px; float:right;" onclick="document.getElementById('keys-modal').style.display='none'">CLOSE</button>
         </div>
@@ -380,30 +365,10 @@
         </div>
     </div>
 
-    <div id="memory-modal" class="modal">
-        <div class="modal-box">
-            <h2>💾 SESSIONS</h2>
-            <div style="display:flex; gap:5px; margin-bottom:10px;">
-                <input type="text" id="save-name" class="crate-input" placeholder="Name">
-                <button class="top-btn accent" onclick="saveToSlot()">SAVE</button>
-            </div>
-            <div id="session-list" style="max-height:150px; overflow-y:auto; background:#000; border:1px solid #333;"></div>
-            
-            <div style="border-top:1px solid #333; margin-top:10px; padding-top:10px; display:flex; justify-content:space-between;">
-                <button class="top-btn" onclick="document.getElementById('import-file').click()">📂 IMPORT FILE</button>
-                <input type="file" id="import-file" style="display:none;" onchange="importSession(this)">
-                
-                <button class="top-btn" onclick="exportSession()">EXPORT</button>
-            </div>
-
-            <button class="top-btn" style="margin-top:10px; float:right;" onclick="document.getElementById('memory-modal').style.display='none'">CLOSE</button>
-        </div>
-    </div>
-
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v32';
+        const AUTO_SAVE_KEY = 'tiu_v33';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
@@ -412,101 +377,52 @@
         var crate = [];
         var smartSyncEnabled = true, autoMixEnabled = false, isMixing = false;
         var mediaRecorder, audioChunks = [], isRecording = false;
-        
-        var peer, conn, myPeerId, isHost = true;
+        var lastError = "None";
 
         window.addEventListener('resize', resizeApp);
-        window.addEventListener('load', () => { resizeApp(); loadAutoSave(); checkP2PMode(); });
+        window.addEventListener('load', () => { resizeApp(); loadAutoSave(); renderSessionList(); });
+        window.onerror = function(msg, url, line) { lastError = `${msg} line ${line}`; };
 
-        // --- P2P VOTING SYSTEM ---
-        function checkP2PMode() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const hostId = urlParams.get('host');
-            if (hostId) {
-                isHost = false;
-                document.getElementById('app-container').style.display = 'none';
-                document.getElementById('voter-app').style.display = 'flex';
-                document.querySelector('.watermark').style.display = 'none';
-                initGuest(hostId);
-            } else {
-                initHost();
-            }
-        }
-        function initHost() {
-            peer = new Peer();
-            peer.on('open', (id) => {
-                myPeerId = id;
-                document.getElementById('peer-status').innerText = "Network Ready. ID: " + id;
-                const url = window.location.href.split('?')[0] + '?host=' + id;
-                document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
-            });
-            peer.on('connection', (c) => {
-                c.on('open', () => { c.send({type:'crate', data:crate}); });
-                c.on('data', (data) => {
-                    if(data.type === 'vote') {
-                        const track = crate.find(t => t.id === data.id);
-                        if(track) { track.votes = (track.votes || 0) + 1; renderCrate(); }
-                    }
-                    // HANDLE GUEST REQUEST
-                    if(data.type === 'suggest') {
-                        addSingle(data.url, true); // true = isRequest
-                    }
-                });
-            });
-        }
-        function initGuest(hostId) {
-            peer = new Peer();
-            peer.on('open', () => {
-                conn = peer.connect(hostId);
-                conn.on('open', () => { console.log("Connected to Host"); });
-                conn.on('data', (data) => {
-                    if(data.type === 'crate') renderVoterList(data.data);
-                });
-            });
-        }
-        function renderVoterList(list) {
-            const el = document.getElementById('voter-list');
-            el.innerHTML = '';
-            list.forEach(t => {
-                const btn = document.createElement('div');
-                btn.style.cssText = "padding:15px; border-bottom:1px solid #333; cursor:pointer;";
-                btn.innerHTML = `<div style="font-weight:bold;">${t.name}</div><div style="font-size:0.8rem; color:#aaa;">${t.bpm || '--'} BPM</div>`;
-                btn.onclick = () => { conn.send({type:'vote', id:t.id}); alert("Voted for " + t.name); };
-                el.appendChild(btn);
-            });
-        }
-        function openVoteModal() { document.getElementById('vote-modal').style.display = 'flex'; }
-
-        // --- GUEST SUGGESTION LOGIC ---
-        function toggleSuggestBox() {
-            const box = document.getElementById('suggest-box');
-            box.style.display = box.style.display === 'block' ? 'none' : 'block';
-        }
-        function sendGuestSuggestion() {
-            const url = document.getElementById('guest-url').value;
-            if(!url) return alert("Enter a URL");
-            conn.send({type:'suggest', url: url});
-            alert("Request sent to DJ!");
-            document.getElementById('guest-url').value = '';
-            toggleSuggestBox();
+        // --- DIAGNOSTICS ---
+        function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
+        function generateDiag() {
+            const txt = `TIU SYSTEM REPORT v33\n---------------------\n` +
+            `UserAgent: ${navigator.userAgent}\n` +
+            `Screen: ${window.innerWidth}x${window.innerHeight}\n` +
+            `Player A: ${ready.A ? 'READY' : 'NOT READY'} (ID: ${loadedIDs.A || 'None'})\n` +
+            `Player B: ${ready.B ? 'READY' : 'NOT READY'} (ID: ${loadedIDs.B || 'None'})\n` +
+            `Crate Size: ${crate.length}\n` +
+            `LocalStorage Keys: ${Object.keys(localStorage).length}\n` +
+            `Last Error: ${lastError}\n` +
+            `---------------------\n` +
+            `Dump: ${JSON.stringify(crate).substring(0, 100)}...`;
+            document.getElementById('diag-textarea').value = txt;
         }
 
         // --- YOUTUBE API ---
         var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
-        window.onYouTubeIframeAPIReady = function() { createP('A'); createP('B'); setInterval(loopCheck, 100); };
+        window.onYouTubeIframeAPIReady = function() { 
+            createP('A'); 
+            // Delay B slightly to prevent race condition
+            setTimeout(() => createP('B'), 500); 
+            setInterval(loopCheck, 100); 
+        };
         function createP(d) {
-            players[d] = new YT.Player('player-'+d.toLowerCase(), {
-                height:'100%', width:'100%', playerVars:{'playsinline':1,'controls':0},
-                events: {
-                    'onReady':()=>{ready[d]=true; updateVol();},
-                    'onStateChange':(e)=>{
-                         const v = document.getElementById(`vinyl-${d.toLowerCase()}`);
-                         e.data===1 ? v.classList.add('spinning','active') : v.classList.remove('spinning','active');
-                         e.data===1 ? v.classList.remove('paused') : v.classList.add('paused');
+            try {
+                players[d] = new YT.Player('player-'+d.toLowerCase(), {
+                    height:'100%', width:'100%', playerVars:{'playsinline':1,'controls':0},
+                    events: {
+                        'onReady':()=>{ ready[d]=true; updateVol(); console.log(`Deck ${d} Ready`); },
+                        'onStateChange':(e)=>{
+                             const v = document.getElementById(`vinyl-${d.toLowerCase()}`);
+                             e.data===1 ? v.classList.add('spinning','active') : v.classList.remove('spinning','active');
+                             e.data===1 ? v.classList.remove('paused') : v.classList.add('paused');
+                        },
+                        'onError': (e)=> { lastError = `YT Error Deck ${d}: ${e.data}`; }
                     }
-                }
-            });
+                });
+            } catch(e) { lastError = e.message; }
         }
 
         // --- DJ LOGIC ---
@@ -540,6 +456,8 @@
                         document.getElementById(`prog-${d.toLowerCase()}`).style.width = ((t/dur)*100)+'%';
                         const m=Math.floor(t/60).toString().padStart(2,'0'), s=Math.floor(t%60).toString().padStart(2,'0');
                         document.getElementById(`time-${d.toLowerCase()}`).innerText = `${m}:${s}`;
+                        
+                        // AUTOMIX LOGIC
                         if(autoMixEnabled && !isMixing && players[d].getPlayerState()===1) {
                             const cf = parseInt(document.getElementById('crossfader').value);
                             const active = (d==='A' && cf<50) || (d==='B' && cf>50);
@@ -556,8 +474,21 @@
             const currID = loadedIDs[currD];
             const currIdx = crate.findIndex(t => t.id === currID);
             let nextIdx = (currIdx >= 0 && currIdx < crate.length-1) ? currIdx + 1 : 0;
+            
+            // Auto Load next
             load(nextD, nextIdx);
-            setTimeout(() => { sync(nextD); players[nextD].playVideo(); doCrossfade(currD, nextD); }, 2000);
+            
+            // Force play after short delay to ensure load
+            setTimeout(() => { 
+                if(ready[nextD]) {
+                    players[nextD].playVideo();
+                    sync(nextD);
+                    doCrossfade(currD, nextD); 
+                } else {
+                    console.log("Automix aborted: Player not ready");
+                    isMixing = false;
+                }
+            }, 2000);
         }
         function doCrossfade(fromD, toD) {
             let cf = document.getElementById('crossfader');
@@ -570,6 +501,8 @@
         }
 
         function generateAutoBpm(id) { let h=0; for(let i=0;i<id.length;i++) h=id.charCodeAt(i)+((h<<5)-h); return Math.abs(h%65)+75; }
+        
+        // --- CRATE & LOAD ---
         function processBulk() {
             document.getElementById('bulk-textarea').value.split('\n').forEach(l => {
                 const m = l.match(/(?:v=|youtu\.be\/|\/)([a-zA-Z0-9_-]{11})/);
@@ -580,43 +513,27 @@
             });
             renderCrate(); document.getElementById('bulk-modal').style.display='none';
         }
-        
-        // MODIFIED ADDSINGLE FOR REQUESTS
-        function addSingle(urlOverride, isRequest) {
-            const url = urlOverride || document.getElementById('crate-url').value;
+        function addSingle() {
+            const url = document.getElementById('crate-url').value;
             const m = url.match(/(?:v=|youtu\.be\/|\/)([a-zA-Z0-9_-]{11})/);
             if(m) {
                 const id = m[1];
-                if(crate.some(t=>t.id===id)) return !isRequest && alert("Track already in crate!");
-                const prefix = isRequest ? "(REQUEST) " : "";
-                crate.push({id:id, name:`${prefix}Track ${id}`, bpm:generateAutoBpm(id), votes:0});
-                fetchTitle(id, id, isRequest);
-                renderCrate(); saveAuto();
-                if(!isRequest) document.getElementById('crate-url').value = '';
+                if(crate.some(t=>t.id===id)) return alert("Already in crate");
+                crate.push({id:id, name:`Track ${id}`, bpm:generateAutoBpm(id), votes:0});
+                fetchTitle(id, id);
+                renderCrate(); document.getElementById('crate-url').value = '';
             }
         }
-        
-        function fetchTitle(id, lookupId, isRequest) {
+        function fetchTitle(id, lookupId) {
             fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`)
-            .then(r=>r.json()).then(d=>{ 
-                if(d.title){ 
-                    const t = crate.find(x => x.id === lookupId); 
-                    if(t) { 
-                        const prefix = isRequest ? "(REQUEST) " : "";
-                        t.name = prefix + d.title; 
-                        renderCrate(); saveAuto(); 
-                    } 
-                } 
-            }).catch(e=>{});
+            .then(r=>r.json()).then(d=>{ if(d.title){ const t=crate.find(x=>x.id===lookupId); if(t){t.name=d.title; renderCrate();} } });
         }
-
         function renderCrate() {
             const l = document.getElementById('crate-list'); l.innerHTML='';
             crate.forEach((t,i) => {
                 const d=document.createElement('div'); d.className='crate-item';
-                const vBadge = t.votes > 0 ? `<span class="vote-badge visible">★ ${t.votes}</span>` : '';
-                d.innerHTML=`<span class="item-name">${vBadge}${t.name}</span>
-                <div style="display:flex; gap:5px; align-items:center; font-size:0.7rem; color:#888;">${t.bpm} BPM 
+                d.innerHTML=`<span class="item-name">${t.name}</span>
+                <div style="font-size:0.7rem; display:flex; gap:5px;">
                 <button class="load-btn" onclick="load('A',${i})">A</button><button class="load-btn" onclick="load('B',${i})">B</button>
                 <button class="load-btn" style="color:#d32f2f;" onclick="remove(${i})">X</button></div>`;
                 l.appendChild(d);
@@ -624,18 +541,80 @@
             saveAuto();
         }
         function load(d,i) {
-            const t=crate[i]; if(!t) return; loadedIDs[d]=t.id;
+            const t=crate[i]; if(!t) return;
+            loadedIDs[d]=t.id;
             if(ready[d]) {
                 players[d].loadVideoById(t.id);
                 document.getElementById('title-'+d.toLowerCase()).innerText=t.name;
                 tapData[d].bpm = t.bpm;
                 document.getElementById('bpm-'+d.toLowerCase()).innerText=t.bpm;
                 resetPitch(d);
+            } else {
+                alert(`Player ${d} not ready! Check Diagnostics.`);
             }
         }
         function remove(i){ crate.splice(i,1); renderCrate(); }
         function shuffleCrate(){ for(let i=crate.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[crate[i],crate[j]]=[crate[j],crate[i]];} renderCrate(); }
+
+        // --- SESSION MANAGEMENT (FIXED) ---
+        function saveToSlot(){
+            const name = document.getElementById('save-name').value;
+            if(!name) return alert("Please enter a name");
+            localStorage.setItem('tiu_s_'+name, JSON.stringify(crate));
+            renderSessionList();
+            alert("Session Saved!");
+        }
+        function renderSessionList() {
+            const l = document.getElementById('session-list'); l.innerHTML = '';
+            for(let i=0; i<localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if(k.startsWith('tiu_s_')) {
+                    const n = k.replace('tiu_s_', '');
+                    const d = document.createElement('div'); d.className='session-item';
+                    d.innerHTML = `<span style="color:#fff;">${n}</span><div><button class="load-btn" onclick="loadSess('${n}')">LOAD</button>
+                    <button class="load-btn" style="color:red;" onclick="delSess('${n}')">X</button></div>`;
+                    l.appendChild(d);
+                }
+            }
+        }
+        function loadSess(n) { crate = JSON.parse(localStorage.getItem('tiu_s_'+n)); renderCrate(); document.getElementById('memory-modal').style.display='none'; }
+        function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
+        function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         
+        function saveAuto(){ localStorage.setItem(AUTO_SAVE_KEY,JSON.stringify(crate)); }
+        function loadAutoSave(){ const d=localStorage.getItem(AUTO_SAVE_KEY); if(d) {crate=JSON.parse(d); renderCrate();} }
+        function importSession(input) {
+            const f = input.files[0]; if(!f) return;
+            const r = new FileReader();
+            r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } };
+            r.readAsText(f);
+        }
+        function exportSession() {
+            const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate));
+            a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove();
+        }
+
+        // --- UTILS ---
+        function resizeApp() {
+            const c=document.getElementById('app-container');
+            if(window.innerWidth>window.innerHeight){
+                const s=Math.min(window.innerWidth/1024, window.innerHeight/768)*0.98;
+                c.style.transform=`scale(${s})`; c.style.transformOrigin='center top';
+                c.style.width='1024px'; c.style.height='768px'; c.style.marginTop='10px'; document.body.style.overflow='hidden';
+            } else {
+                c.style.transform='none'; c.style.width='100%'; c.style.height='auto'; c.style.marginTop='0'; document.body.style.overflowY='auto';
+            }
+        }
+        function tap(d) {
+            const n=Date.now(); if(n-tapData[d].last>2000)tapData[d].count=0;
+            tapData[d].last=n; tapData[d].count++;
+            if(tapData[d].count>3) { tapData[d].bpm=Math.floor(60000/((n-(n-1000))/4)); document.getElementById('bpm-'+d.toLowerCase()).innerText=tapData[d].bpm; }
+        }
+        function hotCue(d,n){ if(cues[d].set){cues[d][n]=players[d].getCurrentTime(); toggleSet(d);} else if(cues[d][n]){players[d].seekTo(cues[d][n],true); players[d].playVideo();} }
+        function toggleSet(d){cues[d].set=!cues[d].set; document.getElementById('set-'+d.toLowerCase()).classList.toggle('set-mode');}
+        function loopIn(d){loops[d].in=players[d].getCurrentTime();}
+        function loopOut(d){loops[d].out=players[d].getCurrentTime(); loops[d].active=true; document.getElementById('loop-exit-'+d.toLowerCase()).classList.add('loop-active');}
+        function loopExit(d){loops[d].active=false; document.getElementById('loop-exit-'+d.toLowerCase()).classList.remove('loop-active');}
         function toggleSyncMode() { smartSyncEnabled=!smartSyncEnabled; document.getElementById('sync-mode-btn').classList.toggle('sync-on'); }
         function sync(t) {
             const s=t==='A'?'B':'A'; 
@@ -662,52 +641,15 @@
                 } catch(e){ alert("Recording failed/cancelled"); }
             } else { mediaRecorder.stop(); }
         }
-
-        function resizeApp() {
-            const c=document.getElementById('app-container');
-            if(window.innerWidth>window.innerHeight){
-                const s=Math.min(window.innerWidth/1024, window.innerHeight/768)*0.98;
-                c.style.transform=`scale(${s})`; c.style.transformOrigin='center top';
-                c.style.width='1024px'; c.style.height='768px'; c.style.marginTop='10px'; document.body.style.overflow='hidden';
-            } else {
-                c.style.transform='none'; c.style.width='100%'; c.style.height='auto'; c.style.marginTop='0'; document.body.style.overflowY='auto';
-            }
-        }
-        function saveAuto(){ localStorage.setItem(AUTO_SAVE_KEY,JSON.stringify(crate)); }
-        function loadAutoSave(){ const d=localStorage.getItem(AUTO_SAVE_KEY); if(d) {crate=JSON.parse(d); renderCrate();} }
-        function tap(d) {
-            const n=Date.now(); if(n-tapData[d].last>2000)tapData[d].count=0;
-            tapData[d].last=n; tapData[d].count++;
-            if(tapData[d].count>3) { tapData[d].bpm=Math.floor(60000/((n-(n-1000))/4)); document.getElementById('bpm-'+d.toLowerCase()).innerText=tapData[d].bpm; }
-        }
-        function hotCue(d,n){ if(cues[d].set){cues[d][n]=players[d].getCurrentTime(); toggleSet(d);} else if(cues[d][n]){players[d].seekTo(cues[d][n],true); players[d].playVideo();} }
-        function toggleSet(d){cues[d].set=!cues[d].set; document.getElementById('set-'+d.toLowerCase()).classList.toggle('set-mode');}
-        function loopIn(d){loops[d].in=players[d].getCurrentTime();}
-        function loopOut(d){loops[d].out=players[d].getCurrentTime(); loops[d].active=true; document.getElementById('loop-exit-'+d.toLowerCase()).classList.add('loop-active');}
-        function loopExit(d){loops[d].active=false; document.getElementById('loop-exit-'+d.toLowerCase()).classList.remove('loop-active');}
         
-        function saveToSlot(){localStorage.setItem('tiu_s_'+document.getElementById('save-name').value,JSON.stringify(crate));}
-        function openMemory(){document.getElementById('memory-modal').style.display='flex';}
-        function exportSession() {
-            const a = document.createElement('a');
-            a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate));
-            a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove();
-        }
-        function importSession(input) {
-            const f = input.files[0]; if(!f) return;
-            const r = new FileReader();
-            r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); closeMemory(); } catch(err){ alert("Invalid file"); } };
-            r.readAsText(f);
-        }
-
         document.addEventListener('keydown',e=>{
             if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
             const k=e.key.toLowerCase();
             if(k==='s') playToggle('A'); if(k==='a') cue('A');
             if(k==='k') playToggle('B'); if(k==='l') cue('B');
-            if(k==='arrowleft') changeCrossfader(-5); if(k==='arrowright') changeCrossfader(5);
+            if(k==='arrowleft') { const c=document.getElementById('crossfader'); c.value=parseInt(c.value)-5; updateVol(); }
+            if(k==='arrowright') { const c=document.getElementById('crossfader'); c.value=parseInt(c.value)+5; updateVol(); }
         });
-        function changeCrossfader(d){ const c=document.getElementById('crossfader'); c.value=parseInt(c.value)+d; updateVol(); }
     </script>
 </body>
 </html>
