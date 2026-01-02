@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v40 - Support Edition</title>
+    <title>TIU Mixer Pro v41 - Adaptive Sync</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -145,7 +145,6 @@
         #suggest-box { display: none; margin-bottom: 20px; background: #222; padding: 15px; border-radius: 8px; border: 1px solid #444; }
         .suggest-toggle { background: #333; color: #aaa; border: none; width: 100%; padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 10px; }
         
-        /* CASH APP BUTTON STYLE */
         .cash-btn { background: var(--cash-app); color: white; border: none; font-weight: bold; padding: 10px; border-radius: 4px; cursor: pointer; text-decoration: none; text-align: center; display: block; margin-top: 10px; }
         .cash-btn:hover { opacity: 0.9; }
 
@@ -167,7 +166,7 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v40 SUPPORT</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v41 ADAPTIVE</span></h1>
             <div class="top-btn-group">
                 <button class="top-btn" onclick="openSupport()">☕ DONATE</button>
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
@@ -362,7 +361,7 @@
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v40';
+        const AUTO_SAVE_KEY = 'tiu_v41';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
@@ -643,13 +642,36 @@
         }
         function updatePitch(d) { if(ready[d]) players[d].setPlaybackRate(parseFloat(document.getElementById('pitch-'+d.toLowerCase()).value)); }
         function resetPitch(d) { document.getElementById('pitch-'+d.toLowerCase()).value = 1; updatePitch(d); }
+        
+        // --- NEW ADAPTIVE NORMALIZE (v41) ---
         function normalizePitch(d) {
             const slider = document.getElementById('pitch-'+d.toLowerCase());
-            let current = parseFloat(slider.value);
-            const step = (1.0 - current) / 100; 
-            let count = 0;
-            const intv = setInterval(() => { current += step; slider.value = current; updatePitch(d); count++; if(count >= 100) clearInterval(intv); }, 100);
+            let startVal = parseFloat(slider.value);
+            const diff = Math.abs(1.0 - startVal);
+            
+            // Logic: Large diff = Faster time (to fix chipmunk voice)
+            // Diff 0.00 (0%): 100 steps (10s) - smooth
+            // Diff 0.30 (30%): 30 steps (3s) - fast
+            let totalSteps = Math.floor(100 - (diff * 200));
+            if(totalSteps < 30) totalSteps = 30; // Min 3 sec
+            if(totalSteps > 100) totalSteps = 100; // Max 10 sec
+
+            const stepSize = (1.0 - startVal) / totalSteps;
+            let currentStep = 0;
+
+            const intv = setInterval(() => {
+                startVal += stepSize;
+                slider.value = startVal;
+                updatePitch(d);
+                currentStep++;
+                if(currentStep >= totalSteps) {
+                    clearInterval(intv);
+                    slider.value = 1;
+                    updatePitch(d);
+                }
+            }, 100);
         }
+
         function tap(d) {
             const n=Date.now(); if(n-tapData[d].last>2000)tapData[d].count=0;
             tapData[d].last=n; tapData[d].count++;
@@ -706,7 +728,7 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v40 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v41 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         function resizeApp() {
