@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v62 - Top & Vote</title>
+    <title>TIU Mixer Pro v63 - Pro Audio</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -46,7 +46,7 @@
         /* --- MAIN LAYOUT --- */
         #app-layout {
             display: flex; flex-direction: column;
-            width: 1280px; height: 720px; /* Fixed Widescreen Ratio */
+            width: 1280px; height: 720px; 
             padding: 10px; gap: 10px;
             background: rgba(20,20,20,0.9); 
             backdrop-filter: blur(10px);
@@ -74,9 +74,9 @@
         /* --- CONSOLE GRID --- */
         .console-grid {
             display: grid;
-            grid-template-columns: 1fr 340px 1fr; /* Wider middle for QR */
+            grid-template-columns: 1fr 340px 1fr; 
             gap: 10px;
-            height: 480px; /* Fixed height for controls */
+            height: 480px; 
             flex-shrink: 0;
         }
 
@@ -95,15 +95,15 @@
             margin-bottom: 10px; display: flex; flex-direction: column; gap: 4px;
         }
         .track-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem; color: #fff; text-align: center; }
-        .track-meta { display: flex; justify-content: space-between; font-size: 0.75rem; }
+        .track-meta { display: flex; justify-content: space-between; font-size: 0.75rem; align-items: center; }
+        .bpm-editor { display: flex; gap: 5px; align-items: center; }
+        .bpm-btn { width: 15px; height: 15px; background: #333; color: #fff; font-size: 0.6rem; border-radius: 2px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .progress-bar-bg { height: 8px; background: #222; width: 100%; border-radius: 3px; overflow: hidden; margin-top: 2px; cursor: pointer; }
         .progress-fill { height: 100%; width: 0%; background: var(--accent-main); transition: width 0.1s linear; }
 
-        /* --- DIGITAL KNOB STYLING --- */
+        /* --- DIGITAL KNOBS --- */
         .controls-row { display: flex; justify-content: space-between; align-items: center; flex: 1; gap: 10px; }
-        
         .knob-column { display: flex; flex-direction: column; gap: 10px; align-items: center; width: 60px; }
-        
         .digital-knob {
             width: 50px; height: 50px;
             background: #222; border-radius: 50%; border: 2px solid #444;
@@ -151,11 +151,13 @@
         .deck-b-accent .btn-play.active { background: var(--accent-b); color: white; box-shadow: 0 0 15px var(--accent-b); }
         .btn-cue:active, .btn-play:active { border-bottom: 0; transform: translateY(3px); }
 
+        /* PITCH CONTROLS */
         .pitch-wrap { display: flex; align-items: center; gap: 5px; margin-top: 10px; background: #111; padding: 5px; border-radius: 4px; }
-        .btn-reset { background: #333; color: #fff; font-size: 0.7rem; width: 30px; height: 20px; border-radius: 2px; }
+        .pitch-nudge { background: #333; color: #fff; font-size: 0.7rem; width: 25px; height: 20px; border-radius: 2px; font-weight: bold; cursor: pointer; }
+        .pitch-reset { background: #444; color: #fff; font-size: 0.6rem; width: 20px; height: 20px; border-radius: 2px; }
         input[type=range].h-slider { width: 100%; -webkit-appearance: none; background: transparent; }
-        input[type=range].h-slider::-webkit-slider-thumb { height: 16px; width: 12px; border-radius: 2px; background: #ccc; -webkit-appearance: none; margin-top: -6px; }
-        input[type=range].h-slider::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #333; }
+        input[type=range].h-slider::-webkit-slider-thumb { height: 16px; width: 12px; border-radius: 2px; background: #ccc; -webkit-appearance: none; margin-top: -6px; border: 1px solid #999; }
+        input[type=range].h-slider::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #333; border-radius: 2px; }
 
         /* --- MIXER PANEL --- */
         .mixer-panel { background: #111; border: 1px solid #333; border-radius: 8px; display: flex; flex-direction: column; padding: 10px; }
@@ -166,13 +168,11 @@
         .yt-frame { width: 100%; height: 100%; pointer-events: none; opacity: 0.8; }
         .monitor.active .yt-frame { opacity: 1; }
 
-        /* Center QR Code */
         #mixer-qr-box { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; border-radius: 4px; border: 1px solid #444; margin-bottom: 10px; min-height: 120px; }
         #mixer-qr-img { width: 90px; height: 90px; border: 3px solid white; background: white; }
 
         .mixer-controls { height: 80px; display: flex; align-items: flex-end; gap: 10px; }
         
-        /* Master Knob */
         .master-section { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 70px; }
         .master-knob { width: 60px; height: 60px; border-color: #666; }
         .master-knob .knob-value { color: #fff; font-size: 1.1rem; }
@@ -195,7 +195,6 @@
         .item-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-right: 10px; }
         .load-btn { font-size: 0.65rem; padding: 3px 8px; background: #333; color: #fff; border-radius: 3px; margin-left: 2px; }
         
-        /* NEW BUTTON STYLES FOR V62 */
         .top-btn-priority { background: var(--gold); color: #000; font-weight: 900; margin-right: 5px; }
         .top-btn-priority:hover { background: #ffbe42; }
         .vote-count { color: var(--gold); font-weight: bold; margin-right: 5px; text-shadow: 0 0 5px rgba(255, 165, 2, 0.5); }
@@ -232,7 +231,7 @@
     <div id="app-layout">
         
         <div class="top-bar">
-            <div class="brand">TIU MIXER <span class="version-badge">v62</span></div>
+            <div class="brand">TIU MIXER <span class="version-badge">v63</span></div>
             <div id="automix-status" style="display:none; color:var(--accent-main); font-weight:bold; font-size:0.9rem;">🤖 AUTOMIX ACTIVE</div>
             <div class="toolbar">
                 <button class="tool-btn" onclick="openModal('help-modal')">❓ HELP</button>
@@ -250,7 +249,12 @@
                     <div id="title-a" class="track-name">No Track Loaded</div>
                     <div class="track-meta">
                         <span id="time-a">00:00</span>
-                        <span>BPM: <span id="bpm-a" style="color:white">--</span></span>
+                        <div class="bpm-editor">
+                            BPM: <span id="bpm-a" style="color:white; margin-right:5px;">--</span>
+                            <button class="bpm-btn" onclick="adjBpm('A',-1)">-</button>
+                            <button class="bpm-btn" onclick="adjBpm('A',1)">+</button>
+                            <button class="bpm-btn" onclick="tap('A')">TAP</button>
+                        </div>
                     </div>
                     <div class="progress-bar-bg" onclick="seek('A', event)"><div id="prog-a" class="progress-fill"></div></div>
                 </div>
@@ -293,8 +297,10 @@
                 </div>
 
                 <div class="pitch-wrap">
-                    <button class="btn-reset" onclick="resetPitch('A')">R</button>
+                    <button class="pitch-reset" onclick="resetPitch('A')">R</button>
+                    <button class="pitch-nudge" onclick="nudgePitch('A', -0.005)">-</button>
                     <input type="range" class="h-slider" id="pitch-a" min="0.5" max="1.5" step="0.001" value="1" oninput="updatePitch('A')">
+                    <button class="pitch-nudge" onclick="nudgePitch('A', 0.005)">+</button>
                 </div>
             </div>
 
@@ -339,7 +345,12 @@
                     <div id="title-b" class="track-name">No Track Loaded</div>
                     <div class="track-meta">
                         <span id="time-b">00:00</span>
-                        <span>BPM: <span id="bpm-b" style="color:white">--</span></span>
+                        <div class="bpm-editor">
+                            BPM: <span id="bpm-b" style="color:white; margin-right:5px;">--</span>
+                            <button class="bpm-btn" onclick="adjBpm('B',-1)">-</button>
+                            <button class="bpm-btn" onclick="adjBpm('B',1)">+</button>
+                            <button class="bpm-btn" onclick="tap('B')">TAP</button>
+                        </div>
                     </div>
                     <div class="progress-bar-bg" onclick="seek('B', event)"><div id="prog-b" class="progress-fill"></div></div>
                 </div>
@@ -382,8 +393,10 @@
                 </div>
 
                 <div class="pitch-wrap">
-                    <button class="btn-reset" onclick="resetPitch('B')">R</button>
+                    <button class="pitch-reset" onclick="resetPitch('B')">R</button>
+                    <button class="pitch-nudge" onclick="nudgePitch('B', -0.005)">-</button>
                     <input type="range" class="h-slider" id="pitch-b" min="0.5" max="1.5" step="0.001" value="1" oninput="updatePitch('B')">
+                    <button class="pitch-nudge" onclick="nudgePitch('B', 0.005)">+</button>
                 </div>
             </div>
 
@@ -449,7 +462,7 @@
     </div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v62';
+        const AUTO_SAVE_KEY = 'tiu_v63';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var queuedTrack = { A: null, B: null }; 
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
@@ -511,7 +524,7 @@
                             btn.classList.remove('active');
                             mon.classList.remove('active');
                          }
-                         if(e.data===0 && autoMixEnabled) { /* Handled by loopCheck usually */ }
+                         if(e.data===0 && autoMixEnabled) { /* LoopCheck handles this */ }
                     },
                     'onError': (e)=> { 
                         showToast(`Error on Deck ${d}. Skipping...`);
@@ -559,7 +572,7 @@
             
             if(candidates.length === 0) { isMixing=false; return; }
             
-            // Priority: Votes -> List Order
+            // PRIORITY: VOTES -> LIST ORDER
             const nextTrackObj = candidates.reduce((prev, curr) => (curr.votes||0) > (prev.votes||0) ? curr : prev, candidates[0]);
 
             load(nextD, nextTrackObj.id);
@@ -620,8 +633,7 @@
         }
         function renderCrate() {
             const l = document.getElementById('crate-list'); l.innerHTML='';
-            // Sort by votes then index
-            const sorted = [...crate].sort((a,b) => (b.votes||0) - (a.votes||0));
+            const sorted = [...crate].sort((a,b) => (b.votes||0) - (a.votes||0)); // Auto-Sort
             
             sorted.forEach((t, i) => {
                 const d=document.createElement('div'); d.className='crate-item';
@@ -640,20 +652,13 @@
         }
         
         function moveTrackToTop(index) {
-            // Because our render loop is based on the SORTED list, we need to find the correct item in the REAL list.
-            // But since 'crate' is our source of truth, and 'renderCrate' sorts a COPY, the index passed here comes from the sorted view.
-            // To fix this simply, we will just give the track a MASSIVE vote count to jump it to the top.
-            // Or, we find the track object in the sorted array, then find it in the real array.
-            
-            // Strategy: Force Max Votes + 1
             const sorted = [...crate].sort((a,b) => (b.votes||0) - (a.votes||0));
             const track = sorted[index];
             if(track) {
-                // Remove from current pos in crate
                 const realIdx = crate.indexOf(track);
                 if(realIdx > -1) {
                     crate.splice(realIdx, 1);
-                    crate.unshift(track); // Put at physical top
+                    crate.unshift(track);
                     renderCrate();
                     showToast("Moved to TOP Priority!");
                 }
@@ -684,25 +689,40 @@
         function cue(d) { if(ready[d]) { players[d].pauseVideo(); players[d].seekTo(0); } }
         function seek(d,e) { if(ready[d]){ const r=e.currentTarget.getBoundingClientRect(); players[d].seekTo(players[d].getDuration()*((e.clientX-r.left)/r.width), true); } }
         
+        // --- NEW AUDIO ENGINE (Cosine Fade) ---
         function updateVol() {
-            const m=document.getElementById('master-vol').value/100, x=document.getElementById('crossfader').value;
+            const m=document.getElementById('master-vol').value/100, x=document.getElementById('crossfader').value/100;
             const ga=document.getElementById('gain-a').value/100, gb=document.getElementById('gain-b').value/100;
             const eqa=document.getElementById('eq-a').value/100, eqb=document.getElementById('eq-b').value/100;
             
-            // Update Digital Displays
+            // Equal Power Crossfade Formula
+            const gainA = Math.cos(x * 0.5 * Math.PI);
+            const gainB = Math.cos((1 - x) * 0.5 * Math.PI);
+
+            // Update Knobs
             document.getElementById('val-gain-a').innerText = Math.round(ga*100);
             document.getElementById('val-eq-a').innerText = Math.round(eqa*100);
             document.getElementById('val-gain-b').innerText = Math.round(gb*100);
             document.getElementById('val-eq-b').innerText = Math.round(eqb*100);
             document.getElementById('val-master').innerText = Math.round(m*100);
 
-            let xa=1, xb=1; if(x<50) xb=x/50; else xa=1-((x-50)/50);
-            if(ready.A) players.A.setVolume(ga*eqa*xa*m*100);
-            if(ready.B) players.B.setVolume(gb*eqb*xb*m*100);
+            if(ready.A) players.A.setVolume(gainA * ga * eqa * m * 100);
+            if(ready.B) players.B.setVolume(gainB * gb * eqb * m * 100);
         }
         
+        // --- PITCH ENGINE ---
         function updatePitch(d) { if(ready[d]) players[d].setPlaybackRate(parseFloat(document.getElementById('pitch-'+d.toLowerCase()).value)); }
         function resetPitch(d) { document.getElementById('pitch-'+d.toLowerCase()).value = 1; updatePitch(d); }
+        function nudgePitch(d, amt) {
+            const el = document.getElementById('pitch-'+d.toLowerCase());
+            let val = parseFloat(el.value) + amt;
+            el.value = val.toFixed(3);
+            updatePitch(d);
+        }
+        function adjBpm(d, amt) {
+            tapData[d].bpm += amt;
+            document.getElementById('bpm-'+d.toLowerCase()).innerText = tapData[d].bpm;
+        }
         
         function toggleSync() { smartSyncEnabled=!smartSyncEnabled; document.getElementById('btn-sync').classList.toggle('active'); }
         function sync(t) {
@@ -722,6 +742,11 @@
         function loopIn(d){ loops[d].in=players[d].getCurrentTime(); }
         function loopOut(d){ loops[d].out=players[d].getCurrentTime(); loops[d].active=true; document.getElementById('loop-exit-'+d.toLowerCase()).style.color = "var(--accent-main)"; }
         function loopExit(d){ loops[d].active=false; document.getElementById('loop-exit-'+d.toLowerCase()).style.color = "#888"; }
+        function tap(d) {
+            const n=Date.now(); if(n-tapData[d].last>2000)tapData[d].count=0;
+            tapData[d].last=n; tapData[d].count++;
+            if(tapData[d].count>3) { tapData[d].bpm=Math.floor(60000/((n-(n-1000))/4)); document.getElementById('bpm-'+d.toLowerCase()).innerText=tapData[d].bpm; }
+        }
 
         // --- MISC ---
         async function toggleRecord() {
@@ -793,7 +818,7 @@
                 c.on('data', (data) => {
                     if(data.type === 'vote') { 
                         const t=crate.find(x=>x.id===data.id); 
-                        if(t){t.votes=(t.votes||0)+1; renderCrate(); showToast(`Vote Received: ${t.name}`);} 
+                        if(t){t.votes=(t.votes||0)+1; sortCrateVotes(); showToast(`Vote: ${t.name}`);} 
                     }
                     if(data.type === 'suggest') addSingle(data.url);
                 });
@@ -808,7 +833,6 @@
         }
         function renderVoterList(list) {
             const el = document.getElementById('voter-list'); el.innerHTML = '';
-            // Sort voter list by popularity too
             const sorted = [...list].sort((a,b) => (b.votes||0) - (a.votes||0));
             sorted.forEach(t => {
                 const btn = document.createElement('div');
