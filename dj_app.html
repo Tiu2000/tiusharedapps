@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v61 - Complete</title>
+    <title>TIU Mixer Pro v62 - Top & Vote</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -99,7 +99,7 @@
         .progress-bar-bg { height: 8px; background: #222; width: 100%; border-radius: 3px; overflow: hidden; margin-top: 2px; cursor: pointer; }
         .progress-fill { height: 100%; width: 0%; background: var(--accent-main); transition: width 0.1s linear; }
 
-        /* --- DIGITAL KNOB STYLING (Restored) --- */
+        /* --- DIGITAL KNOB STYLING --- */
         .controls-row { display: flex; justify-content: space-between; align-items: center; flex: 1; gap: 10px; }
         
         .knob-column { display: flex; flex-direction: column; gap: 10px; align-items: center; width: 60px; }
@@ -166,7 +166,7 @@
         .yt-frame { width: 100%; height: 100%; pointer-events: none; opacity: 0.8; }
         .monitor.active .yt-frame { opacity: 1; }
 
-        /* Center QR Code (Restored) */
+        /* Center QR Code */
         #mixer-qr-box { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; border-radius: 4px; border: 1px solid #444; margin-bottom: 10px; min-height: 120px; }
         #mixer-qr-img { width: 90px; height: 90px; border: 3px solid white; background: white; }
 
@@ -195,6 +195,11 @@
         .item-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-right: 10px; }
         .load-btn { font-size: 0.65rem; padding: 3px 8px; background: #333; color: #fff; border-radius: 3px; margin-left: 2px; }
         
+        /* NEW BUTTON STYLES FOR V62 */
+        .top-btn-priority { background: var(--gold); color: #000; font-weight: 900; margin-right: 5px; }
+        .top-btn-priority:hover { background: #ffbe42; }
+        .vote-count { color: var(--gold); font-weight: bold; margin-right: 5px; text-shadow: 0 0 5px rgba(255, 165, 2, 0.5); }
+
         /* --- UTILS --- */
         .overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.9); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
         .modal-box { background: #181818; border: 1px solid #333; padding: 20px; border-radius: 10px; width: 90%; max-width: 500px; text-align: center; }
@@ -227,7 +232,7 @@
     <div id="app-layout">
         
         <div class="top-bar">
-            <div class="brand">TIU MIXER <span class="version-badge">v61</span></div>
+            <div class="brand">TIU MIXER <span class="version-badge">v62</span></div>
             <div id="automix-status" style="display:none; color:var(--accent-main); font-weight:bold; font-size:0.9rem;">🤖 AUTOMIX ACTIVE</div>
             <div class="toolbar">
                 <button class="tool-btn" onclick="openModal('help-modal')">❓ HELP</button>
@@ -438,13 +443,13 @@
         <button class="tool-btn" style="margin-bottom:10px; padding:15px;" onclick="document.getElementById('suggest-box').classList.toggle('hidden')">➕ Suggest Song</button>
         <div id="suggest-box" class="hidden" style="margin-bottom:20px; background:#222; padding:15px;">
             <input type="text" id="guest-url" class="crate-input" placeholder="Paste YouTube Link...">
-            <button class="tool-btn" style="width:100%; margin-top:10px;" onclick="sendGuestSuggestion()">SEND REQUEST</button>
+            <button class="vote-btn" style="width:100%; margin-top:10px;" onclick="sendGuestSuggestion()">SEND REQUEST</button>
         </div>
         <div id="voter-list" style="flex:1; overflow-y:auto;"></div>
     </div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v61';
+        const AUTO_SAVE_KEY = 'tiu_v62';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var queuedTrack = { A: null, B: null }; 
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
@@ -554,7 +559,7 @@
             
             if(candidates.length === 0) { isMixing=false; return; }
             
-            // Votes Priority
+            // Priority: Votes -> List Order
             const nextTrackObj = candidates.reduce((prev, curr) => (curr.votes||0) > (prev.votes||0) ? curr : prev, candidates[0]);
 
             load(nextD, nextTrackObj.id);
@@ -615,14 +620,16 @@
         }
         function renderCrate() {
             const l = document.getElementById('crate-list'); l.innerHTML='';
-            const sorted = [...crate].sort((a,b) => (b.votes||0) - (a.votes||0)); // Auto-Sort
+            // Sort by votes then index
+            const sorted = [...crate].sort((a,b) => (b.votes||0) - (a.votes||0));
             
-            sorted.forEach((t) => {
+            sorted.forEach((t, i) => {
                 const d=document.createElement('div'); d.className='crate-item';
-                const star = t.votes > 0 ? `<span style="color:gold; font-weight:900;">★ ${t.votes}</span> ` : '';
+                const star = t.votes > 0 ? `<span class="vote-count">★${t.votes}</span>` : '';
                 d.innerHTML=`
                 <div class="item-name">${star}${t.name}</div>
                 <div class="row-actions">
+                    <button class="load-btn top-btn-priority" onclick="moveTrackToTop(${i})">TOP</button>
                     <button class="load-btn" onclick="load('A','${t.id}')">A</button>
                     <button class="load-btn" onclick="load('B','${t.id}')">B</button>
                     <button class="load-btn" style="color:red" onclick="removeTrack('${t.id}')">X</button>
@@ -631,6 +638,28 @@
             });
             saveAuto();
         }
+        
+        function moveTrackToTop(index) {
+            // Because our render loop is based on the SORTED list, we need to find the correct item in the REAL list.
+            // But since 'crate' is our source of truth, and 'renderCrate' sorts a COPY, the index passed here comes from the sorted view.
+            // To fix this simply, we will just give the track a MASSIVE vote count to jump it to the top.
+            // Or, we find the track object in the sorted array, then find it in the real array.
+            
+            // Strategy: Force Max Votes + 1
+            const sorted = [...crate].sort((a,b) => (b.votes||0) - (a.votes||0));
+            const track = sorted[index];
+            if(track) {
+                // Remove from current pos in crate
+                const realIdx = crate.indexOf(track);
+                if(realIdx > -1) {
+                    crate.splice(realIdx, 1);
+                    crate.unshift(track); // Put at physical top
+                    renderCrate();
+                    showToast("Moved to TOP Priority!");
+                }
+            }
+        }
+
         function removeTrack(id) { const i = crate.findIndex(x=>x.id===id); if(i>-1) crate.splice(i,1); renderCrate(); }
         function shuffleCrate(){ for(let i=crate.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[crate[i],crate[j]]=[crate[j],crate[i]];} renderCrate(); }
         
@@ -764,7 +793,7 @@
                 c.on('data', (data) => {
                     if(data.type === 'vote') { 
                         const t=crate.find(x=>x.id===data.id); 
-                        if(t){t.votes=(t.votes||0)+1; renderCrate(); showToast(`Vote: ${t.name}`);} 
+                        if(t){t.votes=(t.votes||0)+1; renderCrate(); showToast(`Vote Received: ${t.name}`);} 
                     }
                     if(data.type === 'suggest') addSingle(data.url);
                 });
@@ -779,10 +808,12 @@
         }
         function renderVoterList(list) {
             const el = document.getElementById('voter-list'); el.innerHTML = '';
-            list.forEach(t => {
+            // Sort voter list by popularity too
+            const sorted = [...list].sort((a,b) => (b.votes||0) - (a.votes||0));
+            sorted.forEach(t => {
                 const btn = document.createElement('div');
                 btn.style.cssText = "padding:15px; border-bottom:1px solid #333; cursor:pointer;";
-                btn.innerHTML = `<div style="font-weight:bold;">${t.name}</div>`;
+                btn.innerHTML = `<div style="font-weight:bold;">${t.name} <span style="color:#ffaa00; float:right;">★ ${t.votes}</span></div>`;
                 btn.onclick = () => { conn.send({type:'vote', id:t.id}); alert("Voted!"); };
                 el.appendChild(btn);
             });
