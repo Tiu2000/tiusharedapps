@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v47 - Playback Fix</title>
+    <title>TIU Mixer Pro v48 - Visual Fix</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -16,7 +16,6 @@
             --automix-on: #ff00ff;
             --record-on: #ff3333;
             --vote-color: #ffaa00;
-            --cash-app: #00d632;
         }
 
         body { margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); font-family: 'Roboto', 'Arial', sans-serif; overflow: hidden; touch-action: none; height: 100vh; width: 100vw; }
@@ -31,7 +30,7 @@
 
         /* LAYOUT */
         @media (orientation: landscape) { body { display: flex; justify-content: center; align-items: center; } #app-container { width: 1024px; height: 768px; border: 1px solid #333; padding: 10px; background: #181818; } }
-        @media (orientation: portrait) { body { display: block; overflow-y: auto; } #app-container { width: 100%; height: auto; min-height: 100vh; padding: 5px; overflow-y: scroll; background: #181818; } .console { flex-direction: column; height: auto !important; margin-bottom: 20px; } .deck { margin-bottom: 20px; min-height: 480px; } .mixer { width: 100% !important; height: 80px !important; flex-direction: row !important; margin-bottom: 10px; } .mixer > div { width: 45% !important; height: 100% !important; } input[type=range].vertical-fader#master-vol { writing-mode: horizontal-tb; -webkit-appearance: slider-horizontal; width: 100%; } .crate-section { height: 400px; } .watermark { font-size: 8rem; } }
+        @media (orientation: portrait) { body { display: block; overflow-y: auto; } #app-container { width: 100%; height: auto; min-height: 100vh; padding: 5px; overflow-y: scroll; background: #181818; } .console { flex-direction: column; height: auto !important; margin-bottom: 20px; } .deck { margin-bottom: 20px; min-height: 480px; } .mixer { width: 100% !important; height: 180px !important; flex-direction: row !important; margin-bottom: 10px; } .mixer > div { width: 30% !important; height: 100% !important; } .crate-section { height: 400px; } .watermark { font-size: 8rem; } }
 
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 5px; margin-bottom: 5px; height: 35px; flex-shrink: 0; }
         h1 { margin: 0; font-size: 1.1rem; letter-spacing: 2px; color: #fff; }
@@ -88,7 +87,12 @@
         .pitch-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 30px; background: #666; margin-top: -8px; border-radius: 2px; border: 1px solid #999; cursor: ns-resize; }
         .pitch-reset-btn { width: 30px; height: 100%; background: #333; border: 1px solid #555; color: #fff; border-radius: 3px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
 
-        .mixer { width: 80px; background: #1a1a1a; padding: 5px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        /* MODIFIED MIXER FOR VISUALS */
+        .mixer { width: 220px; background: #1a1a1a; padding: 5px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .visual-monitors { width: 100%; display: flex; height: 80px; gap: 5px; margin-bottom: 5px; }
+        .monitor { flex: 1; background: #000; border: 1px solid #555; position: relative; overflow: hidden; }
+        /* Actual Player Containers - MUST BE VISIBLE */
+        .yt-wrapper { width: 100%; height: 100%; pointer-events: none; opacity: 1; }
 
         .crate-section { width: 100%; flex: 1; min-height: 150px; background: #111; border: 1px solid #333; border-radius: 8px; padding: 5px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 20; box-shadow: 0 -5px 15px rgba(0,0,0,0.5); }
         .crate-header { display: flex; gap: 5px; margin-bottom: 5px; position: relative; z-index: 21; }
@@ -99,6 +103,7 @@
         .vote-badge { background: var(--vote-color); color: #000; font-size: 0.7rem; font-weight: 900; padding: 2px 6px; border-radius: 3px; margin-right: 8px; display: none; border: 1px solid #fff; }
         .vote-badge.visible { display: inline-block; }
         .load-btn { background: #333; color: #fff; border: 1px solid #555; font-size: 0.65rem; padding: 3px 6px; border-radius: 3px; cursor: pointer; }
+        .top-priority-btn { background: #ffaa00; color: #000; font-weight: bold; border: 1px solid #fff; margin-right: 5px; font-size: 0.65rem; padding: 3px 6px; border-radius: 3px; cursor: pointer; }
 
         .modal { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index: 99999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .modal-box { width: 90%; max-width: 500px; background: #181818; border: 1px solid #444; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
@@ -116,12 +121,6 @@
         #automix-status { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: var(--automix-on); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: none; z-index: 100; box-shadow: 0 0 10px var(--automix-on); white-space:nowrap; }
         #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: black; padding: 10px 20px; border-radius: 50px; font-weight: bold; font-size: 0.9rem; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 99999; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         #toast.show { opacity: 1; }
-        .cash-btn { background: var(--cash-app); color: white; border: none; font-weight: bold; padding: 10px; border-radius: 4px; cursor: pointer; text-decoration: none; text-align: center; display: block; margin-top: 10px; }
-        .cash-btn:hover { opacity: 0.9; }
-        
-        /* FIX: Players must be visible for some browsers to allow playback, 
-           so we make them 1x1 pixel instead of off-screen */
-        #video-layer { position: fixed; bottom: 0; right: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1; }
     </style>
 </head>
 <body>
@@ -129,7 +128,7 @@
     <div id="start-overlay">
         <h1 style="color:white; margin-bottom:20px;">TIU MIXER SYSTEM</h1>
         <button class="start-btn" onclick="startSystem()">🚀 START SYSTEM</button>
-        <p style="color:#888; margin-top:10px;">Click to Initialize Audio</p>
+        <p style="color:#888; margin-top:10px;">Enables Audio & Video</p>
     </div>
 
     <div id="toast">New Request Received!</div>
@@ -138,9 +137,8 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v47</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v48</span></h1>
             <div class="top-btn-group">
-                <button class="top-btn" onclick="openSupport()">☕ DONATE</button>
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
                 <button id="vote-btn" class="top-btn" onclick="openVoteModal()" style="color:var(--vote-color);">📶 VOTE</button>
                 <button id="rec-btn" class="top-btn rec-btn" onclick="toggleRecord()">🔴 REC</button>
@@ -189,14 +187,21 @@
             </div>
 
             <div class="mixer">
-                <div style="text-align:center; height:60%; display:flex; flex-direction:column; justify-content:center;">
-                    <div style="font-size:0.6rem; color:#666; margin-bottom:5px;">MASTER</div>
-                    <input type="range" class="vertical-fader" id="master-vol" min="0" max="100" value="100" oninput="updateVol()">
+                <div class="visual-monitors">
+                    <div class="monitor"><div id="player-a" class="yt-wrapper"></div></div>
+                    <div class="monitor"><div id="player-b" class="yt-wrapper"></div></div>
                 </div>
-                <div style="width:100%; display:flex; flex-direction:column; justify-content:center;">
-                    <div style="text-align:center; font-size:0.6rem; color:#666; margin-bottom:5px;">X-FADER</div>
-                    <input type="range" id="crossfader" min="0" max="100" value="50" style="width:100%;" oninput="updateVol()">
-                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#444; margin-top:5px;"><span>A</span><span>B</span></div>
+
+                <div style="width:100%; display:flex; gap:10px; height:60%;">
+                    <div style="text-align:center; flex:1; display:flex; flex-direction:column; justify-content:center;">
+                        <div style="font-size:0.6rem; color:#666; margin-bottom:5px;">MASTER</div>
+                        <input type="range" class="vertical-fader" id="master-vol" min="0" max="100" value="100" oninput="updateVol()">
+                    </div>
+                    <div style="text-align:center; flex:1; display:flex; flex-direction:column; justify-content:center;">
+                        <div style="text-align:center; font-size:0.6rem; color:#666; margin-bottom:5px;">X-FADER</div>
+                        <input type="range" id="crossfader" min="0" max="100" value="50" style="width:100%;" oninput="updateVol()">
+                        <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#444; margin-top:5px;"><span>A</span><span>B</span></div>
+                    </div>
                 </div>
             </div>
 
@@ -282,15 +287,6 @@
         </div>
     </div>
 
-    <div id="support-modal" class="modal">
-        <div class="modal-box" style="align-items:center;">
-            <h2 style="color:var(--cash-app)">SUPPORT THE DEV</h2>
-            <p style="text-align:center; color:#ddd;">If you like my work, buy me a cup of coffee!</p>
-            <a href="https://cash.app/$AnthonyTiu" target="_blank" class="cash-btn">Send Cash App ($AnthonyTiu)</a>
-            <button class="top-btn" style="margin-top:15px;" onclick="document.getElementById('support-modal').style.display='none'">CLOSE</button>
-        </div>
-    </div>
-
     <div id="diag-modal" class="modal">
         <div class="modal-box">
             <h2>🔧 DIAGNOSTICS</h2>
@@ -330,10 +326,8 @@
         </div>
     </div>
 
-    <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
-
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v47';
+        const AUTO_SAVE_KEY = 'tiu_v48';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var queuedTrack = { A: null, B: null }; // Queue system
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
@@ -341,7 +335,7 @@
         var tapData = { A: {last:0,count:0,bpm:0}, B: {last:0,count:0,bpm:0} };
         var loadedIDs = { A: null, B: null };
         var crate = [];
-        var smartSyncEnabled = true, autoMixEnabled = false, isMixing = false, automixPending = false;
+        var smartSyncEnabled = true, autoMixEnabled = false, isMixing = false;
         var mediaRecorder, audioChunks = [], isRecording = false;
         var lastError = "None";
         var peer, conn, myPeerId, isHost = true;
@@ -363,8 +357,6 @@
             setTimeout(() => t.classList.remove('show'), 3000);
         }
 
-        function openSupport() { document.getElementById('support-modal').style.display = 'flex'; }
-
         window.addEventListener('resize', resizeApp);
         window.addEventListener('load', () => { resizeApp(); loadAutoSave(); renderSessionList(); checkP2PMode(); });
         window.onerror = function(msg, url, line) { lastError = `${msg} line ${line}`; };
@@ -377,6 +369,7 @@
         };
         function createP(d) {
             try {
+                // IMPORTANT: players attached to IDs inside the mixer now (Visible)
                 players[d] = new YT.Player('player-'+d.toLowerCase(), {
                     height:'100%', width:'100%', playerVars:{'playsinline':1,'controls':0,'disablekb':1},
                     events: {
@@ -384,7 +377,6 @@
                             ready[d]=true; updateVol(); 
                             // Check Queue
                             if(queuedTrack[d]) { 
-                                console.log(`Processing Queue for Deck ${d}: ${queuedTrack[d]}`);
                                 load(d, queuedTrack[d]); 
                                 queuedTrack[d] = null;
                             }
@@ -440,22 +432,18 @@
             const nextD = currD==='A'?'B':'A';
             autoMixRetryCount = 0;
 
-            if(ready[nextD]) {
-                players[nextD].stopVideo();
-            }
+            if(ready[nextD]) { players[nextD].stopVideo(); }
 
-            // Find current track's index in the crate
+            // AUTO PICK: Simply pick the first song in the list if user sorted it
+            // Or pick random if no sort
             const currentID = loadedIDs[currD];
-            let currentIndex = crate.findIndex(t => t.id === currentID);
             
-            // Calculate next index
-            if(currentIndex === -1) currentIndex = -1; 
-            let nextIndex = (currentIndex + 1) % crate.length;
-
-            // Avoid repeating same song immediately if possible
-            if (crate.length > 1 && crate[nextIndex].id === currentID) {
-                nextIndex = (nextIndex + 1) % crate.length;
-            }
+            // Logic: Pick index 0 unless index 0 is playing, then pick index 1
+            let nextIndex = 0;
+            if(crate.length > 1 && crate[0].id === currentID) nextIndex = 1;
+            
+            // Safety
+            if(crate.length === 0) { isMixing = false; return; }
 
             const nextTrackObj = crate[nextIndex];
             load(nextD, nextTrackObj.id);
@@ -504,6 +492,15 @@
         // --- SORTING & CRATE ---
         function sortCrateVotes() { crate.sort((a, b) => (b.votes || 0) - (a.votes || 0)); renderCrate(); }
         function generateAutoBpm(id) { let h=0; for(let i=0;i<id.length;i++) h=id.charCodeAt(i)+((h<<5)-h); return Math.abs(h%65)+75; }
+        
+        function moveTrackToTop(index) {
+            if(index < 0 || index >= crate.length) return;
+            const item = crate.splice(index, 1)[0];
+            crate.unshift(item); // Move to start
+            renderCrate();
+            showToast("Moved to Top (Next Track)");
+        }
+
         function processBulk() {
             document.getElementById('bulk-textarea').value.split('\n').forEach(l => {
                 const m = l.match(/(?:v=|youtu\.be\/|\/)([a-zA-Z0-9_-]{11})/);
@@ -532,6 +529,7 @@
         }
         function addTrackToCrate(id, isReq) {
             const p = isReq ? "(REQUEST) " : "";
+            // Add to end by default
             crate.push({id:id, name:`${p}Track ${id}`, bpm:generateAutoBpm(id), votes:0});
             fetchTitle(id, id, isReq);
             renderCrate(); saveAuto();
@@ -546,9 +544,9 @@
             crate.forEach((t,i) => {
                 const d=document.createElement('div'); d.className='crate-item';
                 const vb = t.votes>0 ? `<span class=\"vote-badge visible\">★ ${t.votes}</span>` : '';
-                // Using template literal for ID safety
                 d.innerHTML=`<span class=\"item-name\">${vb}${t.name}</span>
                 <div style=\"font-size:0.7rem; display:flex; gap:5px; align-items:center;\">
+                <button class=\"top-priority-btn\" onclick=\"moveTrackToTop(${i})\">[TOP]</button>
                 ${t.bpm} BPM
                 <button class=\"load-btn\" onclick=\"load('A','${t.id}')\">A</button><button class=\"load-btn\" onclick=\"load('B','${t.id}')\">B</button>
                 <button class=\"load-btn\" style=\"color:#d32f2f;\" onclick=\"remove(${i})\">X</button></div>`;
@@ -567,17 +565,14 @@
                 document.getElementById('title-'+d.toLowerCase()).innerText = "LOADING...";
                 players[d].stopVideo(); 
                 players[d].loadVideoById(t.id);
-                // Force title update after small delay to ensure it sticks
                 setTimeout(() => { document.getElementById('title-'+d.toLowerCase()).innerText=t.name; }, 500);
                 
                 tapData[d].bpm = t.bpm;
                 document.getElementById('bpm-'+d.toLowerCase()).innerText=t.bpm;
                 resetPitch(d);
             } else {
-                // QUEUE SYSTEM
                 queuedTrack[d] = id;
                 document.getElementById('title-'+d.toLowerCase()).innerText = "QUEUED...";
-                console.log(`Deck ${d} not ready. Queued: ${t.name}`);
             }
         }
         
@@ -718,7 +713,6 @@
             if(d) {
                 try {
                     crate=JSON.parse(d); 
-                    // Migration: Ensure all have IDs
                     crate.forEach((t,i) => { if(!t.id) crate.splice(i,1); });
                     renderCrate();
                 } catch(e) { console.error("Save Corrupt"); }
@@ -741,7 +735,7 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v47 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nQueue A: ${queuedTrack.A}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v48 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nQueue A: ${queuedTrack.A}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         function resizeApp() {
