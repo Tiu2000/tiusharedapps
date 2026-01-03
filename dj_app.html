@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v54 - Auto-Sort</title>
+    <title>TIU Mixer Pro v55 - Final Fix</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -22,20 +22,19 @@
             margin: 0; padding: 0; 
             background-color: var(--bg-color); color: var(--text-color); 
             font-family: 'Roboto', 'Arial', sans-serif; 
-            overflow: hidden; touch-action: none; 
+            overflow: hidden; /* Prevents scrollbars from breaking layout */
             height: 100vh; width: 100vw;
             display: flex; justify-content: center; align-items: center; 
         }
 
-        /* WATERMARK - FIXED VISIBILITY */
+        /* WATERMARK - Positioned behind everything but visible through transparency */
         .watermark { 
             position: fixed; 
             top: 50%; left: 50%; 
             transform: translate(-50%, -50%) rotate(-10deg); 
             font-size: 35vw; 
             font-weight: 900; 
-            /* Much brighter opacity */
-            color: rgba(255, 255, 255, 0.15); 
+            color: rgba(255, 255, 255, 0.1); /* Visible grey */
             pointer-events: none; 
             z-index: 0; 
             white-space: nowrap; 
@@ -47,12 +46,12 @@
             width: 1280px; 
             height: 720px; 
             display: flex; flex-direction: column; 
-            /* More transparent background to see watermark */
-            background: rgba(20, 20, 20, 0.75); 
-            backdrop-filter: blur(8px);
+            /* Semi-transparent background allows watermark to show through */
+            background: rgba(20, 20, 20, 0.85); 
+            backdrop-filter: blur(5px);
             box-sizing: border-box; 
             position: relative; 
-            z-index: 1;
+            z-index: 10;
             border: 1px solid #333;
             padding: 10px;
             box-shadow: 0 0 50px rgba(0,0,0,0.9);
@@ -74,7 +73,7 @@
             .console { flex-direction: column; height: auto !important; margin-bottom: 20px; } 
             .deck { margin-bottom: 20px; min-height: 480px; } 
             .mixer { width: 100% !important; height: auto !important; margin-bottom: 10px; }
-            .watermark { font-size: 15rem; opacity: 0.1; }
+            .watermark { font-size: 15rem; }
         }
 
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 8px; height: 40px; flex-shrink: 0; }
@@ -143,8 +142,14 @@
             width: 100%; display: flex; height: 150px; 
             gap: 5px; margin-bottom: 10px; flex-shrink: 0; 
         }
-        .monitor { flex: 1; background: #000; border: 1px solid #555; position: relative; overflow: hidden; cursor: pointer; }
-        .yt-wrapper { width: 100%; height: 100%; }
+        .monitor { 
+            flex: 1; background: #000; border: 1px solid #555; position: relative; overflow: hidden; cursor: pointer; 
+        }
+        /* CLICK SHIELD - Prevents YouTube from blocking your click */
+        .click-shield {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; background: transparent;
+        }
+        .yt-wrapper { width: 100%; height: 100%; pointer-events: none; }
 
         #mixer-qr-box { 
             width: 100%; height: 140px; 
@@ -203,7 +208,7 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v54</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v55</span></h1>
             <div class="top-btn-group">
                 <button class="top-btn" onclick="openSupport()">☕ DONATE</button>
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
@@ -255,8 +260,14 @@
 
             <div class="mixer">
                 <div class="visual-monitors">
-                    <div class="monitor" onclick="playToggle('A')"><div id="player-a" class="yt-wrapper"></div></div>
-                    <div class="monitor" onclick="playToggle('B')"><div id="player-b" class="yt-wrapper"></div></div>
+                    <div class="monitor" onclick="playToggle('A')">
+                        <div class="click-shield"></div>
+                        <div id="player-a" class="yt-wrapper"></div>
+                    </div>
+                    <div class="monitor" onclick="playToggle('B')">
+                        <div class="click-shield"></div>
+                        <div id="player-b" class="yt-wrapper"></div>
+                    </div>
                 </div>
                 <div id="mixer-qr-box">
                     <img id="mixer-qr-img" src="" alt="QR">
@@ -408,7 +419,7 @@
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v54';
+        const AUTO_SAVE_KEY = 'tiu_v55';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var queuedTrack = { A: null, B: null }; 
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
@@ -722,14 +733,7 @@
             peer.on('connection', (c) => {
                 c.on('open', () => { c.send({type:'crate', data:crate}); });
                 c.on('data', (data) => {
-                    if(data.type === 'vote') { 
-                        const t=crate.find(x=>x.id===data.id); 
-                        if(t){
-                            t.votes=(t.votes||0)+1; 
-                            sortCrateVotes(); // AUTO SORT ON VOTE
-                            showToast(`Vote: ${t.name}`);
-                        } 
-                    }
+                    if(data.type === 'vote') { const t=crate.find(x=>x.id===data.id); if(t){t.votes=(t.votes||0)+1; sortCrateVotes(); showToast(`Vote: ${t.name}`);} }
                     if(data.type === 'suggest') addSingle(data.url, true);
                 });
             });
@@ -865,7 +869,7 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v54 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nQueue A: ${queuedTrack.A}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v55 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nQueue A: ${queuedTrack.A}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         
