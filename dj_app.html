@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v49 - Max Screen</title>
+    <title>TIU Mixer Pro v50 - Auto-Skip & Fit</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -16,9 +16,17 @@
             --automix-on: #ff00ff;
             --record-on: #ff3333;
             --vote-color: #ffaa00;
+            --cash-app: #00d632;
         }
 
-        body { margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); font-family: 'Roboto', 'Arial', sans-serif; overflow: hidden; touch-action: none; height: 100vh; width: 100vw; }
+        body { 
+            margin: 0; padding: 0; 
+            background-color: var(--bg-color); color: var(--text-color); 
+            font-family: 'Roboto', 'Arial', sans-serif; 
+            overflow: hidden; touch-action: none; 
+            height: 100vh; width: 100vw;
+            display: flex; justify-content: center; align-items: center; /* Center the app */
+        }
 
         /* SUBTLE WATERMARK */
         .watermark { 
@@ -26,9 +34,9 @@
             top: 50%; 
             left: 50%; 
             transform: translate(-50%, -50%) rotate(-10deg); 
-            font-size: 35vh; /* HUGE */
+            font-size: 35vh; 
             font-weight: 900; 
-            color: rgba(255, 255, 255, 0.04); /* Very subtle */
+            color: rgba(255, 255, 255, 0.04); 
             pointer-events: none; 
             z-index: 0; 
             white-space: nowrap; 
@@ -36,20 +44,35 @@
             letter-spacing: -10px;
         }
 
-        #app-container { width: 100%; height: 100%; display: flex; flex-direction: column; background: transparent; box-sizing: border-box; position: relative; z-index: 1; }
+        #app-container { 
+            /* Fixed base size for scaling logic */
+            width: 1100px; 
+            height: 800px; 
+            display: flex; flex-direction: column; 
+            background: rgba(24,24,24,0.9); 
+            backdrop-filter: blur(5px);
+            box-sizing: border-box; 
+            position: relative; 
+            z-index: 1;
+            border: 1px solid #333;
+            padding: 10px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+        }
 
         #start-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .start-btn { background: var(--accent); color: #000; font-size: 2rem; font-weight: 900; padding: 20px 40px; border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 0 30px var(--accent); animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* LAYOUT - MAXIMIZED */
-        @media (orientation: landscape) { 
-            body { display: flex; justify-content: center; align-items: center; } 
-            #app-container { width: 1100px; height: 800px; border: 1px solid #333; padding: 10px; background: rgba(24,24,24,0.8); backdrop-filter: blur(5px); } 
-        }
+        /* PORTRAIT OVERRIDE (Mobile) */
         @media (orientation: portrait) { 
             body { display: block; overflow-y: auto; } 
-            #app-container { width: 100%; height: auto; min-height: 100vh; padding: 5px; overflow-y: scroll; background: #181818; } 
+            #app-container { 
+                width: 100%; height: auto; min-height: 100vh; 
+                transform: none !important; /* Disable scaling logic on mobile */
+                margin: 0;
+                padding: 5px; 
+                background: #181818; 
+            } 
             .console { flex-direction: column; height: auto !important; margin-bottom: 20px; } 
             .deck { margin-bottom: 20px; min-height: 480px; } 
             .mixer { width: 100% !important; height: auto !important; min-height: 350px; margin-bottom: 10px; }
@@ -114,12 +137,10 @@
         /* MAXIMIZED MIXER */
         .mixer { width: 280px; background: #1a1a1a; padding: 8px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; flex-shrink: 0; position: relative; z-index: 10; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         
-        /* Bigger Screens */
         .visual-monitors { width: 100%; display: flex; height: 130px; gap: 5px; margin-bottom: 10px; flex-shrink: 0; }
         .monitor { flex: 1; background: #000; border: 1px solid #555; position: relative; overflow: hidden; }
         .yt-wrapper { width: 100%; height: 100%; pointer-events: none; opacity: 1; }
 
-        /* Integrated QR Section */
         #mixer-qr-box { width: 100%; height: 90px; display: none; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 10px; background: #222; border-radius: 6px; border: 1px solid #444; padding: 5px 0; }
         #mixer-qr-img { width: 65px; height: 65px; border: 2px solid white; background: white; }
         
@@ -152,6 +173,11 @@
         #automix-status { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: var(--automix-on); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: none; z-index: 100; box-shadow: 0 0 10px var(--automix-on); white-space:nowrap; }
         #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: black; padding: 10px 20px; border-radius: 50px; font-weight: bold; font-size: 0.9rem; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 99999; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         #toast.show { opacity: 1; }
+        .cash-btn { background: var(--cash-app); color: white; border: none; font-weight: bold; padding: 10px; border-radius: 4px; cursor: pointer; text-decoration: none; text-align: center; display: block; margin-top: 10px; }
+        .cash-btn:hover { opacity: 0.9; }
+        
+        /* FIX: Players must be visible for some browsers to allow playback, so we make them 1x1 pixel instead of off-screen */
+        #video-layer { position: fixed; bottom: 0; right: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1; }
     </style>
 </head>
 <body>
@@ -159,7 +185,7 @@
     <div id="start-overlay">
         <h1 style="color:white; margin-bottom:20px;">TIU MIXER SYSTEM</h1>
         <button class="start-btn" onclick="startSystem()">🚀 START SYSTEM</button>
-        <p style="color:#888; margin-top:10px;">Enables Audio & Video</p>
+        <p style="color:#888; margin-top:10px;">Click to Initialize Audio</p>
     </div>
 
     <div id="toast">New Request Received!</div>
@@ -169,9 +195,11 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v49</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v50</span></h1>
             <div class="top-btn-group">
+                <button class="top-btn" onclick="openSupport()">☕ DONATE</button>
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
+                <button id="vote-btn" class="top-btn" onclick="openVoteModal()" style="color:var(--vote-color);">📶 VOTE</button>
                 <button id="rec-btn" class="top-btn rec-btn" onclick="toggleRecord()">🔴 REC</button>
                 <button id="automix-btn" class="top-btn automix-btn" onclick="toggleAutoMix()">🤖 AUTOMIX</button>
                 <button class="top-btn" onclick="document.getElementById('keys-modal').style.display='flex'">⌨️ KEYS</button>
@@ -302,6 +330,16 @@
         <div id="voter-list" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px;"></div>
     </div>
 
+    <div id="vote-modal" class="modal">
+        <div class="modal-box" style="align-items:center;">
+            <h2 style="color:var(--vote-color)">P2P VOTING HOST</h2>
+            <div style="background:white; padding:10px; border-radius:4px;"><img id="qr-code-img" src="" style="width:200px; height:200px;"></div>
+            <p style="text-align:center; font-size:0.8rem; color:#aaa;">Scan with phone to vote.<br>(Requires web/network host)</p>
+            <p id="peer-status" style="color:#00ff9d; font-size:0.8rem;">Initializing...</p>
+            <button class="top-btn" onclick="document.getElementById('vote-modal').style.display='none'">CLOSE</button>
+        </div>
+    </div>
+
     <div id="keys-modal" class="modal">
         <div class="modal-box">
             <h2>⌨️ SHORTCUTS</h2>
@@ -310,6 +348,15 @@
                 <div style="flex:1;"><div class="key-row"><span>Play B</span> <span class="key-badge">K</span></div></div>
             </div>
             <button class="top-btn" onclick="document.getElementById('keys-modal').style.display='none'">CLOSE</button>
+        </div>
+    </div>
+
+    <div id="support-modal" class="modal">
+        <div class="modal-box" style="align-items:center;">
+            <h2 style="color:var(--cash-app)">SUPPORT THE DEV</h2>
+            <p style="text-align:center; color:#ddd;">If you like my work, buy me a cup of coffee!</p>
+            <a href="https://cash.app/$AnthonyTiu" target="_blank" class="cash-btn">Send Cash App ($AnthonyTiu)</a>
+            <button class="top-btn" style="margin-top:15px;" onclick="document.getElementById('support-modal').style.display='none'">CLOSE</button>
         </div>
     </div>
 
@@ -352,16 +399,18 @@
         </div>
     </div>
 
+    <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
+
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v49';
+        const AUTO_SAVE_KEY = 'tiu_v50';
         var players = { A: null, B: null }, ready = { A: false, B: false };
-        var queuedTrack = { A: null, B: null }; // Queue system
+        var queuedTrack = { A: null, B: null }; 
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
         var tapData = { A: {last:0,count:0,bpm:0}, B: {last:0,count:0,bpm:0} };
         var loadedIDs = { A: null, B: null };
         var crate = [];
-        var smartSyncEnabled = true, autoMixEnabled = false, isMixing = false;
+        var smartSyncEnabled = true, autoMixEnabled = false, isMixing = false, automixPending = false;
         var mediaRecorder, audioChunks = [], isRecording = false;
         var lastError = "None";
         var peer, conn, myPeerId, isHost = true;
@@ -383,6 +432,8 @@
             setTimeout(() => t.classList.remove('show'), 3000);
         }
 
+        function openSupport() { document.getElementById('support-modal').style.display = 'flex'; }
+
         window.addEventListener('resize', resizeApp);
         window.addEventListener('load', () => { resizeApp(); loadAutoSave(); renderSessionList(); checkP2PMode(); });
         window.onerror = function(msg, url, line) { lastError = `${msg} line ${line}`; };
@@ -395,6 +446,7 @@
         };
         function createP(d) {
             try {
+                // Players attached to visible elements in the mixer
                 players[d] = new YT.Player('player-'+d.toLowerCase(), {
                     height:'100%', width:'100%', playerVars:{'playsinline':1,'controls':0,'disablekb':1},
                     events: {
@@ -409,10 +461,16 @@
                         },
                         'onError': (e)=> { 
                             lastError = `YT Error Deck ${d}: ${e.data}`;
-                            if(isMixing) { 
-                                document.getElementById('automix-status').innerText = "❌ ERROR: SKIPPING...";
-                                setTimeout(() => triggerAutoMix(d==='A'?'B':'A'), 1000); 
-                            }
+                            
+                            // VISUAL FEEDBACK
+                            document.getElementById('title-'+d.toLowerCase()).innerText = "❌ ERROR - SKIPPING";
+                            document.getElementById('automix-status').style.display = 'block';
+                            document.getElementById('automix-status').innerText = "⚠️ ERROR: SKIPPING...";
+                            showToast("⚠️ Playback Error - Skipping...");
+
+                            // AUTO SKIP LOGIC
+                            isMixing = false; 
+                            setTimeout(() => triggerAutoMix(d==='A'?'B':'A'), 500); 
                         }
                     }
                 });
@@ -455,16 +513,15 @@
 
             if(ready[nextD]) { players[nextD].stopVideo(); }
 
-            // AUTO PICK: Simply pick the first song in the list if user sorted it
-            // Or pick random if no sort
             const currentID = loadedIDs[currD];
+            let currentIndex = crate.findIndex(t => t.id === currentID);
             
-            // Logic: Pick index 0 unless index 0 is playing, then pick index 1
-            let nextIndex = 0;
-            if(crate.length > 1 && crate[0].id === currentID) nextIndex = 1;
-            
-            // Safety
-            if(crate.length === 0) { isMixing = false; return; }
+            if(currentIndex === -1) currentIndex = -1; 
+            let nextIndex = (currentIndex + 1) % crate.length;
+
+            if (crate.length > 1 && crate[nextIndex].id === currentID) {
+                nextIndex = (nextIndex + 1) % crate.length;
+            }
 
             const nextTrackObj = crate[nextIndex];
             load(nextD, nextTrackObj.id);
@@ -478,7 +535,7 @@
                 if(!ready[nextD]) return;
                 
                 const state = players[nextD].getPlayerState();
-                if(state === 1) { // Playing
+                if(state === 1) { 
                     clearInterval(playCheckIntv);
                     sync(nextD);
                     document.getElementById('automix-status').innerText = `🤖 FADING...`;
@@ -517,7 +574,7 @@
         function moveTrackToTop(index) {
             if(index < 0 || index >= crate.length) return;
             const item = crate.splice(index, 1)[0];
-            crate.unshift(item); // Move to start
+            crate.unshift(item);
             renderCrate();
             showToast("Moved to Top (Next Track)");
         }
@@ -577,7 +634,7 @@
         
         function load(d, id) {
             const t = crate.find(x => x.id === id);
-            if(!t) { console.error("Track not found in crate:", id); return; }
+            if(!t) { console.error("Track not found:", id); return; }
             loadedIDs[d] = t.id;
             if(ready[d]) {
                 document.getElementById('title-'+d.toLowerCase()).innerText = "LOADING...";
@@ -754,26 +811,32 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v49 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nQueue A: ${queuedTrack.A}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v50 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nQueue A: ${queuedTrack.A}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
+        
+        // --- COMPLETELY REWRITTEN SCREEN FIT LOGIC (v50) ---
         function resizeApp() {
-            const c=document.getElementById('app-container');
-            if(window.innerWidth>window.innerHeight){ 
-                const s=Math.min(window.innerWidth/1100, window.innerHeight/800)*0.98; 
-                c.style.transform=`scale(${s})`; 
-                c.style.transformOrigin='center top'; 
-                c.style.width='1100px'; 
-                c.style.height='800px'; 
-                c.style.marginTop='10px'; 
-                document.body.style.overflow='hidden'; 
-            } else { 
-                c.style.transform='none'; 
-                c.style.width='100%'; 
-                c.style.height='auto'; 
-                c.style.marginTop='0'; 
-                document.body.style.overflowY='auto'; 
-            }
+            // Mobile portrait - do nothing
+            if(window.innerHeight > window.innerWidth) return;
+
+            const c = document.getElementById('app-container');
+            const targetW = 1100;
+            const targetH = 800;
+            
+            // Calculate scale based on whichever dimension is tighter
+            const scaleW = window.innerWidth / targetW;
+            const scaleH = window.innerHeight / targetH;
+            
+            // Use the smaller scale to ensure it fits entirely
+            const scale = Math.min(scaleW, scaleH); // Removed 0.98 fudge factor to fit snug
+
+            c.style.transform = `scale(${scale})`;
+            c.style.transformOrigin = 'center center'; // Center scaling prevents cutoff
+            
+            // Remove margins that might push it offscreen
+            c.style.margin = '0';
+            c.style.marginTop = '0'; 
         }
         
         document.addEventListener('keydown',e=>{
