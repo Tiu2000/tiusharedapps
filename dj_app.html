@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v53 - Unblocked</title>
+    <title>TIU Mixer Pro v54 - Auto-Sort</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -27,14 +27,15 @@
             display: flex; justify-content: center; align-items: center; 
         }
 
-        /* WATERMARK */
+        /* WATERMARK - FIXED VISIBILITY */
         .watermark { 
             position: fixed; 
             top: 50%; left: 50%; 
             transform: translate(-50%, -50%) rotate(-10deg); 
-            font-size: 30vw; 
+            font-size: 35vw; 
             font-weight: 900; 
-            color: rgba(255, 255, 255, 0.08); 
+            /* Much brighter opacity */
+            color: rgba(255, 255, 255, 0.15); 
             pointer-events: none; 
             z-index: 0; 
             white-space: nowrap; 
@@ -46,8 +47,9 @@
             width: 1280px; 
             height: 720px; 
             display: flex; flex-direction: column; 
-            background: rgba(20, 20, 20, 0.85); 
-            backdrop-filter: blur(10px);
+            /* More transparent background to see watermark */
+            background: rgba(20, 20, 20, 0.75); 
+            backdrop-filter: blur(8px);
             box-sizing: border-box; 
             position: relative; 
             z-index: 1;
@@ -72,7 +74,7 @@
             .console { flex-direction: column; height: auto !important; margin-bottom: 20px; } 
             .deck { margin-bottom: 20px; min-height: 480px; } 
             .mixer { width: 100% !important; height: auto !important; margin-bottom: 10px; }
-            .watermark { font-size: 15rem; }
+            .watermark { font-size: 15rem; opacity: 0.1; }
         }
 
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 8px; height: 40px; flex-shrink: 0; }
@@ -182,6 +184,8 @@
         #toast.show { opacity: 1; }
         .cash-btn { background: var(--cash-app); color: white; border: none; font-weight: bold; padding: 10px; border-radius: 4px; cursor: pointer; text-decoration: none; text-align: center; display: block; margin-top: 10px; }
         .cash-btn:hover { opacity: 0.9; }
+        
+        #video-layer { position: fixed; bottom: 0; right: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1; }
     </style>
 </head>
 <body>
@@ -199,7 +203,7 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v53</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v54</span></h1>
             <div class="top-btn-group">
                 <button class="top-btn" onclick="openSupport()">☕ DONATE</button>
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
@@ -401,8 +405,10 @@
         </div>
     </div>
 
+    <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
+
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v53';
+        const AUTO_SAVE_KEY = 'tiu_v54';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var queuedTrack = { A: null, B: null }; 
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
@@ -599,7 +605,11 @@
         }
 
         // --- SORTING & CRATE ---
-        function sortCrateVotes() { crate.sort((a, b) => (b.votes || 0) - (a.votes || 0)); renderCrate(); }
+        function sortCrateVotes() { 
+            // Sort Descending (High votes at top)
+            crate.sort((a, b) => (b.votes || 0) - (a.votes || 0)); 
+            renderCrate(); 
+        }
         function generateAutoBpm(id) { let h=0; for(let i=0;i<id.length;i++) h=id.charCodeAt(i)+((h<<5)-h); return Math.abs(h%65)+75; }
         
         function moveTrackToTop(index) {
@@ -627,7 +637,7 @@
                 const existing = crate.find(t => t.id === id);
                 if(existing) {
                     existing.votes = (existing.votes || 0) + 1;
-                    renderCrate();
+                    sortCrateVotes(); // Auto sort on vote
                     if(isReq) showToast(`Re-Request: ${existing.name} (+1 Vote)`);
                     else alert("Track already in crate! Added a vote instead.");
                 } else {
@@ -638,6 +648,8 @@
         }
         function addTrackToCrate(id, isReq) {
             const p = isReq ? "(REQUEST) " : "";
+            // New tracks start with 0 votes unless requested (maybe give requests 1 vote?)
+            // We'll stick to 0 for now unless logic dictates otherwise
             crate.push({id:id, name:`${p}Track ${id}`, bpm:generateAutoBpm(id), votes:0});
             fetchTitle(id, id, isReq);
             renderCrate(); saveAuto();
@@ -710,7 +722,14 @@
             peer.on('connection', (c) => {
                 c.on('open', () => { c.send({type:'crate', data:crate}); });
                 c.on('data', (data) => {
-                    if(data.type === 'vote') { const t=crate.find(x=>x.id===data.id); if(t){t.votes=(t.votes||0)+1; renderCrate(); showToast(`Vote: ${t.name}`);} }
+                    if(data.type === 'vote') { 
+                        const t=crate.find(x=>x.id===data.id); 
+                        if(t){
+                            t.votes=(t.votes||0)+1; 
+                            sortCrateVotes(); // AUTO SORT ON VOTE
+                            showToast(`Vote: ${t.name}`);
+                        } 
+                    }
                     if(data.type === 'suggest') addSingle(data.url, true);
                 });
             });
@@ -846,7 +865,7 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v53 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nQueue A: ${queuedTrack.A}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v54 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nQueue A: ${queuedTrack.A}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         
