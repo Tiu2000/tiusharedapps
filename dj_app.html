@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v41 - Adaptive Sync</title>
+    <title>TIU Mixer Pro v42 - Logic Fixed</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -25,44 +25,13 @@
 
         #app-container { width: 100%; height: 100%; display: flex; flex-direction: column; background: transparent; box-sizing: border-box; position: relative; z-index: 1; }
 
-        /* NOTIFICATION TOAST */
-        #toast {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: var(--accent); color: black; padding: 10px 20px;
-            border-radius: 50px; font-weight: bold; font-size: 0.9rem;
-            opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 99999;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-        }
-        #toast.show { opacity: 1; }
-
-        /* START OVERLAY */
-        #start-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); z-index: 99999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-        .start-btn {
-            background: var(--accent); color: #000;
-            font-size: 2rem; font-weight: 900; padding: 20px 40px;
-            border: none; border-radius: 50px; cursor: pointer;
-            box-shadow: 0 0 30px var(--accent);
-            animation: pulse 1.5s infinite;
-        }
+        #start-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .start-btn { background: var(--accent); color: #000; font-size: 2rem; font-weight: 900; padding: 20px 40px; border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 0 30px var(--accent); animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
         /* LAYOUT */
         @media (orientation: landscape) { body { display: flex; justify-content: center; align-items: center; } #app-container { width: 1024px; height: 768px; border: 1px solid #333; padding: 10px; background: #181818; } }
-        @media (orientation: portrait) { 
-            body { display: block; overflow-y: auto; } 
-            #app-container { width: 100%; height: auto; min-height: 100vh; padding: 5px; overflow-y: scroll; background: #181818; } 
-            .console { flex-direction: column; height: auto !important; margin-bottom: 20px; } 
-            .deck { margin-bottom: 20px; min-height: 480px; } 
-            .mixer { width: 100% !important; height: 80px !important; flex-direction: row !important; margin-bottom: 10px; } 
-            .mixer > div { width: 45% !important; height: 100% !important; } 
-            input[type=range].vertical-fader#master-vol { writing-mode: horizontal-tb; -webkit-appearance: slider-horizontal; width: 100%; } 
-            .crate-section { height: 400px; } 
-            .watermark { font-size: 8rem; } 
-        }
+        @media (orientation: portrait) { body { display: block; overflow-y: auto; } #app-container { width: 100%; height: auto; min-height: 100vh; padding: 5px; overflow-y: scroll; background: #181818; } .console { flex-direction: column; height: auto !important; margin-bottom: 20px; } .deck { margin-bottom: 20px; min-height: 480px; } .mixer { width: 100% !important; height: 80px !important; flex-direction: row !important; margin-bottom: 10px; } .mixer > div { width: 45% !important; height: 100% !important; } input[type=range].vertical-fader#master-vol { writing-mode: horizontal-tb; -webkit-appearance: slider-horizontal; width: 100%; } .crate-section { height: 400px; } .watermark { font-size: 8rem; } }
 
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 5px; margin-bottom: 5px; height: 35px; flex-shrink: 0; }
         h1 { margin: 0; font-size: 1.1rem; letter-spacing: 2px; color: #fff; }
@@ -131,7 +100,6 @@
         .vote-badge.visible { display: inline-block; }
         .load-btn { background: #333; color: #fff; border: 1px solid #555; font-size: 0.65rem; padding: 3px 6px; border-radius: 3px; cursor: pointer; }
 
-        /* MODALS */
         .modal { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index: 99999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .modal-box { width: 90%; max-width: 500px; background: #181818; border: 1px solid #444; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         .key-row { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding: 8px 0; color: #bbb; font-size: 0.85rem; }
@@ -145,10 +113,12 @@
         #suggest-box { display: none; margin-bottom: 20px; background: #222; padding: 15px; border-radius: 8px; border: 1px solid #444; }
         .suggest-toggle { background: #333; color: #aaa; border: none; width: 100%; padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 10px; }
         
+        #automix-status { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: var(--automix-on); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: none; z-index: 100; box-shadow: 0 0 10px var(--automix-on); white-space:nowrap; }
+        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: black; padding: 10px 20px; border-radius: 50px; font-weight: bold; font-size: 0.9rem; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 99999; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        #toast.show { opacity: 1; }
         .cash-btn { background: var(--cash-app); color: white; border: none; font-weight: bold; padding: 10px; border-radius: 4px; cursor: pointer; text-decoration: none; text-align: center; display: block; margin-top: 10px; }
         .cash-btn:hover { opacity: 0.9; }
-
-        #automix-status { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: var(--automix-on); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: none; z-index: 100; box-shadow: 0 0 10px var(--automix-on); white-space:nowrap; }
+        
         #video-layer { position: absolute; top: -9999px; }
     </style>
 </head>
@@ -166,7 +136,7 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v41 ADAPTIVE</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v42</span></h1>
             <div class="top-btn-group">
                 <button class="top-btn" onclick="openSupport()">☕ DONATE</button>
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
@@ -361,7 +331,7 @@
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v41';
+        const AUTO_SAVE_KEY = 'tiu_v42';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
@@ -425,7 +395,7 @@
             } catch(e) { lastError = e.message; }
         }
 
-        // --- AUTOMIX LOGIC ---
+        // --- AUTOMIX LOGIC (FIXED v42) ---
         function toggleAutoMix() { 
             autoMixEnabled = !autoMixEnabled; 
             document.getElementById('automix-btn').classList.toggle('automix-on');
@@ -458,22 +428,46 @@
             const nextD = currD==='A'?'B':'A';
             autoMixRetryCount = 0;
             
-            let nextTrack = crate.reduce((prev, curr) => (curr.votes || 0) > (prev.votes || 0) ? curr : prev, crate[0]);
+            // 1. Calculate Logic
             const currID = loadedIDs[currD];
-            if(nextTrack.id === currID) {
-                const currIdx = crate.findIndex(t => t.id === currID);
-                let nextIdx = (currIdx >= 0 && currIdx < crate.length-1) ? currIdx + 1 : 0;
-                nextTrack = crate[nextIdx];
+            let endingIndex = crate.findIndex(t => t.id === currID);
+            // Default to sequential if no match
+            if(endingIndex === -1) endingIndex = 0;
+            
+            let nextIndex = (endingIndex + 1) % crate.length;
+
+            // 2. Check for Votes
+            let bestVote = 0, bestIdx = -1;
+            crate.forEach((t, i) => {
+                if(t.id !== currID && (t.votes||0) > bestVote) { bestVote=t.votes; bestIdx=i; }
+            });
+            if(bestIdx !== -1) nextIndex = bestIdx;
+
+            // 3. Respect Manual Load Check
+            const existingID = loadedIDs[nextD];
+            // If deck B has a song, AND it's not the song that just finished on Deck A (duplicate check)
+            if(existingID && existingID !== currID) {
+                // Determine if this is a "stale" song or a "newly loaded" one?
+                // Logic: If the next deck is NOT playing and has a track, assume user prepped it.
+                // We will SKIP loading a new track and just play what is there.
+                console.log("Automix: Detected manual track on " + nextD);
+                // We update 'nextIndex' just for metadata display if needed, but we don't call load()
+                const manualIdx = crate.findIndex(t => t.id === existingID);
+                if(manualIdx !== -1) nextIndex = manualIdx; 
+            } else {
+                // Nothing valid loaded? Load our calculated track
+                load(nextD, nextIndex);
             }
 
-            const nextIdx = crate.findIndex(t => t.id === nextTrack.id);
-            document.getElementById('automix-status').innerText = `🤖 LOADING: ${nextTrack.name}`;
-            load(nextD, nextIdx);
+            const nextTrack = crate[nextIndex] || {name: "Next Track"};
+            document.getElementById('automix-status').innerText = `🤖 MIXING TO: ${nextTrack.name}`;
             
+            // 4. Start Playback Monitor
             const playCheckIntv = setInterval(() => {
                 if(!ready[nextD]) return;
+                
                 const state = players[nextD].getPlayerState();
-                if(state === 1) {
+                if(state === 1) { // Playing
                     clearInterval(playCheckIntv);
                     sync(nextD);
                     document.getElementById('automix-status').innerText = `🤖 FADING...`;
@@ -483,9 +477,9 @@
                     autoMixRetryCount++;
                     if(autoMixRetryCount > 20) {
                         clearInterval(playCheckIntv);
-                        document.getElementById('automix-status').innerText = "❌ TIMEOUT: SKIPPING...";
-                        const skipIdx = (nextIdx + 1) % crate.length;
-                        load(nextD, skipIdx);
+                        document.getElementById('automix-status').innerText = "❌ ERROR: SKIP";
+                        // Skip failed track
+                        load(nextD, (nextIndex + 1) % crate.length);
                         autoMixRetryCount = 0;
                         setTimeout(() => triggerAutoMix(currD), 1000);
                     }
@@ -508,6 +502,7 @@
             }, 100);
         }
 
+        // --- SORTING & CRATE ---
         function sortCrateVotes() { crate.sort((a, b) => (b.votes || 0) - (a.votes || 0)); renderCrate(); }
         function generateAutoBpm(id) { let h=0; for(let i=0;i<id.length;i++) h=id.charCodeAt(i)+((h<<5)-h); return Math.abs(h%65)+75; }
         function processBulk() {
@@ -642,16 +637,12 @@
         }
         function updatePitch(d) { if(ready[d]) players[d].setPlaybackRate(parseFloat(document.getElementById('pitch-'+d.toLowerCase()).value)); }
         function resetPitch(d) { document.getElementById('pitch-'+d.toLowerCase()).value = 1; updatePitch(d); }
-        
-        // --- NEW ADAPTIVE NORMALIZE (v41) ---
         function normalizePitch(d) {
             const slider = document.getElementById('pitch-'+d.toLowerCase());
             let startVal = parseFloat(slider.value);
             const diff = Math.abs(1.0 - startVal);
             
             // Logic: Large diff = Faster time (to fix chipmunk voice)
-            // Diff 0.00 (0%): 100 steps (10s) - smooth
-            // Diff 0.30 (30%): 30 steps (3s) - fast
             let totalSteps = Math.floor(100 - (diff * 200));
             if(totalSteps < 30) totalSteps = 30; // Min 3 sec
             if(totalSteps > 100) totalSteps = 100; // Max 10 sec
@@ -671,7 +662,6 @@
                 }
             }, 100);
         }
-
         function tap(d) {
             const n=Date.now(); if(n-tapData[d].last>2000)tapData[d].count=0;
             tapData[d].last=n; tapData[d].count++;
@@ -728,7 +718,7 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v41 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v42 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         function resizeApp() {
