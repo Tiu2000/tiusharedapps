@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v50 - Auto-Skip & Fit</title>
+    <title>TIU Mixer Pro v51 - Cycle & Rotate</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -25,7 +25,7 @@
             font-family: 'Roboto', 'Arial', sans-serif; 
             overflow: hidden; touch-action: none; 
             height: 100vh; width: 100vw;
-            display: flex; justify-content: center; align-items: center; /* Center the app */
+            display: flex; justify-content: center; align-items: center; 
         }
 
         /* SUBTLE WATERMARK */
@@ -45,7 +45,6 @@
         }
 
         #app-container { 
-            /* Fixed base size for scaling logic */
             width: 1100px; 
             height: 800px; 
             display: flex; flex-direction: column; 
@@ -63,15 +62,13 @@
         .start-btn { background: var(--accent); color: #000; font-size: 2rem; font-weight: 900; padding: 20px 40px; border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 0 30px var(--accent); animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* PORTRAIT OVERRIDE (Mobile) */
+        /* PORTRAIT OVERRIDE */
         @media (orientation: portrait) { 
             body { display: block; overflow-y: auto; } 
             #app-container { 
                 width: 100%; height: auto; min-height: 100vh; 
-                transform: none !important; /* Disable scaling logic on mobile */
-                margin: 0;
-                padding: 5px; 
-                background: #181818; 
+                transform: none !important; 
+                margin: 0; padding: 5px; background: #181818; 
             } 
             .console { flex-direction: column; height: auto !important; margin-bottom: 20px; } 
             .deck { margin-bottom: 20px; min-height: 480px; } 
@@ -134,7 +131,6 @@
         .pitch-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 30px; background: #666; margin-top: -8px; border-radius: 2px; border: 1px solid #999; cursor: ns-resize; }
         .pitch-reset-btn { width: 30px; height: 100%; background: #333; border: 1px solid #555; color: #fff; border-radius: 3px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
 
-        /* MAXIMIZED MIXER */
         .mixer { width: 280px; background: #1a1a1a; padding: 8px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; flex-shrink: 0; position: relative; z-index: 10; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         
         .visual-monitors { width: 100%; display: flex; height: 130px; gap: 5px; margin-bottom: 10px; flex-shrink: 0; }
@@ -176,7 +172,7 @@
         .cash-btn { background: var(--cash-app); color: white; border: none; font-weight: bold; padding: 10px; border-radius: 4px; cursor: pointer; text-decoration: none; text-align: center; display: block; margin-top: 10px; }
         .cash-btn:hover { opacity: 0.9; }
         
-        /* FIX: Players must be visible for some browsers to allow playback, so we make them 1x1 pixel instead of off-screen */
+        /* FIX: Players must be visible for some browsers to allow playback */
         #video-layer { position: fixed; bottom: 0; right: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1; }
     </style>
 </head>
@@ -190,12 +186,11 @@
 
     <div id="toast">New Request Received!</div>
     <div id="automix-status">🤖 AUTOMIX: LOADING...</div>
-    
     <div class="watermark">TIU</div>
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v50</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v51</span></h1>
             <div class="top-btn-group">
                 <button class="top-btn" onclick="openSupport()">☕ DONATE</button>
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
@@ -250,12 +245,10 @@
                     <div class="monitor"><div id="player-a" class="yt-wrapper"></div></div>
                     <div class="monitor"><div id="player-b" class="yt-wrapper"></div></div>
                 </div>
-
                 <div id="mixer-qr-box">
                     <img id="mixer-qr-img" src="" alt="QR">
                     <div style="font-size:0.6rem; color:#aaa; margin-top:2px; font-weight:bold;">SCAN TO VOTE</div>
                 </div>
-
                 <div class="fader-section">
                     <div style="text-align:center; flex:1; display:flex; flex-direction:column; justify-content:center;">
                         <div style="font-size:0.6rem; color:#666; margin-bottom:5px;">MASTER</div>
@@ -402,7 +395,7 @@
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v50';
+        const AUTO_SAVE_KEY = 'tiu_v51';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var queuedTrack = { A: null, B: null }; 
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
@@ -446,7 +439,6 @@
         };
         function createP(d) {
             try {
-                // Players attached to visible elements in the mixer
                 players[d] = new YT.Player('player-'+d.toLowerCase(), {
                     height:'100%', width:'100%', playerVars:{'playsinline':1,'controls':0,'disablekb':1},
                     events: {
@@ -461,14 +453,10 @@
                         },
                         'onError': (e)=> { 
                             lastError = `YT Error Deck ${d}: ${e.data}`;
-                            
-                            // VISUAL FEEDBACK
                             document.getElementById('title-'+d.toLowerCase()).innerText = "❌ ERROR - SKIPPING";
                             document.getElementById('automix-status').style.display = 'block';
                             document.getElementById('automix-status').innerText = "⚠️ ERROR: SKIPPING...";
                             showToast("⚠️ Playback Error - Skipping...");
-
-                            // AUTO SKIP LOGIC
                             isMixing = false; 
                             setTimeout(() => triggerAutoMix(d==='A'?'B':'A'), 500); 
                         }
@@ -477,7 +465,7 @@
             } catch(e) { lastError = e.message; }
         }
 
-        // --- AUTOMIX LOGIC ---
+        // --- AUTOMIX LOGIC (FIXED v51) ---
         function toggleAutoMix() { 
             autoMixEnabled = !autoMixEnabled; 
             document.getElementById('automix-btn').classList.toggle('automix-on');
@@ -505,6 +493,7 @@
             });
         }
 
+        // --- NEW CYCLE LOGIC ---
         function triggerAutoMix(currD) {
             if(isMixing) return;
             isMixing = true;
@@ -513,20 +502,36 @@
 
             if(ready[nextD]) { players[nextD].stopVideo(); }
 
+            // 1. Pick ANY track that isn't currently loaded
             const currentID = loadedIDs[currD];
-            let currentIndex = crate.findIndex(t => t.id === currentID);
-            
-            if(currentIndex === -1) currentIndex = -1; 
-            let nextIndex = (currentIndex + 1) % crate.length;
+            const otherID = loadedIDs[nextD]; // In case manual load happened
 
-            if (crate.length > 1 && crate[nextIndex].id === currentID) {
-                nextIndex = (nextIndex + 1) % crate.length;
+            // Filter out what's currently playing to avoid immediate repeat
+            const candidates = crate.filter(t => t.id !== currentID && t.id !== otherID);
+            
+            let nextTrackObj;
+            
+            if(candidates.length > 0) {
+                // Priority 1: Top Votes
+                const bestVoted = candidates.reduce((prev, curr) => (curr.votes||0) > (prev.votes||0) ? curr : prev, candidates[0]);
+                
+                // If votes exist, use voted track. Else use top of list.
+                if((bestVoted.votes || 0) > 0) {
+                    nextTrackObj = bestVoted;
+                } else {
+                    // Default to top of list
+                    nextTrackObj = candidates[0];
+                }
+            } else {
+                // Emergency fallback (only 1 song in list)
+                nextTrackObj = crate[0];
             }
 
-            const nextTrackObj = crate[nextIndex];
+            console.log(`AutoMix: Loading ${nextTrackObj.name} to ${nextD}`);
             load(nextD, nextTrackObj.id);
             
             document.getElementById('automix-status').innerText = `🤖 NEXT: ${nextTrackObj.name}`;
+            
             setTimeout(() => { startAutomixSequence(currD, nextD); }, 2000);
         }
 
@@ -535,7 +540,7 @@
                 if(!ready[nextD]) return;
                 
                 const state = players[nextD].getPlayerState();
-                if(state === 1) { 
+                if(state === 1) { // Playing
                     clearInterval(playCheckIntv);
                     sync(nextD);
                     document.getElementById('automix-status').innerText = `🤖 FADING...`;
@@ -563,8 +568,25 @@
                     isMixing = false; 
                     normalizePitch(toD); 
                     document.getElementById('automix-status').innerText = "🤖 AUTOMIX STANDBY";
+                    
+                    // --- NEW: MOVE PLAYED TRACK TO BOTTOM ---
+                    movePlayedToBottom(fromD);
                 }
             }, 100);
+        }
+
+        function movePlayedToBottom(deck) {
+            const id = loadedIDs[deck];
+            if(!id) return;
+            
+            const idx = crate.findIndex(t => t.id === id);
+            if(idx > -1) {
+                const track = crate.splice(idx, 1)[0];
+                track.votes = 0; // Reset votes
+                crate.push(track); // Move to end
+                renderCrate();
+                console.log(`Moved ${track.name} to bottom of list.`);
+            }
         }
 
         // --- SORTING & CRATE ---
@@ -673,8 +695,6 @@
                 myPeerId = id;
                 const url = window.location.href.split('?')[0] + '?host=' + id;
                 const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(url)}`;
-                
-                // Show in Center Console
                 document.getElementById('mixer-qr-img').src = qrUrl;
                 document.getElementById('mixer-qr-box').style.display = 'flex';
             });
@@ -703,6 +723,7 @@
                 el.appendChild(btn);
             });
         }
+        function openVoteModal() { document.getElementById('vote-modal').style.display = 'flex'; }
         function toggleSuggestBox() { const b=document.getElementById('suggest-box'); b.style.display=b.style.display==='block'?'none':'block'; }
         function sendGuestSuggestion() {
             const u = document.getElementById('guest-url').value;
@@ -811,32 +832,12 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v50 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nQueue A: ${queuedTrack.A}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v51 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nQueue A: ${queuedTrack.A}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
-        
-        // --- COMPLETELY REWRITTEN SCREEN FIT LOGIC (v50) ---
         function resizeApp() {
-            // Mobile portrait - do nothing
-            if(window.innerHeight > window.innerWidth) return;
-
-            const c = document.getElementById('app-container');
-            const targetW = 1100;
-            const targetH = 800;
-            
-            // Calculate scale based on whichever dimension is tighter
-            const scaleW = window.innerWidth / targetW;
-            const scaleH = window.innerHeight / targetH;
-            
-            // Use the smaller scale to ensure it fits entirely
-            const scale = Math.min(scaleW, scaleH); // Removed 0.98 fudge factor to fit snug
-
-            c.style.transform = `scale(${scale})`;
-            c.style.transformOrigin = 'center center'; // Center scaling prevents cutoff
-            
-            // Remove margins that might push it offscreen
-            c.style.margin = '0';
-            c.style.marginTop = '0'; 
+            const c=document.getElementById('app-container');
+            if(window.innerWidth>window.innerHeight){ const s=Math.min(window.innerWidth/1100, window.innerHeight/800)*0.98; c.style.transform=`scale(${s})`; c.style.transformOrigin='center top'; c.style.width='1100px'; c.style.height='800px'; c.style.marginTop='10px'; document.body.style.overflow='hidden'; } else { c.style.transform='none'; c.style.width='100%'; c.style.height='auto'; c.style.marginTop='0'; document.body.style.overflowY='auto'; }
         }
         
         document.addEventListener('keydown',e=>{
