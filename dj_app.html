@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v42 - Logic Fixed</title>
+    <title>TIU Mixer Pro v43 - Auto Loop Fix</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -136,7 +136,7 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v42</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v43</span></h1>
             <div class="top-btn-group">
                 <button class="top-btn" onclick="openSupport()">☕ DONATE</button>
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
@@ -331,7 +331,7 @@
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v42';
+        const AUTO_SAVE_KEY = 'tiu_v43';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
@@ -395,7 +395,7 @@
             } catch(e) { lastError = e.message; }
         }
 
-        // --- AUTOMIX LOGIC (FIXED v42) ---
+        // --- AUTOMIX LOGIC (FIXED v43) ---
         function toggleAutoMix() { 
             autoMixEnabled = !autoMixEnabled; 
             document.getElementById('automix-btn').classList.toggle('automix-on');
@@ -428,39 +428,38 @@
             const nextD = currD==='A'?'B':'A';
             autoMixRetryCount = 0;
             
-            // 1. Calculate Logic
+            // LOGIC FIX: Check both decks
             const currID = loadedIDs[currD];
-            let endingIndex = crate.findIndex(t => t.id === currID);
-            // Default to sequential if no match
-            if(endingIndex === -1) endingIndex = 0;
+            const nextID = loadedIDs[nextD];
             
-            let nextIndex = (endingIndex + 1) % crate.length;
-
-            // 2. Check for Votes
-            let bestVote = 0, bestIdx = -1;
-            crate.forEach((t, i) => {
-                if(t.id !== currID && (t.votes||0) > bestVote) { bestVote=t.votes; bestIdx=i; }
-            });
-            if(bestIdx !== -1) nextIndex = bestIdx;
-
-            // 3. Respect Manual Load Check
-            const existingID = loadedIDs[nextD];
-            // If deck B has a song, AND it's not the song that just finished on Deck A (duplicate check)
-            if(existingID && existingID !== currID) {
-                // Determine if this is a "stale" song or a "newly loaded" one?
-                // Logic: If the next deck is NOT playing and has a track, assume user prepped it.
-                // We will SKIP loading a new track and just play what is there.
-                console.log("Automix: Detected manual track on " + nextD);
-                // We update 'nextIndex' just for metadata display if needed, but we don't call load()
-                const manualIdx = crate.findIndex(t => t.id === existingID);
-                if(manualIdx !== -1) nextIndex = manualIdx; 
-            } else {
-                // Nothing valid loaded? Load our calculated track
-                load(nextD, nextIndex);
+            // Assume we need to load UNLESS a valid, different song is waiting
+            let mustLoad = true;
+            
+            if(nextID && nextID !== currID) {
+                // There is a song on the next deck, and it's NOT the one currently playing.
+                // It might be a manual load. Let's use it.
+                mustLoad = false;
+                console.log("AutoMix: Found pre-loaded track on " + nextD);
             }
 
-            const nextTrack = crate[nextIndex] || {name: "Next Track"};
-            document.getElementById('automix-status').innerText = `🤖 MIXING TO: ${nextTrack.name}`;
+            if(mustLoad) {
+                // Calculate next song from Crate
+                let idx = crate.findIndex(t => t.id === currID);
+                if(idx === -1) idx = 0;
+                
+                let nextIdx = (idx + 1) % crate.length;
+                
+                // Prevent duplicate if crate > 1
+                if(crate.length > 1 && crate[nextIdx].id === currID) {
+                    nextIdx = (nextIdx + 1) % crate.length;
+                }
+                
+                load(nextD, nextIdx);
+            }
+
+            const nextTrackID = loadedIDs[nextD];
+            const trackObj = crate.find(t => t.id === nextTrackID) || {name: "Next Track"};
+            document.getElementById('automix-status').innerText = `🤖 MIXING TO: ${trackObj.name}`;
             
             // 4. Start Playback Monitor
             const playCheckIntv = setInterval(() => {
@@ -479,7 +478,10 @@
                         clearInterval(playCheckIntv);
                         document.getElementById('automix-status').innerText = "❌ ERROR: SKIP";
                         // Skip failed track
-                        load(nextD, (nextIndex + 1) % crate.length);
+                        if(mustLoad) {
+                             let idx = crate.findIndex(t => t.id === nextTrackID);
+                             load(nextD, (idx + 1) % crate.length);
+                        }
                         autoMixRetryCount = 0;
                         setTimeout(() => triggerAutoMix(currD), 1000);
                     }
@@ -718,7 +720,7 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v42 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v43 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         function resizeApp() {
