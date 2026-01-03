@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v45 - Clear & Force</title>
+    <title>TIU Mixer Pro v46 - ID Fix</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -136,7 +136,7 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v45</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v46</span></h1>
             <div class="top-btn-group">
                 <button class="top-btn" onclick="openSupport()">☕ DONATE</button>
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
@@ -331,7 +331,7 @@
     <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v45';
+        const AUTO_SAVE_KEY = 'tiu_v46';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
         var cues = { A: {1:null,2:null,3:null,set:false}, B: {1:null,2:null,3:null,set:false} };
@@ -395,7 +395,7 @@
             } catch(e) { lastError = e.message; }
         }
 
-        // --- AUTOMIX LOGIC (FIXED v45) ---
+        // --- AUTOMIX LOGIC (v46 ID FIXED) ---
         function toggleAutoMix() { 
             autoMixEnabled = !autoMixEnabled; 
             document.getElementById('automix-btn').classList.toggle('automix-on');
@@ -429,7 +429,7 @@
             const nextD = currD==='A'?'B':'A';
             autoMixRetryCount = 0;
 
-            // 1. CLEAR DECK - Force clear the target deck to ensure no old state remains
+            // 1. CLEAR DECK
             if(ready[nextD]) {
                 players[nextD].stopVideo();
                 console.log(`AutoMix: Clearing Deck ${nextD}`);
@@ -440,20 +440,19 @@
             const currentID = loadedIDs[currD];
             let currentIndex = crate.findIndex(t => t.id === currentID);
             
-            // Calculate next index: Wrap around to 0 if at end
+            // Calculate next index: Wrap around to 0 if at end or if not found
+            if(currentIndex === -1) currentIndex = -1; 
             let nextIndex = (currentIndex + 1) % crate.length;
 
-            // Safety: Ensure we aren't loading the exact same track ID if the crate has >1 item
-            // (This can happen if crate length is 1, so we allow it there)
             if (crate.length > 1 && crate[nextIndex].id === currentID) {
                 nextIndex = (nextIndex + 1) % crate.length;
             }
 
             const nextTrackObj = crate[nextIndex];
 
-            // 3. FORCE LOAD - Always load the specific next track
-            console.log(`AutoMix: Loading ${nextTrackObj.name} (Index ${nextIndex}) into Deck ${nextD}`);
-            load(nextD, nextIndex);
+            // 3. FORCE LOAD BY ID
+            console.log(`AutoMix: Loading ${nextTrackObj.name} (ID: ${nextTrackObj.id}) into Deck ${nextD}`);
+            load(nextD, nextTrackObj.id);
             
             document.getElementById('automix-status').innerText = `🤖 NEXT: ${nextTrackObj.name}`;
             
@@ -474,7 +473,7 @@
                 } else {
                     players[nextD].playVideo();
                     autoMixRetryCount++;
-                    if(autoMixRetryCount > 30) { // 7.5 seconds timeout
+                    if(autoMixRetryCount > 30) { 
                         clearInterval(playCheckIntv);
                         document.getElementById('automix-status').innerText = "❌ ERROR: SKIP";
                         isMixing = false; 
@@ -546,15 +545,23 @@
                 d.innerHTML=`<span class=\"item-name\">${vb}${t.name}</span>
                 <div style=\"font-size:0.7rem; display:flex; gap:5px; align-items:center;\">
                 ${t.bpm} BPM
-                <button class=\"load-btn\" onclick=\"load('A',${i})\">A</button><button class=\"load-btn\" onclick=\"load('B',${i})\">B</button>
+                <button class=\"load-btn\" onclick=\"load('A','${t.id}')\">A</button><button class=\"load-btn\" onclick=\"load('B','${t.id}')\">B</button>
                 <button class=\"load-btn\" style=\"color:#d32f2f;\" onclick=\"remove(${i})\">X</button></div>`;
                 l.appendChild(d);
             });
             saveAuto();
         }
-        function load(d,i) {
-            const t=crate[i]; if(!t) return; loadedIDs[d]=t.id;
+        
+        // FIXED LOAD FUNCTION: Accepts ID instead of Index
+        function load(d, id) {
+            const t = crate.find(x => x.id === id);
+            if(!t) { console.error("Track not found in crate:", id); return; }
+            
+            loadedIDs[d] = t.id;
+            
             if(ready[d]) {
+                // Force stop before loading to clear buffer
+                players[d].stopVideo(); 
                 players[d].loadVideoById(t.id);
                 document.getElementById('title-'+d.toLowerCase()).innerText=t.name;
                 tapData[d].bpm = t.bpm;
@@ -562,6 +569,7 @@
                 resetPitch(d);
             }
         }
+        
         function remove(i){ crate.splice(i,1); renderCrate(); }
         function shuffleCrate(){ for(let i=crate.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[crate[i],crate[j]]=[crate[j],crate[i]];} renderCrate(); }
 
@@ -712,7 +720,7 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v45 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v46 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         function resizeApp() {
