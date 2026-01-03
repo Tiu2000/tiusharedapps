@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v63 - Pro Audio</title>
+    <title>TIU Mixer Pro v67 - Cash App & Tempo</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -15,6 +15,7 @@
             --accent-b: #1e90ff; 
             --accent-main: #2ed573;
             --gold: #ffa502;
+            --cash-green: #00d632;
         }
 
         * { box-sizing: border-box; user-select: none; }
@@ -29,7 +30,7 @@
             display: flex; justify-content: center; align-items: center;
         }
 
-        /* WATERMARK */
+        /* WATERMARK - HIGH VISIBILITY */
         .watermark { 
             position: fixed; 
             top: 50%; left: 50%; 
@@ -64,9 +65,15 @@
         }
         .brand { font-weight: 900; letter-spacing: 1px; color: #fff; font-size: 1.1rem; }
         .version-badge { background: var(--accent-main); color: #000; font-size: 0.7rem; padding: 2px 5px; border-radius: 4px; margin-left: 5px; }
+        
         .toolbar { display: flex; gap: 8px; }
         .tool-btn { background: #222; color: #aaa; padding: 5px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; border: 1px solid #333; }
         .tool-btn:hover { background: #333; color: white; }
+        
+        /* CASH APP BUTTON STYLE */
+        .btn-cash { color: var(--cash-green); border-color: var(--cash-green); font-weight: 900; }
+        .btn-cash:hover { background: var(--cash-green); color: black; }
+
         .btn-record.active { background: #ff4757; color: white; animation: pulse 2s infinite; }
         .btn-auto.active { background: #d63031; color: white; }
         .btn-sync.active { background: var(--accent-main); color: #000; }
@@ -74,9 +81,9 @@
         /* --- CONSOLE GRID --- */
         .console-grid {
             display: grid;
-            grid-template-columns: 1fr 340px 1fr; 
+            grid-template-columns: 1fr 340px 1fr; /* Wider middle for QR */
             gap: 10px;
-            height: 480px; 
+            height: 480px; /* Fixed height for controls */
             flex-shrink: 0;
         }
 
@@ -85,6 +92,7 @@
             background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 8px;
             display: flex; flex-direction: column; padding: 10px; position: relative;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            min-width: 0; /* Prevents overflow */
         }
         .deck-a-accent { border-top: 3px solid var(--accent-a); }
         .deck-b-accent { border-top: 3px solid var(--accent-b); }
@@ -93,8 +101,9 @@
             background: #000; border: 1px solid #333; color: var(--accent-main);
             font-family: 'Courier New', monospace; padding: 8px; border-radius: 4px;
             margin-bottom: 10px; display: flex; flex-direction: column; gap: 4px;
+            min-width: 0;
         }
-        .track-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem; color: #fff; text-align: center; }
+        .track-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem; color: #fff; text-align: center; width:100%; }
         .track-meta { display: flex; justify-content: space-between; font-size: 0.75rem; align-items: center; }
         .bpm-editor { display: flex; gap: 5px; align-items: center; }
         .bpm-btn { width: 15px; height: 15px; background: #333; color: #fff; font-size: 0.6rem; border-radius: 2px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -104,6 +113,7 @@
         /* --- DIGITAL KNOBS --- */
         .controls-row { display: flex; justify-content: space-between; align-items: center; flex: 1; gap: 10px; }
         .knob-column { display: flex; flex-direction: column; gap: 10px; align-items: center; width: 60px; }
+        
         .digital-knob {
             width: 50px; height: 50px;
             background: #222; border-radius: 50%; border: 2px solid #444;
@@ -153,8 +163,8 @@
 
         /* PITCH CONTROLS */
         .pitch-wrap { display: flex; align-items: center; gap: 5px; margin-top: 10px; background: #111; padding: 5px; border-radius: 4px; }
+        .btn-reset { background: #333; color: #fff; font-size: 0.7rem; width: 30px; height: 20px; border-radius: 2px; }
         .pitch-nudge { background: #333; color: #fff; font-size: 0.7rem; width: 25px; height: 20px; border-radius: 2px; font-weight: bold; cursor: pointer; }
-        .pitch-reset { background: #444; color: #fff; font-size: 0.6rem; width: 20px; height: 20px; border-radius: 2px; }
         input[type=range].h-slider { width: 100%; -webkit-appearance: none; background: transparent; }
         input[type=range].h-slider::-webkit-slider-thumb { height: 16px; width: 12px; border-radius: 2px; background: #ccc; -webkit-appearance: none; margin-top: -6px; border: 1px solid #999; }
         input[type=range].h-slider::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #333; border-radius: 2px; }
@@ -173,6 +183,7 @@
 
         .mixer-controls { height: 80px; display: flex; align-items: flex-end; gap: 10px; }
         
+        /* Master Knob */
         .master-section { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 70px; }
         .master-knob { width: 60px; height: 60px; border-color: #666; }
         .master-knob .knob-value { color: #fff; font-size: 1.1rem; }
@@ -206,6 +217,8 @@
         .start-btn { background: linear-gradient(45deg, var(--accent-a), var(--accent-b)); color: white; font-size: 1.5rem; font-weight: 900; padding: 15px 40px; border-radius: 50px; box-shadow: 0 0 20px rgba(0,100,255,0.4); animation: pulse 2s infinite; }
         #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--accent-main); color: #000; padding: 10px 20px; border-radius: 30px; font-weight: bold; opacity: 0; transition: 0.3s; z-index: 10000; pointer-events: none; }
         #toast.visible { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+        
+        .cash-link { display: inline-block; background: var(--cash-green); color: white; padding: 10px 20px; border-radius: 20px; text-decoration: none; font-weight: bold; margin-top: 15px; }
 
         @media (orientation: portrait) {
             #app-layout { width: 100%; height: auto; transform: none !important; overflow-y: auto; display: block; }
@@ -231,9 +244,10 @@
     <div id="app-layout">
         
         <div class="top-bar">
-            <div class="brand">TIU MIXER <span class="version-badge">v63</span></div>
+            <div class="brand">TIU MIXER <span class="version-badge">v67</span></div>
             <div id="automix-status" style="display:none; color:var(--accent-main); font-weight:bold; font-size:0.9rem;">🤖 AUTOMIX ACTIVE</div>
             <div class="toolbar">
+                <button class="tool-btn btn-cash" onclick="openModal('support-modal')">$ CASH APP</button>
                 <button class="tool-btn" onclick="openModal('help-modal')">❓ HELP</button>
                 <button class="tool-btn" onclick="openModal('memory-modal')">💾 SAVES</button>
                 <button id="btn-sync" class="tool-btn btn-sync active" onclick="toggleSync()">SYNC: ON</button>
@@ -416,6 +430,15 @@
 
     </div>
 
+    <div id="support-modal" class="overlay hidden" onclick="if(event.target===this) this.classList.add('hidden')">
+        <div class="modal-box">
+            <h2 style="color:var(--cash-green)">SUPPORT THE DEV</h2>
+            <p style="color:#aaa;">If you love this tool, buy me a coffee!</p>
+            <a href="https://cash.app/$AnthonyTiu" target="_blank" class="cash-link">Send Cash App ($AnthonyTiu)</a>
+            <button class="tool-btn" style="width:100%; margin-top:15px;" onclick="document.getElementById('support-modal').classList.add('hidden')">CLOSE</button>
+        </div>
+    </div>
+
     <div id="help-modal" class="overlay hidden" onclick="if(event.target===this) this.classList.add('hidden')">
         <div class="modal-box" style="text-align:left;">
             <h2>SHORTCUTS</h2>
@@ -462,7 +485,7 @@
     </div>
 
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v63';
+        const AUTO_SAVE_KEY = 'tiu_v67';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var queuedTrack = { A: null, B: null }; 
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
@@ -524,7 +547,6 @@
                             btn.classList.remove('active');
                             mon.classList.remove('active');
                          }
-                         if(e.data===0 && autoMixEnabled) { /* LoopCheck handles this */ }
                     },
                     'onError': (e)=> { 
                         showToast(`Error on Deck ${d}. Skipping...`);
@@ -601,6 +623,7 @@
                 if(val === target) { 
                     clearInterval(intv); isMixing = false; 
                     movePlayedToBottom(fromD);
+                    normalizePitch(toD); // SMOOTH RESET OF INCOMING DECK TEMPO
                 }
             }, 100);
         }
@@ -724,6 +747,27 @@
             document.getElementById('bpm-'+d.toLowerCase()).innerText = tapData[d].bpm;
         }
         
+        function normalizePitch(d) {
+            const slider = document.getElementById('pitch-'+d.toLowerCase());
+            let val = parseFloat(slider.value);
+            if (Math.abs(1 - val) < 0.01) return; // Already near 1
+
+            const step = (1 - val) / 30; // 30 steps to reset
+            let count = 0;
+
+            const intv = setInterval(() => {
+                val += step;
+                slider.value = val;
+                updatePitch(d);
+                count++;
+                if (count >= 30) {
+                    clearInterval(intv);
+                    slider.value = 1;
+                    updatePitch(d);
+                }
+            }, 50); // 1.5 seconds total
+        }
+
         function toggleSync() { smartSyncEnabled=!smartSyncEnabled; document.getElementById('btn-sync').classList.toggle('active'); }
         function sync(t) {
             const s=t==='A'?'B':'A'; 
@@ -818,7 +862,7 @@
                 c.on('data', (data) => {
                     if(data.type === 'vote') { 
                         const t=crate.find(x=>x.id===data.id); 
-                        if(t){t.votes=(t.votes||0)+1; sortCrateVotes(); showToast(`Vote: ${t.name}`);} 
+                        if(t){t.votes=(t.votes||0)+1; sortCrateVotes(); showToast(`Vote Received: ${t.name}`);} 
                     }
                     if(data.type === 'suggest') addSingle(data.url);
                 });
