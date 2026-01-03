@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Mixer Pro v52 - Widescreen</title>
+    <title>TIU Mixer Pro v53 - Unblocked</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -27,14 +27,14 @@
             display: flex; justify-content: center; align-items: center; 
         }
 
-        /* WATERMARK - Now Visible */
+        /* WATERMARK */
         .watermark { 
             position: fixed; 
             top: 50%; left: 50%; 
             transform: translate(-50%, -50%) rotate(-10deg); 
             font-size: 30vw; 
             font-weight: 900; 
-            color: rgba(255, 255, 255, 0.08); /* Increased Opacity */
+            color: rgba(255, 255, 255, 0.08); 
             pointer-events: none; 
             z-index: 0; 
             white-space: nowrap; 
@@ -43,11 +43,9 @@
         }
 
         #app-container { 
-            /* WIDESCREEN BASE RESOLUTION */
             width: 1280px; 
             height: 720px; 
             display: flex; flex-direction: column; 
-            /* Semi-transparent background to see watermark */
             background: rgba(20, 20, 20, 0.85); 
             backdrop-filter: blur(10px);
             box-sizing: border-box; 
@@ -132,22 +130,20 @@
         .pitch-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 25px; width: 40px; background: #666; margin-top: -10px; border-radius: 2px; border: 1px solid #999; cursor: ns-resize; }
         .pitch-reset-btn { width: 35px; height: 100%; background: #333; border: 1px solid #555; color: #fff; border-radius: 3px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
 
-        /* --- MAXIMIZED MIXER --- */
         .mixer { 
-            width: 360px; /* WIDER */
+            width: 360px; 
             background: #161616; padding: 10px; border-radius: 8px; border: 1px solid #444; 
             display: flex; flex-direction: column; align-items: center; flex-shrink: 0; 
             position: relative; z-index: 10; box-shadow: 0 0 30px rgba(0,0,0,0.5); 
         }
         
         .visual-monitors { 
-            width: 100%; display: flex; height: 150px; /* TALLER SCREENS */
+            width: 100%; display: flex; height: 150px; 
             gap: 5px; margin-bottom: 10px; flex-shrink: 0; 
         }
-        .monitor { flex: 1; background: #000; border: 1px solid #555; position: relative; overflow: hidden; }
-        .yt-wrapper { width: 100%; height: 100%; pointer-events: none; opacity: 1; }
+        .monitor { flex: 1; background: #000; border: 1px solid #555; position: relative; overflow: hidden; cursor: pointer; }
+        .yt-wrapper { width: 100%; height: 100%; }
 
-        /* BIGGER QR BOX */
         #mixer-qr-box { 
             width: 100%; height: 140px; 
             display: none; flex-direction: column; align-items: center; justify-content: center; 
@@ -186,8 +182,6 @@
         #toast.show { opacity: 1; }
         .cash-btn { background: var(--cash-app); color: white; border: none; font-weight: bold; padding: 10px; border-radius: 4px; cursor: pointer; text-decoration: none; text-align: center; display: block; margin-top: 10px; }
         .cash-btn:hover { opacity: 0.9; }
-        
-        #video-layer { position: fixed; bottom: 0; right: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1; }
     </style>
 </head>
 <body>
@@ -205,7 +199,7 @@
 
     <div id="app-container">
         <header>
-            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v52</span></h1>
+            <h1>TIU MIXER <span style="font-size:0.7rem; border:1px solid var(--accent); padding:2px 5px; border-radius:4px; color:var(--accent);">v53</span></h1>
             <div class="top-btn-group">
                 <button class="top-btn" onclick="openSupport()">☕ DONATE</button>
                 <button class="top-btn" onclick="openDiag()">❓ HELP</button>
@@ -257,15 +251,13 @@
 
             <div class="mixer">
                 <div class="visual-monitors">
-                    <div class="monitor"><div id="player-a" class="yt-wrapper"></div></div>
-                    <div class="monitor"><div id="player-b" class="yt-wrapper"></div></div>
+                    <div class="monitor" onclick="playToggle('A')"><div id="player-a" class="yt-wrapper"></div></div>
+                    <div class="monitor" onclick="playToggle('B')"><div id="player-b" class="yt-wrapper"></div></div>
                 </div>
-
                 <div id="mixer-qr-box">
                     <img id="mixer-qr-img" src="" alt="QR">
                     <div style="font-size:0.6rem; color:#aaa; margin-top:2px; font-weight:bold;">SCAN TO VOTE</div>
                 </div>
-
                 <div class="fader-section">
                     <div style="text-align:center; flex:1; display:flex; flex-direction:column; justify-content:center;">
                         <div style="font-size:0.6rem; color:#666; margin-bottom:5px;">MASTER</div>
@@ -409,10 +401,8 @@
         </div>
     </div>
 
-    <div id="video-layer"><div id="player-a"></div><div id="player-b"></div></div>
-
     <script>
-        const AUTO_SAVE_KEY = 'tiu_v52';
+        const AUTO_SAVE_KEY = 'tiu_v53';
         var players = { A: null, B: null }, ready = { A: false, B: false };
         var queuedTrack = { A: null, B: null }; 
         var loops = { A: {active:false, in:null, out:null}, B: {active:false, in:null, out:null} };
@@ -675,7 +665,7 @@
         
         function load(d, id) {
             const t = crate.find(x => x.id === id);
-            if(!t) { console.error("Track not found in crate:", id); return; }
+            if(!t) { console.error("Track not found:", id); return; }
             loadedIDs[d] = t.id;
             if(ready[d]) {
                 document.getElementById('title-'+d.toLowerCase()).innerText = "LOADING...";
@@ -714,8 +704,6 @@
                 myPeerId = id;
                 const url = window.location.href.split('?')[0] + '?host=' + id;
                 const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(url)}`;
-                
-                // Show in Center Console
                 document.getElementById('mixer-qr-img').src = qrUrl;
                 document.getElementById('mixer-qr-box').style.display = 'flex';
             });
@@ -751,7 +739,13 @@
         }
 
         // --- CORE ---
-        function playToggle(d) { if(ready[d]) players[d].getPlayerState()===1 ? players[d].pauseVideo() : players[d].playVideo(); }
+        function playToggle(d) { 
+            if(ready[d]) {
+                players[d].getPlayerState()===1 ? players[d].pauseVideo() : players[d].playVideo(); 
+            } else {
+                showToast("⚠️ Player not ready");
+            }
+        }
         function cue(d) { if(ready[d]) { players[d].pauseVideo(); players[d].seekTo(0); } }
         function seek(d,e) { if(ready[d]){ const r=e.currentTarget.getBoundingClientRect(); players[d].seekTo(players[d].getDuration()*((e.clientX-r.left)/r.width), true); } }
         function updateVol() {
@@ -852,11 +846,11 @@
         function delSess(n) { localStorage.removeItem('tiu_s_'+n); renderSessionList(); }
         function openMemory(){ document.getElementById('memory-modal').style.display='flex'; renderSessionList(); }
         function openDiag() { document.getElementById('diag-modal').style.display='flex'; generateDiag(); }
-        function generateDiag() { document.getElementById('diag-textarea').value = `v52 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nQueue A: ${queuedTrack.A}\nCrate: ${crate.length}`; }
+        function generateDiag() { document.getElementById('diag-textarea').value = `v53 REPORT\nUA: ${navigator.userAgent}\nErrors: ${lastError}\nA Ready: ${ready.A}\nB Ready: ${ready.B}\nQueue A: ${queuedTrack.A}\nCrate: ${crate.length}`; }
         function importSession(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(e) { try { crate = JSON.parse(e.target.result); renderCrate(); saveAuto(); document.getElementById('memory-modal').style.display='none'; } catch(err){ alert("Invalid file"); } }; r.readAsText(f); }
         function exportSession() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(crate)); a.download = "tiu_mix.json"; document.body.appendChild(a); a.click(); a.remove(); }
         
-        // --- SCREEN FIT LOGIC (v52 16:9 Widescreen) ---
+        // --- SCREEN FIT LOGIC ---
         function resizeApp() {
             if(window.innerHeight > window.innerWidth) return; // Mobile portrait
 
@@ -867,7 +861,6 @@
             const scaleW = window.innerWidth / targetW;
             const scaleH = window.innerHeight / targetH;
             
-            // Use the smaller scale to ensure it fits entirely
             const scale = Math.min(scaleW, scaleH);
 
             c.style.transform = `scale(${scale})`;
