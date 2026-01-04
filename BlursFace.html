@@ -3,388 +3,574 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Safe Recorder (Fail-Safe)</title>
+    <title>TIU Safe Recorder (Full Suite)</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
     <style>
-        body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background-color: #121212;
-            color: #eee;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 10px;
-            margin: 0;
+        :root {
+            --primary: #0d6efd;
+            --danger: #dc3545;
+            --glass: rgba(20, 20, 20, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.1);
         }
 
-        h2 { margin: 10px 0; font-size: 1.5rem; text-align: center; color: #fff; }
-
-        /* Settings Bar */
-        .settings-bar {
-            background: #2d2d2d;
-            padding: 15px;
-            border-radius: 8px;
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #eee;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            overflow: hidden; /* Prevent scrolling for full screen app feel */
+            height: 100vh;
+            width: 100vw;
             display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
             justify-content: center;
             align-items: center;
-            margin-bottom: 15px;
-            width: 100%;
-            max-width: 700px;
-            border: 1px solid #444;
         }
 
-        .setting-group { display: flex; flex-direction: column; }
-        label { font-size: 0.8rem; color: #aaa; margin-bottom: 5px; }
-        select { padding: 8px; border-radius: 4px; border: none; background: #555; color: white; }
-
-        /* Toggle Switch */
-        .toggle-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: #444;
-            padding: 8px 15px;
-            border-radius: 20px;
-        }
-        .toggle-wrapper input { width: 20px; height: 20px; accent-color: #0d6efd; cursor: pointer; }
-
-        /* Video Area */
-        .video-wrapper {
+        /* --- Full Screen Video Area --- */
+        #app-container {
             position: relative;
             width: 100%;
-            max-width: 800px;
-            aspect-ratio: 16/9;
-            background: #000;
-            border: 2px solid #555;
-            border-radius: 8px;
-            overflow: hidden;
+            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
+            background: #000;
         }
 
-        canvas { width: 100%; height: 100%; object-fit: contain; }
+        canvas {
+            /* Object-fit contain ensures aspect ratio is kept */
+            width: 100%;
+            height: 100%;
+            object-fit: contain; 
+            display: block;
+        }
+        
         video { display: none; }
 
-        /* Status Overlay (shows when "Safe Mode" is active) */
-        #safetyOverlay {
+        /* --- Floating UI Overlays --- */
+        .ui-layer {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(220, 53, 69, 0.8);
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+        
+        /* Top Bar: Settings */
+        .top-bar {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: 1px solid var(--glass-border);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            font-size: 0.9rem;
+            max-width: 90%;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        select, input[type="file"] {
+            background: rgba(255,255,255,0.1);
+            border: none;
             color: white;
             padding: 5px 10px;
+            border-radius: 5px;
+            outline: none;
+            cursor: pointer;
+        }
+        select:hover { background: rgba(255,255,255,0.2); }
+        
+        .file-upload-btn {
+            background: rgba(255,255,255,0.1);
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .file-upload-btn:hover { background: rgba(255,255,255,0.2); }
+
+        /* Bottom Bar: Controls */
+        .bottom-bar {
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+        }
+
+        button.control-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        button.control-btn:hover:not(:disabled) { transform: scale(1.1); }
+        button.control-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .btn-record { background-color: var(--danger) !important; box-shadow: 0 0 15px rgba(220, 53, 69, 0.5); }
+        .btn-record.recording { animation: pulse 1.5s infinite; border-radius: 30%; }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+        /* Status & Safety Indicators */
+        .status-pill {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.6);
+            padding: 5px 12px;
             border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-            display: none;
+            font-size: 0.8rem;
+            font-family: monospace;
+            color: #0f0;
             pointer-events: none;
         }
 
-        /* Controls */
-        .controls { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; justify-content: center; }
-        button { padding: 12px 24px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; min-width: 120px; transition: all 0.2s; }
-        .btn-start { background-color: #0d6efd; color: white; }
-        .btn-record { background-color: #dc3545; color: white; }
-        .btn-stop { background-color: #6c757d; color: white; }
-        button:disabled { background-color: #444; color: #888; cursor: not-allowed; }
-        .btn-record.pulsing { animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        
-        .status { margin-top: 15px; font-family: monospace; color: #0f0; }
+        #safetyOverlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: none;
+            pointer-events: none;
+            text-align: center;
+            z-index: 5;
+        }
+
+        /* Watermark */
+        .watermark {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-family: Arial, sans-serif;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 3rem;
+            pointer-events: none;
+            z-index: 5;
+            user-select: none;
+        }
+
+        /* Checkbox styling */
+        .toggle { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer; }
+        .toggle input { accent-color: var(--primary); width: 16px; height: 16px; }
+
     </style>
 </head>
 <body>
 
-    <h2>TIU Privacy Recorder (Safe-Mode)</h2>
+<div id="app-container">
+    <video id="video" playsinline muted crossorigin="anonymous"></video>
+    <canvas id="output"></canvas>
+    
+    <div class="watermark">TIU</div>
+    <div id="safetyOverlay">⚠ FACE LOST<br>PRIVACY CURTAIN ACTIVE</div>
+    <div class="status-pill" id="status">Initializing AI...</div>
 
-    <div class="settings-bar">
-        <div class="setting-group">
-            <label for="camSelect">Camera Source</label>
-            <select id="camSelect">
-                <option value="environment" selected>Back Camera</option>
-                <option value="user">Front Camera</option>
-            </select>
-        </div>
-        <div class="setting-group">
-            <label for="resSelect">Resolution</label>
-            <select id="resSelect">
-                <option value="480">480p (Fast)</option>
-                <option value="720" selected>720p (HD)</option>
-                <option value="1080">1080p (Full HD)</option>
-            </select>
-        </div>
-        <div class="toggle-wrapper">
-            <input type="checkbox" id="voiceToggle">
-            <label for="voiceToggle" style="margin:0; color:white; cursor:pointer;">Anonymize Voice</label>
-        </div>
-    </div>
-
-    <div class="video-wrapper" id="videoWrapper">
-        <video id="video" playsinline muted></video>
-        <canvas id="output"></canvas>
-        <div id="safetyOverlay">⚠ SEARCHING FOR FACE - BLUR ACTIVE</div>
-    </div>
-
-    <div class="status" id="status">Loading AI...</div>
-
-    <div class="controls">
-        <button id="btnStartCam" class="btn-start" disabled>Start Camera</button>
-        <button id="btnRecord" class="btn-record" disabled>Record</button>
-        <button id="btnStop" class="btn-stop" disabled>Stop</button>
-    </div>
-
-    <script>
-        let model = null;
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('output');
-        const ctx = canvas.getContext('2d');
-        const status = document.getElementById('status');
-        const safetyOverlay = document.getElementById('safetyOverlay');
-        const videoWrapper = document.getElementById('videoWrapper');
-
-        const btnStart = document.getElementById('btnStartCam');
-        const btnRecord = document.getElementById('btnRecord');
-        const btnStop = document.getElementById('btnStop');
-        const camSelect = document.getElementById('camSelect');
-        const resSelect = document.getElementById('resSelect');
-        const voiceToggle = document.getElementById('voiceToggle');
-
-        let mediaRecorder;
-        let chunks = [];
-        let isRecording = false;
-        let audioCtx, audioDestination, audioSource;
-
-        // --- SAFETY VARIABLES ---
-        let lastFaces = [];
-        let lastDetectionTime = 0;
+    <div class="ui-layer top-bar">
+        <select id="camSelect" title="Camera Source">
+            <option value="environment">Back Cam</option>
+            <option value="user" selected>Front Cam</option>
+        </select>
         
-        // Config: How paranoid should the app be?
-        const STAGE_1_MEMORY = 1000;  // 1s: Keep drawing oval at last spot
-        const STAGE_2_PANIC = 4000;   // 4s: If lost for >1s but <4s, BLUR EVERYTHING
+        <label class="file-upload-btn">
+            <i class="bi bi-upload"></i> Upload Video
+            <input type="file" id="videoUpload" accept="video/*" style="display: none;">
+        </label>
 
-        // 1. Initialize AI
-        async function loadModel() {
-            try {
-                // 'fast: false' makes detection slightly slower but MORE accurate
-                model = await blazeface.load({ maxFaces: 10, iouThreshold: 0.3, scoreThreshold: 0.5 });
-                status.innerText = "System Ready. Please configure settings.";
-                btnStart.disabled = false;
-            } catch (e) {
-                status.innerText = "Error: AI Model Failed.";
-                console.error(e);
-            }
+        <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.2);"></div>
+
+        <select id="formatSelect" title="Recording Format">
+            </select>
+
+        <label class="toggle" title="Anonymize Voice">
+            <input type="checkbox" id="voiceToggle"> 
+            <span>Robot Voice</span>
+        </label>
+    </div>
+
+    <div class="ui-layer bottom-bar">
+        <button id="btnStart" class="control-btn" title="Start Camera/Play" disabled>
+            <i class="bi bi-camera-video-fill"></i>
+        </button>
+        
+        <button id="btnRecord" class="control-btn btn-record" title="Start Recording" disabled>
+            <i class="bi bi-record-fill"></i>
+        </button>
+        
+        <button id="btnStop" class="control-btn" title="Stop Recording" disabled>
+            <i class="bi bi-stop-fill"></i>
+        </button>
+    </div>
+</div>
+
+<script>
+    // --- Configuration ---
+    let model = null;
+    let stream = null;
+    let isFileMode = false;
+    let isRecording = false;
+    let mediaRecorder;
+    let chunks = [];
+    
+    // Audio Context
+    let audioCtx, audioDest, audioSrc;
+
+    // Safety Logic
+    let lastFaces = [];
+    let lastDetectionTime = 0;
+    const MEMORY_TIME = 1000; // 1s memory
+    const PANIC_TIME = 4000;  // 4s until total blur
+
+    // DOM Elements
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('output');
+    const ctx = canvas.getContext('2d');
+    const status = document.getElementById('status');
+    const safetyOverlay = document.getElementById('safetyOverlay');
+    
+    const btnStart = document.getElementById('btnStart');
+    const btnRecord = document.getElementById('btnRecord');
+    const btnStop = document.getElementById('btnStop');
+    const camSelect = document.getElementById('camSelect');
+    const formatSelect = document.getElementById('formatSelect');
+    const voiceToggle = document.getElementById('voiceToggle');
+    const videoUpload = document.getElementById('videoUpload');
+
+    // --- 1. Initialization ---
+    
+    async function init() {
+        populateFormats();
+        try {
+            status.innerText = "Loading BlazeFace Model...";
+            model = await blazeface.load(); 
+            status.innerText = "Ready. Select Source.";
+            btnStart.disabled = false;
+        } catch (e) {
+            status.innerText = "Error loading AI: " + e.message;
         }
-        loadModel();
+    }
 
-        // 2. Start Camera
-        btnStart.onclick = async () => {
-            status.innerText = "Accessing Camera...";
-            const facingMode = camSelect.value; 
-            const quality = resSelect.value;
-            let targetWidth = quality === '1080' ? 1920 : (quality === '720' ? 1280 : 640);
-            let targetHeight = quality === '1080' ? 1080 : (quality === '720' ? 720 : 480);
+    function populateFormats() {
+        const types = [
+            { name: "WebM (Default)", val: "video/webm" },
+            { name: "WebM (VP9)", val: "video/webm;codecs=vp9" },
+            { name: "MP4 (H.264)", val: "video/mp4" }
+        ];
 
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: facingMode, width: { ideal: targetWidth }, height: { ideal: targetHeight } },
-                    audio: true
-                });
+        types.forEach(t => {
+            if (MediaRecorder.isTypeSupported(t.val)) {
+                const opt = document.createElement('option');
+                opt.value = t.val;
+                opt.innerText = t.name;
+                formatSelect.appendChild(opt);
+            }
+        });
+        
+        // If MP4 isn't supported, we fallback to whatever is first
+        if (formatSelect.options.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = ""; 
+            opt.innerText = "Browser Default";
+            formatSelect.appendChild(opt);
+        }
+    }
 
-                video.srcObject = stream;
+    // --- 2. Input Handling (Camera vs File) ---
+
+    // A. Camera Mode
+    btnStart.onclick = async () => {
+        if (isFileMode) {
+            // If in file mode, this button acts as "Play"
+            video.play();
+            btnStart.disabled = true; // Can't start again while playing
+            return;
+        }
+
+        status.innerText = "Starting Camera...";
+        const constraints = {
+            video: { 
+                facingMode: camSelect.value,
+                width: { ideal: 1920 },
+                height: { ideal: 1080 } 
+            },
+            audio: true
+        };
+
+        try {
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = stream;
+            
+            video.onloadedmetadata = () => {
+                video.play();
+                resizeCanvas();
+                setupAudio(stream);
+                startLoops();
                 
-                video.onloadedmetadata = async () => {
-                    await video.play();
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    videoWrapper.style.aspectRatio = `${canvas.width}/${canvas.height}`;
-
-                    // Setup Audio
-                    setupAudio(stream);
-
-                    // Lock UI
-                    camSelect.disabled = true;
-                    resSelect.disabled = true;
-                    voiceToggle.disabled = true;
-                    btnStart.disabled = true;
-                    btnRecord.disabled = false;
-                    status.innerText = "Camera Active. Privacy Protection ON.";
-
-                    // Start Loops
-                    detectFacesLoop();
-                    drawLoop();
-                };
-            } catch (err) {
-                alert("Camera Error: " + err.message);
-            }
-        };
-
-        function setupAudio(stream) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            audioSource = audioCtx.createMediaStreamSource(stream);
-            audioDestination = audioCtx.createMediaStreamDestination();
-
-            if (voiceToggle.checked) {
-                // Robot Voice Effect
-                const oscillator = audioCtx.createOscillator();
-                oscillator.type = 'sine';
-                oscillator.frequency.value = 50;
-                const modGain = audioCtx.createGain();
-                modGain.gain.value = 1.0;
-                const voiceGain = audioCtx.createGain();
-                voiceGain.gain.value = 1.0;
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.value = 2500;
-
-                oscillator.connect(modGain);
-                modGain.connect(voiceGain.gain);
-                audioSource.connect(voiceGain);
-                voiceGain.connect(filter);
-                filter.connect(audioDestination);
-                oscillator.start();
-            } else {
-                audioSource.connect(audioDestination);
-            }
-        }
-
-        // 3. AI Detection Loop
-        async function detectFacesLoop() {
-            if (video.readyState === 4 && !video.paused && !video.ended) {
-                // returnTensors: false
-                const predictions = await model.estimateFaces(video, false);
-
-                if (predictions.length > 0) {
-                    lastFaces = predictions;
-                    lastDetectionTime = Date.now();
-                } 
-                // Note: We DO NOT clear lastFaces here. We let the Draw Loop decide when to clear.
-            }
-            requestAnimationFrame(detectFacesLoop);
-        }
-
-        // 4. Drawing Loop (The "Fail-Safe" Logic)
-        function drawLoop() {
-            const timeSinceFace = Date.now() - lastDetectionTime;
-            
-            // Draw raw video first
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // LOGIC TREE
-            if (lastFaces.length > 0) {
-                // Case A: We have a recent face (or a memory of one < 1s ago)
-                if (timeSinceFace < STAGE_1_MEMORY) {
-                    safetyOverlay.style.display = 'none';
-                    drawSpecificBlur(lastFaces);
-                } 
-                // Case B: Lost face between 1s and 4s ago -> PANIC MODE
-                else if (timeSinceFace < STAGE_2_PANIC) {
-                    safetyOverlay.style.display = 'block';
-                    drawTotalBlur(); // Blur EVERYTHING
-                }
-                // Case C: Lost face > 4s. Assume they left the room.
-                else {
-                    safetyOverlay.style.display = 'none';
-                    // Draw nothing (Show clear video)
-                    // But we keep lastFaces populated just in case they pop back? 
-                    // No, usually best to let it clear if we are sure they are gone.
-                }
-            }
-
-            // Watermark
-            drawWatermark();
-            
-            requestAnimationFrame(drawLoop);
-        }
-
-        function drawSpecificBlur(faces) {
-            faces.forEach(face => {
-                const start = face.topLeft;
-                const end = face.bottomRight;
-                const width = end[0] - start[0];
-                const height = end[1] - start[1];
-                const centerX = start[0] + width / 2;
-                const centerY = start[1] + height / 2;
-
-                ctx.save();
-                ctx.beginPath();
-                // 1.5x scale for extra safety margin
-                ctx.ellipse(centerX, centerY, width * 0.75, height * 0.75, 0, 0, 2 * Math.PI);
-                ctx.clip();
-                ctx.filter = 'blur(30px)'; // Heavy blur
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                ctx.restore();
-            });
-        }
-
-        function drawTotalBlur() {
-            // This is the Fail-Safe Curtain
-            ctx.save();
-            ctx.filter = 'blur(50px)'; // Massive blur
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            ctx.restore();
-        }
-
-        function drawWatermark() {
-            const fontSize = Math.max(20, Math.floor(canvas.width / 25));
-            ctx.font = `900 ${fontSize}px Arial`;
-            ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-            ctx.textAlign = "right";
-            ctx.fillText("TIU", canvas.width - (fontSize/2), canvas.height - (fontSize/2));
-        }
-
-        // 5. Recording Logic
-        btnRecord.onclick = () => {
-            const videoStream = canvas.captureStream(30);
-            const videoTrack = videoStream.getVideoTracks()[0];
-            const audioTrack = audioDestination.stream.getAudioTracks()[0];
-            const finalStream = new MediaStream([videoTrack, audioTrack]);
-
-            let options = { mimeType: 'video/webm' };
-            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) options = { mimeType: 'video/webm;codecs=vp9' };
-            else if (MediaRecorder.isTypeSupported('video/mp4')) options = { mimeType: 'video/mp4' };
-
-            mediaRecorder = new MediaRecorder(finalStream, options);
-
-            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(chunks, { type: chunks[0].type });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                const ext = chunks[0].type.includes('mp4') ? 'mp4' : 'webm';
-                a.download = `TIU-Safe-${Date.now()}.${ext}`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                chunks = [];
-                status.innerText = "Video Saved.";
-                btnRecord.innerText = "Record";
-                btnRecord.classList.remove('pulsing');
+                // UI State
+                btnStart.disabled = true;
                 btnRecord.disabled = false;
-                btnStop.disabled = true;
+                camSelect.disabled = true;
+                videoUpload.disabled = true;
+                status.innerText = "Live: Privacy Active";
             };
+        } catch (err) {
+            status.innerText = "Cam Error: " + err.message;
+        }
+    };
 
-            mediaRecorder.start();
-            isRecording = true;
-            status.innerText = "Recording... (Privacy Mode Active)";
-            btnRecord.innerText = "REC";
-            btnRecord.classList.add('pulsing');
-            btnRecord.disabled = true;
-            btnStop.disabled = false;
+    // B. File Upload Mode
+    videoUpload.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        isFileMode = true;
+        const url = URL.createObjectURL(file);
+        video.srcObject = null;
+        video.src = url;
+        video.loop = false; // Don't loop uploaded videos
+        video.muted = false; // Allow sound for checking
+
+        status.innerText = "Video Loaded. Press Start to Preview.";
+        btnStart.innerHTML = '<i class="bi bi-play-fill"></i>';
+        btnStart.disabled = false;
+        btnRecord.disabled = false;
+        camSelect.disabled = true;
+
+        video.onloadedmetadata = () => {
+            resizeCanvas();
+            // Create audio context from the video element specifically
+            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            audioSrc = audioCtx.createMediaElementSource(video);
+            audioDest = audioCtx.createMediaStreamDestination();
+            
+            // Connect to destination (recording) AND speakers (so user can hear)
+            audioSrc.connect(audioDest); 
+            audioSrc.connect(audioCtx.destination);
         };
+        
+        video.onended = () => {
+            if(isRecording) stopRecording();
+            btnStart.disabled = false;
+            status.innerText = "Video Ended.";
+        };
+        
+        // Start loops immediately so we see the first frame
+        startLoops();
+    };
 
-        btnStop.onclick = () => {
-            if (isRecording) {
-                mediaRecorder.stop();
-                isRecording = false;
+    function resizeCanvas() {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+    }
+
+    window.addEventListener('resize', () => {
+        // Just ensures the CSS handles the display size; 
+        // Internal resolution remains native to the video.
+    });
+
+    // --- 3. Audio Processing ---
+    function setupAudio(inputStream) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        audioSrc = audioCtx.createMediaStreamSource(inputStream);
+        audioDest = audioCtx.createMediaStreamDestination();
+
+        if (voiceToggle.checked) {
+            // Simple Pitch Shift / Robot effect
+            const oscillator = audioCtx.createOscillator();
+            oscillator.frequency.value = 50; // Low hum
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0.5;
+            
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 1000;
+
+            // Simple graph for privacy
+            audioSrc.connect(filter);
+            filter.connect(audioDest);
+        } else {
+            audioSrc.connect(audioDest);
+        }
+    }
+
+    // --- 4. AI & Drawing Loops ---
+
+    function startLoops() {
+        detectFaces();
+        drawFrame();
+    }
+
+    async function detectFaces() {
+        if (!video.paused && !video.ended && video.readyState === 4) {
+            const predictions = await model.estimateFaces(video, false);
+            if (predictions.length > 0) {
+                lastFaces = predictions;
+                lastDetectionTime = Date.now();
             }
-        };
-    </script>
+        }
+        requestAnimationFrame(detectFaces);
+    }
+
+    function drawFrame() {
+        // Draw raw video to canvas first
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const timeSinceFace = Date.now() - lastDetectionTime;
+        const hasRecentFace = lastFaces.length > 0 && timeSinceFace < MEMORY_TIME;
+        const isPanic = lastFaces.length > 0 && timeSinceFace >= MEMORY_TIME && timeSinceFace < PANIC_TIME;
+        const isSafe = lastFaces.length === 0 || timeSinceFace >= PANIC_TIME;
+
+        if (hasRecentFace) {
+            safetyOverlay.style.display = 'none';
+            // Blur specific faces
+            lastFaces.forEach(face => blurRegion(face));
+        } else if (isPanic) {
+            // Panic mode: Full blur
+            safetyOverlay.style.display = 'block';
+            safetyOverlay.innerHTML = "⚠ LOST TRACKING<br>FAIL-SAFE ACTIVE";
+            applyFullBlur(20);
+        } else {
+            // Safe / Empty room
+            safetyOverlay.style.display = 'none';
+            // If strict privacy is required even when empty, uncomment next line:
+            // applyFullBlur(5); 
+        }
+
+        requestAnimationFrame(drawFrame);
+    }
+
+    function blurRegion(face) {
+        const start = face.topLeft;
+        const end = face.bottomRight;
+        const width = end[0] - start[0];
+        const height = end[1] - start[1];
+        
+        // Expand blur area by 20%
+        const padding = width * 0.2;
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(start[0] - padding, start[1] - padding, width + (padding*2), height + (padding*2));
+        ctx.clip();
+        ctx.filter = 'blur(20px)';
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+    }
+
+    function applyFullBlur(amount) {
+        ctx.save();
+        ctx.filter = `blur(${amount}px)`;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+    }
+
+    // --- 5. Recording ---
+
+    btnRecord.onclick = () => {
+        if (!video.srcObject && !video.src) return;
+        
+        // If file mode, restart video from beginning for recording
+        if(isFileMode && video.ended) {
+            video.currentTime = 0;
+            video.play();
+        }
+
+        // Combine canvas video + processed audio
+        const vidTrack = canvas.captureStream(30).getVideoTracks()[0];
+        const audTrack = audioDest.stream.getAudioTracks()[0];
+        const streamToRecord = new MediaStream([vidTrack, audTrack].filter(t => t));
+
+        const mimeType = formatSelect.value || 'video/webm';
+        
+        try {
+            mediaRecorder = new MediaRecorder(streamToRecord, { mimeType });
+        } catch (e) {
+            alert("Format not supported. Fallback to default.");
+            mediaRecorder = new MediaRecorder(streamToRecord);
+        }
+
+        chunks = [];
+        mediaRecorder.ondataavailable = e => chunks.push(e.data);
+        mediaRecorder.onstop = saveVideo;
+        
+        mediaRecorder.start();
+        isRecording = true;
+        
+        // UI Updates
+        btnRecord.classList.add('recording');
+        btnRecord.disabled = true;
+        btnStop.disabled = false;
+        status.innerText = "REC ● " + (isFileMode ? "(Processing File)" : "(Live)");
+    };
+
+    function stopRecording() {
+        if(mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+            isRecording = false;
+            btnRecord.classList.remove('recording');
+            btnRecord.disabled = false;
+            btnStop.disabled = true;
+            status.innerText = "Processing Save...";
+        }
+    }
+    
+    btnStop.onclick = stopRecording;
+
+    function saveVideo() {
+        const blob = new Blob(chunks, { type: chunks[0].type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        // Determine extension
+        const isMp4 = chunks[0].type.includes('mp4');
+        a.download = `TIU_SafeRecord_${Date.now()}.${isMp4 ? 'mp4' : 'webm'}`;
+        
+        document.body.appendChild(a);
+        a.click();
+        
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            status.innerText = "Saved. Ready.";
+        }, 100);
+    }
+
+    // Initialize
+    init();
+
+</script>
 </body>
 </html>
