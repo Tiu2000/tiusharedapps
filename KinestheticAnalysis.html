@@ -618,7 +618,678 @@
         });
 
         function saveShape(cid, p1, p2) {
+            const s = { tool:currentTool, color:document.getElementById('colorPicker').value, p1:p1, p2:p2 };<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIU Analysis: Time Display</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --accent-color: #00bcd4;
+            --panel-bg: #1e1e1e;
+            --danger-color: #d32f2f;
+            --left-color: #ff9800;
+            --right-color: #4caf50;
+            --active-loop: #ffd700;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color); color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+        }
+
+        /* --- Header --- */
+        #controls-header {
+            background-color: var(--panel-bg);
+            padding: 8px 15px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 100;
+            flex-wrap: wrap; gap: 10px;
+        }
+
+        .source-controls {
+            display: flex; gap: 15px; align-items: center;
+            background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;
+        }
+        
+        .side-group { display: flex; flex-direction: column; gap: 4px; }
+        .row { display: flex; gap: 5px; align-items: center; }
+
+        input[type="text"] {
+            background: #333; border: 1px solid #444; color: white;
+            padding: 4px 8px; border-radius: 4px; width: 140px; font-size: 0.8rem;
+        }
+
+        /* Mini Sliders for Delay */
+        input[type=range].mini-slider {
+            width: 80px; height: 4px; -webkit-appearance: none; background: #444; border-radius: 2px;
+        }
+        input[type=range].mini-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 10px; height: 10px; background: var(--accent-color); border-radius: 50%; cursor: pointer;
+        }
+
+        button {
+            background-color: #444; color: #fff; border: none;
+            padding: 5px 10px; border-radius: 4px; cursor: pointer;
+            font-weight: bold; font-size: 0.75rem; white-space: nowrap;
+        }
+        button:hover { background-color: #555; }
+        button.primary { background-color: var(--accent-color); color: #000; }
+        button.active-cam { background-color: #ff3d00; color: white; animation: pulse 2s infinite; }
+        
+        @keyframes pulse { 0% {opacity:1;} 50% {opacity:0.8;} 100% {opacity:1;} }
+
+        /* Tools */
+        .tools-group {
+            display: flex; gap: 5px; align-items: center;
+            border-left: 1px solid #444; padding-left: 10px;
+        }
+        button.tool-btn.active { background-color: var(--accent-color); color: black; }
+        input[type="color"] { background: none; border: none; width: 20px; height: 20px; cursor: pointer; }
+
+        /* --- Workspace --- */
+        #workspace { flex: 1; display: flex; position: relative; background-color: #000; min-height: 0; }
+        .video-container {
+            flex: 1; position: relative; border-right: 1px solid #333;
+            display: flex; justify-content: center; align-items: center; overflow: hidden;
+        }
+        .vid-wrapper { position: relative; width: 100%; height: 100%; }
+
+        iframe, video, canvas.video-feed {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;
+        }
+        .hidden { display: none !important; }
+
+        .drawing-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; cursor: crosshair;
+        }
+        
+        .status-badge {
+            position: absolute; top: 10px; left: 10px; 
+            background: rgba(0,0,0,0.7); color: white; 
+            padding: 2px 6px; border-radius: 3px; font-size: 0.7rem; pointer-events: none; z-index: 15;
+        }
+
+        /* --- Footer --- */
+        #footer-controls {
+            background-color: var(--panel-bg); padding: 10px 15px;
+            display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #333; z-index: 100;
+        }
+        
+        .timeline-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+        .timeline-label { font-size: 0.75rem; font-weight: bold; min-width: 50px; text-align: right; color: #888; }
+        
+        /* Time Display */
+        .time-display {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #ccc;
+            min-width: 45px;
+            text-align: center;
+            background: #222;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        /* Main Scrubbers */
+        input[type=range].scrubber { -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; }
+        input[type=range].scrubber:focus { outline: none; }
+        input[type=range].scrubber::-webkit-slider-runnable-track { width: 100%; height: 6px; background: #444; border-radius: 3px; }
+        input[type=range].scrubber::-webkit-slider-thumb { 
+            height: 16px; width: 16px; border-radius: 50%; background: var(--accent-color); margin-top: -5px; -webkit-appearance: none; box-shadow: 0 1px 3px rgba(0,0,0,0.5); 
+        }
+        
+        #leftTimeline::-webkit-slider-thumb { background: var(--left-color); }
+        #rightTimeline::-webkit-slider-thumb { background: var(--right-color); }
+
+        .loop-controls { display: flex; gap: 2px; }
+        .loop-btn { font-size: 0.7rem; padding: 2px 6px; color: #aaa; background: #222; border: 1px solid #444; }
+        .loop-btn.set { color: var(--active-loop); border-color: var(--active-loop); }
+        .loop-info { font-size: 0.7rem; color: var(--active-loop); margin-left: 5px; font-family: monospace; }
+
+        .footer-buttons { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; }
+
+        #watermark {
+            position: absolute; bottom: 180px; right: 20px;
+            font-family: 'Arial Black', sans-serif; font-size: 3rem; font-weight: 900;
+            color: rgba(255, 255, 255, 0.1); pointer-events: none; z-index: 9999;
+        }
+
+        #fileInput { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="watermark">TIU</div>
+
+    <div id="controls-header">
+        
+        <div class="source-controls" style="border-left: 3px solid var(--left-color);">
+            <div class="side-group">
+                <div class="row">
+                    <span style="font-weight:bold; font-size:0.8rem; color:var(--left-color);">LEFT</span>
+                    <input type="text" id="url1" placeholder="YouTube URL">
+                    <button class="primary" onclick="loadYT(1)">Load</button>
+                    <button id="btnCam1" onclick="toggleCam(1)">📷 Cam</button>
+                </div>
+                <div class="row" id="delayGroup1" style="display:none;">
+                    <span style="font-size:0.7rem;">Mirror Delay:</span>
+                    <input type="range" class="mini-slider" id="delaySl1" min="0" max="10" step="0.5" value="0" oninput="updateDelay(1)">
+                    <span id="delayVal1" style="font-size:0.7rem;">0s</span>
+                    <button onclick="recordLoop(1)" style="margin-left:5px; padding: 2px 6px; background:#d32f2f;">🔴 Rec Loop (4s)</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="source-controls" style="border-left: 3px solid var(--right-color);">
+            <div class="side-group">
+                <div class="row">
+                    <span style="font-weight:bold; font-size:0.8rem; color:var(--right-color);">RIGHT</span>
+                    <input type="text" id="url2" placeholder="YouTube URL">
+                    <button class="primary" onclick="loadYT(2)">Load</button>
+                    <button id="btnCam2" onclick="toggleCam(2)">📷 Cam</button>
+                </div>
+                <div class="row" id="delayGroup2" style="display:none;">
+                    <span style="font-size:0.7rem;">Mirror Delay:</span>
+                    <input type="range" class="mini-slider" id="delaySl2" min="0" max="10" step="0.5" value="0" oninput="updateDelay(2)">
+                    <span id="delayVal2" style="font-size:0.7rem;">0s</span>
+                    <button onclick="recordLoop(2)" style="margin-left:5px; padding: 2px 6px; background:#d32f2f;">🔴 Rec Loop (4s)</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tools-group">
+            <button class="tool-btn active" id="btn-pointer" onclick="setTool('pointer')">👆</button>
+            <button class="tool-btn" id="btn-pen" onclick="setTool('pen')">✏️</button>
+            <button class="tool-btn" id="btn-line" onclick="setTool('line')">📏</button>
+            <button class="tool-btn" id="btn-angle" onclick="setTool('angle')">📐</button>
+            <button class="tool-btn" id="btn-circle" onclick="setTool('circle')">⭕</button>
+            <input type="color" id="colorPicker" value="#00bcd4">
+            <button onclick="undoLast()">↩</button>
+            <button style="background: var(--danger-color);" onclick="clearAll()">🗑️</button>
+        </div>
+    </div>
+
+    <div id="workspace">
+        <div class="video-container" id="c1" style="border-bottom: 2px solid var(--left-color);">
+            <div class="vid-wrapper">
+                <div id="status1" class="status-badge hidden">Live</div>
+                <div id="player1"></div>
+                <video id="vid1" playsinline muted class="hidden"></video>
+                <canvas id="render1" class="video-feed hidden"></canvas>
+                <div id="blocker1" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:10;"></div>
+                <canvas id="canvas1" class="drawing-layer"></canvas>
+            </div>
+        </div>
+        <div class="video-container" id="c2" style="border-bottom: 2px solid var(--right-color);">
+            <div class="vid-wrapper">
+                <div id="status2" class="status-badge hidden">Live</div>
+                <div id="player2"></div>
+                <video id="vid2" playsinline muted class="hidden"></video>
+                <canvas id="render2" class="video-feed hidden"></canvas>
+                <div id="blocker2" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:10;"></div>
+                <canvas id="canvas2" class="drawing-layer"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="footer-controls">
+        
+        <div class="timeline-row">
+            <span class="timeline-label" style="color:var(--left-color);">LEFT</span>
+            <span class="time-display" id="time1">0:00</span>
+            <input type="range" id="leftTimeline" class="scrubber" min="0" max="100" step="0.01" value="0">
+            <div class="loop-controls">
+                <button class="loop-btn" id="btnA1" onclick="setLoopPoint(1, 'A')">Set A</button>
+                <button class="loop-btn" id="btnB1" onclick="setLoopPoint(1, 'B')">Set B</button>
+                <button class="loop-btn" onclick="clearLoop(1)">Clear</button>
+            </div>
+            <span id="loopInfo1" class="loop-info"></span>
+        </div>
+
+        <div class="timeline-row">
+            <span class="timeline-label" style="color:var(--right-color);">RIGHT</span>
+            <span class="time-display" id="time2">0:00</span>
+            <input type="range" id="rightTimeline" class="scrubber" min="0" max="100" step="0.01" value="0">
+            <div class="loop-controls">
+                <button class="loop-btn" id="btnA2" onclick="setLoopPoint(2, 'A')">Set A</button>
+                <button class="loop-btn" id="btnB2" onclick="setLoopPoint(2, 'B')">Set B</button>
+                <button class="loop-btn" onclick="clearLoop(2)">Clear</button>
+            </div>
+            <span id="loopInfo2" class="loop-info"></span>
+        </div>
+
+        <div class="timeline-row" style="margin-top: 5px; border-top:1px solid #333; padding-top:5px;">
+            <span class="timeline-label" style="color:var(--accent-color);">MASTER</span>
+            <span class="time-display" id="timeM">0:00</span>
+            <input type="range" id="masterTimeline" class="scrubber" min="0" max="100" step="0.01" value="0">
+        </div>
+
+        <div class="footer-buttons">
+            <div style="display:flex; gap:10px; align-items:center;">
+                <button onclick="seekRel(-1)">-1s</button>
+                <button id="playPauseBtn" class="primary" onclick="togglePlay()" style="width: 80px;">⏯ PLAY</button>
+                <button onclick="seekRel(1)">+1s</button>
+                <button onclick="syncToLeft()">🔄 Sync Right to Left</button>
+            </div>
+            <div>
+                <button onclick="exportSession()">💾 Save</button>
+                <button onclick="document.getElementById('fileInput').click()">📂 Load</button>
+                <input type="file" id="fileInput" accept=".json" onchange="importSession(this)">
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+        // --- GLOBAL STATE ---
+        const state = {
+            1: { mode: 'yt', ready: false, delay: 0, buffer: [], loopUrl: null, loopA: null, loopB: null },
+            2: { mode: 'yt', ready: false, delay: 0, buffer: [], loopUrl: null, loopA: null, loopB: null },
+            isPlaying: false
+        };
+
+        let player1, player2;
+        let updateInterval;
+        let isScrubbing = false; 
+
+        const c1 = document.getElementById('canvas1');
+        const c2 = document.getElementById('canvas2');
+        const ctx1 = c1.getContext('2d');
+        const ctx2 = c2.getContext('2d');
+        
+        let currentTool = 'pointer';
+        let isDrawing = false;
+        let activeCanvasId = null;
+        let startPos = null;
+        let currentPath = [];
+        let drawings = { canvas1: [], canvas2: [] };
+
+        // --- UTILS ---
+        function formatTime(seconds) {
+            if(isNaN(seconds)) return "0:00";
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            const sStr = s < 10 ? "0"+s : s;
+            return `${m}:${sStr}`;
+        }
+
+        // --- YOUTUBE SETUP ---
+        function onYouTubeIframeAPIReady() { console.log("YT Ready"); }
+        function createPlayer(divId, onReady) {
+            return new YT.Player(divId, {
+                height: '100%', width: '100%',
+                playerVars: { 'playsinline': 1, 'controls': 0, 'modestbranding': 1, 'rel': 0, 'fs': 0 },
+                events: { 'onReady': onReady }
+            });
+        }
+        function extractVideoID(url) {
+            const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        // --- SOURCE LOADING ---
+        function loadYT(id) {
+            const url = document.getElementById('url' + id).value;
+            const vidId = extractVideoID(url);
+            if(!vidId) return alert("Invalid URL");
+
+            state[id].mode = 'yt';
+            state[id].loopUrl = null;
+            clearLoop(id);
+            
+            document.getElementById('delayGroup'+id).style.display = 'none';
+            document.getElementById('status'+id).classList.add('hidden');
+            document.getElementById('vid'+id).classList.add('hidden');
+            document.getElementById('render'+id).classList.add('hidden');
+            document.getElementById('btnCam'+id).classList.remove('active-cam');
+
+            if(id===1) {
+                if(player1) player1.loadVideoById(vidId);
+                else player1 = createPlayer('player1', (e)=>{ state[1].ready=true; e.target.mute(); });
+            } else {
+                if(player2) player2.loadVideoById(vidId);
+                else player2 = createPlayer('player2', (e)=>{ state[2].ready=true; e.target.mute(); });
+            }
+            stopCamera(id);
+        }
+
+        async function toggleCam(id) {
+            const btn = document.getElementById('btnCam'+id);
+            if(state[id].mode === 'cam') {
+                stopCamera(id);
+                state[id].mode = 'yt';
+                btn.classList.remove('active-cam');
+                document.getElementById('delayGroup'+id).style.display = 'none';
+                document.getElementById('render'+id).classList.add('hidden');
+                document.getElementById('status'+id).classList.add('hidden');
+                return;
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                const videoEl = document.getElementById('vid'+id);
+                videoEl.srcObject = stream;
+                videoEl.play();
+                state[id].mode = 'cam';
+                state[id].ready = true;
+                clearLoop(id);
+
+                btn.classList.add('active-cam');
+                document.getElementById('delayGroup'+id).style.display = 'flex';
+                document.getElementById('status'+id).classList.remove('hidden');
+                
+                if(id===1 && player1) player1.stopVideo(); 
+                if(id===2 && player2) player2.stopVideo();
+                requestAnimationFrame(() => renderLoop(id));
+            } catch(e) { alert("Camera Error: " + e.message); }
+        }
+
+        function stopCamera(id) {
+            const videoEl = document.getElementById('vid'+id);
+            if(videoEl.srcObject) {
+                videoEl.srcObject.getTracks().forEach(track => track.stop());
+                videoEl.srcObject = null;
+            }
+        }
+
+        function updateDelay(id) {
+            const val = document.getElementById('delaySl'+id).value;
+            state[id].delay = parseFloat(val);
+            document.getElementById('delayVal'+id).innerText = val + 's';
+            state[id].buffer = [];
+            const status = document.getElementById('status'+id);
+            if(state[id].loopUrl) status.innerText = "Replay Loop";
+            else status.innerText = (state[id].delay > 0) ? `Delay: ${val}s` : "Live Feed";
+        }
+
+        function renderLoop(id) {
+            if(state[id].mode !== 'cam') return;
+            const video = document.getElementById('vid'+id);
+            const canvas = document.getElementById('render'+id);
+            const ctx = canvas.getContext('2d');
+
+            if(video.videoWidth > 0 && canvas.width !== video.videoWidth) {
+                canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+                const dc = document.getElementById('canvas'+id);
+                dc.width = canvas.parentElement.offsetWidth; dc.height = canvas.parentElement.offsetHeight;
+            }
+
+            if(state[id].loopUrl) {
+                canvas.classList.add('hidden');
+                video.classList.remove('hidden');
+                if(state.isPlaying && video.paused) video.play();
+                else if(!state.isPlaying && !video.paused) video.pause();
+                requestAnimationFrame(() => renderLoop(id));
+                return;
+            }
+
+            video.classList.add('hidden');
+            canvas.classList.remove('hidden');
+
+            if(video.readyState === 4) {
+                ctx.drawImage(video, 0, 0);
+                if(state[id].delay > 0) {
+                    const frame = canvas.toDataURL('image/webp', 0.5); 
+                    state[id].buffer.push(frame);
+                    const maxFrames = state[id].delay * 30; 
+                    if(state[id].buffer.length > maxFrames) {
+                        const img = new Image();
+                        img.onload = () => ctx.drawImage(img, 0, 0);
+                        img.src = state[id].buffer.shift();
+                    }
+                }
+            }
+            requestAnimationFrame(() => renderLoop(id));
+        }
+
+        async function recordLoop(id) {
+            if(state[id].mode !== 'cam') return;
+            const btn = event.target;
+            if(state[id].loopUrl) {
+                URL.revokeObjectURL(state[id].loopUrl);
+                state[id].loopUrl = null;
+                stopCamera(id); toggleCam(id); 
+                btn.innerText = "🔴 Rec Loop (4s)"; btn.style.background = "#d32f2f";
+                return;
+            }
+            const stream = document.getElementById('vid'+id).srcObject;
+            if(!stream) return;
+            const recorder = new MediaRecorder(stream);
+            const chunks = [];
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { 'type' : 'video/webm' });
+                state[id].loopUrl = URL.createObjectURL(blob);
+                const vid = document.getElementById('vid'+id);
+                vid.srcObject = null; vid.src = state[id].loopUrl; vid.muted = true; vid.play();
+                btn.innerText = "❌ Stop Loop"; btn.style.background = "#555";
+                document.getElementById('status'+id).innerText = "Replay Loop";
+            };
+            recorder.start();
+            btn.innerText = "Recording...";
+            setTimeout(() => recorder.stop(), 4000);
+        }
+
+        // --- PLAYBACK ---
+        function getTime(id) {
+            if(state[id].mode === 'yt' && player1 && id===1) return player1.getCurrentTime();
+            if(state[id].mode === 'yt' && player2 && id===2) return player2.getCurrentTime();
+            if(state[id].mode === 'cam' && state[id].loopUrl) return document.getElementById('vid'+id).currentTime;
+            return 0;
+        }
+
+        function getDuration(id) {
+            if(state[id].mode === 'yt' && player1 && id===1) return player1.getDuration();
+            if(state[id].mode === 'yt' && player2 && id===2) return player2.getDuration();
+            if(state[id].mode === 'cam' && state[id].loopUrl) return document.getElementById('vid'+id).duration;
+            return 100;
+        }
+
+        function seekTo(id, val) {
+            if(state[id].mode === 'yt') {
+                if(id===1 && player1) player1.seekTo(val, true);
+                if(id===2 && player2) player2.seekTo(val, true);
+            } else if (state[id].mode === 'cam' && state[id].loopUrl) {
+                document.getElementById('vid'+id).currentTime = val;
+            }
+        }
+
+        function togglePlay() {
+            state.isPlaying = !state.isPlaying;
+            const btn = document.getElementById('playPauseBtn');
+            btn.innerText = state.isPlaying ? "⏸ PAUSE" : "⏯ PLAY";
+            
+            if(player1 && state[1].mode === 'yt') state.isPlaying ? player1.playVideo() : player1.pauseVideo();
+            if(player2 && state[2].mode === 'yt') state.isPlaying ? player2.playVideo() : player2.pauseVideo();
+            
+            if(state[1].loopUrl) { const v=document.getElementById('vid1'); state.isPlaying?v.play():v.pause(); }
+            if(state[2].loopUrl) { const v=document.getElementById('vid2'); state.isPlaying?v.play():v.pause(); }
+        }
+
+        function seekRel(sec) {
+            seekTo(1, getTime(1) + sec);
+            seekTo(2, getTime(2) + sec);
+        }
+        
+        function syncToLeft() {
+            seekTo(2, getTime(1));
+        }
+
+        // --- A-B LOOP ---
+        function setLoopPoint(id, point) {
+            const t = getTime(id);
+            if(point === 'A') state[id].loopA = t;
+            if(point === 'B') state[id].loopB = t;
+            updateLoopUI(id);
+        }
+
+        function clearLoop(id) {
+            state[id].loopA = null;
+            state[id].loopB = null;
+            updateLoopUI(id);
+        }
+
+        function updateLoopUI(id) {
+            const a = state[id].loopA;
+            const b = state[id].loopB;
+            const btnA = document.getElementById('btnA'+id);
+            const btnB = document.getElementById('btnB'+id);
+            const info = document.getElementById('loopInfo'+id);
+
+            btnA.classList.toggle('set', a !== null);
+            btnB.classList.toggle('set', b !== null);
+
+            if(a !== null && b !== null) info.innerText = `[${formatTime(a)} - ${formatTime(b)}]`;
+            else if (a !== null) info.innerText = `[${formatTime(a)} - ...]`;
+            else info.innerText = "";
+        }
+
+        function checkABLoop(id) {
+            const a = state[id].loopA;
+            const b = state[id].loopB;
+            if(a !== null && b !== null && state.isPlaying) {
+                const t = getTime(id);
+                if(t >= b || t < a - 0.5) seekTo(id, a);
+            }
+        }
+
+        // --- UPDATE LOOP ---
+        setInterval(() => {
+            checkABLoop(1);
+            checkABLoop(2);
+
+            if(!isScrubbing && state.isPlaying) {
+                const t1 = getTime(1);
+                const d1 = getDuration(1);
+                const sl1 = document.getElementById('leftTimeline');
+                sl1.max = d1; sl1.value = t1;
+                document.getElementById('time1').innerText = formatTime(t1);
+
+                const t2 = getTime(2);
+                const d2 = getDuration(2);
+                const sl2 = document.getElementById('rightTimeline');
+                sl2.max = d2; sl2.value = t2;
+                document.getElementById('time2').innerText = formatTime(t2);
+
+                const slM = document.getElementById('masterTimeline');
+                slM.max = d1; slM.value = t1;
+                document.getElementById('timeM').innerText = formatTime(t1);
+            }
+        }, 100);
+
+        // --- SLIDERS ---
+        function setupSlider(slId, playerId, timeDisplayId) {
+            const sl = document.getElementById(slId);
+            const disp = document.getElementById(timeDisplayId);
+            
+            sl.addEventListener('mousedown', () => isScrubbing = true);
+            sl.addEventListener('touchstart', () => isScrubbing = true);
+            
+            sl.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                
+                // Update time display instantly
+                if(disp) disp.innerText = formatTime(val);
+
+                if(playerId === 'master') {
+                    seekTo(1, val);
+                    seekTo(2, val);
+                    // Sync other sliders visually
+                    document.getElementById('leftTimeline').value = val;
+                    document.getElementById('time1').innerText = formatTime(val);
+                    document.getElementById('rightTimeline').value = val;
+                    document.getElementById('time2').innerText = formatTime(val);
+                } else {
+                    seekTo(playerId, val);
+                }
+            });
+
+            sl.addEventListener('change', () => { isScrubbing = false; });
+            sl.addEventListener('mouseup', () => { isScrubbing = false; });
+            sl.addEventListener('touchend', () => { isScrubbing = false; });
+        }
+
+        setupSlider('leftTimeline', 1, 'time1');
+        setupSlider('rightTimeline', 2, 'time2');
+        setupSlider('masterTimeline', 'master', 'timeM');
+
+        // --- DRAWING ---
+        function resizeCanvas() {
+            [c1, c2].forEach(c => {
+                c.width = c.parentElement.offsetWidth;
+                c.height = c.parentElement.offsetHeight;
+                redraw(c.id);
+            });
+        }
+        window.addEventListener('resize', resizeCanvas);
+        
+        function setTool(t) { currentTool = t; document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active')); document.getElementById('btn-'+t).classList.add('active'); }
+        function getPos(c, e) { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+        
+        [c1, c2].forEach(cvs => {
+            cvs.addEventListener('mousedown', e => { if(currentTool!=='pointer') { isDrawing=true; activeCanvasId=cvs.id; startPos=getPos(cvs, e); if(currentTool==='pen') currentPath=[startPos]; } });
+            cvs.addEventListener('mousemove', e => { if(isDrawing && activeCanvasId===cvs.id) { const p=getPos(cvs,e); if(currentTool==='pen') currentPath.push(p); redraw(cvs.id, p); } });
+            cvs.addEventListener('mouseup', e => { if(isDrawing && activeCanvasId===cvs.id) { saveShape(cvs.id, startPos, getPos(cvs,e)); isDrawing=false; activeCanvasId=null; redraw(cvs.id); } });
+        });
+
+        function saveShape(cid, p1, p2) {
             const s = { tool:currentTool, color:document.getElementById('colorPicker').value, p1:p1, p2:p2 };
+            if(currentTool==='pen') s.path = [...currentPath];
+            drawings[cid].push(s);
+        }
+
+        function redraw(cid, cur=null) {
+            const ctx = cid==='canvas1'?ctx1:ctx2; 
+            const cvs = cid==='canvas1'?c1:c2;
+            ctx.clearRect(0,0,cvs.width,cvs.height);
+            drawings[cid].forEach(s => drawShape(ctx, s));
+            if(isDrawing && activeCanvasId===cid && cur) drawShape(ctx, {tool:currentTool, color:document.getElementById('colorPicker').value, p1:startPos, p2:cur, path:currentPath});
+        }
+
+        function drawShape(ctx, s) {
+            ctx.beginPath(); ctx.strokeStyle=s.color; ctx.lineWidth=3; ctx.fillStyle=s.color;
+            if(s.tool==='line') { ctx.moveTo(s.p1.x, s.p1.y); ctx.lineTo(s.p2.x, s.p2.y); ctx.stroke(); }
+            else if(s.tool==='angle') {
+                ctx.moveTo(s.p1.x, s.p1.y); ctx.lineTo(s.p2.x, s.p2.y); ctx.stroke();
+                const theta = Math.atan2(s.p2.y-s.p1.y, s.p2.x-s.p1.x) * (180/Math.PI);
+                ctx.fillText(Math.abs(theta).toFixed(1)+"°", s.p2.x+10, s.p2.y);
+            }
+            else if(s.tool==='circle') {
+                const r = Math.sqrt(Math.pow(s.p2.x-s.p1.x,2)+Math.pow(s.p2.y-s.p1.y,2));
+                ctx.arc(s.p1.x, s.p1.y, r, 0, 2*Math.PI); ctx.stroke();
+            }
+            else if(s.tool==='pen' && s.path) {
+                if(s.path.length<2) return;
+                ctx.moveTo(s.path[0].x, s.path[0].y);
+                s.path.forEach(p => ctx.lineTo(p.x, p.y)); ctx.stroke();
+            }
+        }
+        function undoLast() { if(drawings.canvas2.length) { drawings.canvas2.pop(); redraw('canvas2'); } else if(drawings.canvas1.length) { drawings.canvas1.pop(); redraw('canvas1'); } }
+        function clearAll() { drawings={canvas1:[],canvas2:[]}; redraw('canvas1'); redraw('canvas2'); }
+        function exportSession() {
+            const data = { v1: document.getElementById('url1').value, v2: document.getElementById('url2').value, d1: drawings.canvas1, d2: drawings.canvas2 };
+            const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
+            const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='tiu_session.json'; a.click();
+        }
+        function importSession(input) {
+            const f = input.files[0]; if(!f) return;
+            const r = new FileReader();
+            r.onload = e => {
+                const d = JSON.parse(e.target.result);
+                document.getElementById('url1').value=d.v1; document.getElementById('url2').value=d.v2;
+                drawings.canvas1=d.d1; drawings.canvas2=d.d2;
+                loadYT(1); loadYT(2); setTimeout(()=>{redraw('canvas1');redraw('canvas2')},1000);
+            };
+            r.readAsText(f);
+        }
+    </script>
+</body>
+</html>
             if(currentTool==='pen') s.path = [...currentPath];
             drawings[cid].push(s);
         }
