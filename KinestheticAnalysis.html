@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Analysis: A-B Loop & Live</title>
+    <title>TIU Analysis: Time Display</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -104,6 +104,18 @@
         .timeline-row { display: flex; align-items: center; gap: 10px; width: 100%; }
         .timeline-label { font-size: 0.75rem; font-weight: bold; min-width: 50px; text-align: right; color: #888; }
         
+        /* Time Display */
+        .time-display {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #ccc;
+            min-width: 45px;
+            text-align: center;
+            background: #222;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
         /* Main Scrubbers */
         input[type=range].scrubber { -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; }
         input[type=range].scrubber:focus { outline: none; }
@@ -210,6 +222,7 @@
         
         <div class="timeline-row">
             <span class="timeline-label" style="color:var(--left-color);">LEFT</span>
+            <span class="time-display" id="time1">0:00</span>
             <input type="range" id="leftTimeline" class="scrubber" min="0" max="100" step="0.01" value="0">
             <div class="loop-controls">
                 <button class="loop-btn" id="btnA1" onclick="setLoopPoint(1, 'A')">Set A</button>
@@ -221,6 +234,7 @@
 
         <div class="timeline-row">
             <span class="timeline-label" style="color:var(--right-color);">RIGHT</span>
+            <span class="time-display" id="time2">0:00</span>
             <input type="range" id="rightTimeline" class="scrubber" min="0" max="100" step="0.01" value="0">
             <div class="loop-controls">
                 <button class="loop-btn" id="btnA2" onclick="setLoopPoint(2, 'A')">Set A</button>
@@ -232,6 +246,7 @@
 
         <div class="timeline-row" style="margin-top: 5px; border-top:1px solid #333; padding-top:5px;">
             <span class="timeline-label" style="color:var(--accent-color);">MASTER</span>
+            <span class="time-display" id="timeM">0:00</span>
             <input type="range" id="masterTimeline" class="scrubber" min="0" max="100" step="0.01" value="0">
         </div>
 
@@ -259,12 +274,10 @@
             isPlaying: false
         };
 
-        // Players
         let player1, player2;
         let updateInterval;
-        let isScrubbing = false; // Fix: Prevent auto-update fighting user input
+        let isScrubbing = false; 
 
-        // Canvas Setup
         const c1 = document.getElementById('canvas1');
         const c2 = document.getElementById('canvas2');
         const ctx1 = c1.getContext('2d');
@@ -276,6 +289,15 @@
         let startPos = null;
         let currentPath = [];
         let drawings = { canvas1: [], canvas2: [] };
+
+        // --- UTILS ---
+        function formatTime(seconds) {
+            if(isNaN(seconds)) return "0:00";
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            const sStr = s < 10 ? "0"+s : s;
+            return `${m}:${sStr}`;
+        }
 
         // --- YOUTUBE SETUP ---
         function onYouTubeIframeAPIReady() { console.log("YT Ready"); }
@@ -355,7 +377,6 @@
             }
         }
 
-        // --- CAMERA UTILS ---
         function updateDelay(id) {
             const val = document.getElementById('delaySl'+id).value;
             state[id].delay = parseFloat(val);
@@ -378,11 +399,9 @@
                 dc.width = canvas.parentElement.offsetWidth; dc.height = canvas.parentElement.offsetHeight;
             }
 
-            // If we have a loopUrl (recorded clip), play that video element
             if(state[id].loopUrl) {
                 canvas.classList.add('hidden');
                 video.classList.remove('hidden');
-                // Ensure loop state
                 if(state.isPlaying && video.paused) video.play();
                 else if(!state.isPlaying && !video.paused) video.pause();
                 requestAnimationFrame(() => renderLoop(id));
@@ -412,7 +431,6 @@
             if(state[id].mode !== 'cam') return;
             const btn = event.target;
             if(state[id].loopUrl) {
-                // Stop Replaying
                 URL.revokeObjectURL(state[id].loopUrl);
                 state[id].loopUrl = null;
                 stopCamera(id); toggleCam(id); 
@@ -437,8 +455,7 @@
             setTimeout(() => recorder.stop(), 4000);
         }
 
-        // --- PLAYBACK HELPERS ---
-        // Abstract getting/setting time to handle YT vs HTML5 Video
+        // --- PLAYBACK ---
         function getTime(id) {
             if(state[id].mode === 'yt' && player1 && id===1) return player1.getCurrentTime();
             if(state[id].mode === 'yt' && player2 && id===2) return player2.getCurrentTime();
@@ -483,7 +500,7 @@
             seekTo(2, getTime(1));
         }
 
-        // --- A-B LOOP LOGIC ---
+        // --- A-B LOOP ---
         function setLoopPoint(id, point) {
             const t = getTime(id);
             if(point === 'A') state[id].loopA = t;
@@ -507,8 +524,8 @@
             btnA.classList.toggle('set', a !== null);
             btnB.classList.toggle('set', b !== null);
 
-            if(a !== null && b !== null) info.innerText = `[${a.toFixed(1)} - ${b.toFixed(1)}]`;
-            else if (a !== null) info.innerText = `[${a.toFixed(1)} - ...]`;
+            if(a !== null && b !== null) info.innerText = `[${formatTime(a)} - ${formatTime(b)}]`;
+            else if (a !== null) info.innerText = `[${formatTime(a)} - ...]`;
             else info.innerText = "";
         }
 
@@ -517,53 +534,56 @@
             const b = state[id].loopB;
             if(a !== null && b !== null && state.isPlaying) {
                 const t = getTime(id);
-                // Buffer of 0.1s to prevent getting stuck
-                if(t >= b || t < a - 0.5) {
-                    seekTo(id, a);
-                }
+                if(t >= b || t < a - 0.5) seekTo(id, a);
             }
         }
 
         // --- UPDATE LOOP ---
         setInterval(() => {
-            // Check Loops
             checkABLoop(1);
             checkABLoop(2);
 
-            // Update Sliders if not scrubbing
             if(!isScrubbing && state.isPlaying) {
                 const t1 = getTime(1);
                 const d1 = getDuration(1);
                 const sl1 = document.getElementById('leftTimeline');
                 sl1.max = d1; sl1.value = t1;
+                document.getElementById('time1').innerText = formatTime(t1);
 
                 const t2 = getTime(2);
                 const d2 = getDuration(2);
                 const sl2 = document.getElementById('rightTimeline');
                 sl2.max = d2; sl2.value = t2;
+                document.getElementById('time2').innerText = formatTime(t2);
 
-                // Master follows Left
                 const slM = document.getElementById('masterTimeline');
                 slM.max = d1; slM.value = t1;
+                document.getElementById('timeM').innerText = formatTime(t1);
             }
-        }, 100); // 100ms update rate
+        }, 100);
 
-        // --- SLIDER LISTENERS (FIXED) ---
-        // attach listeners to handle "scrubbing" state
-        function setupSlider(slId, playerId) {
+        // --- SLIDERS ---
+        function setupSlider(slId, playerId, timeDisplayId) {
             const sl = document.getElementById(slId);
+            const disp = document.getElementById(timeDisplayId);
             
             sl.addEventListener('mousedown', () => isScrubbing = true);
             sl.addEventListener('touchstart', () => isScrubbing = true);
             
             sl.addEventListener('input', (e) => {
-                // Seek immediately
                 const val = parseFloat(e.target.value);
+                
+                // Update time display instantly
+                if(disp) disp.innerText = formatTime(val);
+
                 if(playerId === 'master') {
                     seekTo(1, val);
-                    seekTo(2, val); // Simple Master Sync
+                    seekTo(2, val);
+                    // Sync other sliders visually
                     document.getElementById('leftTimeline').value = val;
+                    document.getElementById('time1').innerText = formatTime(val);
                     document.getElementById('rightTimeline').value = val;
+                    document.getElementById('time2').innerText = formatTime(val);
                 } else {
                     seekTo(playerId, val);
                 }
@@ -574,12 +594,11 @@
             sl.addEventListener('touchend', () => { isScrubbing = false; });
         }
 
-        setupSlider('leftTimeline', 1);
-        setupSlider('rightTimeline', 2);
-        setupSlider('masterTimeline', 'master');
+        setupSlider('leftTimeline', 1, 'time1');
+        setupSlider('rightTimeline', 2, 'time2');
+        setupSlider('masterTimeline', 'master', 'timeM');
 
-
-        // --- DRAWING ENGINE (Standard) ---
+        // --- DRAWING ---
         function resizeCanvas() {
             [c1, c2].forEach(c => {
                 c.width = c.parentElement.offsetWidth;
