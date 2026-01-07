@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Analysis: Time Display</title>
+    <title>TIU Analysis: Time Ticks</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -104,22 +104,29 @@
         .timeline-row { display: flex; align-items: center; gap: 10px; width: 100%; }
         .timeline-label { font-size: 0.75rem; font-weight: bold; min-width: 50px; text-align: right; color: #888; }
         
-        /* Time Display */
         .time-display {
-            font-family: 'Courier New', monospace;
-            font-size: 0.8rem;
-            color: #ccc;
-            min-width: 45px;
-            text-align: center;
-            background: #222;
-            padding: 2px 5px;
-            border-radius: 3px;
+            font-family: 'Courier New', monospace; font-size: 0.8rem; color: #ccc;
+            min-width: 45px; text-align: center; background: #222; padding: 2px 5px; border-radius: 3px;
         }
 
-        /* Main Scrubbers */
-        input[type=range].scrubber { -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; }
+        /* --- Custom Slider with Ticks --- */
+        .slider-wrapper {
+            position: relative; width: 100%; height: 20px; display: flex; align-items: center;
+        }
+
+        .tick-layer {
+            position: absolute; top: 7px; left: 0; width: 100%; height: 6px;
+            pointer-events: none; border-radius: 3px; z-index: 0;
+            background-color: #333; /* Fallback track color */
+            /* Ticks are generated via JS gradient */
+        }
+
+        input[type=range].scrubber { 
+            -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; 
+            position: relative; z-index: 1; margin: 0;
+        }
         input[type=range].scrubber:focus { outline: none; }
-        input[type=range].scrubber::-webkit-slider-runnable-track { width: 100%; height: 6px; background: #444; border-radius: 3px; }
+        input[type=range].scrubber::-webkit-slider-runnable-track { width: 100%; height: 6px; background: transparent; border-radius: 3px; }
         input[type=range].scrubber::-webkit-slider-thumb { 
             height: 16px; width: 16px; border-radius: 50%; background: var(--accent-color); margin-top: -5px; -webkit-appearance: none; box-shadow: 0 1px 3px rgba(0,0,0,0.5); 
         }
@@ -148,7 +155,6 @@
     <div id="watermark">TIU</div>
 
     <div id="controls-header">
-        
         <div class="source-controls" style="border-left: 3px solid var(--left-color);">
             <div class="side-group">
                 <div class="row">
@@ -223,7 +229,10 @@
         <div class="timeline-row">
             <span class="timeline-label" style="color:var(--left-color);">LEFT</span>
             <span class="time-display" id="time1">0:00</span>
-            <input type="range" id="leftTimeline" class="scrubber" min="0" max="100" step="0.01" value="0">
+            <div class="slider-wrapper">
+                <div class="tick-layer" id="ticks1"></div>
+                <input type="range" id="leftTimeline" class="scrubber" min="0" max="100" step="0.01" value="0">
+            </div>
             <div class="loop-controls">
                 <button class="loop-btn" id="btnA1" onclick="setLoopPoint(1, 'A')">Set A</button>
                 <button class="loop-btn" id="btnB1" onclick="setLoopPoint(1, 'B')">Set B</button>
@@ -235,7 +244,10 @@
         <div class="timeline-row">
             <span class="timeline-label" style="color:var(--right-color);">RIGHT</span>
             <span class="time-display" id="time2">0:00</span>
-            <input type="range" id="rightTimeline" class="scrubber" min="0" max="100" step="0.01" value="0">
+            <div class="slider-wrapper">
+                <div class="tick-layer" id="ticks2"></div>
+                <input type="range" id="rightTimeline" class="scrubber" min="0" max="100" step="0.01" value="0">
+            </div>
             <div class="loop-controls">
                 <button class="loop-btn" id="btnA2" onclick="setLoopPoint(2, 'A')">Set A</button>
                 <button class="loop-btn" id="btnB2" onclick="setLoopPoint(2, 'B')">Set B</button>
@@ -247,7 +259,10 @@
         <div class="timeline-row" style="margin-top: 5px; border-top:1px solid #333; padding-top:5px;">
             <span class="timeline-label" style="color:var(--accent-color);">MASTER</span>
             <span class="time-display" id="timeM">0:00</span>
-            <input type="range" id="masterTimeline" class="scrubber" min="0" max="100" step="0.01" value="0">
+            <div class="slider-wrapper">
+                <div class="tick-layer" id="ticksM"></div>
+                <input type="range" id="masterTimeline" class="scrubber" min="0" max="100" step="0.01" value="0">
+            </div>
         </div>
 
         <div class="footer-buttons">
@@ -275,9 +290,9 @@
         };
 
         let player1, player2;
-        let updateInterval;
         let isScrubbing = false; 
 
+        // Canvas Setup
         const c1 = document.getElementById('canvas1');
         const c2 = document.getElementById('canvas2');
         const ctx1 = c1.getContext('2d');
@@ -297,6 +312,35 @@
             const s = Math.floor(seconds % 60);
             const sStr = s < 10 ? "0"+s : s;
             return `${m}:${sStr}`;
+        }
+
+        // --- TICK GENERATOR ---
+        function updateTicks(sliderId, tickLayerId, duration) {
+            const layer = document.getElementById(tickLayerId);
+            if(!duration || duration <= 0) {
+                layer.style.background = "#333";
+                return;
+            }
+
+            // Determine Tick Interval based on length
+            let interval = 10; // default 10s
+            if(duration > 600) interval = 60; // >10m -> 1m ticks
+            else if(duration > 120) interval = 30; // >2m -> 30s ticks
+
+            // Calculate percentage for one interval
+            const pct = (interval / duration) * 100;
+            
+            // Create Repeating Gradient
+            // Ticks are 2px wide lines
+            layer.style.background = `
+                repeating-linear-gradient(
+                    to right,
+                    #666 0,
+                    #666 1px,
+                    transparent 1px,
+                    transparent ${pct}%
+                )
+            `;
         }
 
         // --- YOUTUBE SETUP ---
@@ -467,7 +511,7 @@
             if(state[id].mode === 'yt' && player1 && id===1) return player1.getDuration();
             if(state[id].mode === 'yt' && player2 && id===2) return player2.getDuration();
             if(state[id].mode === 'cam' && state[id].loopUrl) return document.getElementById('vid'+id).duration;
-            return 100;
+            return 100; // default for layout
         }
 
         function seekTo(id, val) {
@@ -546,19 +590,23 @@
             if(!isScrubbing && state.isPlaying) {
                 const t1 = getTime(1);
                 const d1 = getDuration(1);
+                
                 const sl1 = document.getElementById('leftTimeline');
                 sl1.max = d1; sl1.value = t1;
                 document.getElementById('time1').innerText = formatTime(t1);
+                updateTicks(1, 'ticks1', d1); // Update ticks
 
                 const t2 = getTime(2);
                 const d2 = getDuration(2);
                 const sl2 = document.getElementById('rightTimeline');
                 sl2.max = d2; sl2.value = t2;
                 document.getElementById('time2').innerText = formatTime(t2);
+                updateTicks(2, 'ticks2', d2); // Update ticks
 
                 const slM = document.getElementById('masterTimeline');
                 slM.max = d1; slM.value = t1;
                 document.getElementById('timeM').innerText = formatTime(t1);
+                updateTicks('M', 'ticksM', d1); // Update ticks
             }
         }, 100);
 
@@ -573,13 +621,11 @@
             sl.addEventListener('input', (e) => {
                 const val = parseFloat(e.target.value);
                 
-                // Update time display instantly
                 if(disp) disp.innerText = formatTime(val);
 
                 if(playerId === 'master') {
                     seekTo(1, val);
                     seekTo(2, val);
-                    // Sync other sliders visually
                     document.getElementById('leftTimeline').value = val;
                     document.getElementById('time1').innerText = formatTime(val);
                     document.getElementById('rightTimeline').value = val;
