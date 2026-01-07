@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIU Sports Analysis Tool</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --accent-color: #00bcd4;
+            --panel-bg: #1e1e1e;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Top Control Bar */
+        #controls-header {
+            background-color: var(--panel-bg);
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            background: #333;
+            border: 1px solid #444;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            width: 250px;
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        button.tool-btn {
+            background-color: #444;
+            color: white;
+        }
+        
+        button.tool-btn.active {
+            background-color: var(--accent-color);
+            color: black;
+        }
+
+        /* Main Video Area */
+        #workspace {
+            flex: 1;
+            display: flex;
+            position: relative;
+            background-color: #000;
+        }
+
+        .video-container {
+            flex: 1;
+            position: relative;
+            border-right: 1px solid #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* The YouTube iframe wrapper to maintain aspect ratio */
+        .vid-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Passes clicks through to the overlay */
+        }
+
+        /* Analysis Overlay (Canvas) */
+        .drawing-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            cursor: crosshair;
+        }
+
+        /* Controls Footer */
+        #footer-controls {
+            background-color: var(--panel-bg);
+            padding: 15px;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .keyboard-hint {
+            font-size: 0.8rem;
+            color: #888;
+            position: absolute;
+            right: 20px;
+        }
+
+        /* Watermark */
+        #watermark {
+            position: fixed;
+            bottom: 60px; /* Above the footer */
+            right: 20px;
+            font-size: 3rem;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.05); /* Subtle transparent */
+            pointer-events: none;
+            z-index: 50;
+            user-select: none;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Utility classes */
+        .hidden { display: none; }
+        
+        #blocker {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 5; /* Sit between iframe and canvas to capture events if needed, but canvas usually handles it */
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="watermark">TIU</div>
+
+    <div id="controls-header">
+        <div class="input-group">
+            <input type="text" id="url1" placeholder="Paste YouTube Link 1 (Left)">
+            <input type="text" id="url2" placeholder="Paste YouTube Link 2 (Right)">
+            <button onclick="loadVideos()">LOAD VIDEOS</button>
+        </div>
+        
+        <div class="input-group">
+            <span style="align-self:center; font-size:0.9em; margin-right:10px;">TOOLS:</span>
+            <button class="tool-btn active" id="btn-pointer" onclick="setTool('pointer')">👆 Move</button>
+            <button class="tool-btn" id="btn-line" onclick="setTool('line')">📏 Line</button>
+            <button class="tool-btn" id="btn-angle" onclick="setTool('angle')">📐 Angle</button>
+            <button class="tool-btn" style="background:#d32f2f;" onclick="clearCanvas()">🗑️ Clear</button>
+        </div>
+    </div>
+
+    <div id="workspace">
+        <div class="video-container" id="container1">
+            <div class="vid-wrapper">
+                <div id="player1"></div>
+                <div id="blocker1" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:5; background:transparent;"></div>
+                <canvas id="canvas1" class="drawing-layer"></canvas>
+            </div>
+        </div>
+
+        <div class="video-container" id="container2">
+            <div class="vid-wrapper">
+                <div id="player2"></div>
+                <div id="blocker2" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:5; background:transparent;"></div>
+                <canvas id="canvas2" class="drawing-layer"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="footer-controls">
+        <button onclick="seekRel(-1)">⏪ -1s</button>
+        <button onclick="stepFrame(-1)">I< (Prev Frame)</button>
+        <button id="playPauseBtn" onclick="togglePlay()" style="width: 100px;">⏯ PLAY</button>
+        <button onclick="stepFrame(1)">(Next Frame) >I</button>
+        <button onclick="seekRel(1)">+1s ⏩</button>
+        <button onclick="syncPlayers()" style="margin-left:20px; background:#4caf50; color:white;">🔄 RESYNC</button>
+
+        <div class="keyboard-hint">
+            Shortcuts: Space (Play/Pause) | ← / → (Frame) | Shift + ← / → (1s Seek)
+        </div>
+    </div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+        // --- GLOBAL VARIABLES ---
+        let player1, player2;
+        let p1Ready = false, p2Ready = false;
+        let isPlaying = false;
+        let currentTool = 'pointer';
+        let isDrawing = false;
+        let startX, startY;
+        
+        // Canvas contexts
+        const canvas1 = document.getElementById('canvas1');
+        const ctx1 = canvas1.getContext('2d');
+        const canvas2 = document.getElementById('canvas2');
+        const ctx2 = canvas2.getContext('2d');
+        let activeCanvas = null;
+
+        // --- YOUTUBE API SETUP ---
+        function onYouTubeIframeAPIReady() {
+            // Placeholder init - wait for user to load URLs
+            console.log("API Ready");
+        }
+
+        function extractVideoID(url) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        function loadVideos() {
+            const url1 = document.getElementById('url1').value;
+            const url2 = document.getElementById('url2').value;
+            const id1 = extractVideoID(url1);
+            const id2 = extractVideoID(url2);
+
+            if(!id1 || !id2) {
+                alert("Please enter two valid YouTube URLs.");
+                return;
+            }
+
+            // Destroy existing if they exist to reload
+            if(player1) player1.destroy();
+            if(player2) player2.destroy();
+
+            player1 = createPlayer('player1', id1, onP1Ready);
+            player2 = createPlayer('player2', id2, onP2Ready);
+            
+            // Resize canvas to match video
+            resizeCanvas();
+        }
+
+        function createPlayer(divId, videoId, onReadyCallback) {
+            return new YT.Player(divId, {
+                height: '100%',
+                width: '100%',
+                videoId: videoId,
+                playerVars: {
+                    'playsinline': 1,
+                    'controls': 0, // Hide native controls
+                    'modestbranding': 1,
+                    'rel': 0,
+                    'fs': 0 // disable fullscreen button
+                },
+                events: {
+                    'onReady': onReadyCallback
+                }
+            });
+        }
+
+        function onP1Ready(event) { p1Ready = true; event.target.mute(); } // Start muted to allow auto-sync
+        function onP2Ready(event) { p2Ready = true; event.target.mute(); }
+
+        // --- CONTROLS ---
+
+        function togglePlay() {
+            if(!p1Ready || !p2Ready) return;
+
+            if(isPlaying) {
+                player1.pauseVideo();
+                player2.pauseVideo();
+                document.getElementById('playPauseBtn').innerText = "⏯ PLAY";
+            } else {
+                player1.playVideo();
+                player2.playVideo();
+                document.getElementById('playPauseBtn').innerText = "⏸ PAUSE";
+            }
+            isPlaying = !isPlaying;
+        }
+
+        function syncPlayers() {
+            // Force both to the time of Player 1
+            if(!p1Ready || !p2Ready) return;
+            let t = player1.getCurrentTime();
+            player2.seekTo(t, true);
+            player2.pauseVideo();
+            player1.pauseVideo();
+            isPlaying = false;
+            document.getElementById('playPauseBtn').innerText = "⏯ PLAY";
+        }
+
+        function stepFrame(direction) {
+            // YouTube doesn't have true frame stepping, we assume 30fps (0.033s)
+            // direction: 1 for forward, -1 for back
+            if(!p1Ready || !p2Ready) return;
+            
+            // Pause first
+            player1.pauseVideo();
+            player2.pauseVideo();
+            isPlaying = false;
+            document.getElementById('playPauseBtn').innerText = "⏯ PLAY";
+
+            let step = 0.04; // Slightly more than 1 frame to ensure it snaps to next keyframe
+            let t1 = player1.getCurrentTime();
+            let t2 = player2.getCurrentTime();
+
+            player1.seekTo(t1 + (step * direction), true);
+            player2.seekTo(t2 + (step * direction), true);
+        }
+
+        function seekRel(seconds) {
+            if(!p1Ready || !p2Ready) return;
+            let t1 = player1.getCurrentTime();
+            let t2 = player2.getCurrentTime();
+            player1.seekTo(t1 + seconds, true);
+            player2.seekTo(t2 + seconds, true);
+        }
+
+        // --- DRAWING / KINESTHETIC TOOLS ---
+
+        function resizeCanvas() {
+            // Match canvas size to container size
+            const c1 = document.querySelector('#container1');
+            const c2 = document.querySelector('#container2');
+            
+            canvas1.width = c1.offsetWidth;
+            canvas1.height = c1.offsetHeight;
+            
+            canvas2.width = c2.offsetWidth;
+            canvas2.height = c2.offsetHeight;
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+
+        function setTool(tool) {
+            currentTool = tool;
+            // Update UI
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + tool).classList.add('active');
+
+            // Set pointer events
+            const ptr = (tool === 'pointer') ? 'none' : 'auto';
+            // We control pointer events on the blocker div, not the canvas directly, 
+            // actually we need canvas to accept events when drawing
+            
+            // Logic: 
+            // If Tool == Pointer: Clicks pass through to nothing (video is static), 
+            // actually we need to allow clicking the video to play/pause? 
+            // For this app, we use custom controls, so we can keep the overlay active or pass through.
+            // Let's keep canvas active but ignore logic if pointer.
+        }
+
+        function clearCanvas() {
+            ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
+            ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
+        }
+
+        function getMousePos(canvas, evt) {
+            var rect = canvas.getBoundingClientRect();
+            return {
+                x: evt.clientX - rect.left,
+                y: evt.clientY - rect.top
+            };
+        }
+
+        // Add listeners to both canvases
+        [canvas1, canvas2].forEach(canvas => {
+            const ctx = canvas.getContext('2d');
+
+            canvas.addEventListener('mousedown', (e) => {
+                if(currentTool === 'pointer') return;
+                isDrawing = true;
+                const pos = getMousePos(canvas, e);
+                startX = pos.x;
+                startY = pos.y;
+                activeCanvas = canvas;
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if(!isDrawing || activeCanvas !== canvas) return;
+                if(currentTool === 'pointer') return;
+                
+                // We need to redraw, so we need a layer strategy or just persistent drawing?
+                // For simple lines/angles, typically we want to see the line being drawn.
+                // This requires clearing and redrawing everything or using a temp layer.
+                // For this simple single-file version, we will just draw directly.
+                // To do "preview" properly, we'd need to save state. 
+                // Simplified: Just draw when mouse up for clean lines, or trace for freehand.
+                // Let's do: Rubber-banding (complex to code in one file without stack).
+                // Alternative: Free hand drawing if "Line" is selected? No, Line implies straight.
+                
+                // Hack for Rubber banding in single buffer: 
+                // We won't implement full undo stack here for brevity, 
+                // but we can assume the user draws simple marks.
+            });
+
+            canvas.addEventListener('mouseup', (e) => {
+                if(!isDrawing || activeCanvas !== canvas) return;
+                if(currentTool === 'pointer') return;
+                
+                const pos = getMousePos(canvas, e);
+                const endX = pos.x;
+                const endY = pos.y;
+
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#00bcd4'; // TIU Accent Color
+                ctx.fillStyle = '#00bcd4';
+
+                if(currentTool === 'line') {
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+                } else if (currentTool === 'angle') {
+                    // Draw two lines from start to current mouse
+                    // For angle, usually click vertex, click end1, click end2. 
+                    // Simplified: Drag to draw a line, we calculate angle relative to horizontal?
+                    // Let's just draw a line with the angle value text next to it.
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+
+                    // Calculate angle
+                    const dy = endY - startY;
+                    const dx = endX - startX;
+                    let theta = Math.atan2(dy, dx); // range (-PI, PI]
+                    theta *= 180 / Math.PI; // rads to degs
+                    if (theta < 0) theta = 360 + theta; // range [0, 360)
+                    
+                    ctx.font = "20px Arial";
+                    ctx.fillText(theta.toFixed(1) + "°", endX + 10, endY);
+                }
+
+                isDrawing = false;
+                activeCanvas = null;
+            });
+        });
+
+        // --- KEYBOARD SHORTCUTS ---
+        document.addEventListener('keydown', (e) => {
+            // Ignore if typing in input fields
+            if(e.target.tagName === 'INPUT') return;
+
+            switch(e.code) {
+                case 'Space':
+                    e.preventDefault(); // stop scrolling
+                    togglePlay();
+                    break;
+                case 'ArrowRight':
+                    if(e.shiftKey) seekRel(1);
+                    else stepFrame(1);
+                    break;
+                case 'ArrowLeft':
+                    if(e.shiftKey) seekRel(-1);
+                    else stepFrame(-1);
+                    break;
+                case 'KeyC':
+                    clearCanvas();
+                    break;
+                case 'KeyS':
+                    syncPlayers();
+                    break;
+            }
+        });
+
+    </script>
+</body>
+</html>
