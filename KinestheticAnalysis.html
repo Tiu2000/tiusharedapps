@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Sports Analysis Pro: Multi-Timeline</title>
+    <title>TIU Sports Analysis: Live & Loop</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -11,212 +11,136 @@
             --accent-color: #00bcd4;
             --panel-bg: #1e1e1e;
             --danger-color: #d32f2f;
-            --left-color: #ff9800;  /* Orange for Left Video */
-            --right-color: #4caf50; /* Green for Right Video */
+            --success-color: #2e7d32;
+            --left-color: #ff9800;
+            --right-color: #4caf50;
+            --rec-color: #ff3d00;
         }
 
         body {
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            margin: 0; padding: 0;
+            background-color: var(--bg-color); color: var(--text-color);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
         }
 
         /* --- Header --- */
         #controls-header {
             background-color: var(--panel-bg);
             padding: 8px 15px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-            z-index: 100;
-            flex-wrap: wrap;
-            gap: 10px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 100;
+            flex-wrap: wrap; gap: 10px;
         }
 
-        .input-group {
-            display: flex;
-            gap: 8px;
-            align-items: center;
+        .source-controls {
+            display: flex; gap: 15px; align-items: center;
+            background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;
         }
+
+        .side-group {
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        
+        .row { display: flex; gap: 5px; align-items: center; }
 
         input[type="text"] {
-            background: #333;
-            border: 1px solid #444;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            width: 150px;
-            font-size: 0.85rem;
-        }
-        
-        input[type="color"] {
-            background: none;
-            border: none;
-            width: 25px;
-            height: 25px;
-            cursor: pointer;
+            background: #333; border: 1px solid #444; color: white;
+            padding: 4px 8px; border-radius: 4px; width: 140px; font-size: 0.8rem;
         }
 
+        /* Sliders */
+        .delay-slider-group {
+            display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: #aaa;
+        }
+        input[type=range].mini-slider {
+            width: 80px; height: 4px; -webkit-appearance: none; background: #444; border-radius: 2px;
+        }
+        input[type=range].mini-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 10px; height: 10px; background: var(--accent-color); border-radius: 50%; cursor: pointer;
+        }
+
+        /* Buttons */
         button {
-            background-color: #444;
-            color: #fff;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.2s;
-            font-size: 0.8rem;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            white-space: nowrap;
+            background-color: #444; color: #fff; border: none;
+            padding: 5px 10px; border-radius: 4px; cursor: pointer;
+            font-weight: bold; font-size: 0.75rem;
+            display: flex; align-items: center; gap: 4px; white-space: nowrap;
         }
-
         button:hover { background-color: #555; }
         button.primary { background-color: var(--accent-color); color: #000; }
-        button.primary:hover { opacity: 0.9; }
+        button.active-cam { background-color: var(--rec-color); color: white; animation: pulse 2s infinite; }
         
-        button.tool-btn.active {
-            background-color: var(--accent-color);
-            color: black;
-            box-shadow: 0 0 5px var(--accent-color);
+        @keyframes pulse { 0% {opacity:1;} 50% {opacity:0.8;} 100% {opacity:1;} }
+
+        /* Tools Section */
+        .tools-group {
+            display: flex; gap: 5px; align-items: center;
+            border-left: 1px solid #444; padding-left: 10px;
         }
+        button.tool-btn.active { background-color: var(--accent-color); color: black; }
+        input[type="color"] { background: none; border: none; width: 20px; height: 20px; cursor: pointer; }
 
         /* --- Workspace --- */
         #workspace {
-            flex: 1;
-            display: flex;
-            position: relative;
-            background-color: #000;
-            min-height: 0;
+            flex: 1; display: flex; position: relative; background-color: #000; min-height: 0;
         }
-
         .video-container {
-            flex: 1;
-            position: relative;
-            border-right: 1px solid #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
+            flex: 1; position: relative; border-right: 1px solid #333;
+            display: flex; justify-content: center; align-items: center; overflow: hidden;
         }
+        .vid-wrapper { position: relative; width: 100%; height: 100%; }
 
-        .vid-wrapper {
-            position: relative;
-            width: 100%;
-            height: 100%;
+        /* Layering */
+        iframe, video, canvas.video-feed {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;
         }
-
-        iframe {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-        }
+        /* Hide items not in use */
+        .hidden { display: none !important; visibility: hidden !important; }
 
         .drawing-layer {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 20;
-            cursor: crosshair;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; cursor: crosshair;
+        }
+        
+        /* Status overlays */
+        .status-badge {
+            position: absolute; top: 10px; left: 10px; 
+            background: rgba(0,0,0,0.7); color: white; 
+            padding: 2px 6px; border-radius: 3px; font-size: 0.7rem; pointer-events: none; z-index: 15;
         }
 
         /* --- Footer --- */
         #footer-controls {
-            background-color: var(--panel-bg);
-            padding: 10px 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            border-top: 1px solid #333;
-            z-index: 100;
+            background-color: var(--panel-bg); padding: 10px 15px;
+            display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #333; z-index: 100;
         }
-
-        /* Slider Styles */
-        .timeline-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            width: 100%;
-        }
-
-        .timeline-label {
-            font-size: 0.75rem;
-            font-weight: bold;
-            min-width: 50px;
-            text-align: right;
-            color: #888;
-        }
-
-        .time-display {
-            font-family: monospace;
-            font-size: 0.75rem;
-            color: #aaa;
-            min-width: 35px;
-        }
-
-        input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
-            margin: 0;
-        }
-        input[type=range]:focus { outline: none; }
         
-        /* Track & Thumb Base */
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
-            cursor: pointer;
-            background: #444;
-            border-radius: 2px;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            height: 14px;
-            width: 14px;
-            border-radius: 50%;
-            cursor: pointer;
-            -webkit-appearance: none;
-            margin-top: -5px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.5);
-        }
-
-        /* Specific Slider Colors */
-        #masterTimeline::-webkit-slider-thumb { background: var(--accent-color); }
+        /* Timelines */
+        .timeline-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+        .timeline-label { font-size: 0.75rem; font-weight: bold; min-width: 50px; text-align: right; color: #888; }
+        input[type=range].scrubber { -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; }
+        input[type=range].scrubber::-webkit-slider-runnable-track { width: 100%; height: 6px; background: #444; border-radius: 3px; }
+        input[type=range].scrubber::-webkit-slider-thumb { height: 14px; width: 14px; border-radius: 50%; background: var(--accent-color); margin-top: -4px; -webkit-appearance: none; }
+        
         #leftTimeline::-webkit-slider-thumb { background: var(--left-color); }
         #rightTimeline::-webkit-slider-thumb { background: var(--right-color); }
 
-        .footer-buttons {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 5px;
-        }
+        .footer-buttons { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; }
 
-        /* --- Watermark --- */
+        /* Checkbox style */
+        .loop-toggle {
+            display: flex; align-items: center; gap: 5px; font-size: 0.8rem; cursor: pointer; user-select: none;
+        }
+        .loop-toggle input { cursor: pointer; }
+
+        /* Watermark */
         #watermark {
-            position: absolute;
-            bottom: 150px; 
-            right: 20px;
-            font-family: 'Arial Black', sans-serif;
-            font-size: 3rem;
-            font-weight: 900;
-            color: rgba(255, 255, 255, 0.1);
-            pointer-events: none;
-            z-index: 9999;
-            user-select: none;
-            text-transform: uppercase;
+            position: absolute; bottom: 150px; right: 20px;
+            font-family: 'Arial Black', sans-serif; font-size: 3rem; font-weight: 900;
+            color: rgba(255, 255, 255, 0.1); pointer-events: none; z-index: 9999;
         }
 
         #fileInput { display: none; }
-
     </style>
 </head>
 <body>
@@ -224,43 +148,73 @@
     <div id="watermark">TIU</div>
 
     <div id="controls-header">
-        <div class="input-group">
-            <input type="text" id="url1" placeholder="Left URL">
-            <input type="text" id="url2" placeholder="Right URL">
-            <button class="primary" onclick="loadVideosFromInputs()">Load</button>
+        
+        <div class="source-controls" style="border-left: 3px solid var(--left-color);">
+            <div class="side-group">
+                <div class="row">
+                    <span style="font-weight:bold; font-size:0.8rem; color:var(--left-color);">LEFT</span>
+                    <input type="text" id="url1" placeholder="YouTube URL">
+                    <button class="primary" onclick="loadYT(1)">Load</button>
+                    <button id="btnCam1" onclick="toggleCam(1)">📷 Cam</button>
+                </div>
+                <div class="row delay-slider-group" id="delayGroup1" style="display:none;">
+                    <span>Live Delay:</span>
+                    <input type="range" class="mini-slider" id="delaySl1" min="0" max="10" step="0.5" value="0" oninput="updateDelay(1)">
+                    <span id="delayVal1">0s</span>
+                    <button onclick="recordLoop(1)" style="margin-left:5px; padding: 2px 6px;">🔴 Rec Loop (4s)</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="source-controls" style="border-left: 3px solid var(--right-color);">
+            <div class="side-group">
+                <div class="row">
+                    <span style="font-weight:bold; font-size:0.8rem; color:var(--right-color);">RIGHT</span>
+                    <input type="text" id="url2" placeholder="YouTube URL">
+                    <button class="primary" onclick="loadYT(2)">Load</button>
+                    <button id="btnCam2" onclick="toggleCam(2)">📷 Cam</button>
+                </div>
+                <div class="row delay-slider-group" id="delayGroup2" style="display:none;">
+                    <span>Live Delay:</span>
+                    <input type="range" class="mini-slider" id="delaySl2" min="0" max="10" step="0.5" value="0" oninput="updateDelay(2)">
+                    <span id="delayVal2">0s</span>
+                    <button onclick="recordLoop(2)" style="margin-left:5px; padding: 2px 6px;">🔴 Rec Loop (4s)</button>
+                </div>
+            </div>
         </div>
         
-        <div class="input-group" style="border-left: 1px solid #444; padding-left:10px;">
-            <span style="font-size:0.8rem; color:#888;">TOOLS:</span>
+        <div class="tools-group">
             <button class="tool-btn active" id="btn-pointer" onclick="setTool('pointer')">👆</button>
             <button class="tool-btn" id="btn-pen" onclick="setTool('pen')">✏️</button>
             <button class="tool-btn" id="btn-line" onclick="setTool('line')">📏</button>
             <button class="tool-btn" id="btn-angle" onclick="setTool('angle')">📐</button>
             <button class="tool-btn" id="btn-circle" onclick="setTool('circle')">⭕</button>
-            
             <input type="color" id="colorPicker" value="#00bcd4">
-            <select id="lineWidth" style="background:#333; color:white; border:none; padding:2px;">
-                <option value="2">Thin</option>
-                <option value="4" selected>Med</option>
-                <option value="8">Thick</option>
-            </select>
-
             <button onclick="undoLast()">↩</button>
             <button style="background: var(--danger-color);" onclick="clearAll()">🗑️</button>
         </div>
     </div>
 
     <div id="workspace">
+        
         <div class="video-container" id="c1" style="border-bottom: 2px solid var(--left-color);">
             <div class="vid-wrapper">
+                <div id="status1" class="status-badge hidden">Live: 0s Delay</div>
+                
                 <div id="player1"></div>
+                <video id="vid1" playsinline muted class="hidden"></video>
+                <canvas id="render1" class="video-feed hidden"></canvas>
                 <div id="blocker1" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:10;"></div>
                 <canvas id="canvas1" class="drawing-layer"></canvas>
             </div>
         </div>
+
         <div class="video-container" id="c2" style="border-bottom: 2px solid var(--right-color);">
             <div class="vid-wrapper">
+                <div id="status2" class="status-badge hidden">Live: 0s Delay</div>
                 <div id="player2"></div>
+                <video id="vid2" playsinline muted class="hidden"></video>
+                <canvas id="render2" class="video-feed hidden"></canvas>
                 <div id="blocker2" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:10;"></div>
                 <canvas id="canvas2" class="drawing-layer"></canvas>
             </div>
@@ -268,36 +222,33 @@
     </div>
 
     <div id="footer-controls">
-        
         <div style="display:flex; gap:20px; width:100%;">
             <div class="timeline-row">
                 <span class="timeline-label" style="color:var(--left-color);">LEFT</span>
-                <span class="time-display" id="time1">0:00</span>
-                <input type="range" id="leftTimeline" min="0" max="100" step="0.1" value="0">
+                <input type="range" id="leftTimeline" class="scrubber" min="0" max="100" step="0.1" value="0">
             </div>
             <div class="timeline-row">
                 <span class="timeline-label" style="color:var(--right-color);">RIGHT</span>
-                <span class="time-display" id="time2">0:00</span>
-                <input type="range" id="rightTimeline" min="0" max="100" step="0.1" value="0">
+                <input type="range" id="rightTimeline" class="scrubber" min="0" max="100" step="0.1" value="0">
             </div>
         </div>
 
         <div class="timeline-row" style="margin-top: 5px; border-top:1px solid #333; padding-top:5px;">
             <span class="timeline-label" style="color:var(--accent-color);">MASTER</span>
-            <span class="time-display" id="timeMaster">0:00</span>
-            <input type="range" id="masterTimeline" min="0" max="100" step="0.1" value="0">
+            <input type="range" id="masterTimeline" class="scrubber" min="0" max="100" step="0.1" value="0">
         </div>
 
         <div class="footer-buttons">
-            <span style="font-size:0.7rem; color:#666;">Space: Play | S: Sync | C: Clear</span>
-
-            <div style="display:flex; gap:5px;">
+            <div style="display:flex; gap:15px; align-items:center;">
+                <label class="loop-toggle">
+                    <input type="checkbox" id="chkLoop" onchange="toggleLoop()"> 
+                    <span>🔄 Loop Video</span>
+                </label>
+                <span style="font-size:0.7rem; color:#666;">|</span>
                 <button onclick="seekRel(-1)">-1s</button>
-                <button onclick="stepFrame(-1)">I<</button>
                 <button id="playPauseBtn" class="primary" onclick="togglePlay()" style="width: 80px;">⏯ PLAY</button>
-                <button onclick="stepFrame(1)">>I</button>
                 <button onclick="seekRel(1)">+1s</button>
-                <button onclick="syncToLeft()" title="Snap Right video to match Left video time">🔄 MATCH</button>
+                <button onclick="syncToLeft()">🔄 Sync</button>
             </div>
 
             <div>
@@ -310,372 +261,406 @@
 
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
-        // --- GLOBAL VARIABLES ---
+        // --- DATA STRUCTURES ---
+        const state = {
+            1: { mode: 'yt', ready: false, delay: 0, buffer: [], recording: false, loopUrl: null },
+            2: { mode: 'yt', ready: false, delay: 0, buffer: [], recording: false, loopUrl: null },
+            isPlaying: false,
+            loopEnabled: false
+        };
+
         let player1, player2;
-        let p1Ready = false, p2Ready = false;
-        let isPlaying = false;
         let updateInterval;
-        let isScrubbing = false; 
-        let syncOffset = 0; // The time difference (Right Time - Left Time)
-
-        // UI Elements
-        const slMaster = document.getElementById('masterTimeline');
-        const slLeft = document.getElementById('leftTimeline');
-        const slRight = document.getElementById('rightTimeline');
-        const tMaster = document.getElementById('timeMaster');
-        const tLeft = document.getElementById('time1');
-        const tRight = document.getElementById('time2');
-
-        // Drawing Globals
+        
+        // Canvas Setup
+        const c1 = document.getElementById('canvas1');
+        const c2 = document.getElementById('canvas2');
+        const r1 = document.getElementById('render1');
+        const r2 = document.getElementById('render2');
+        const ctx1 = c1.getContext('2d');
+        const ctx2 = c2.getContext('2d');
+        
+        // Drawing
         let currentTool = 'pointer';
         let isDrawing = false;
-        let activeCanvasId = null; 
-        let startPos = {x:0, y:0};
-        let currentPath = []; 
+        let activeCanvasId = null;
+        let startPos = null;
+        let currentPath = [];
         let drawings = { canvas1: [], canvas2: [] };
-        
-        const canvas1 = document.getElementById('canvas1');
-        const ctx1 = canvas1.getContext('2d');
-        const canvas2 = document.getElementById('canvas2');
-        const ctx2 = canvas2.getContext('2d');
 
         // --- YOUTUBE API ---
-        function onYouTubeIframeAPIReady() { console.log("API Ready"); }
+        function onYouTubeIframeAPIReady() { console.log("YT API Ready"); }
 
-        function extractVideoID(url) {
-            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-            const match = url.match(regExp);
-            return (match && match[2].length === 11) ? match[2] : null;
-        }
-
-        function createPlayer(divId, videoId, onReady) {
+        function createPlayer(divId, onReady) {
             return new YT.Player(divId, {
-                height: '100%',
-                width: '100%',
-                videoId: videoId,
+                height: '100%', width: '100%',
                 playerVars: { 'playsinline': 1, 'controls': 0, 'modestbranding': 1, 'rel': 0, 'fs': 0 },
-                events: { 'onReady': onReady }
+                events: { 'onReady': onReady, 'onStateChange': onPlayerStateChange }
             });
         }
 
-        function loadVideosFromInputs() {
-            const u1 = document.getElementById('url1').value;
-            const u2 = document.getElementById('url2').value;
-            loadVideos(extractVideoID(u1), extractVideoID(u2));
+        // --- SOURCE SWITCHING ---
+        function loadYT(id) {
+            const url = document.getElementById('url' + id).value;
+            const vidId = extractVideoID(url);
+            if(!vidId) return alert("Invalid URL");
+
+            state[id].mode = 'yt';
+            state[id].loopUrl = null;
+            document.getElementById('delayGroup'+id).style.display = 'none';
+            document.getElementById('status'+id).classList.add('hidden');
+            
+            // UI Toggle
+            document.getElementById('vid'+id).classList.add('hidden');
+            document.getElementById('render'+id).classList.add('hidden');
+            document.getElementById('btnCam'+id).classList.remove('active-cam');
+
+            // Init Player
+            if(id===1) {
+                if(player1) player1.loadVideoById(vidId);
+                else player1 = createPlayer('player1', (e)=>{ state[1].ready=true; e.target.mute(); });
+            } else {
+                if(player2) player2.loadVideoById(vidId);
+                else player2 = createPlayer('player2', (e)=>{ state[2].ready=true; e.target.mute(); });
+            }
+            stopCamera(id);
         }
 
-        function loadVideos(id1, id2) {
-            if(!id1 || !id2) return alert("Invalid URLs");
-            
-            if(player1) player1.destroy();
-            if(player2) player2.destroy();
-            p1Ready = false; p2Ready = false;
-            clearInterval(updateInterval);
+        async function toggleCam(id) {
+            const btn = document.getElementById('btnCam'+id);
+            if(state[id].mode === 'cam') {
+                // Turn off
+                stopCamera(id);
+                state[id].mode = 'yt'; // Default back to empty YT state implicitly
+                btn.classList.remove('active-cam');
+                document.getElementById('delayGroup'+id).style.display = 'none';
+                document.getElementById('render'+id).classList.add('hidden');
+                document.getElementById('status'+id).classList.add('hidden');
+                return;
+            }
 
-            player1 = createPlayer('player1', id1, (e)=>{ p1Ready=true; e.target.mute(); checkReady(); });
-            player2 = createPlayer('player2', id2, (e)=>{ p2Ready=true; e.target.mute(); checkReady(); });
-            
-            setTimeout(resizeCanvas, 1000); 
-        }
+            // Turn On
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                const videoEl = document.getElementById('vid'+id);
+                videoEl.srcObject = stream;
+                videoEl.play();
 
-        function checkReady() {
-            if(p1Ready && p2Ready) {
-                updateInterval = setInterval(updateInterface, 200);
+                state[id].mode = 'cam';
+                state[id].ready = true;
+                
+                // UI Updates
+                btn.classList.add('active-cam');
+                document.getElementById('delayGroup'+id).style.display = 'flex';
+                document.getElementById('status'+id).classList.remove('hidden');
+                
+                // If delay is 0, show video directly. If delay > 0, show canvas.
+                // We'll standardize on showing canvas for simplicity if we add delay logic.
+                // For now: Hide Iframe, Show Render Canvas (we will render video to canvas manually)
+                if(id===1 && player1) player1.stopVideo(); 
+                if(id===2 && player2) player2.stopVideo();
+
+                // Setup Loop for Rendering
+                requestAnimationFrame(() => renderLoop(id));
+
+            } catch(e) {
+                alert("Camera access denied or error: " + e.message);
             }
         }
 
-        // --- TIMELINE LOGIC ---
-
-        function formatTime(s) {
-            if(isNaN(s)) return "0:00";
-            const min = Math.floor(s / 60);
-            const sec = Math.floor(s % 60);
-            return min + ":" + (sec < 10 ? '0' : '') + sec;
+        function stopCamera(id) {
+            const videoEl = document.getElementById('vid'+id);
+            if(videoEl.srcObject) {
+                videoEl.srcObject.getTracks().forEach(track => track.stop());
+                videoEl.srcObject = null;
+            }
         }
 
-        function updateInterface() {
-            if(isScrubbing || !p1Ready || !p2Ready) return;
-
-            const t1 = player1.getCurrentTime();
-            const d1 = player1.getDuration();
-            const t2 = player2.getCurrentTime();
-            const d2 = player2.getDuration();
-
-            // Update Left Slider
-            slLeft.max = d1;
-            slLeft.value = t1;
-            tLeft.innerText = formatTime(t1);
-
-            // Update Right Slider
-            slRight.max = d2;
-            slRight.value = t2;
-            tRight.innerText = formatTime(t2);
-
-            // Update Master (Mapped to Left video time for simplicity)
-            slMaster.max = d1;
-            slMaster.value = t1;
-            tMaster.innerText = formatTime(t1);
+        function extractVideoID(url) {
+            const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
+            return (match && match[2].length === 11) ? match[2] : null;
         }
 
-        // --- SLIDER EVENT LISTENERS ---
-
-        // 1. LEFT Slider (Individual)
-        slLeft.addEventListener('input', () => {
-            isScrubbing = true;
-            const val = parseFloat(slLeft.value);
-            tLeft.innerText = formatTime(val);
-            if(p1Ready) player1.seekTo(val, true);
-        });
-        slLeft.addEventListener('change', () => { isScrubbing = false; });
-
-        // 2. RIGHT Slider (Individual)
-        slRight.addEventListener('input', () => {
-            isScrubbing = true;
-            const val = parseFloat(slRight.value);
-            tRight.innerText = formatTime(val);
-            if(p2Ready) player2.seekTo(val, true);
-        });
-        slRight.addEventListener('change', () => { isScrubbing = false; });
-
-        // 3. MASTER Slider (Group)
-        // We capture the offset on mousedown so we know how to move P2 relative to P1
-        let masterDragOffset = 0;
-
-        slMaster.addEventListener('mousedown', () => {
-            if(!p1Ready || !p2Ready) return;
-            masterDragOffset = player2.getCurrentTime() - player1.getCurrentTime();
-        });
-
-        slMaster.addEventListener('input', () => {
-            isScrubbing = true;
-            const val = parseFloat(slMaster.value);
-            tMaster.innerText = formatTime(val);
+        // --- LIVE DELAY & LOOP LOGIC ---
+        function updateDelay(id) {
+            const val = document.getElementById('delaySl'+id).value;
+            state[id].delay = parseFloat(val);
+            document.getElementById('delayVal'+id).innerText = val + 's';
             
-            // Move Player 1 to absolute value
-            if(p1Ready) player1.seekTo(val, true);
-            // Move Player 2 to value + offset
-            if(p2Ready) player2.seekTo(val + masterDragOffset, true);
+            // Clear buffer if changing delay to avoid weird jumps
+            state[id].buffer = [];
             
-            // Visual feedback on other sliders
-            slLeft.value = val;
-            tLeft.innerText = formatTime(val);
-            slRight.value = val + masterDragOffset;
-            tRight.innerText = formatTime(val + masterDragOffset);
+            const status = document.getElementById('status'+id);
+            if(state[id].loopUrl) status.innerText = "Replay Loop";
+            else status.innerText = (state[id].delay > 0) ? `Delay: ${val}s` : "Live Feed";
+        }
+
+        function renderLoop(id) {
+            if(state[id].mode !== 'cam') return;
+
+            const video = document.getElementById('vid'+id);
+            const canvas = document.getElementById('render'+id);
+            const ctx = canvas.getContext('2d');
+            const status = document.getElementById('status'+id);
+
+            // Ensure canvas size
+            if(video.videoWidth > 0 && canvas.width !== video.videoWidth) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                // Also resize drawing canvas
+                const drawCvs = document.getElementById('canvas'+id);
+                drawCvs.width = canvas.parentElement.offsetWidth;
+                drawCvs.height = canvas.parentElement.offsetHeight;
+            }
+
+            // Logic:
+            // 1. If we have a captured loop (Blob URL), we are effectively in "Video Mode" playing that blob.
+            //    We handle that by switching the <video> source to the blob? 
+            //    Actually, let's keep <video> for live, and use a secondary mechanic?
+            //    Easiest: Switch <video> src to the blob URL.
+            
+            if(state[id].loopUrl) {
+                // If loopUrl is active, the video element is playing the file, not the stream.
+                // Just ensure it's visible.
+                canvas.classList.add('hidden');
+                video.classList.remove('hidden');
+                video.loop = true;
+                if(video.paused && state.isPlaying) video.play();
+                else if(!video.paused && !state.isPlaying) video.pause();
+                
+                requestAnimationFrame(() => renderLoop(id));
+                return;
+            }
+
+            // 2. Normal Live/Delay Mode
+            video.classList.add('hidden');
+            canvas.classList.remove('hidden');
+
+            // Push current frame to buffer
+            // Optimization: Draw to small offscreen canvas if memory issues arise. 
+            // For now, simple ImageData.
+            if(video.readyState === 4) {
+                // Draw current frame to temp canvas to extract data
+                ctx.drawImage(video, 0, 0);
+                
+                if(state[id].delay > 0) {
+                    // Save frame (webp string is lighter than ImageData usually)
+                    const frame = canvas.toDataURL('image/webp', 0.5); 
+                    state[id].buffer.push(frame);
+
+                    // Cap buffer size (FPS * Seconds). Approx 30fps.
+                    const maxFrames = state[id].delay * 30; 
+                    
+                    if(state[id].buffer.length > maxFrames) {
+                        const oldFrame = state[id].buffer.shift();
+                        const img = new Image();
+                        img.onload = () => ctx.drawImage(img, 0, 0);
+                        img.src = oldFrame;
+                    }
+                }
+                // If delay is 0, we already drew the video at top of block
+            }
+
+            requestAnimationFrame(() => renderLoop(id));
+        }
+
+        async function recordLoop(id) {
+            if(state[id].mode !== 'cam') return;
+            const btn = event.target;
+            const originalText = btn.innerText;
+            
+            // If already looping a recording, clear it and go back to live
+            if(state[id].loopUrl) {
+                URL.revokeObjectURL(state[id].loopUrl);
+                state[id].loopUrl = null;
+                // Restart Webcam
+                stopCamera(id); 
+                toggleCam(id); // Re-init
+                btn.innerText = "🔴 Rec Loop (4s)";
+                btn.style.background = "";
+                return;
+            }
+
+            // Start Recording
+            const stream = document.getElementById('vid'+id).srcObject;
+            if(!stream) return;
+
+            const recorder = new MediaRecorder(stream);
+            const chunks = [];
+            
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { 'type' : 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                state[id].loopUrl = url;
+                
+                // Set video element to play this recording
+                const vid = document.getElementById('vid'+id);
+                vid.srcObject = null;
+                vid.src = url;
+                vid.muted = true;
+                vid.play();
+                
+                btn.innerText = "❌ Stop Loop";
+                btn.style.background = "#d32f2f";
+            };
+
+            recorder.start();
+            btn.innerText = "Recording...";
+            btn.style.background = "#ff9800";
+
+            // Record for 4 seconds
+            setTimeout(() => {
+                recorder.stop();
+            }, 4000);
+        }
+
+        // --- TIMELINE & PLAYBACK ---
+        
+        // Loop Checkbox logic
+        function toggleLoop() {
+            state.loopEnabled = document.getElementById('chkLoop').checked;
+        }
+
+        function onPlayerStateChange(event) {
+            // YouTube Loop Logic
+            if(event.data === YT.PlayerState.ENDED && state.loopEnabled) {
+                event.target.seekTo(0);
+                event.target.playVideo();
+            }
+        }
+
+        function togglePlay() {
+            // Check status of both players
+            state.isPlaying = !state.isPlaying;
+            const btn = document.getElementById('playPauseBtn');
+            btn.innerText = state.isPlaying ? "⏸ PAUSE" : "⏯ PLAY";
+
+            // YT Controls
+            if(player1 && state[1].mode === 'yt') state.isPlaying ? player1.playVideo() : player1.pauseVideo();
+            if(player2 && state[2].mode === 'yt') state.isPlaying ? player2.playVideo() : player2.pauseVideo();
+
+            // Video Loop Controls (if in "Rec Loop" mode)
+            if(state[1].loopUrl) { const v = document.getElementById('vid1'); state.isPlaying ? v.play() : v.pause(); }
+            if(state[2].loopUrl) { const v = document.getElementById('vid2'); state.isPlaying ? v.play() : v.pause(); }
+        }
+
+        function seekRel(sec) {
+            // Apply only to YouTube players
+            if(player1 && state[1].mode === 'yt') player1.seekTo(player1.getCurrentTime() + sec, true);
+            if(player2 && state[2].mode === 'yt') player2.seekTo(player2.getCurrentTime() + sec, true);
+        }
+
+        function syncToLeft() {
+             if(player1 && player2 && state[1].mode === 'yt' && state[2].mode === 'yt') {
+                 player2.seekTo(player1.getCurrentTime(), true);
+             }
+        }
+
+        // --- SCRUBBER SYNC ---
+        setInterval(() => {
+            if(state.isPlaying) {
+                // Update Scrubber UI from YT time
+                if(player1 && state[1].mode === 'yt') {
+                    const t = player1.getCurrentTime();
+                    const d = player1.getDuration();
+                    document.getElementById('leftTimeline').value = t;
+                    document.getElementById('leftTimeline').max = d;
+                    document.getElementById('masterTimeline').value = t; // Master follows Left
+                    document.getElementById('masterTimeline').max = d;
+                }
+                if(player2 && state[2].mode === 'yt') {
+                    document.getElementById('rightTimeline').value = player2.getCurrentTime();
+                    document.getElementById('rightTimeline').max = player2.getDuration();
+                }
+            }
+        }, 250);
+
+        // Scrubbing listeners
+        const slMaster = document.getElementById('masterTimeline');
+        slMaster.addEventListener('input', (e) => {
+            const val = e.target.value;
+            if(player1 && state[1].mode==='yt') player1.seekTo(val, true);
+            if(player2 && state[2].mode==='yt') player2.seekTo(val, true); // Basic master sync
         });
-        slMaster.addEventListener('change', () => { isScrubbing = false; });
 
-
-        // --- DRAWING ENGINE ---
+        // --- DRAWING ENGINE (Condensed) ---
         function resizeCanvas() {
-            [canvas1, canvas2].forEach(c => {
-                const parent = c.parentElement;
-                c.width = parent.offsetWidth;
-                c.height = parent.offsetHeight;
+            [c1, c2].forEach(c => {
+                c.width = c.parentElement.offsetWidth;
+                c.height = c.parentElement.offsetHeight;
                 redraw(c.id);
             });
         }
         window.addEventListener('resize', resizeCanvas);
-
-        function setTool(t) {
-            currentTool = t;
-            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-' + t).classList.add('active');
-            const cursor = (t === 'pointer') ? 'default' : 'crosshair';
-            canvas1.style.cursor = cursor;
-            canvas2.style.cursor = cursor;
-        }
-
-        function getMousePos(c, evt) {
-            const rect = c.getBoundingClientRect();
-            return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
-        }
-
-        [canvas1, canvas2].forEach(cvs => {
-            cvs.addEventListener('mousedown', (e) => {
-                if(currentTool === 'pointer') return;
-                isDrawing = true;
-                activeCanvasId = cvs.id;
-                startPos = getMousePos(cvs, e);
-                if(currentTool === 'pen') currentPath = [startPos];
-            });
-
-            cvs.addEventListener('mousemove', (e) => {
-                if(!isDrawing || activeCanvasId !== cvs.id) return;
-                const pos = getMousePos(cvs, e);
-                if(currentTool === 'pen') currentPath.push(pos);
-                redraw(cvs.id, pos); 
-            });
-
-            cvs.addEventListener('mouseup', (e) => {
-                if(!isDrawing || activeCanvasId !== cvs.id) return;
-                const endPos = getMousePos(cvs, e);
-                saveShape(cvs.id, startPos, endPos);
-                isDrawing = false;
-                currentPath = [];
-                activeCanvasId = null;
-                redraw(cvs.id);
-            });
+        
+        function setTool(t) { currentTool = t; document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active')); document.getElementById('btn-'+t).classList.add('active'); }
+        
+        function getPos(c, e) { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+        
+        [c1, c2].forEach(cvs => {
+            cvs.addEventListener('mousedown', e => { if(currentTool!=='pointer') { isDrawing=true; activeCanvasId=cvs.id; startPos=getPos(cvs, e); if(currentTool==='pen') currentPath=[startPos]; } });
+            cvs.addEventListener('mousemove', e => { if(isDrawing && activeCanvasId===cvs.id) { const p=getPos(cvs,e); if(currentTool==='pen') currentPath.push(p); redraw(cvs.id, p); } });
+            cvs.addEventListener('mouseup', e => { if(isDrawing && activeCanvasId===cvs.id) { saveShape(cvs.id, startPos, getPos(cvs,e)); isDrawing=false; activeCanvasId=null; redraw(cvs.id); } });
         });
 
-        function saveShape(cid, start, end) {
-            const color = document.getElementById('colorPicker').value;
-            const width = document.getElementById('lineWidth').value;
-            let shape = { tool: currentTool, color: color, width: width, p1: start, p2: end };
-            if(currentTool === 'pen') shape.path = [...currentPath];
-            drawings[cid].push(shape);
+        function saveShape(cid, p1, p2) {
+            const s = { tool:currentTool, color:document.getElementById('colorPicker').value, p1:p1, p2:p2 };
+            if(currentTool==='pen') s.path = [...currentPath];
+            drawings[cid].push(s);
         }
 
-        function redraw(cid, currentMousePos = null) {
-            const ctx = (cid === 'canvas1') ? ctx1 : ctx2;
-            const cvs = (cid === 'canvas1') ? canvas1 : canvas2;
-            const list = drawings[cid];
-
-            ctx.clearRect(0, 0, cvs.width, cvs.height);
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-
-            list.forEach(s => drawShape(ctx, s));
-
-            if(isDrawing && currentMousePos && activeCanvasId === cid) {
-                const previewShape = {
-                    tool: currentTool,
-                    color: document.getElementById('colorPicker').value,
-                    width: document.getElementById('lineWidth').value,
-                    p1: startPos,
-                    p2: currentMousePos,
-                    path: currentPath
-                };
-                drawShape(ctx, previewShape);
-            }
+        function redraw(cid, cur=null) {
+            const ctx = cid==='canvas1'?ctx1:ctx2; 
+            const cvs = cid==='canvas1'?c1:c2;
+            ctx.clearRect(0,0,cvs.width,cvs.height);
+            drawings[cid].forEach(s => drawShape(ctx, s));
+            if(isDrawing && activeCanvasId===cid && cur) drawShape(ctx, {tool:currentTool, color:document.getElementById('colorPicker').value, p1:startPos, p2:cur, path:currentPath});
         }
 
         function drawShape(ctx, s) {
-            ctx.beginPath();
-            ctx.strokeStyle = s.color;
-            ctx.lineWidth = s.width;
-            ctx.fillStyle = s.color;
-
-            if(s.tool === 'line') {
-                ctx.moveTo(s.p1.x, s.p1.y);
-                ctx.lineTo(s.p2.x, s.p2.y);
-                ctx.stroke();
-            } 
-            else if (s.tool === 'angle') {
-                ctx.moveTo(s.p1.x, s.p1.y);
-                ctx.lineTo(s.p2.x, s.p2.y);
-                ctx.stroke();
-                const dy = s.p2.y - s.p1.y;
-                const dx = s.p2.x - s.p1.x;
-                let theta = Math.atan2(dy, dx) * (180/Math.PI);
-                if(theta < 0) theta += 360;
-                ctx.font = "bold 16px Arial";
-                ctx.fillStyle = "#fff";
-                ctx.fillText(theta.toFixed(1) + "°", s.p2.x + 10, s.p2.y);
+            ctx.beginPath(); ctx.strokeStyle=s.color; ctx.lineWidth=3; ctx.fillStyle=s.color;
+            if(s.tool==='line') { ctx.moveTo(s.p1.x, s.p1.y); ctx.lineTo(s.p2.x, s.p2.y); ctx.stroke(); }
+            else if(s.tool==='angle') {
+                ctx.moveTo(s.p1.x, s.p1.y); ctx.lineTo(s.p2.x, s.p2.y); ctx.stroke();
+                const theta = Math.atan2(s.p2.y-s.p1.y, s.p2.x-s.p1.x) * (180/Math.PI);
+                ctx.fillText(Math.abs(theta).toFixed(1)+"°", s.p2.x+10, s.p2.y);
             }
-            else if (s.tool === 'circle') {
-                const radius = Math.sqrt(Math.pow(s.p2.x - s.p1.x, 2) + Math.pow(s.p2.y - s.p1.y, 2));
-                ctx.arc(s.p1.x, s.p1.y, radius, 0, 2 * Math.PI);
-                ctx.stroke();
+            else if(s.tool==='circle') {
+                const r = Math.sqrt(Math.pow(s.p2.x-s.p1.x,2)+Math.pow(s.p2.y-s.p1.y,2));
+                ctx.arc(s.p1.x, s.p1.y, r, 0, 2*Math.PI); ctx.stroke();
             }
-            else if (s.tool === 'pen' && s.path) {
-                if(s.path.length < 2) return;
+            else if(s.tool==='pen' && s.path) {
+                if(s.path.length<2) return;
                 ctx.moveTo(s.path[0].x, s.path[0].y);
-                for(let i=1; i<s.path.length; i++) ctx.lineTo(s.path[i].x, s.path[i].y);
-                ctx.stroke();
+                s.path.forEach(p => ctx.lineTo(p.x, p.y)); ctx.stroke();
             }
         }
-
-        function undoLast() {
-            if(drawings.canvas2.length > 0) { drawings.canvas2.pop(); redraw('canvas2'); } 
-            else if (drawings.canvas1.length > 0) { drawings.canvas1.pop(); redraw('canvas1'); }
-        }
-
-        function clearAll() {
-            drawings.canvas1 = []; drawings.canvas2 = [];
-            redraw('canvas1'); redraw('canvas2');
-        }
-
-        // --- EXPORT/IMPORT ---
+        
+        function undoLast() { if(drawings.canvas2.length) { drawings.canvas2.pop(); redraw('canvas2'); } else if(drawings.canvas1.length) { drawings.canvas1.pop(); redraw('canvas1'); } }
+        function clearAll() { drawings={canvas1:[],canvas2:[]}; redraw('canvas1'); redraw('canvas2'); }
+        
+        // --- SAVE/LOAD ---
         function exportSession() {
-            const session = {
-                v1: document.getElementById('url1').value,
-                v2: document.getElementById('url2').value,
-                d1: drawings.canvas1,
-                d2: drawings.canvas2,
+            const data = { 
+                v1: document.getElementById('url1').value, 
+                v2: document.getElementById('url2').value, 
+                d1: drawings.canvas1, d2: drawings.canvas2 
             };
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(session));
-            const a = document.createElement('a');
-            a.href = dataStr; a.download = "tiu_analysis.json";
-            document.body.appendChild(a); a.click(); a.remove();
+            const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
+            const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='tiu_session.json'; a.click();
         }
-
         function importSession(input) {
-            const file = input.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const s = JSON.parse(e.target.result);
-                    document.getElementById('url1').value = s.v1 || "";
-                    document.getElementById('url2').value = s.v2 || "";
-                    drawings.canvas1 = s.d1 || [];
-                    drawings.canvas2 = s.d2 || [];
-                    loadVideosFromInputs();
-                } catch(err) { alert(err); }
+            const f = input.files[0]; if(!f) return;
+            const r = new FileReader();
+            r.onload = e => {
+                const d = JSON.parse(e.target.result);
+                document.getElementById('url1').value=d.v1; document.getElementById('url2').value=d.v2;
+                drawings.canvas1=d.d1; drawings.canvas2=d.d2;
+                loadYT(1); loadYT(2); setTimeout(()=>{redraw('canvas1');redraw('canvas2')},1000);
             };
-            reader.readAsText(file);
+            r.readAsText(f);
         }
-
-        // --- PLAYBACK ---
-        function togglePlay() {
-            if(!p1Ready || !p2Ready) return;
-            const btn = document.getElementById('playPauseBtn');
-            if(isPlaying) {
-                player1.pauseVideo(); player2.pauseVideo();
-                btn.innerText = "⏯ PLAY";
-            } else {
-                player1.playVideo(); player2.playVideo();
-                btn.innerText = "⏸ PAUSE";
-            }
-            isPlaying = !isPlaying;
-        }
-
-        function syncToLeft() {
-            if(!p1Ready || !p2Ready) return;
-            let t = player1.getCurrentTime();
-            player2.seekTo(t, true);
-            updateInterface();
-        }
-
-        function stepFrame(dir) {
-            if(!p1Ready || !p2Ready) return;
-            player1.pauseVideo(); player2.pauseVideo();
-            isPlaying = false;
-            document.getElementById('playPauseBtn').innerText = "⏯ PLAY";
-            let step = 0.04;
-            player1.seekTo(player1.getCurrentTime() + (step*dir), true);
-            player2.seekTo(player2.getCurrentTime() + (step*dir), true);
-            updateInterface();
-        }
-
-        function seekRel(sec) {
-            if(!p1Ready || !p2Ready) return;
-            player1.seekTo(player1.getCurrentTime() + sec, true);
-            player2.seekTo(player2.getCurrentTime() + sec, true);
-            updateInterface();
-        }
-
-        document.addEventListener('keydown', (e) => {
-            if(e.target.tagName === 'INPUT') return;
-            switch(e.code) {
-                case 'Space': e.preventDefault(); togglePlay(); break;
-                case 'ArrowRight': e.shiftKey ? seekRel(1) : stepFrame(1); break;
-                case 'ArrowLeft': e.shiftKey ? seekRel(-1) : stepFrame(-1); break;
-                case 'KeyS': syncToLeft(); break;
-                case 'KeyC': clearAll(); break;
-                case 'KeyZ': if(e.ctrlKey || e.metaKey) undoLast(); break;
-            }
-        });
     </script>
 </body>
 </html>
