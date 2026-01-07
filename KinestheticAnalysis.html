@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIU Analysis: Time Ticks</title>
+    <title>TIU Analysis: Video Preview</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -117,8 +117,7 @@
         .tick-layer {
             position: absolute; top: 7px; left: 0; width: 100%; height: 6px;
             pointer-events: none; border-radius: 3px; z-index: 0;
-            background-color: #333; /* Fallback track color */
-            /* Ticks are generated via JS gradient */
+            background-color: #333; 
         }
 
         input[type=range].scrubber { 
@@ -134,6 +133,25 @@
         #leftTimeline::-webkit-slider-thumb { background: var(--left-color); }
         #rightTimeline::-webkit-slider-thumb { background: var(--right-color); }
 
+        /* HOVER TOOLTIP */
+        #hover-tooltip {
+            position: fixed; display: none;
+            background: rgba(0, 0, 0, 0.85); color: #fff;
+            padding: 4px 8px; border-radius: 4px;
+            font-size: 0.75rem; font-family: 'Courier New', monospace;
+            pointer-events: none; z-index: 1000;
+            transform: translate(-50%, -120%);
+            border: 1px solid #555; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            white-space: nowrap;
+        }
+        
+        .preview-badge {
+            position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+            background: rgba(255, 152, 0, 0.9); color: black; font-weight: bold;
+            padding: 5px 10px; border-radius: 5px; z-index: 50;
+            pointer-events: none; display: none;
+        }
+        
         .loop-controls { display: flex; gap: 2px; }
         .loop-btn { font-size: 0.7rem; padding: 2px 6px; color: #aaa; background: #222; border: 1px solid #444; }
         .loop-btn.set { color: var(--active-loop); border-color: var(--active-loop); }
@@ -153,6 +171,7 @@
 <body>
 
     <div id="watermark">TIU</div>
+    <div id="hover-tooltip">0:00</div>
 
     <div id="controls-header">
         <div class="source-controls" style="border-left: 3px solid var(--left-color);">
@@ -205,6 +224,7 @@
         <div class="video-container" id="c1" style="border-bottom: 2px solid var(--left-color);">
             <div class="vid-wrapper">
                 <div id="status1" class="status-badge hidden">Live</div>
+                <div id="previewBadge1" class="preview-badge">PREVIEWING</div>
                 <div id="player1"></div>
                 <video id="vid1" playsinline muted class="hidden"></video>
                 <canvas id="render1" class="video-feed hidden"></canvas>
@@ -215,6 +235,7 @@
         <div class="video-container" id="c2" style="border-bottom: 2px solid var(--right-color);">
             <div class="vid-wrapper">
                 <div id="status2" class="status-badge hidden">Live</div>
+                <div id="previewBadge2" class="preview-badge">PREVIEWING</div>
                 <div id="player2"></div>
                 <video id="vid2" playsinline muted class="hidden"></video>
                 <canvas id="render2" class="video-feed hidden"></canvas>
@@ -289,6 +310,11 @@
             isPlaying: false
         };
 
+        // State for Hover Preview
+        let isHovering = false;
+        let originalTimes = { 1: 0, 2: 0 };
+        let wasPlayingBeforeHover = false;
+        
         let player1, player2;
         let isScrubbing = false; 
 
@@ -314,33 +340,87 @@
             return `${m}:${sStr}`;
         }
 
-        // --- TICK GENERATOR ---
         function updateTicks(sliderId, tickLayerId, duration) {
             const layer = document.getElementById(tickLayerId);
-            if(!duration || duration <= 0) {
-                layer.style.background = "#333";
-                return;
+            if(!duration || duration <= 0) { layer.style.background = "#333"; return; }
+            let interval = 10;
+            if(duration > 600) interval = 60;
+            else if(duration > 120) interval = 30;
+            const pct = (interval / duration) * 100;
+            layer.style.background = `repeating-linear-gradient(to right, #666 0, #666 1px, transparent 1px, transparent ${pct}%)`;
+        }
+
+        // --- HOVER PREVIEW & TOOLTIP LOGIC ---
+        const tooltip = document.getElementById('hover-tooltip');
+        
+        function startPreview(sliderId, timeVal) {
+            // Save state if this is the first hover frame
+            if (!isHovering) {
+                isHovering = true;
+                wasPlayingBeforeHover = state.isPlaying;
+                originalTimes[1] = getTime(1);
+                originalTimes[2] = getTime(2);
+                
+                document.getElementById('previewBadge1').style.display = 'block';
+                document.getElementById('previewBadge2').style.display = 'block';
             }
 
-            // Determine Tick Interval based on length
-            let interval = 10; // default 10s
-            if(duration > 600) interval = 60; // >10m -> 1m ticks
-            else if(duration > 120) interval = 30; // >2m -> 30s ticks
+            // Perform Seek
+            if (sliderId === 'masterTimeline') {
+                seekTo(1, timeVal);
+                seekTo(2, timeVal);
+            } else if (sliderId === 'leftTimeline') {
+                seekTo(1, timeVal);
+            } else if (sliderId === 'rightTimeline') {
+                seekTo(2, timeVal);
+            }
+        }
 
-            // Calculate percentage for one interval
-            const pct = (interval / duration) * 100;
+        function endPreview() {
+            if (!isHovering) return;
+            isHovering = false;
             
-            // Create Repeating Gradient
-            // Ticks are 2px wide lines
-            layer.style.background = `
-                repeating-linear-gradient(
-                    to right,
-                    #666 0,
-                    #666 1px,
-                    transparent 1px,
-                    transparent ${pct}%
-                )
-            `;
+            document.getElementById('previewBadge1').style.display = 'none';
+            document.getElementById('previewBadge2').style.display = 'none';
+            
+            // Revert to original time
+            seekTo(1, originalTimes[1]);
+            seekTo(2, originalTimes[2]);
+            
+            // If it was playing, ensure it keeps playing
+            if (wasPlayingBeforeHover) {
+                if(player1 && state[1].mode==='yt') player1.playVideo();
+                if(player2 && state[2].mode==='yt') player2.playVideo();
+            }
+        }
+
+        function setupHover(sliderId) {
+            const sl = document.getElementById(sliderId);
+            
+            sl.addEventListener('mousemove', (e) => {
+                const rect = sl.getBoundingClientRect();
+                const offsetX = e.clientX - rect.left;
+                if (offsetX < 0 || offsetX > rect.width) return;
+                
+                const percent = offsetX / rect.width;
+                const timeVal = percent * sl.max;
+                
+                // Show Tooltip
+                tooltip.style.display = 'block';
+                tooltip.style.left = e.clientX + 'px';
+                tooltip.style.top = (rect.top - 10) + 'px';
+                tooltip.innerText = formatTime(timeVal);
+
+                // Trigger Preview
+                if (!isScrubbing) { // Only preview if we aren't dragging
+                    startPreview(sliderId, timeVal);
+                }
+            });
+            
+            sl.addEventListener('mouseleave', () => {
+                tooltip.style.display = 'none';
+                if (!isScrubbing) endPreview();
+            });
         }
 
         // --- YOUTUBE SETUP ---
@@ -511,7 +591,7 @@
             if(state[id].mode === 'yt' && player1 && id===1) return player1.getDuration();
             if(state[id].mode === 'yt' && player2 && id===2) return player2.getDuration();
             if(state[id].mode === 'cam' && state[id].loopUrl) return document.getElementById('vid'+id).duration;
-            return 100; // default for layout
+            return 100; // default
         }
 
         function seekTo(id, val) {
@@ -584,29 +664,32 @@
 
         // --- UPDATE LOOP ---
         setInterval(() => {
+            // Disable updates if we are scrubbing or hovering (previewing)
+            if (isScrubbing || isHovering) return;
+
             checkABLoop(1);
             checkABLoop(2);
 
-            if(!isScrubbing && state.isPlaying) {
+            if(state.isPlaying) {
                 const t1 = getTime(1);
                 const d1 = getDuration(1);
                 
                 const sl1 = document.getElementById('leftTimeline');
                 sl1.max = d1; sl1.value = t1;
                 document.getElementById('time1').innerText = formatTime(t1);
-                updateTicks(1, 'ticks1', d1); // Update ticks
+                updateTicks(1, 'ticks1', d1);
 
                 const t2 = getTime(2);
                 const d2 = getDuration(2);
                 const sl2 = document.getElementById('rightTimeline');
                 sl2.max = d2; sl2.value = t2;
                 document.getElementById('time2').innerText = formatTime(t2);
-                updateTicks(2, 'ticks2', d2); // Update ticks
+                updateTicks(2, 'ticks2', d2);
 
                 const slM = document.getElementById('masterTimeline');
                 slM.max = d1; slM.value = t1;
                 document.getElementById('timeM').innerText = formatTime(t1);
-                updateTicks('M', 'ticksM', d1); // Update ticks
+                updateTicks('M', 'ticksM', d1);
             }
         }, 100);
 
@@ -615,12 +698,21 @@
             const sl = document.getElementById(slId);
             const disp = document.getElementById(timeDisplayId);
             
-            sl.addEventListener('mousedown', () => isScrubbing = true);
+            setupHover(slId);
+
+            sl.addEventListener('mousedown', () => { 
+                isScrubbing = true;
+                // If we click down, we commit to this time, so we stop "preview" mode but keep drawing
+                document.getElementById('previewBadge1').style.display = 'none';
+                document.getElementById('previewBadge2').style.display = 'none';
+                // Update "original time" to current drag so if we leave it stays
+                isHovering = false; 
+            });
+            
             sl.addEventListener('touchstart', () => isScrubbing = true);
             
             sl.addEventListener('input', (e) => {
                 const val = parseFloat(e.target.value);
-                
                 if(disp) disp.innerText = formatTime(val);
 
                 if(playerId === 'master') {
@@ -635,9 +727,10 @@
                 }
             });
 
-            sl.addEventListener('change', () => { isScrubbing = false; });
-            sl.addEventListener('mouseup', () => { isScrubbing = false; });
-            sl.addEventListener('touchend', () => { isScrubbing = false; });
+            const stopScrub = () => { isScrubbing = false; };
+            sl.addEventListener('change', stopScrub);
+            sl.addEventListener('mouseup', stopScrub);
+            sl.addEventListener('touchend', stopScrub);
         }
 
         setupSlider('leftTimeline', 1, 'time1');
