@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Connected Hall Pass</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        :root { --primary: #2c3e50; --accent: #2980b9; --bg: #f4f7f6; }
+        body { font-family: sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        
+        .container { max-width: 800px; width: 100%; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: var(--primary); }
+        
+        #reader { width: 100%; border-radius: 8px; overflow: hidden; margin-bottom: 20px;}
+        
+        /* Status & Loading */
+        #status { font-weight: bold; text-align: center; margin: 15px 0; padding: 10px; border-radius: 5px; min-height: 24px; }
+        .loading { color: #e67e22; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+
+        /* Buttons */
+        .controls { display: none; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button { padding: 15px; border: none; border-radius: 6px; color: white; font-size: 16px; cursor: pointer; }
+        .btn-bath { background: #3498db; }
+        .btn-hall { background: #f1c40f; color: #333; }
+        .btn-office { background: #9b59b6; }
+        .btn-cancel { background: #95a5a6; grid-column: span 2; }
+
+        /* List */
+        .pass-list { margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px; }
+        .pass-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
+        .pass-time { font-family: monospace; font-weight: bold; color: #c0392b; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>☁️ Cloud Hall Pass</h2>
+    
+    <div id="reader"></div>
+    <div id="status">Initializing...</div>
+
+    <div id="controls" class="controls">
+        <button class="btn-bath" onclick="sendPass('Bathroom')">🚽 Bathroom</button>
+        <button class="btn-hall" onclick="sendPass('Hallway')">🚶 Hallway</button>
+        <button class="btn-office" onclick="sendPass('Office')">🏢 Office</button>
+        <button class="btn-cancel" onclick="resetScanner()">Cancel</button>
+    </div>
+
+    <div class="pass-list">
+        <h3>Currently Out:</h3>
+        <div id="active-list">Loading...</div>
+    </div>
+</div>
+
+<script>
+    // ******************************************************
+    // PASTE YOUR GOOGLE SCRIPT URL BETWEEN THE QUOTES BELOW
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw7-ZVY4FsjnNmARS_teYjy78hKGLUnH6WYfeX7vXbD2yGXK4H--smki1c0PPLX_CVhtA/exec";
+    // ******************************************************
+
+    let activePasses = [];
+    let pendingStudent = null;
+    let scanner = null;
+    let isProcessing = false;
+
+    // --- GOOGLE SHEETS INTEGRATION ---
+    
+    async function syncData() {
+        try {
+            const response = await fetch(`${SCRIPT_URL}?action=get_active`);
+            const data = await response.json();
+            activePasses = data;
+            renderList();
+            document.getElementById('status').innerText = "Ready to Scan";
+        } catch (e) {
+            console.error(e);
+            document.getElementById('status').innerText = "Offline Mode (Check Internet)";
+        }
+    }
+
+    async function sendPass(destination) {
+        showLoading("Saving to Cloud...");
+        document.getElementById('controls').style.display = 'none';
+
+        // Send to Google Sheet
+        await fetch(`${SCRIPT_URL}?action=checkout&name=${encodeURIComponent(pendingStudent)}&dest=${encodeURIComponent(destination)}`);
+        
+        // Refresh local list
+        await syncData();
+        showSuccess(`✅ ${destination} pass created!`);
+        
+        setTimeout(resetScanner, 2000);
+    }
+
+    async function performCheckIn(studentName) {
+        showLoading("Checking In...");
+        
+        // Send to Google Sheet
+        await fetch(`${SCRIPT_URL}?action=checkin&name=${encodeURIComponent(studentName)}`);
+        
+        await syncData();
+        showSuccess(`👋 Welcome back, ${studentName}`);
+        
+        setTimeout(() => {
+            scanner.resume();
+            document.getElementById('status').innerText = "Ready to Scan";
+        }, 2000);
+    }
+
+    // --- SCANNER LOGIC ---
+
+    function onScan(decodedText) {
+        if (isProcessing) return; // Prevent double scans
+        
+        // Check local cache first (instant feedback)
+        const existingPass = activePasses.find(p => p.student === decodedText);
+
+        if (existingPass) {
+            // CHECK IN
+            scanner.pause();
+            performCheckIn(decodedText);
+        } else {
+            // CHECK OUT
+            scanner.pause();
+            pendingStudent = decodedText;
+            document.getElementById('reader').style.display = 'none';
+            document.getElementById('controls').style.display = 'grid';
+            document.getElementById('status').innerHTML = `Where is <b>${decodedText}</b> going?`;
+        }
+    }
+
+    function resetScanner() {
+        pendingStudent = null;
+        document.getElementById('controls').style.display = 'none';
+        document.getElementById('reader').style.display = 'block';
+        document.getElementById('status').innerText = "Ready to Scan";
+        try { scanner.resume(); } catch(e) {}
+    }
+
+    // --- UI HELPERS ---
+
+    function renderList() {
+        const list = document.getElementById('active-list');
+        if(activePasses.length === 0) {
+            list.innerHTML = "<i>No students are out.</i>";
+            return;
+        }
+        
+        let html = "";
+        activePasses.forEach(pass => {
+            const mins = Math.floor((Date.now() - pass.startTime) / 60000);
+            html += `
+                <div class="pass-item">
+                    <span><b>${pass.student}</b> (${pass.destination})</span>
+                    <span class="pass-time">${mins}m ago</span>
+                </div>
+            `;
+        });
+        list.innerHTML = html;
+    }
+
+    function showLoading(msg) {
+        isProcessing = true;
+        const el = document.getElementById('status');
+        el.innerText = msg;
+        el.className = 'loading';
+    }
+
+    function showSuccess(msg) {
+        isProcessing = false;
+        const el = document.getElementById('status');
+        el.innerText = msg;
+        el.className = 'success';
+        setTimeout(() => el.className = '', 3000);
+    }
+
+    // --- INITIALIZATION ---
+    
+    // 1. Start Camera
+    scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+    scanner.render(onScan);
+
+    // 2. Load Data from Google Sheet
+    syncData();
+
+    // 3. Auto-refresh list every 30 seconds (to see updates from other kiosks)
+    setInterval(syncData, 30000);
+
+</script>
+
+</body>
+</html>
