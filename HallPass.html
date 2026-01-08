@@ -91,7 +91,7 @@
 
         // 1. FILTER: Ignore empty or whitespace-only scans
         if (!decodedText || decodedText.trim().length === 0) {
-            log(`⚠️ Ignored empty scan`, "err");
+            // We ignore these silently now
             return;
         }
 
@@ -174,7 +174,7 @@
         document.getElementById('scanner-wrapper').style.display = 'block';
         setStatus("Ready to Scan", "ready");
         
-        try { scanner.resume(); } catch(e) { log("Resume Warning: " + e); }
+        try { scanner.resume(); } catch(e) { /* ignore resume errors */ }
     }
 
     // --- DATA SYNC ---
@@ -191,7 +191,7 @@
                 log("⚠️ Sync Error: script might be private/locked.", "err");
             }
         } catch(e) {
-            log("⚠️ Network Error", "err");
+            // Silence standard network polling errors to keep log clean
         }
     }
 
@@ -233,8 +233,10 @@
 
     // --- STARTUP ---
     scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250, aspectRatio: 1.0 });
+    
+    // CHANGED: Second argument (error callback) is now empty
     scanner.render(onScan, (err) => { 
-        if(err && debugMode && !err.includes("No MultiFormat")) log("Scan parse error (ignoring)", "err"); 
+        // SILENCED
     });
 
     syncData();
