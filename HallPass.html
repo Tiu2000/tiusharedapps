@@ -3,54 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>School Pass Pro</title>
+    <title>School Pass Diagnostic</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
-        :root { --primary: #2563eb; --bg: #f1f5f9; --card: #ffffff; }
+        :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; }
+        body { font-family: monospace; background: var(--bg); padding: 20px; display: flex; flex-direction: column; align-items: center; }
         
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: var(--card); max-width: 600px; width: 100%; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px;}
+        h1 { text-align: center; margin: 0 0 20px 0; font-family: sans-serif; }
         
-        .card { background: var(--card); max-width: 600px; width: 100%; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        #reader { width: 100%; border-radius: 8px; overflow: hidden; background: #000; min-height: 250px; }
         
-        h1 { text-align: center; color: #1e293b; margin-top: 0; font-size: 1.5rem;}
-        
-        /* Scanner container */
-        #reader { width: 100%; border-radius: 12px; overflow: hidden; background: black; min-height: 300px; }
+        /* Status */
+        #status-box { padding: 15px; text-align: center; font-weight: bold; background: #eee; margin: 10px 0; border-radius: 6px; font-family: sans-serif; }
+        .s-ready { background: #dbeafe !important; color: #1e40af; }
+        .s-wait { background: #ffedd5 !important; color: #9a3412; }
+        .s-success { background: #dcfce7 !important; color: #166534; }
 
-        /* Status Bar */
-        #status-bar {
-            text-align: center; font-weight: bold; margin: 15px 0; padding: 12px;
-            border-radius: 8px; background: #e2e8f0; color: #475569;
-            transition: all 0.3s;
-        }
-        .status-success { background: #dcfce7 !important; color: #166534 !important; }
-        .status-wait { background: #fff7ed !important; color: #9a3412 !important; }
-        .status-error { background: #fee2e2 !important; color: #991b1b !important; }
-
-        /* Destination Selection (Hidden by default) */
-        #checkout-flow { display: none; flex-direction: column; gap: 15px; }
-        
-        .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        
-        .btn { padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; color: white; transition: transform 0.1s; }
-        .btn:active { transform: scale(0.98); }
-        
+        /* Controls */
+        #flow-controls { display: none; flex-direction: column; gap: 10px; }
+        .grid-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button { padding: 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; }
         .btn-bath { background: #3b82f6; }
         .btn-office { background: #8b5cf6; }
-        .btn-cancel { background: #94a3b8; width: 100%; margin-top: 10px;}
-        .btn-go { background: #10b981; width: 80px; }
-
-        /* Custom Input Area */
-        .custom-input-group { display: flex; gap: 10px; margin-top: 5px; }
-        input[type="text"] {
-            flex-grow: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; outline: none;
-        }
-        input[type="text"]:focus { border-color: var(--primary); }
-
-        /* Active List */
-        #active-list { margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 15px; }
-        .student-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #e2e8f0; }
-        .time-tag { font-size: 0.85rem; color: #ef4444; background: #fee2e2; padding: 2px 8px; border-radius: 12px; }
+        .btn-cancel { background: #64748b; width: 100%; }
+        
+        /* Diagnostic Console */
+        #debug-area { width: 100%; max-width: 600px; display: none; }
+        #console-log { background: #1e293b; color: #38bdf8; padding: 15px; border-radius: 8px; height: 150px; overflow-y: auto; font-size: 12px; white-space: pre-wrap; }
+        .log-err { color: #f87171; }
+        .log-success { color: #4ade80; }
     </style>
 </head>
 <body>
@@ -58,203 +40,205 @@
 <div class="card">
     <h1>🏫 Hall Pass Scanner</h1>
     
-    <div id="scanner-wrapper">
-        <div id="reader"></div>
+    <div id="scanner-wrapper"><div id="reader"></div></div>
+
+    <div id="status-box" class="s-ready">Initializing Camera...</div>
+
+    <div id="flow-controls">
+        <div style="text-align:center; margin-bottom:5px; font-family:sans-serif;">
+            Destination for: <b id="student-name" style="font-size:1.2em">...</b>
+        </div>
+        <div class="grid-btns">
+            <button class="btn-bath" onclick="submitPass('Bathroom')">🚽 Bathroom</button>
+            <button class="btn-office" onclick="submitPass('Office')">🏢 Office</button>
+        </div>
+        <button class="btn-cancel" onclick="resetApp()">Cancel</button>
     </div>
 
-    <div id="status-bar">Starting Camera...</div>
-
-    <div id="checkout-flow">
-        <div style="text-align:center; color:#64748b; margin-bottom:10px;">
-            Select destination for <b id="student-name" style="color:#000"></b>:
-        </div>
-
-        <div class="quick-actions">
-            <button class="btn btn-bath" onclick="submitPass('Bathroom')">🚽 Bathroom</button>
-            <button class="btn btn-office" onclick="submitPass('Office')">🏢 Office</button>
-        </div>
-
-        <div class="custom-input-group">
-            <input type="text" id="room-input" placeholder="Type Room # (e.g. 104)" onkeypress="handleEnter(event)">
-            <button class="btn btn-go" onclick="submitCustom()">GO</button>
-        </div>
-
-        <button class="btn btn-cancel" onclick="resetToScan()">Cancel</button>
+    <div style="margin-top:20px; border-top:1px solid #ddd; padding-top:10px;">
+        <h3 style="font-family:sans-serif; margin:0 0 10px 0;">Active Passes</h3>
+        <div id="active-list" style="font-family:sans-serif;">Loading...</div>
     </div>
+</div>
 
-    <div id="active-list">
-        <h3>Currently Out</h3>
-        <div id="list-content">Loading...</div>
-    </div>
+<label style="margin-bottom: 5px; font-family:sans-serif;">
+    <input type="checkbox" onchange="toggleDebug(this)"> Enable Diagnostic Mode
+</label>
+
+<div id="debug-area">
+    <div id="console-log"></div>
+    <button onclick="document.getElementById('console-log').innerHTML=''" style="background:#334155; margin-top:5px; padding:5px;">Clear Log</button>
 </div>
 
 <script>
     // ==========================================
-    // YOUR URL
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyguMXl5KoFb7N2KbXfQd08P-P2CNzFnbEIwx-XiQxSl23ONUHVoqAdis4zOrxBcHnFPA/exec"; 
     // ==========================================
 
-    let activePasses = []; // Local copy of data
     let scanner = null;
+    let activePasses = [];
     let pendingStudent = null;
-    let isLocked = false; // Prevents "Double Scanning"
+    let isLocked = false;
+    let debugMode = false;
 
-    // --- 1. CORE FUNCTIONS ---
+    // --- SOUND EFFECT ---
+    const beep = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU");
 
-    async function refreshData() {
-        try {
-            // FIX 1: Add timestamp to prevent caching (&_t=...)
-            const res = await fetch(`${SCRIPT_URL}?action=get_active&_t=${Date.now()}`);
-            
-            const text = await res.text();
-            let data;
-            
-            try {
-                data = JSON.parse(text);
-            } catch (e) {
-                throw new Error("PERMISSION ERROR: Set Script Access to 'Anyone'.");
-            }
+    // --- MAIN LOGIC ---
 
-            activePasses = data;
-            renderList();
-            if(!isLocked) updateStatus("Ready to Scan");
+    function onScan(decodedText) {
+        if (isLocked) return;
 
-        } catch(e) {
-            console.error("Sync error", e);
-            updateStatus("Connection Error", "error");
+        // 1. FILTER: Ignore empty or whitespace-only scans
+        if (!decodedText || decodedText.trim().length === 0) {
+            log(`⚠️ Ignored empty scan`, "err");
+            return;
         }
-    }
 
-    // Triggered when a QR code is detected
-    function onScanMatch(decodedText) {
-        if (isLocked) return; 
-        isLocked = true;     
-
-        scanner.pause(); 
-
-        const existingPass = activePasses.find(p => p.student === decodedText);
-
-        if (existingPass) {
-            processCheckIn(decodedText);
-        } else {
-            pendingStudent = decodedText;
-            showDestinationScreen(decodedText);
-        }
-    }
-
-    // --- 2. CHECK OUT FLOW ---
-
-    function showDestinationScreen(name) {
-        document.getElementById('scanner-wrapper').style.display = 'none';
-        document.getElementById('checkout-flow').style.display = 'flex';
-        document.getElementById('student-name').innerText = name;
-        updateStatus("Select Destination", "wait");
-        setTimeout(() => document.getElementById('room-input').focus(), 100);
-    }
-
-    function submitCustom() {
-        const room = document.getElementById('room-input').value;
-        if (!room) return alert("Please type a room number");
-        submitPass("Room " + room);
-    }
-
-    function handleEnter(e) {
-        if(e.key === "Enter") submitCustom();
-    }
-
-    async function submitPass(destination) {
-        updateStatus("Saving...", "wait");
+        // 2. LOCK: Stop scanning immediately
+        isLocked = true;
+        log(`📷 SCAN DETECTED: [${decodedText}]`);
+        beep.play().catch(e=>{}); // Try to beep
         
-        // Hide controls immediately
-        document.getElementById('checkout-flow').style.display = 'none'; 
+        try { scanner.pause(); } catch(e) { log("Pause failed: " + e, "err"); }
+
+        const student = decodedText.trim();
+        const existing = activePasses.find(p => p.student === student);
+
+        if (existing) {
+            log(`🔄 Auto-Checkin for ${student}`);
+            processCheckIn(student);
+        } else {
+            log(`➡️ New Check-out for ${student}`);
+            pendingStudent = student;
+            showControls(student);
+        }
+    }
+
+    function showControls(name) {
+        document.getElementById('scanner-wrapper').style.display = 'none';
+        document.getElementById('flow-controls').style.display = 'flex';
+        document.getElementById('student-name').innerText = name;
+        setStatus("Select Destination", "wait");
+    }
+
+    async function submitPass(dest) {
+        log(`💾 Sending OUT: ${pendingStudent} -> ${dest}`);
+        setStatus("Saving...", "wait");
+        
+        // Optimistic Update
+        activePasses.push({ student: pendingStudent, destination: dest, startTime: Date.now() });
+        renderList();
+        
+        // Hide UI immediately
+        document.getElementById('flow-controls').style.display = 'none';
         document.getElementById('scanner-wrapper').style.display = 'block';
 
-        // FIX 2: OPTIMISTIC UPDATE (Add to screen BEFORE Google replies)
-        // This ensures the next scan knows they are already out.
-        activePasses.push({
-            student: pendingStudent,
-            destination: destination,
-            startTime: Date.now()
-        });
-        renderList();
+        // Fetch
+        try {
+            await fetch(`${SCRIPT_URL}?action=checkout&name=${encodeURIComponent(pendingStudent)}&dest=${encodeURIComponent(dest)}`);
+            log("✅ Cloud Save Success", "success");
+            setStatus(`Passed: ${dest}`, "success");
+        } catch(e) {
+            log("❌ Cloud Error: " + e.message, "err");
+            setStatus("Saved Locally (Connection Error)", "err");
+        }
 
-        // Send to cloud in background
-        await fetch(`${SCRIPT_URL}?action=checkout&name=${encodeURIComponent(pendingStudent)}&dest=${encodeURIComponent(destination)}`);
-        
-        updateStatus(`✅ Pass Created: ${destination}`, "success");
-        
-        // Wait 2 seconds then unlock
-        setTimeout(resetToScan, 2000);
+        setTimeout(resetApp, 2000);
     }
-
-    // --- 3. CHECK IN FLOW ---
 
     async function processCheckIn(name) {
-        updateStatus("Checking In...", "wait");
-
-        // Optimistic Remove
+        setStatus("Checking In...", "wait");
+        
+        // Optimistic Update
         activePasses = activePasses.filter(p => p.student !== name);
         renderList();
-        
-        await fetch(`${SCRIPT_URL}?action=checkin&name=${encodeURIComponent(name)}`);
-        
-        updateStatus(`👋 Welcome Back, ${name}`, "success");
-        await refreshData(); // Fetch real list to be sure
-        
-        setTimeout(resetToScan, 2000);
+
+        try {
+            await fetch(`${SCRIPT_URL}?action=checkin&name=${encodeURIComponent(name)}`);
+            log("✅ Check-in Success", "success");
+            setStatus(`Welcome Back ${name}`, "success");
+        } catch(e) {
+            log("❌ Cloud Error: " + e.message, "err");
+        }
+
+        setTimeout(resetApp, 2000);
     }
 
-    // --- 4. HELPERS ---
-
-    function resetToScan() {
-        document.getElementById('checkout-flow').style.display = 'none';
-        document.getElementById('scanner-wrapper').style.display = 'block';
-        document.getElementById('room-input').value = "";
-        
-        isLocked = false;
+    function resetApp() {
+        log("🔄 Resetting Scanner...");
         pendingStudent = null;
-        updateStatus("Ready to Scan");
+        isLocked = false;
         
-        try { scanner.resume(); } catch(e) {}
+        document.getElementById('flow-controls').style.display = 'none';
+        document.getElementById('scanner-wrapper').style.display = 'block';
+        setStatus("Ready to Scan", "ready");
+        
+        try { scanner.resume(); } catch(e) { log("Resume Warning: " + e); }
     }
 
-    function updateStatus(msg, type="") {
-        const el = document.getElementById('status-bar');
+    // --- DATA SYNC ---
+    async function syncData() {
+        try {
+            const res = await fetch(`${SCRIPT_URL}?action=get_active&_t=${Date.now()}`);
+            const text = await res.text();
+            
+            try {
+                activePasses = JSON.parse(text);
+                renderList();
+                log("☁️ List Synced (" + activePasses.length + " active)");
+            } catch(e) {
+                log("⚠️ Sync Error: script might be private/locked.", "err");
+            }
+        } catch(e) {
+            log("⚠️ Network Error", "err");
+        }
+    }
+
+    // --- UI HELPERS ---
+    function setStatus(msg, type) {
+        const el = document.getElementById('status-box');
         el.innerText = msg;
-        el.className = ""; 
-        if (type === "success") el.classList.add("status-success");
-        if (type === "wait") el.classList.add("status-wait");
-        if (type === "error") el.classList.add("status-error");
+        el.className = `s-${type}`;
     }
 
     function renderList() {
-        const list = document.getElementById('list-content');
-        if (activePasses.length === 0) {
-            list.innerHTML = "<div style='color:#94a3b8; text-align:center'>No students out</div>";
-            return;
-        }
+        const list = document.getElementById('active-list');
+        if (activePasses.length === 0) { list.innerHTML = "No students out."; return; }
         
         list.innerHTML = activePasses.map(p => {
-            const mins = Math.floor((Date.now() - p.startTime) / 60000);
-            return `
-                <div class="student-row">
-                    <div>
-                        <strong>${p.student}</strong>
-                        <span style="color:#64748b; font-size:0.9rem"> &rarr; ${p.destination}</span>
-                    </div>
-                    <div class="time-tag">${mins} min</div>
-                </div>
-            `;
+            const m = Math.floor((Date.now() - p.startTime)/60000);
+            return `<div style="display:flex; justify-content:space-between; border-bottom:1px dashed #ccc; padding:5px;">
+                <span><b>${p.student}</b> (${p.destination})</span>
+                <span style="color:red">${m} min</span>
+            </div>`;
         }).join('');
     }
 
-    // --- 5. INITIALIZATION ---
-    
-    scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250, aspectRatio: 1.0 });
-    scanner.render(onScanMatch, (err) => { });
+    // --- DIAGNOSTICS ---
+    function toggleDebug(cb) {
+        debugMode = cb.checked;
+        document.getElementById('debug-area').style.display = debugMode ? 'block' : 'none';
+        log(debugMode ? "Diagnostics Enabled" : "Diagnostics Disabled");
+    }
 
-    refreshData();
-    setInterval(refreshData, 20000);
+    function log(msg, type="info") {
+        if (!debugMode) return;
+        const d = new Date();
+        const time = d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds();
+        const div = document.getElementById('console-log');
+        div.innerHTML += `<div class="${type === 'err' ? 'log-err' : (type === 'success' ? 'log-success' : '')}">[${time}] ${msg}</div>`;
+        div.scrollTop = div.scrollHeight;
+    }
+
+    // --- STARTUP ---
+    scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250, aspectRatio: 1.0 });
+    scanner.render(onScan, (err) => { 
+        if(err && debugMode && !err.includes("No MultiFormat")) log("Scan parse error (ignoring)", "err"); 
+    });
+
+    syncData();
+    setInterval(syncData, 30000); // Sync every 30s
 
 </script>
 </body>
