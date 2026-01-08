@@ -90,7 +90,7 @@
 
 <script>
     // ==========================================
-    // YOUR URL IS PRE-FILLED BELOW
+    // YOUR URL
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyguMXl5KoFb7N2KbXfQd08P-P2CNzFnbEIwx-XiQxSl23ONUHVoqAdis4zOrxBcHnFPA/exec"; 
     // ==========================================
 
@@ -103,17 +103,16 @@
 
     async function refreshData() {
         try {
-            const res = await fetch(`${SCRIPT_URL}?action=get_active`);
+            // FIX 1: Add timestamp to prevent caching (&_t=...)
+            const res = await fetch(`${SCRIPT_URL}?action=get_active&_t=${Date.now()}`);
             
-            // Check if Google sent an HTML login page instead of JSON data
             const text = await res.text();
             let data;
             
             try {
                 data = JSON.parse(text);
             } catch (e) {
-                // If this fails, it means we didn't get JSON (Data). We likely got HTML (Login Page).
-                throw new Error("PERMISSION ERROR: Please redeploy your Google Script and set 'Who has access' to 'Anyone'.");
+                throw new Error("PERMISSION ERROR: Set Script Access to 'Anyone'.");
             }
 
             activePasses = data;
@@ -122,35 +121,22 @@
 
         } catch(e) {
             console.error("Sync error", e);
-            updateStatus(e.message.includes("PERMISSION") ? "Permission Error (See Console)" : "Connection Error", "error");
-            
-            if (e.message.includes("PERMISSION")) {
-                document.getElementById('list-content').innerHTML = `
-                    <div style='color:red; text-align:center; font-size:0.9rem'>
-                        <b>Setup Error:</b><br>
-                        Your Google Script is set to "Only Me".<br>
-                        Go to your Script -> Deploy -> New Deployment -> <br>
-                        Set <b>Who has access</b> to <b>Anyone</b>.
-                    </div>`;
-            }
+            updateStatus("Connection Error", "error");
         }
     }
 
     // Triggered when a QR code is detected
     function onScanMatch(decodedText) {
-        if (isLocked) return; // Ignore everything if we are busy
-        isLocked = true;      // LOCK the scanner immediately
+        if (isLocked) return; 
+        isLocked = true;     
 
-        // Pause camera visually so user knows it worked
         scanner.pause(); 
 
         const existingPass = activePasses.find(p => p.student === decodedText);
 
         if (existingPass) {
-            // STUDENT RETURNING -> Auto Check-in
             processCheckIn(decodedText);
         } else {
-            // STUDENT LEAVING -> Show Input Screen
             pendingStudent = decodedText;
             showDestinationScreen(decodedText);
         }
@@ -163,8 +149,6 @@
         document.getElementById('checkout-flow').style.display = 'flex';
         document.getElementById('student-name').innerText = name;
         updateStatus("Select Destination", "wait");
-        
-        // Focus on the text box so they can type immediately
         setTimeout(() => document.getElementById('room-input').focus(), 100);
     }
 
@@ -179,17 +163,25 @@
     }
 
     async function submitPass(destination) {
-        updateStatus("Saving to Cloud...", "wait");
+        updateStatus("Saving...", "wait");
         
-        // Hide controls immediately to prevent double clicking
+        // Hide controls immediately
         document.getElementById('checkout-flow').style.display = 'none'; 
         document.getElementById('scanner-wrapper').style.display = 'block';
 
-        // Send to cloud
+        // FIX 2: OPTIMISTIC UPDATE (Add to screen BEFORE Google replies)
+        // This ensures the next scan knows they are already out.
+        activePasses.push({
+            student: pendingStudent,
+            destination: destination,
+            startTime: Date.now()
+        });
+        renderList();
+
+        // Send to cloud in background
         await fetch(`${SCRIPT_URL}?action=checkout&name=${encodeURIComponent(pendingStudent)}&dest=${encodeURIComponent(destination)}`);
         
         updateStatus(`✅ Pass Created: ${destination}`, "success");
-        await refreshData();
         
         // Wait 2 seconds then unlock
         setTimeout(resetToScan, 2000);
@@ -199,11 +191,15 @@
 
     async function processCheckIn(name) {
         updateStatus("Checking In...", "wait");
+
+        // Optimistic Remove
+        activePasses = activePasses.filter(p => p.student !== name);
+        renderList();
         
         await fetch(`${SCRIPT_URL}?action=checkin&name=${encodeURIComponent(name)}`);
         
         updateStatus(`👋 Welcome Back, ${name}`, "success");
-        await refreshData();
+        await refreshData(); // Fetch real list to be sure
         
         setTimeout(resetToScan, 2000);
     }
@@ -211,24 +207,21 @@
     // --- 4. HELPERS ---
 
     function resetToScan() {
-        // Reset UI
         document.getElementById('checkout-flow').style.display = 'none';
         document.getElementById('scanner-wrapper').style.display = 'block';
         document.getElementById('room-input').value = "";
         
-        // Reset Logic
         isLocked = false;
         pendingStudent = null;
         updateStatus("Ready to Scan");
         
-        // Resume Camera
         try { scanner.resume(); } catch(e) {}
     }
 
     function updateStatus(msg, type="") {
         const el = document.getElementById('status-bar');
         el.innerText = msg;
-        el.className = ""; // clear previous
+        el.className = ""; 
         if (type === "success") el.classList.add("status-success");
         if (type === "wait") el.classList.add("status-wait");
         if (type === "error") el.classList.add("status-error");
@@ -257,14 +250,10 @@
 
     // --- 5. INITIALIZATION ---
     
-    // Start Scanner
     scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250, aspectRatio: 1.0 });
-    scanner.render(onScanMatch, (err) => { /* ignore errors */ });
+    scanner.render(onScanMatch, (err) => { });
 
-    // Initial Data Load
     refreshData();
-    
-    // Auto Refresh every 20s
     setInterval(refreshData, 20000);
 
 </script>
