@@ -3,36 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>School Pass Diagnostic</title>
+    <title>School Pass Pro</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; }
-        body { font-family: monospace; background: var(--bg); padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); padding: 20px; display: flex; flex-direction: column; align-items: center; }
         
         .card { background: var(--card); max-width: 600px; width: 100%; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px;}
-        h1 { text-align: center; margin: 0 0 20px 0; font-family: sans-serif; }
+        h1 { text-align: center; margin: 0 0 15px 0; color: #1e293b; }
         
         #reader { width: 100%; border-radius: 8px; overflow: hidden; background: #000; min-height: 250px; }
         
-        /* Status */
-        #status-box { padding: 15px; text-align: center; font-weight: bold; background: #eee; margin: 10px 0; border-radius: 6px; font-family: sans-serif; }
-        .s-ready { background: #dbeafe !important; color: #1e40af; }
+        /* Status & Manual Input */
+        #status-box { padding: 12px; text-align: center; font-weight: bold; background: #e2e8f0; margin: 10px 0; border-radius: 6px; }
         .s-wait { background: #ffedd5 !important; color: #9a3412; }
         .s-success { background: #dcfce7 !important; color: #166534; }
+        .s-error { background: #fee2e2 !important; color: #991b1b; }
 
-        /* Controls */
+        .manual-group { display: flex; gap: 10px; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;}
+        .manual-input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+        .btn-manual { background: #64748b; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+
+        /* Destination Controls (Hidden initially) */
         #flow-controls { display: none; flex-direction: column; gap: 10px; }
         .grid-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        button { padding: 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; }
+        button { padding: 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; font-size: 1rem; }
         .btn-bath { background: #3b82f6; }
         .btn-office { background: #8b5cf6; }
-        .btn-cancel { background: #64748b; width: 100%; }
-        
-        /* Diagnostic Console */
+        .btn-cancel { background: #94a3b8; width: 100%; }
+
+        /* Logs & Diagnostics */
         #debug-area { width: 100%; max-width: 600px; display: none; }
-        #console-log { background: #1e293b; color: #38bdf8; padding: 15px; border-radius: 8px; height: 150px; overflow-y: auto; font-size: 12px; white-space: pre-wrap; }
-        .log-err { color: #f87171; }
-        .log-success { color: #4ade80; }
+        #console-log { background: #0f172a; color: #38bdf8; padding: 10px; border-radius: 8px; height: 120px; overflow-y: auto; font-family: monospace; font-size: 11px; }
+        .log-warn { color: #fbbf24; }
     </style>
 </head>
 <body>
@@ -40,12 +43,18 @@
 <div class="card">
     <h1>🏫 Hall Pass Scanner</h1>
     
-    <div id="scanner-wrapper"><div id="reader"></div></div>
+    <div id="scanner-wrapper">
+        <div id="reader"></div>
+        <div class="manual-group">
+            <input type="text" id="manual-name" class="manual-input" placeholder="Or type name here..." onkeypress="if(event.key==='Enter') manualEntry()">
+            <button class="btn-manual" onclick="manualEntry()">Enter</button>
+        </div>
+    </div>
 
-    <div id="status-box" class="s-ready">Initializing Camera...</div>
+    <div id="status-box">Ready to Scan</div>
 
     <div id="flow-controls">
-        <div style="text-align:center; margin-bottom:5px; font-family:sans-serif;">
+        <div style="text-align:center; margin-bottom:10px;">
             Destination for: <b id="student-name" style="font-size:1.2em">...</b>
         </div>
         <div class="grid-btns">
@@ -56,18 +65,16 @@
     </div>
 
     <div style="margin-top:20px; border-top:1px solid #ddd; padding-top:10px;">
-        <h3 style="font-family:sans-serif; margin:0 0 10px 0;">Active Passes</h3>
-        <div id="active-list" style="font-family:sans-serif;">Loading...</div>
+        <h3>Currently Out:</h3>
+        <div id="active-list">Loading...</div>
     </div>
 </div>
 
-<label style="margin-bottom: 5px; font-family:sans-serif;">
-    <input type="checkbox" onchange="toggleDebug(this)"> Enable Diagnostic Mode
+<label style="font-size: 0.9rem; color: #64748b;">
+    <input type="checkbox" onchange="toggleDebug(this)"> Show Diagnostic Log
 </label>
-
 <div id="debug-area">
     <div id="console-log"></div>
-    <button onclick="document.getElementById('console-log').innerHTML=''" style="background:#334155; margin-top:5px; padding:5px;">Clear Log</button>
 </div>
 
 <script>
@@ -81,39 +88,43 @@
     let isLocked = false;
     let debugMode = false;
 
-    // --- SOUND EFFECT ---
-    const beep = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU");
-
-    // --- MAIN LOGIC ---
+    // --- 1. SCAN LOGIC ---
 
     function onScan(decodedText) {
         if (isLocked) return;
 
-        // 1. FILTER: Ignore empty or whitespace-only scans
+        // Diagnostic Log
         if (!decodedText || decodedText.trim().length === 0) {
-            // We ignore these silently now
+            log("⚠️ Camera saw 'Empty' code (Ignored)", "warn");
             return;
         }
 
-        // 2. LOCK: Stop scanning immediately
-        isLocked = true;
-        log(`📷 SCAN DETECTED: [${decodedText}]`);
-        beep.play().catch(e=>{}); // Try to beep
-        
-        try { scanner.pause(); } catch(e) { log("Pause failed: " + e, "err"); }
+        handleValidInput(decodedText.trim());
+    }
 
-        const student = decodedText.trim();
-        const existing = activePasses.find(p => p.student === student);
+    function manualEntry() {
+        const name = document.getElementById('manual-name').value;
+        if(name) handleValidInput(name.trim());
+    }
+
+    function handleValidInput(name) {
+        isLocked = true;
+        log(`🎯 DETECTED: [${name}]`);
+        
+        try { scanner.pause(); } catch(e) {}
+        document.getElementById('manual-name').value = ""; // Clear Input
+
+        const existing = activePasses.find(p => p.student === name);
 
         if (existing) {
-            log(`🔄 Auto-Checkin for ${student}`);
-            processCheckIn(student);
+            processCheckIn(name);
         } else {
-            log(`➡️ New Check-out for ${student}`);
-            pendingStudent = student;
-            showControls(student);
+            pendingStudent = name;
+            showControls(name);
         }
     }
+
+    // --- 2. UI FLOW ---
 
     function showControls(name) {
         document.getElementById('scanner-wrapper').style.display = 'none';
@@ -123,124 +134,98 @@
     }
 
     async function submitPass(dest) {
-        log(`💾 Sending OUT: ${pendingStudent} -> ${dest}`);
         setStatus("Saving...", "wait");
         
         // Optimistic Update
         activePasses.push({ student: pendingStudent, destination: dest, startTime: Date.now() });
         renderList();
         
-        // Hide UI immediately
+        // Reset UI immediately
         document.getElementById('flow-controls').style.display = 'none';
         document.getElementById('scanner-wrapper').style.display = 'block';
 
-        // Fetch
-        try {
-            await fetch(`${SCRIPT_URL}?action=checkout&name=${encodeURIComponent(pendingStudent)}&dest=${encodeURIComponent(dest)}`);
-            log("✅ Cloud Save Success", "success");
-            setStatus(`Passed: ${dest}`, "success");
-        } catch(e) {
-            log("❌ Cloud Error: " + e.message, "err");
-            setStatus("Saved Locally (Connection Error)", "err");
-        }
-
-        setTimeout(resetApp, 2000);
+        await fetch(`${SCRIPT_URL}?action=checkout&name=${encodeURIComponent(pendingStudent)}&dest=${encodeURIComponent(dest)}`)
+            .catch(e => log("Save failed: " + e.message, "warn"));
+        
+        setStatus(`✅ Pass Created: ${dest}`, "success");
+        setTimeout(resetApp, 1500);
     }
 
     async function processCheckIn(name) {
         setStatus("Checking In...", "wait");
         
-        // Optimistic Update
         activePasses = activePasses.filter(p => p.student !== name);
         renderList();
 
-        try {
-            await fetch(`${SCRIPT_URL}?action=checkin&name=${encodeURIComponent(name)}`);
-            log("✅ Check-in Success", "success");
-            setStatus(`Welcome Back ${name}`, "success");
-        } catch(e) {
-            log("❌ Cloud Error: " + e.message, "err");
-        }
+        await fetch(`${SCRIPT_URL}?action=checkin&name=${encodeURIComponent(name)}`)
+            .catch(e => log("Save failed: " + e.message, "warn"));
 
-        setTimeout(resetApp, 2000);
+        setStatus(`👋 Welcome Back, ${name}`, "success");
+        setTimeout(resetApp, 1500);
     }
 
     function resetApp() {
-        log("🔄 Resetting Scanner...");
-        pendingStudent = null;
         isLocked = false;
-        
+        pendingStudent = null;
         document.getElementById('flow-controls').style.display = 'none';
         document.getElementById('scanner-wrapper').style.display = 'block';
-        setStatus("Ready to Scan", "ready");
-        
-        try { scanner.resume(); } catch(e) { /* ignore resume errors */ }
+        setStatus("Ready to Scan");
+        try { scanner.resume(); } catch(e) {}
     }
 
-    // --- DATA SYNC ---
+    // --- 3. CORE & SYNC ---
+
     async function syncData() {
         try {
             const res = await fetch(`${SCRIPT_URL}?action=get_active&_t=${Date.now()}`);
             const text = await res.text();
-            
-            try {
-                activePasses = JSON.parse(text);
-                renderList();
-                log("☁️ List Synced (" + activePasses.length + " active)");
-            } catch(e) {
-                log("⚠️ Sync Error: script might be private/locked.", "err");
-            }
+            activePasses = JSON.parse(text);
+            renderList();
+            log("☁️ Synced (" + activePasses.length + " active)");
         } catch(e) {
-            // Silence standard network polling errors to keep log clean
+            // Silently fail on network errors to keep UI clean
         }
-    }
-
-    // --- UI HELPERS ---
-    function setStatus(msg, type) {
-        const el = document.getElementById('status-box');
-        el.innerText = msg;
-        el.className = `s-${type}`;
     }
 
     function renderList() {
         const list = document.getElementById('active-list');
-        if (activePasses.length === 0) { list.innerHTML = "No students out."; return; }
+        if (activePasses.length === 0) { list.innerHTML = "<div style='color:#94a3b8'>No students out.</div>"; return; }
         
         list.innerHTML = activePasses.map(p => {
             const m = Math.floor((Date.now() - p.startTime)/60000);
-            return `<div style="display:flex; justify-content:space-between; border-bottom:1px dashed #ccc; padding:5px;">
+            return `<div style="padding:8px; border-bottom:1px dashed #eee; display:flex; justify-content:space-between;">
                 <span><b>${p.student}</b> (${p.destination})</span>
-                <span style="color:red">${m} min</span>
+                <span style="color:#ef4444; font-size:0.9em">${m} min</span>
             </div>`;
         }).join('');
     }
 
-    // --- DIAGNOSTICS ---
+    function setStatus(msg, type="") {
+        const el = document.getElementById('status-box');
+        el.innerText = msg;
+        el.className = type === "success" ? "s-success" : (type === "wait" ? "s-wait" : "");
+    }
+
+    function log(msg, type) {
+        if(!debugMode) return;
+        const d = new Date();
+        const time = d.toTimeString().split(' ')[0];
+        document.getElementById('console-log').innerHTML += `<div class="${type==='warn'?'log-warn':''}"><span style="color:#64748b">[${time}]</span> ${msg}</div>`;
+        document.getElementById('console-log').scrollTop = 9999;
+    }
+
     function toggleDebug(cb) {
         debugMode = cb.checked;
         document.getElementById('debug-area').style.display = debugMode ? 'block' : 'none';
-        log(debugMode ? "Diagnostics Enabled" : "Diagnostics Disabled");
     }
 
-    function log(msg, type="info") {
-        if (!debugMode) return;
-        const d = new Date();
-        const time = d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds();
-        const div = document.getElementById('console-log');
-        div.innerHTML += `<div class="${type === 'err' ? 'log-err' : (type === 'success' ? 'log-success' : '')}">[${time}] ${msg}</div>`;
-        div.scrollTop = div.scrollHeight;
-    }
-
-    // --- STARTUP ---
-    scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250, aspectRatio: 1.0 });
-    
-    // CHANGED: Second argument (error callback) is now empty
-    scanner.render(onScan, (err) => { 
-        // SILENCED
-    });
+    // STARTUP
+    // Removed 'aspectRatio' to fix camera distortion issues
+    scanner = new Html5QrcodeScanner("reader", { fps: 20, qrbox: 250 });
+    scanner.render(onScan, (err) => { /* Ignore errors */ });
 
     syncData();
-    setInterval(syncData, 30000); // Sync every 30s
+    setInterval(syncData, 20000);
 
 </script>
 </body>
