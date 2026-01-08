@@ -25,6 +25,7 @@
         }
         .status-success { background: #dcfce7 !important; color: #166534 !important; }
         .status-wait { background: #fff7ed !important; color: #9a3412 !important; }
+        .status-error { background: #fee2e2 !important; color: #991b1b !important; }
 
         /* Destination Selection (Hidden by default) */
         #checkout-flow { display: none; flex-direction: column; gap: 15px; }
@@ -37,6 +38,7 @@
         .btn-bath { background: #3b82f6; }
         .btn-office { background: #8b5cf6; }
         .btn-cancel { background: #94a3b8; width: 100%; margin-top: 10px;}
+        .btn-go { background: #10b981; width: 80px; }
 
         /* Custom Input Area */
         .custom-input-group { display: flex; gap: 10px; margin-top: 5px; }
@@ -44,7 +46,6 @@
             flex-grow: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; outline: none;
         }
         input[type="text"]:focus { border-color: var(--primary); }
-        .btn-go { background: #10b981; width: 80px; }
 
         /* Active List */
         #active-list { margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 15px; }
@@ -89,8 +90,8 @@
 
 <script>
     // ==========================================
-    // 🔴 PASTE YOUR WEB APP URL HERE
-    const SCRIPT_URL = "PASTE_YOUR_GOOGLE_SCRIPT_URL_HERE"; 
+    // YOUR URL IS PRE-FILLED BELOW
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyguMXl5KoFb7N2KbXfQd08P-P2CNzFnbEIwx-XiQxSl23ONUHVoqAdis4zOrxBcHnFPA/exec"; 
     // ==========================================
 
     let activePasses = []; // Local copy of data
@@ -103,12 +104,35 @@
     async function refreshData() {
         try {
             const res = await fetch(`${SCRIPT_URL}?action=get_active`);
-            const data = await res.json();
+            
+            // Check if Google sent an HTML login page instead of JSON data
+            const text = await res.text();
+            let data;
+            
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                // If this fails, it means we didn't get JSON (Data). We likely got HTML (Login Page).
+                throw new Error("PERMISSION ERROR: Please redeploy your Google Script and set 'Who has access' to 'Anyone'.");
+            }
+
             activePasses = data;
             renderList();
             if(!isLocked) updateStatus("Ready to Scan");
+
         } catch(e) {
             console.error("Sync error", e);
+            updateStatus(e.message.includes("PERMISSION") ? "Permission Error (See Console)" : "Connection Error", "error");
+            
+            if (e.message.includes("PERMISSION")) {
+                document.getElementById('list-content').innerHTML = `
+                    <div style='color:red; text-align:center; font-size:0.9rem'>
+                        <b>Setup Error:</b><br>
+                        Your Google Script is set to "Only Me".<br>
+                        Go to your Script -> Deploy -> New Deployment -> <br>
+                        Set <b>Who has access</b> to <b>Anyone</b>.
+                    </div>`;
+            }
         }
     }
 
@@ -140,7 +164,7 @@
         document.getElementById('student-name').innerText = name;
         updateStatus("Select Destination", "wait");
         
-        // Focus on the text box so they can type immediately if they want
+        // Focus on the text box so they can type immediately
         setTimeout(() => document.getElementById('room-input').focus(), 100);
     }
 
@@ -155,7 +179,7 @@
     }
 
     async function submitPass(destination) {
-        updateStatus("Saving...", "wait");
+        updateStatus("Saving to Cloud...", "wait");
         
         // Hide controls immediately to prevent double clicking
         document.getElementById('checkout-flow').style.display = 'none'; 
@@ -204,7 +228,10 @@
     function updateStatus(msg, type="") {
         const el = document.getElementById('status-bar');
         el.innerText = msg;
-        el.className = type === "success" ? "status-success" : (type === "wait" ? "status-wait" : "");
+        el.className = ""; // clear previous
+        if (type === "success") el.classList.add("status-success");
+        if (type === "wait") el.classList.add("status-wait");
+        if (type === "error") el.classList.add("status-error");
     }
 
     function renderList() {
