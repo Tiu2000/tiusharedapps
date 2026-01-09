@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk QR Code Printer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        /* Controls section - hides when printing */
+        #controls {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Grid Layout for QR Codes */
+        #qr-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 20px;
+        }
+
+        .qr-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            page-break-inside: avoid; /* Prevents cutting a QR in half on page break */
+        }
+
+        .qr-label {
+            margin-top: 10px;
+            font-size: 12px;
+            word-break: break-all;
+            color: #333;
+        }
+
+        /* PRINT STYLES */
+        @media print {
+            #controls {
+                display: none; /* Hide buttons when printing */
+            }
+            body {
+                padding: 0;
+            }
+            #qr-container {
+                gap: 30px; 
+            }
+            .qr-item {
+                border: 1px solid #ccc; 
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="controls">
+        <h2>CSV to QR Code Generator</h2>
+        <div class="input-group">
+            <label><strong>Step 1:</strong> Select your CSV file (Column 1 = Data)</label><br><br>
+            <input type="file" id="csvFileInput" accept=".csv">
+        </div>
+        <div class="input-group">
+            <button onclick="window.print()">Step 2: Print Page</button>
+        </div>
+        <p><em>Note: If using Google Sheets, go to <strong>File > Download > Comma Separated Values (.csv)</strong></em></p>
+    </div>
+
+    <div id="qr-container"></div>
+
+    <script>
+        document.getElementById('csvFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const text = e.target.result;
+                processCSV(text);
+            };
+            
+            reader.readAsText(file);
+        });
+
+        function processCSV(csvText) {
+            const container = document.getElementById('qr-container');
+            container.innerHTML = ''; // Clear previous results
+            
+            // Split by new line to get rows
+            const rows = csvText.split(/\r?\n/);
+
+            rows.forEach(row => {
+                // Simple CSV parsing: remove quotes if present, trim whitespace
+                // We assume the data is in the first column
+                let data = row.split(',')[0].trim();
+                
+                // Clean up quotes if Excel added them
+                if (data.startsWith('"') && data.endsWith('"')) {
+                    data = data.substring(1, data.length - 1);
+                }
+
+                if (data) {
+                    createQRCard(data, container);
+                }
+            });
+        }
+
+        function createQRCard(text, container) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'qr-item';
+
+            const qrDiv = document.createElement('div');
+            
+            // Generate QR Code
+            new QRCode(qrDiv, {
+                text: text,
+                width: 128,
+                height: 128
+            });
+
+            // Add Label text below QR
+            const label = document.createElement('div');
+            label.className = 'qr-label';
+            label.innerText = text;
+
+            wrapper.appendChild(qrDiv);
+            wrapper.appendChild(label);
+            container.appendChild(wrapper);
+        }
+    </script>
+</body>
+</html>
