@@ -12,8 +12,17 @@
         .card { background: var(--card); max-width: 600px; width: 100%; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px;}
         h1 { text-align: center; margin: 0 0 15px 0; color: #1e293b; }
         
-        #reader { width: 100%; border-radius: 8px; overflow: hidden; background: #000; min-height: 250px; }
+        /* Scanner Area */
+        #scanner-wrapper { position: relative; border-radius: 8px; overflow: hidden; background: #000; min-height: 250px; }
+        #reader { width: 100%; }
         
+        /* Flash Effect for successful scan */
+        @keyframes flash-green {
+            0% { box-shadow: inset 0 0 0 50px rgba(34, 197, 94, 0.5); }
+            100% { box-shadow: inset 0 0 0 0 transparent; }
+        }
+        .scan-success { animation: flash-green 0.3s ease-out; }
+
         /* Status & Manual Input */
         #status-box { padding: 12px; text-align: center; font-weight: bold; background: #e2e8f0; margin: 10px 0; border-radius: 6px; }
         .s-wait { background: #ffedd5 !important; color: #9a3412; }
@@ -32,7 +41,7 @@
         .btn-office { background: #8b5cf6; }
         .btn-cancel { background: #94a3b8; width: 100%; }
 
-        /* Logs & Diagnostics */
+        /* Logs */
         #debug-area { width: 100%; max-width: 600px; display: none; }
         #console-log { background: #0f172a; color: #38bdf8; padding: 10px; border-radius: 8px; height: 120px; overflow-y: auto; font-family: monospace; font-size: 11px; }
         .log-warn { color: #fbbf24; }
@@ -45,10 +54,11 @@
     
     <div id="scanner-wrapper">
         <div id="reader"></div>
-        <div class="manual-group">
-            <input type="text" id="manual-name" class="manual-input" placeholder="Or type name here..." onkeypress="if(event.key==='Enter') manualEntry()">
-            <button class="btn-manual" onclick="manualEntry()">Enter</button>
-        </div>
+    </div>
+    
+    <div class="manual-group">
+        <input type="text" id="manual-name" class="manual-input" placeholder="Or type name here..." onkeypress="if(event.key==='Enter') manualEntry()">
+        <button class="btn-manual" onclick="manualEntry()">Enter</button>
     </div>
 
     <div id="status-box">Ready to Scan</div>
@@ -93,9 +103,8 @@
     function onScan(decodedText) {
         if (isLocked) return;
 
-        // Diagnostic Log
+        // SILENT IGNORE: If code is empty, do nothing, log nothing.
         if (!decodedText || decodedText.trim().length === 0) {
-            log("⚠️ Camera saw 'Empty' code (Ignored)", "warn");
             return;
         }
 
@@ -111,6 +120,12 @@
         isLocked = true;
         log(`🎯 DETECTED: [${name}]`);
         
+        // Visual Feedback
+        const wrapper = document.getElementById('scanner-wrapper');
+        wrapper.classList.remove('scan-success');
+        void wrapper.offsetWidth; // trigger reflow
+        wrapper.classList.add('scan-success');
+
         try { scanner.pause(); } catch(e) {}
         document.getElementById('manual-name').value = ""; // Clear Input
 
@@ -169,6 +184,7 @@
         pendingStudent = null;
         document.getElementById('flow-controls').style.display = 'none';
         document.getElementById('scanner-wrapper').style.display = 'block';
+        document.getElementById('scanner-wrapper').classList.remove('scan-success');
         setStatus("Ready to Scan");
         try { scanner.resume(); } catch(e) {}
     }
@@ -220,8 +236,8 @@
     }
 
     // STARTUP
-    // Removed 'aspectRatio' to fix camera distortion issues
-    scanner = new Html5QrcodeScanner("reader", { fps: 20, qrbox: 250 });
+    // Reduced FPS to 10 to prevent ghost flooding
+    scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
     scanner.render(onScan, (err) => { /* Ignore errors */ });
 
     syncData();
