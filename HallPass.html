@@ -16,7 +16,7 @@
         #scanner-wrapper { position: relative; border-radius: 8px; overflow: hidden; background: #000; min-height: 250px; }
         #reader { width: 100%; }
         
-        /* Flash Effect for successful scan */
+        /* Flash Effect */
         @keyframes flash-green {
             0% { box-shadow: inset 0 0 0 50px rgba(34, 197, 94, 0.5); }
             100% { box-shadow: inset 0 0 0 0 transparent; }
@@ -33,7 +33,7 @@
         .manual-input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
         .btn-manual { background: #64748b; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
 
-        /* Destination Controls (Hidden initially) */
+        /* Destination Controls */
         #flow-controls { display: none; flex-direction: column; gap: 10px; }
         .grid-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         button { padding: 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; font-size: 1rem; }
@@ -75,7 +75,10 @@
     </div>
 
     <div style="margin-top:20px; border-top:1px solid #ddd; padding-top:10px;">
-        <h3>Currently Out:</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>Currently Out:</h3>
+            <button onclick="syncData()" style="padding:5px 10px; font-size:0.8rem; background:#cbd5e1; color:#334155;">Force Refresh</button>
+        </div>
         <div id="active-list">Loading...</div>
     </div>
 </div>
@@ -102,12 +105,7 @@
 
     function onScan(decodedText) {
         if (isLocked) return;
-
-        // SILENT IGNORE: If code is empty, do nothing, log nothing.
-        if (!decodedText || decodedText.trim().length === 0) {
-            return;
-        }
-
+        if (!decodedText || decodedText.trim().length === 0) return;
         handleValidInput(decodedText.trim());
     }
 
@@ -120,14 +118,13 @@
         isLocked = true;
         log(`🎯 DETECTED: [${name}]`);
         
-        // Visual Feedback
         const wrapper = document.getElementById('scanner-wrapper');
         wrapper.classList.remove('scan-success');
-        void wrapper.offsetWidth; // trigger reflow
+        void wrapper.offsetWidth; 
         wrapper.classList.add('scan-success');
 
         try { scanner.pause(); } catch(e) {}
-        document.getElementById('manual-name').value = ""; // Clear Input
+        document.getElementById('manual-name').value = ""; 
 
         const existing = activePasses.find(p => p.student === name);
 
@@ -151,11 +148,9 @@
     async function submitPass(dest) {
         setStatus("Saving...", "wait");
         
-        // Optimistic Update
         activePasses.push({ student: pendingStudent, destination: dest, startTime: Date.now() });
         renderList();
         
-        // Reset UI immediately
         document.getElementById('flow-controls').style.display = 'none';
         document.getElementById('scanner-wrapper').style.display = 'block';
 
@@ -187,6 +182,7 @@
         document.getElementById('scanner-wrapper').classList.remove('scan-success');
         setStatus("Ready to Scan");
         try { scanner.resume(); } catch(e) {}
+        syncData(); // Double check with server
     }
 
     // --- 3. CORE & SYNC ---
@@ -199,7 +195,7 @@
             renderList();
             log("☁️ Synced (" + activePasses.length + " active)");
         } catch(e) {
-            // Silently fail on network errors to keep UI clean
+            // silent fail
         }
     }
 
@@ -236,9 +232,8 @@
     }
 
     // STARTUP
-    // Reduced FPS to 10 to prevent ghost flooding
     scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-    scanner.render(onScan, (err) => { /* Ignore errors */ });
+    scanner.render(onScan, (err) => { });
 
     syncData();
     setInterval(syncData, 20000);
