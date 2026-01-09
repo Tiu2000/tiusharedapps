@@ -77,7 +77,7 @@
     <div style="margin-top:20px; border-top:1px solid #ddd; padding-top:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <h3>Currently Out:</h3>
-            <button onclick="syncData()" style="padding:5px 10px; font-size:0.8rem; background:#cbd5e1; color:#334155;">Force Refresh</button>
+            <button onclick="syncData()" style="padding:5px 10px; font-size:0.8rem; background:#cbd5e1; color:#334155; border:none; border-radius:4px; cursor:pointer;">Force Refresh</button>
         </div>
         <div id="active-list">Loading...</div>
     </div>
@@ -92,7 +92,8 @@
 
 <script>
     // ==========================================
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyguMXl5KoFb7N2KbXfQd08P-P2CNzFnbEIwx-XiQxSl23ONUHVoqAdis4zOrxBcHnFPA/exec"; 
+    // YOUR NEW URL IS INSERTED HERE:
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyoWmZGMu54rpHRT6TMmWM4n96lepOpvu7gJeZVuKopO7bDOKWO0-z1WDyc0JFAgHYubg/exec"; 
     // ==========================================
 
     let scanner = null;
@@ -118,6 +119,7 @@
         isLocked = true;
         log(`🎯 DETECTED: [${name}]`);
         
+        // Flash Effect
         const wrapper = document.getElementById('scanner-wrapper');
         wrapper.classList.remove('scan-success');
         void wrapper.offsetWidth; 
@@ -126,6 +128,7 @@
         try { scanner.pause(); } catch(e) {}
         document.getElementById('manual-name').value = ""; 
 
+        // Check local list first
         const existing = activePasses.find(p => p.student === name);
 
         if (existing) {
@@ -148,30 +151,44 @@
     async function submitPass(dest) {
         setStatus("Saving...", "wait");
         
+        // 1. Show it on screen IMMEDIATELY
         activePasses.push({ student: pendingStudent, destination: dest, startTime: Date.now() });
         renderList();
         
+        // 2. Hide controls
         document.getElementById('flow-controls').style.display = 'none';
         document.getElementById('scanner-wrapper').style.display = 'block';
 
-        await fetch(`${SCRIPT_URL}?action=checkout&name=${encodeURIComponent(pendingStudent)}&dest=${encodeURIComponent(dest)}`)
-            .catch(e => log("Save failed: " + e.message, "warn"));
+        // 3. Send to Google
+        try {
+            await fetch(`${SCRIPT_URL}?action=checkout&name=${encodeURIComponent(pendingStudent)}&dest=${encodeURIComponent(dest)}`);
+            log("✅ Save Success", "success");
+            setStatus(`✅ Pass Created: ${dest}`, "success");
+        } catch(e) {
+            log("❌ Network Fail: " + e.message, "warn");
+            setStatus("Saved Locally (Offline)", "error");
+        }
         
-        setStatus(`✅ Pass Created: ${dest}`, "success");
-        setTimeout(resetApp, 1500);
+        setTimeout(resetApp, 2000);
     }
 
     async function processCheckIn(name) {
         setStatus("Checking In...", "wait");
         
+        // 1. Remove from screen IMMEDIATELY
         activePasses = activePasses.filter(p => p.student !== name);
         renderList();
 
-        await fetch(`${SCRIPT_URL}?action=checkin&name=${encodeURIComponent(name)}`)
-            .catch(e => log("Save failed: " + e.message, "warn"));
+        // 2. Send to Google
+        try {
+            await fetch(`${SCRIPT_URL}?action=checkin&name=${encodeURIComponent(name)}`);
+            log("✅ Check-in Success", "success");
+            setStatus(`👋 Welcome Back, ${name}`, "success");
+        } catch(e) {
+            log("❌ Network Fail: " + e.message, "warn");
+        }
 
-        setStatus(`👋 Welcome Back, ${name}`, "success");
-        setTimeout(resetApp, 1500);
+        setTimeout(resetApp, 2000);
     }
 
     function resetApp() {
@@ -182,20 +199,28 @@
         document.getElementById('scanner-wrapper').classList.remove('scan-success');
         setStatus("Ready to Scan");
         try { scanner.resume(); } catch(e) {}
-        syncData(); // Double check with server
     }
 
     // --- 3. CORE & SYNC ---
 
     async function syncData() {
+        if(isLocked) return;
+
         try {
             const res = await fetch(`${SCRIPT_URL}?action=get_active&_t=${Date.now()}`);
             const text = await res.text();
-            activePasses = JSON.parse(text);
-            renderList();
-            log("☁️ Synced (" + activePasses.length + " active)");
+            
+            try {
+                const newData = JSON.parse(text);
+                activePasses = newData;
+                renderList();
+                log("☁️ Synced (" + activePasses.length + " active)");
+            } catch(e) {
+                log("⚠️ Sync Error: Invalid Data. Check Deployment!", "warn");
+            }
+
         } catch(e) {
-            // silent fail
+            // silent fail on network error
         }
     }
 
@@ -215,7 +240,7 @@
     function setStatus(msg, type="") {
         const el = document.getElementById('status-box');
         el.innerText = msg;
-        el.className = type === "success" ? "s-success" : (type === "wait" ? "s-wait" : "");
+        el.className = type === "success" ? "s-success" : (type === "wait" ? "s-wait" : (type === "error" ? "s-error" : ""));
     }
 
     function log(msg, type) {
