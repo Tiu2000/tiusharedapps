@@ -31,16 +31,18 @@
             background-size: 20px 20px;
         }
 
-        /* Subtle Watermark */
+        /* --- TIU WATERMARK --- */
         .watermark {
             position: fixed;
-            bottom: 10px;
-            right: 15px;
+            bottom: 15px;
+            right: 20px;
             font-family: 'Fredoka One', cursive;
-            font-size: 1.5rem;
-            color: rgba(0, 0, 0, 0.05);
+            font-size: 2rem;
+            color: #000;
+            opacity: 0.1; /* Subtle */
             pointer-events: none;
             z-index: 9999;
+            user-select: none;
         }
 
         .container {
@@ -125,6 +127,8 @@
             padding-right: 10px;
             font-weight: bold;
             font-size: 0.9rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .track {
@@ -142,6 +146,10 @@
             left: 0; /* Animated via JS */
             transition: left 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
+            /* FLIP CAR TO FACE RIGHT */
+            transform: scaleX(-1); 
+            width: 40px; 
+            text-align: center;
         }
 
         .finish-line {
@@ -149,7 +157,7 @@
             right: 0;
             top: -10px;
             height: 40px;
-            width: 10px;
+            width: 15px;
             background-image: linear-gradient(45deg, #000 25%, transparent 25%), 
                               linear-gradient(-45deg, #000 25%, transparent 25%), 
                               linear-gradient(45deg, transparent 75%, #000 75%), 
@@ -157,6 +165,7 @@
             background-size: 10px 10px;
             background-color: white;
             opacity: 0.5;
+            border-left: 2px solid white;
         }
 
         /* Player Interface */
@@ -170,9 +179,23 @@
         #feedback {
             height: 30px;
             font-weight: bold;
+            font-size: 1.2rem;
+            margin-top: 10px;
         }
-        .correct { color: #27ae60; }
-        .wrong { color: #c0392b; }
+        .correct { color: #27ae60; animation: pop 0.3s ease; }
+        .wrong { color: #c0392b; animation: shake 0.3s ease; }
+
+        @keyframes pop {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+            100% { transform: translateX(0); }
+        }
 
         /* Lobby List */
         #player-list {
@@ -197,8 +220,8 @@
             <h1>Math Race 🏁</h1>
             <p>Race your friends by solving math problems!</p>
             <br>
-            <button onclick="showHostSetup()">Host Game</button>
-            <button class="secondary" onclick="showJoinSetup()">Join Game</button>
+            <button onclick="Sound.preload(); showHostSetup()">Host Game</button>
+            <button class="secondary" onclick="Sound.preload(); showJoinSetup()">Join Game</button>
         </div>
 
         <div id="screen-host-setup" class="hidden">
@@ -245,7 +268,7 @@
         <div id="screen-player-waiting" class="hidden">
             <h2>Connected!</h2>
             <p>Waiting for host to start...</p>
-            <div style="font-size:3rem">🚗</div>
+            <div style="font-size:3rem; animation: pop 1s infinite alternate;">🚗</div>
         </div>
 
         <div id="screen-player-game" class="hidden">
@@ -263,6 +286,31 @@
     </div>
 
     <script>
+        // --- SOUND ENGINE (Using GitHub Raw Sources) ---
+        // Sourcing free sounds from the 'maykbrito/libs' and similar educational repos
+        const audioFiles = {
+            correct: new Audio('https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/kaching.wav'),
+            wrong: new Audio('https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/error.wav'), 
+            win: new Audio('https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/success.wav'),
+            click: new Audio('https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/button-press.wav')
+        };
+
+        const Sound = {
+            preload: () => {
+                // Trigger load on user interaction
+                Object.values(audioFiles).forEach(a => {
+                    a.load();
+                    a.volume = 0.5;
+                });
+            },
+            play: (name) => {
+                if (audioFiles[name]) {
+                    audioFiles[name].currentTime = 0;
+                    audioFiles[name].play().catch(e => console.log("Audio play failed:", e));
+                }
+            }
+        };
+
         // --- GLOBAL VARIABLES ---
         let peer = null;
         let conn = null; // Client connection to host
@@ -271,13 +319,14 @@
         let myId = null;
         let gameActive = false;
         let currentGrade = "1";
-        let winScore = 10; // Problems needed to win
+        let winScore = 15; // Problems to win
 
         // Avatars list
         const avatars = ['🚗', '🚕', '🚙', '🚌', '🏎️', '🚓', '🚑', '🚒'];
 
         // --- NAVIGATION ---
         function showScreen(id) {
+            Sound.play('click');
             document.querySelectorAll('.container > div').forEach(d => d.classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
         }
@@ -331,7 +380,7 @@
                     let m = Math.floor(Math.random() * 5) + 2;
                     let b = Math.floor(Math.random() * 20) + 1;
                     let c = (m * x) + b;
-                    q = `Solve for x: ${m}x + ${b} = ${c}`;
+                    q = `${m}x + ${b} = ${c}`;
                     a = x;
                 } else if (type === 1) {
                     // Exponents
@@ -391,6 +440,7 @@
                     avatar: avatar
                 };
                 updateLobbyList();
+                Sound.play('correct'); // Notification sound
             } else if (data.type === 'score_update') {
                 // Player scored
                 if (!gameActive) return;
@@ -412,6 +462,7 @@
             list.innerHTML = '';
             Object.values(players).forEach(p => {
                 const li = document.createElement('li');
+                // Don't flip avatar in list, only on track
                 li.innerText = `${p.avatar} ${p.name}`;
                 list.appendChild(li);
             });
@@ -453,8 +504,8 @@
         function updateRaceView() {
             Object.entries(players).forEach(([pid, p]) => {
                 const el = document.getElementById(`avatar-${pid}`);
-                // specific max-width logic: (score / winScore) * 90% (keep inside track)
-                const pct = Math.min((p.score / winScore) * 95, 95);
+                // specific max-width logic: (score / winScore) * 92% (keep inside track)
+                const pct = Math.min((p.score / winScore) * 92, 92);
                 el.style.left = `${pct}%`;
             });
         }
@@ -463,6 +514,7 @@
             gameActive = false;
             document.getElementById('winner-display').innerText = `🏆 ${winnerName} Wins!`;
             document.getElementById('host-restart-btn').classList.remove('hidden');
+            Sound.play('win');
             
             // Notify players
             Object.values(players).forEach(p => {
@@ -511,6 +563,7 @@
             } else if (data.type === 'end') {
                 showScreen('screen-player-end');
                 document.getElementById('player-end-msg').innerText = `${data.winner} won the race!`;
+                Sound.play('win');
             }
         }
 
@@ -532,11 +585,13 @@
             
             // Allow loose equality for simple numbers
             if (parseFloat(input) === parseFloat(currentProblem.a)) {
-                feedback.innerHTML = "<span class='correct'>Correct! Good Job!</span>";
+                feedback.innerHTML = "<span class='correct'>Correct!</span>";
+                Sound.play('correct');
                 conn.send({ type: 'score_update' });
                 setTimeout(nextProblem, 500); // Small delay to see success
             } else {
                 feedback.innerHTML = "<span class='wrong'>Try again!</span>";
+                Sound.play('wrong');
                 document.getElementById('answer-input').value = '';
                 document.getElementById('answer-input').focus();
             }
