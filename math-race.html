@@ -31,7 +31,6 @@
             background-size: 20px 20px;
         }
 
-        /* --- TIU WATERMARK --- */
         .watermark {
             position: fixed;
             bottom: 15px;
@@ -39,7 +38,7 @@
             font-family: 'Fredoka One', cursive;
             font-size: 2rem;
             color: #000;
-            opacity: 0.1; /* Subtle */
+            opacity: 0.1;
             pointer-events: none;
             z-index: 9999;
             user-select: none;
@@ -83,11 +82,28 @@
             box-shadow: 0 0 0 #3dbbb3;
         }
 
+        button:disabled {
+            background-color: #95a5a6;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         button.secondary {
             background-color: var(--primary);
             box-shadow: 0 5px 0 #e05555;
         }
         button.secondary:active { box-shadow: 0 0 0 #e05555; }
+        
+        button.kick-btn {
+            background-color: var(--primary);
+            padding: 5px 15px;
+            font-size: 0.9rem;
+            margin-left: 15px;
+            box-shadow: 0 3px 0 #c0392b;
+            float: right;
+        }
+        button.kick-btn:active { box-shadow: 0 0 0 #c0392b; }
 
         input, select {
             padding: 15px;
@@ -104,7 +120,6 @@
 
         .hidden { display: none !important; }
 
-        /* Game Elements */
         .track-container {
             margin-top: 20px;
             background: #eee;
@@ -143,10 +158,9 @@
             font-size: 2rem;
             position: absolute;
             top: -15px;
-            left: 0; /* Animated via JS */
+            left: 0;
             transition: left 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
-            /* FLIP CAR TO FACE RIGHT */
             transform: scaleX(-1); 
             width: 40px; 
             text-align: center;
@@ -168,7 +182,6 @@
             border-left: 2px solid white;
         }
 
-        /* Player Interface */
         #problem-display {
             font-size: 3rem;
             margin: 20px 0;
@@ -197,10 +210,12 @@
             100% { transform: translateX(0); }
         }
 
-        /* Lobby List */
         #player-list {
             list-style: none;
             padding: 0;
+            text-align: left;
+            display: inline-block;
+            min-width: 300px;
         }
         #player-list li {
             background: var(--light);
@@ -208,6 +223,9 @@
             padding: 10px;
             border-radius: 10px;
             font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
     </style>
 </head>
@@ -233,7 +251,7 @@
                 <option value="6">Grade 6-8 (Algebra/Geometry)</option>
             </select>
             <br>
-            <button onclick="startLobby()">Start Lobby</button>
+            <button id="btn-start-lobby" onclick="startLobby()">Start Lobby</button>
             <button class="secondary" onclick="resetApp()">Back</button>
         </div>
 
@@ -250,8 +268,7 @@
 
         <div id="screen-host-game" class="hidden">
             <h2>Race in Progress!</h2>
-            <div id="race-track" class="track-container">
-                </div>
+            <div id="race-track" class="track-container"></div>
             <h3 id="winner-display" style="color:var(--primary)"></h3>
             <button onclick="resetApp()" class="secondary hidden" id="host-restart-btn">New Game</button>
         </div>
@@ -261,7 +278,7 @@
             <input type="text" id="join-id" placeholder="Enter Game ID (e.g. abcd)" style="text-transform: uppercase;">
             <input type="text" id="player-name" placeholder="Your Name" maxlength="10">
             <br>
-            <button onclick="joinGame()">Join</button>
+            <button id="btn-join-game" onclick="joinGame()">Join</button>
             <button class="secondary" onclick="resetApp()">Back</button>
         </div>
 
@@ -283,11 +300,16 @@
             <p id="player-end-msg"></p>
             <button onclick="resetApp()">Menu</button>
         </div>
+
+        <div id="screen-disconnected" class="hidden">
+            <h2 style="color: var(--primary);">Disconnected</h2>
+            <p>You have been removed from the lobby.</p>
+            <button onclick="resetApp()">Back to Menu</button>
+        </div>
     </div>
 
     <script>
-        // --- SOUND ENGINE (Using GitHub Raw Sources) ---
-        // Sourcing free sounds from the 'maykbrito/libs' and similar educational repos
+        // --- SOUND ENGINE ---
         const audioFiles = {
             correct: new Audio('https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/kaching.wav'),
             wrong: new Audio('https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/error.wav'), 
@@ -297,7 +319,6 @@
 
         const Sound = {
             preload: () => {
-                // Trigger load on user interaction
                 Object.values(audioFiles).forEach(a => {
                     a.load();
                     a.volume = 0.5;
@@ -313,15 +334,15 @@
 
         // --- GLOBAL VARIABLES ---
         let peer = null;
-        let conn = null; // Client connection to host
-        let connections = []; // Host list of player connections
-        let players = {}; // Host state of players { id: {name, score, avatar} }
-        let myId = null;
+        let conn = null;
+        let connections = [];
+        let players = {}; 
         let gameActive = false;
         let currentGrade = "1";
-        let winScore = 15; // Problems to win
+        let winScore = 15;
+        // Prefix ensures unique namespace on shared server
+        const ID_PREFIX = "mathrace-v1-"; 
 
-        // Avatars list
         const avatars = ['🚗', '🚕', '🚙', '🚌', '🏎️', '🚓', '🚑', '🚒'];
 
         // --- NAVIGATION ---
@@ -344,12 +365,11 @@
             grade = parseInt(grade);
             
             if (grade === 1) {
-                // Grades 1-2: Add/Sub
                 const op = Math.random() > 0.5 ? '+' : '-';
                 let n1 = Math.floor(Math.random() * 20) + 1;
                 let n2 = Math.floor(Math.random() * 20) + 1;
                 if (op === '-') {
-                    if (n1 < n2) [n1, n2] = [n2, n1]; // No negatives
+                    if (n1 < n2) [n1, n2] = [n2, n1];
                     q = `${n1} - ${n2}`;
                     a = n1 - n2;
                 } else {
@@ -357,8 +377,7 @@
                     a = n1 + n2;
                 }
             } else if (grade === 3) {
-                // Grades 3-5: Mult/Div
-                const op = Math.random() > 0.3 ? 'x' : '/'; // More mult than div
+                const op = Math.random() > 0.3 ? 'x' : '/';
                 if (op === 'x') {
                     let n1 = Math.floor(Math.random() * 12) + 1;
                     let n2 = Math.floor(Math.random() * 12) + 1;
@@ -372,10 +391,8 @@
                     a = ans;
                 }
             } else {
-                // Grades 6-8: Pre-Algebra / Algebra
                 const type = Math.floor(Math.random() * 3);
                 if (type === 0) {
-                    // Solve x: ax + b = c
                     let x = Math.floor(Math.random() * 10) + 1;
                     let m = Math.floor(Math.random() * 5) + 2;
                     let b = Math.floor(Math.random() * 20) + 1;
@@ -383,13 +400,11 @@
                     q = `${m}x + ${b} = ${c}`;
                     a = x;
                 } else if (type === 1) {
-                    // Exponents
                     let base = Math.floor(Math.random() * 9) + 2;
                     q = `${base}²`;
                     a = base * base;
                 } else {
-                    // Simple percentages
-                    let num = Math.floor(Math.random() * 10) * 10; // 10, 20...
+                    let num = Math.floor(Math.random() * 10) * 10;
                     q = `50% of ${num}`;
                     a = num / 2;
                 }
@@ -398,28 +413,53 @@
         }
 
         // --- HOST LOGIC ---
+        let attemptCount = 0;
+
         function startLobby() {
+            const btn = document.getElementById('btn-start-lobby');
+            btn.disabled = true;
+            btn.innerText = "Creating...";
+
             currentGrade = document.getElementById('grade-select').value;
-            // Generate a random 4-char ID
-            const gameId = Math.random().toString(36).substring(2, 6).toUpperCase();
-            
-            peer = new Peer(gameId); // Try to register this ID
+            attemptCount = 0;
+            tryCreatePeer();
+        }
+
+        function tryCreatePeer() {
+            // Generate simple 4 char ID
+            const shortId = Math.random().toString(36).substring(2, 6).toUpperCase();
+            // Create peer with Namespace Prefix
+            const fullId = ID_PREFIX + shortId;
+
+            // Destroy old peer if exists
+            if (peer) peer.destroy();
+
+            peer = new Peer(fullId);
 
             peer.on('open', (id) => {
-                document.getElementById('display-game-id').innerText = id;
+                // Success! Show only the short ID to user
+                document.getElementById('display-game-id').innerText = shortId;
                 showScreen('screen-host-lobby');
             });
 
             peer.on('error', (err) => {
-                alert("Could not generate Game ID (it might be taken). Please try again.");
-                console.error(err);
-                showScreen('screen-menu');
+                console.log("Peer Error: ", err);
+                attemptCount++;
+                if(attemptCount < 3) {
+                    // Retry immediately with new ID
+                    console.log("Retrying ID generation...");
+                    tryCreatePeer();
+                } else {
+                    alert("Could not connect to server. Check your internet or try again later.");
+                    const btn = document.getElementById('btn-start-lobby');
+                    btn.disabled = false;
+                    btn.innerText = "Start Lobby";
+                    showScreen('screen-menu');
+                }
             });
 
             peer.on('connection', (c) => {
-                // Incoming connection from player
                 c.on('open', () => {
-                    // Wait for player to send their name
                     c.on('data', (data) => {
                         handleHostData(c, data);
                     });
@@ -430,7 +470,6 @@
 
         function handleHostData(conn, data) {
             if (data.type === 'join') {
-                // Player joining
                 const pid = conn.peer;
                 const avatar = avatars[Object.keys(players).length % avatars.length];
                 players[pid] = {
@@ -440,16 +479,13 @@
                     avatar: avatar
                 };
                 updateLobbyList();
-                Sound.play('correct'); // Notification sound
+                Sound.play('correct'); 
             } else if (data.type === 'score_update') {
-                // Player scored
                 if (!gameActive) return;
                 const pid = conn.peer;
                 if (players[pid]) {
                     players[pid].score += 1;
                     updateRaceView();
-                    
-                    // Check win condition
                     if (players[pid].score >= winScore) {
                         endGame(players[pid].name);
                     }
@@ -457,13 +493,27 @@
             }
         }
 
+        function kickPlayer(pid) {
+            if(players[pid]) {
+                players[pid].conn.send({ type: 'kick' });
+                setTimeout(() => {
+                    players[pid].conn.close();
+                    delete players[pid];
+                    updateLobbyList();
+                    Sound.play('wrong'); 
+                }, 100);
+            }
+        }
+
         function updateLobbyList() {
             const list = document.getElementById('player-list');
             list.innerHTML = '';
-            Object.values(players).forEach(p => {
+            Object.entries(players).forEach(([pid, p]) => {
                 const li = document.createElement('li');
-                // Don't flip avatar in list, only on track
-                li.innerText = `${p.avatar} ${p.name}`;
+                li.innerHTML = `
+                    <span>${p.avatar} ${p.name}</span>
+                    <button class="kick-btn" onclick="kickPlayer('${pid}')">Kick</button>
+                `;
                 list.appendChild(li);
             });
         }
@@ -474,11 +524,9 @@
                 return;
             }
             gameActive = true;
-            // Tell all players to start
             Object.values(players).forEach(p => {
                 p.conn.send({ type: 'start', grade: currentGrade });
             });
-            
             setupRaceTrack();
             showScreen('screen-host-game');
         }
@@ -487,7 +535,7 @@
             const trackContainer = document.getElementById('race-track');
             trackContainer.innerHTML = '';
             
-            Object.values(players).forEach((p, index) => {
+            Object.values(players).forEach((p) => {
                 const lane = document.createElement('div');
                 lane.className = 'lane';
                 lane.innerHTML = `
@@ -504,7 +552,6 @@
         function updateRaceView() {
             Object.entries(players).forEach(([pid, p]) => {
                 const el = document.getElementById(`avatar-${pid}`);
-                // specific max-width logic: (score / winScore) * 92% (keep inside track)
                 const pct = Math.min((p.score / winScore) * 92, 92);
                 el.style.left = `${pct}%`;
             });
@@ -516,7 +563,6 @@
             document.getElementById('host-restart-btn').classList.remove('hidden');
             Sound.play('win');
             
-            // Notify players
             Object.values(players).forEach(p => {
                 p.conn.send({ type: 'end', winner: winnerName });
             });
@@ -526,32 +572,52 @@
         let currentProblem = {};
 
         function joinGame() {
-            const gameId = document.getElementById('join-id').value.toUpperCase();
+            const rawId = document.getElementById('join-id').value.toUpperCase();
             const name = document.getElementById('player-name').value;
+            const btn = document.getElementById('btn-join-game');
             
-            if (!gameId || !name) {
+            if (!rawId || !name) {
                 alert("Please enter ID and Name");
                 return;
             }
 
-            peer = new Peer(); // Client gets random ID
+            // Connect using Prefix + ID
+            const fullId = ID_PREFIX + rawId;
+
+            btn.disabled = true;
+            btn.innerText = "Connecting...";
+
+            peer = new Peer(); 
 
             peer.on('open', (id) => {
-                conn = peer.connect(gameId);
+                conn = peer.connect(fullId);
                 
                 conn.on('open', () => {
-                    // Send join request
                     conn.send({ type: 'join', name: name });
                     showScreen('screen-player-waiting');
+                    btn.disabled = false;
+                    btn.innerText = "Join";
                 });
 
                 conn.on('data', (data) => {
                     handleClientData(data);
                 });
-
-                conn.on('error', (err) => {
-                    alert("Connection error. Check Game ID.");
+                
+                conn.on('close', () => {
+                   // Connection closed logic
                 });
+
+                // Error usually means ID doesn't exist (wrong code typed)
+                conn.on('error', (err) => {
+                    console.log(err);
+                });
+            });
+
+            peer.on('error', (err) => {
+                console.error(err);
+                alert("Could not connect. Check the Game ID and try again.");
+                btn.disabled = false;
+                btn.innerText = "Join";
             });
         }
 
@@ -564,6 +630,8 @@
                 showScreen('screen-player-end');
                 document.getElementById('player-end-msg').innerText = `${data.winner} won the race!`;
                 Sound.play('win');
+            } else if (data.type === 'kick') {
+                showScreen('screen-disconnected');
             }
         }
 
@@ -583,12 +651,11 @@
             const input = document.getElementById('answer-input').value;
             const feedback = document.getElementById('feedback');
             
-            // Allow loose equality for simple numbers
             if (parseFloat(input) === parseFloat(currentProblem.a)) {
                 feedback.innerHTML = "<span class='correct'>Correct!</span>";
                 Sound.play('correct');
                 conn.send({ type: 'score_update' });
-                setTimeout(nextProblem, 500); // Small delay to see success
+                setTimeout(nextProblem, 500); 
             } else {
                 feedback.innerHTML = "<span class='wrong'>Try again!</span>";
                 Sound.play('wrong');
