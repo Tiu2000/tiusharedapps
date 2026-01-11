@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Race P2P</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #FF6B6B;
+            --secondary: #4ECDC4;
+            --accent: #FFE66D;
+            --dark: #2C3E50;
+            --light: #F7F9FC;
+        }
+
+        body {
+            font-family: 'Varela Round', sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Subtle Watermark */
+        .watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 15px;
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.5rem;
+            color: rgba(0, 0, 0, 0.05);
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            position: relative;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Fredoka One', cursive;
+            color: var(--secondary);
+            margin-bottom: 1rem;
+        }
+        
+        h1 { font-size: 3rem; color: var(--primary); text-shadow: 2px 2px 0px var(--accent); }
+
+        button {
+            background-color: var(--secondary);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            color: white;
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+            margin: 10px;
+            box-shadow: 0 5px 0 #3dbbb3;
+        }
+
+        button:active {
+            transform: translateY(5px);
+            box-shadow: 0 0 0 #3dbbb3;
+        }
+
+        button.secondary {
+            background-color: var(--primary);
+            box-shadow: 0 5px 0 #e05555;
+        }
+        button.secondary:active { box-shadow: 0 0 0 #e05555; }
+
+        input, select {
+            padding: 15px;
+            border-radius: 15px;
+            border: 3px solid #eee;
+            font-size: 1.1rem;
+            width: 80%;
+            margin: 10px 0;
+            font-family: 'Varela Round', sans-serif;
+            outline: none;
+        }
+        
+        input:focus { border-color: var(--secondary); }
+
+        .hidden { display: none !important; }
+
+        /* Game Elements */
+        .track-container {
+            margin-top: 20px;
+            background: #eee;
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .lane {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            position: relative;
+            height: 60px;
+            border-bottom: 2px dashed #ccc;
+        }
+
+        .racer-name {
+            width: 80px;
+            text-align: right;
+            padding-right: 10px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .track {
+            flex-grow: 1;
+            background: #ddd;
+            height: 20px;
+            border-radius: 10px;
+            position: relative;
+        }
+
+        .avatar {
+            font-size: 2rem;
+            position: absolute;
+            top: -15px;
+            left: 0; /* Animated via JS */
+            transition: left 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
+        }
+
+        .finish-line {
+            position: absolute;
+            right: 0;
+            top: -10px;
+            height: 40px;
+            width: 10px;
+            background-image: linear-gradient(45deg, #000 25%, transparent 25%), 
+                              linear-gradient(-45deg, #000 25%, transparent 25%), 
+                              linear-gradient(45deg, transparent 75%, #000 75%), 
+                              linear-gradient(-45deg, transparent 75%, #000 75%);
+            background-size: 10px 10px;
+            background-color: white;
+            opacity: 0.5;
+        }
+
+        /* Player Interface */
+        #problem-display {
+            font-size: 3rem;
+            margin: 20px 0;
+            font-family: 'Fredoka One', cursive;
+            color: var(--dark);
+        }
+
+        #feedback {
+            height: 30px;
+            font-weight: bold;
+        }
+        .correct { color: #27ae60; }
+        .wrong { color: #c0392b; }
+
+        /* Lobby List */
+        #player-list {
+            list-style: none;
+            padding: 0;
+        }
+        #player-list li {
+            background: var(--light);
+            margin: 5px;
+            padding: 10px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <div class="container" id="app">
+        <div id="screen-menu">
+            <h1>Math Race 🏁</h1>
+            <p>Race your friends by solving math problems!</p>
+            <br>
+            <button onclick="showHostSetup()">Host Game</button>
+            <button class="secondary" onclick="showJoinSetup()">Join Game</button>
+        </div>
+
+        <div id="screen-host-setup" class="hidden">
+            <h2>Game Settings</h2>
+            <label>Select Grade Level:</label>
+            <select id="grade-select">
+                <option value="1">Grade 1-2 (Addition/Subtraction)</option>
+                <option value="3">Grade 3-5 (Multiplication/Division)</option>
+                <option value="6">Grade 6-8 (Algebra/Geometry)</option>
+            </select>
+            <br>
+            <button onclick="startLobby()">Start Lobby</button>
+            <button class="secondary" onclick="resetApp()">Back</button>
+        </div>
+
+        <div id="screen-host-lobby" class="hidden">
+            <h2>Lobby</h2>
+            <p>Tell players to join using Game ID:</p>
+            <div style="background:var(--accent); padding:10px; border-radius:10px; font-size:2rem; font-weight:bold; letter-spacing:5px;" id="display-game-id">...</div>
+            <br>
+            <h3>Players Joined:</h3>
+            <ul id="player-list"></ul>
+            <br>
+            <button onclick="hostStartGame()">Start Race!</button>
+        </div>
+
+        <div id="screen-host-game" class="hidden">
+            <h2>Race in Progress!</h2>
+            <div id="race-track" class="track-container">
+                </div>
+            <h3 id="winner-display" style="color:var(--primary)"></h3>
+            <button onclick="resetApp()" class="secondary hidden" id="host-restart-btn">New Game</button>
+        </div>
+
+        <div id="screen-join" class="hidden">
+            <h2>Join Race</h2>
+            <input type="text" id="join-id" placeholder="Enter Game ID (e.g. abcd)" style="text-transform: uppercase;">
+            <input type="text" id="player-name" placeholder="Your Name" maxlength="10">
+            <br>
+            <button onclick="joinGame()">Join</button>
+            <button class="secondary" onclick="resetApp()">Back</button>
+        </div>
+
+        <div id="screen-player-waiting" class="hidden">
+            <h2>Connected!</h2>
+            <p>Waiting for host to start...</p>
+            <div style="font-size:3rem">🚗</div>
+        </div>
+
+        <div id="screen-player-game" class="hidden">
+            <div id="problem-display">2 + 2 = ?</div>
+            <input type="number" id="answer-input" placeholder="Answer" onkeydown="checkEnter(event)">
+            <button onclick="submitAnswer()">Submit</button>
+            <div id="feedback"></div>
+        </div>
+        
+        <div id="screen-player-end" class="hidden">
+            <h2>Race Over!</h2>
+            <p id="player-end-msg"></p>
+            <button onclick="resetApp()">Menu</button>
+        </div>
+    </div>
+
+    <script>
+        // --- GLOBAL VARIABLES ---
+        let peer = null;
+        let conn = null; // Client connection to host
+        let connections = []; // Host list of player connections
+        let players = {}; // Host state of players { id: {name, score, avatar} }
+        let myId = null;
+        let gameActive = false;
+        let currentGrade = "1";
+        let winScore = 10; // Problems needed to win
+
+        // Avatars list
+        const avatars = ['🚗', '🚕', '🚙', '🚌', '🏎️', '🚓', '🚑', '🚒'];
+
+        // --- NAVIGATION ---
+        function showScreen(id) {
+            document.querySelectorAll('.container > div').forEach(d => d.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function resetApp() {
+            location.reload();
+        }
+
+        function showHostSetup() { showScreen('screen-host-setup'); }
+        function showJoinSetup() { showScreen('screen-join'); }
+
+        // --- MATH ENGINE ---
+        function generateProblem(grade) {
+            let q, a;
+            grade = parseInt(grade);
+            
+            if (grade === 1) {
+                // Grades 1-2: Add/Sub
+                const op = Math.random() > 0.5 ? '+' : '-';
+                let n1 = Math.floor(Math.random() * 20) + 1;
+                let n2 = Math.floor(Math.random() * 20) + 1;
+                if (op === '-') {
+                    if (n1 < n2) [n1, n2] = [n2, n1]; // No negatives
+                    q = `${n1} - ${n2}`;
+                    a = n1 - n2;
+                } else {
+                    q = `${n1} + ${n2}`;
+                    a = n1 + n2;
+                }
+            } else if (grade === 3) {
+                // Grades 3-5: Mult/Div
+                const op = Math.random() > 0.3 ? 'x' : '/'; // More mult than div
+                if (op === 'x') {
+                    let n1 = Math.floor(Math.random() * 12) + 1;
+                    let n2 = Math.floor(Math.random() * 12) + 1;
+                    q = `${n1} × ${n2}`;
+                    a = n1 * n2;
+                } else {
+                    let n2 = Math.floor(Math.random() * 10) + 2;
+                    let ans = Math.floor(Math.random() * 10) + 1;
+                    let n1 = n2 * ans;
+                    q = `${n1} ÷ ${n2}`;
+                    a = ans;
+                }
+            } else {
+                // Grades 6-8: Pre-Algebra / Algebra
+                const type = Math.floor(Math.random() * 3);
+                if (type === 0) {
+                    // Solve x: ax + b = c
+                    let x = Math.floor(Math.random() * 10) + 1;
+                    let m = Math.floor(Math.random() * 5) + 2;
+                    let b = Math.floor(Math.random() * 20) + 1;
+                    let c = (m * x) + b;
+                    q = `Solve for x: ${m}x + ${b} = ${c}`;
+                    a = x;
+                } else if (type === 1) {
+                    // Exponents
+                    let base = Math.floor(Math.random() * 9) + 2;
+                    q = `${base}²`;
+                    a = base * base;
+                } else {
+                    // Simple percentages
+                    let num = Math.floor(Math.random() * 10) * 10; // 10, 20...
+                    q = `50% of ${num}`;
+                    a = num / 2;
+                }
+            }
+            return { q, a };
+        }
+
+        // --- HOST LOGIC ---
+        function startLobby() {
+            currentGrade = document.getElementById('grade-select').value;
+            // Generate a random 4-char ID
+            const gameId = Math.random().toString(36).substring(2, 6).toUpperCase();
+            
+            peer = new Peer(gameId); // Try to register this ID
+
+            peer.on('open', (id) => {
+                document.getElementById('display-game-id').innerText = id;
+                showScreen('screen-host-lobby');
+            });
+
+            peer.on('error', (err) => {
+                alert("Could not generate Game ID (it might be taken). Please try again.");
+                console.error(err);
+                showScreen('screen-menu');
+            });
+
+            peer.on('connection', (c) => {
+                // Incoming connection from player
+                c.on('open', () => {
+                    // Wait for player to send their name
+                    c.on('data', (data) => {
+                        handleHostData(c, data);
+                    });
+                });
+                connections.push(c);
+            });
+        }
+
+        function handleHostData(conn, data) {
+            if (data.type === 'join') {
+                // Player joining
+                const pid = conn.peer;
+                const avatar = avatars[Object.keys(players).length % avatars.length];
+                players[pid] = {
+                    conn: conn,
+                    name: data.name,
+                    score: 0,
+                    avatar: avatar
+                };
+                updateLobbyList();
+            } else if (data.type === 'score_update') {
+                // Player scored
+                if (!gameActive) return;
+                const pid = conn.peer;
+                if (players[pid]) {
+                    players[pid].score += 1;
+                    updateRaceView();
+                    
+                    // Check win condition
+                    if (players[pid].score >= winScore) {
+                        endGame(players[pid].name);
+                    }
+                }
+            }
+        }
+
+        function updateLobbyList() {
+            const list = document.getElementById('player-list');
+            list.innerHTML = '';
+            Object.values(players).forEach(p => {
+                const li = document.createElement('li');
+                li.innerText = `${p.avatar} ${p.name}`;
+                list.appendChild(li);
+            });
+        }
+
+        function hostStartGame() {
+            if (Object.keys(players).length === 0) {
+                alert("Wait for players to join!");
+                return;
+            }
+            gameActive = true;
+            // Tell all players to start
+            Object.values(players).forEach(p => {
+                p.conn.send({ type: 'start', grade: currentGrade });
+            });
+            
+            setupRaceTrack();
+            showScreen('screen-host-game');
+        }
+
+        function setupRaceTrack() {
+            const trackContainer = document.getElementById('race-track');
+            trackContainer.innerHTML = '';
+            
+            Object.values(players).forEach((p, index) => {
+                const lane = document.createElement('div');
+                lane.className = 'lane';
+                lane.innerHTML = `
+                    <div class="racer-name">${p.name}</div>
+                    <div class="track">
+                        <div class="finish-line"></div>
+                        <div class="avatar" id="avatar-${p.conn.peer}" style="left: 0%">${p.avatar}</div>
+                    </div>
+                `;
+                trackContainer.appendChild(lane);
+            });
+        }
+
+        function updateRaceView() {
+            Object.entries(players).forEach(([pid, p]) => {
+                const el = document.getElementById(`avatar-${pid}`);
+                // specific max-width logic: (score / winScore) * 90% (keep inside track)
+                const pct = Math.min((p.score / winScore) * 95, 95);
+                el.style.left = `${pct}%`;
+            });
+        }
+
+        function endGame(winnerName) {
+            gameActive = false;
+            document.getElementById('winner-display').innerText = `🏆 ${winnerName} Wins!`;
+            document.getElementById('host-restart-btn').classList.remove('hidden');
+            
+            // Notify players
+            Object.values(players).forEach(p => {
+                p.conn.send({ type: 'end', winner: winnerName });
+            });
+        }
+
+        // --- CLIENT LOGIC ---
+        let currentProblem = {};
+
+        function joinGame() {
+            const gameId = document.getElementById('join-id').value.toUpperCase();
+            const name = document.getElementById('player-name').value;
+            
+            if (!gameId || !name) {
+                alert("Please enter ID and Name");
+                return;
+            }
+
+            peer = new Peer(); // Client gets random ID
+
+            peer.on('open', (id) => {
+                conn = peer.connect(gameId);
+                
+                conn.on('open', () => {
+                    // Send join request
+                    conn.send({ type: 'join', name: name });
+                    showScreen('screen-player-waiting');
+                });
+
+                conn.on('data', (data) => {
+                    handleClientData(data);
+                });
+
+                conn.on('error', (err) => {
+                    alert("Connection error. Check Game ID.");
+                });
+            });
+        }
+
+        function handleClientData(data) {
+            if (data.type === 'start') {
+                currentGrade = parseInt(data.grade);
+                showScreen('screen-player-game');
+                nextProblem();
+            } else if (data.type === 'end') {
+                showScreen('screen-player-end');
+                document.getElementById('player-end-msg').innerText = `${data.winner} won the race!`;
+            }
+        }
+
+        function nextProblem() {
+            currentProblem = generateProblem(currentGrade);
+            document.getElementById('problem-display').innerText = currentProblem.q;
+            document.getElementById('answer-input').value = '';
+            document.getElementById('answer-input').focus();
+            document.getElementById('feedback').innerText = '';
+        }
+
+        function checkEnter(e) {
+            if (e.key === 'Enter') submitAnswer();
+        }
+
+        function submitAnswer() {
+            const input = document.getElementById('answer-input').value;
+            const feedback = document.getElementById('feedback');
+            
+            // Allow loose equality for simple numbers
+            if (parseFloat(input) === parseFloat(currentProblem.a)) {
+                feedback.innerHTML = "<span class='correct'>Correct! Good Job!</span>";
+                conn.send({ type: 'score_update' });
+                setTimeout(nextProblem, 500); // Small delay to see success
+            } else {
+                feedback.innerHTML = "<span class='wrong'>Try again!</span>";
+                document.getElementById('answer-input').value = '';
+                document.getElementById('answer-input').focus();
+            }
+        }
+    </script>
+</body>
+</html>
