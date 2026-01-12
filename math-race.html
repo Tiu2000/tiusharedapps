@@ -238,8 +238,8 @@
             <h1>Math Race 🏁</h1>
             <p>Race your friends by solving math problems!</p>
             <br>
-            <button onclick="Sound.preload(); showHostSetup()">Host Game</button>
-            <button class="secondary" onclick="Sound.preload(); showJoinSetup()">Join Game</button>
+            <button onclick="Sound.unlock(); showHostSetup()">Host Game</button>
+            <button class="secondary" onclick="Sound.unlock(); showJoinSetup()">Join Game</button>
         </div>
 
         <div id="screen-host-setup" class="hidden">
@@ -309,25 +309,47 @@
     </div>
 
     <script>
-        // --- SOUND ENGINE ---
-        const audioFiles = {
-            correct: new Audio('https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/kaching.wav'),
-            wrong: new Audio('https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/error.wav'), 
-            win: new Audio('https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/success.wav'),
-            click: new Audio('https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/button-press.wav')
+        // --- SOUND ENGINE (ROBUST) ---
+        // We initialize Audio objects. We need to 'unlock' them on the first user click.
+        const audioData = {
+            correct: 'https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/kaching.wav',
+            wrong: 'https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/error.wav',
+            win: 'https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/success.wav',
+            click: 'https://raw.githubusercontent.com/maykbrito/libs/main/sounds/audios/button-press.wav'
         };
 
+        const sounds = {};
+
+        // Load objects
+        Object.keys(audioData).forEach(key => {
+            sounds[key] = new Audio(audioData[key]);
+            sounds[key].crossOrigin = "anonymous"; // Helps with web loading
+        });
+
         const Sound = {
-            preload: () => {
-                Object.values(audioFiles).forEach(a => {
-                    a.load();
-                    a.volume = 0.5;
+            // Browsers block sound until user interaction. 
+            // This function plays all sounds at volume 0 momentarily to "unlock" them.
+            unlock: () => {
+                Sound.play('click'); // Play the click
+                
+                // Warm up the others silently
+                Object.values(sounds).forEach(s => {
+                    s.muted = true;
+                    const promise = s.play();
+                    if(promise !== undefined) {
+                        promise.then(() => {
+                            s.pause();
+                            s.currentTime = 0;
+                            s.muted = false; // Unmute for when we actually need it
+                        }).catch(e => console.log("Audio unlock failed (benign)", e));
+                    }
                 });
             },
             play: (name) => {
-                if (audioFiles[name]) {
-                    audioFiles[name].currentTime = 0;
-                    audioFiles[name].play().catch(e => console.log("Audio play failed:", e));
+                if (sounds[name]) {
+                    sounds[name].currentTime = 0;
+                    sounds[name].volume = 0.6; // Ensure volume is up
+                    sounds[name].play().catch(e => console.log("Play error:", e));
                 }
             }
         };
@@ -347,7 +369,6 @@
 
         // --- NAVIGATION ---
         function showScreen(id) {
-            Sound.play('click');
             document.querySelectorAll('.container > div').forEach(d => d.classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
         }
@@ -431,13 +452,11 @@
             // Create peer with Namespace Prefix
             const fullId = ID_PREFIX + shortId;
 
-            // Destroy old peer if exists
             if (peer) peer.destroy();
 
             peer = new Peer(fullId);
 
             peer.on('open', (id) => {
-                // Success! Show only the short ID to user
                 document.getElementById('display-game-id').innerText = shortId;
                 showScreen('screen-host-lobby');
             });
@@ -446,11 +465,10 @@
                 console.log("Peer Error: ", err);
                 attemptCount++;
                 if(attemptCount < 3) {
-                    // Retry immediately with new ID
                     console.log("Retrying ID generation...");
                     tryCreatePeer();
                 } else {
-                    alert("Could not connect to server. Check your internet or try again later.");
+                    alert("Could not connect to server. Check your internet.");
                     const btn = document.getElementById('btn-start-lobby');
                     btn.disabled = false;
                     btn.innerText = "Start Lobby";
@@ -607,7 +625,6 @@
                    // Connection closed logic
                 });
 
-                // Error usually means ID doesn't exist (wrong code typed)
                 conn.on('error', (err) => {
                     console.log(err);
                 });
@@ -615,7 +632,7 @@
 
             peer.on('error', (err) => {
                 console.error(err);
-                alert("Could not connect. Check the Game ID and try again.");
+                alert("Could not connect. Check the Game ID.");
                 btn.disabled = false;
                 btn.innerText = "Join";
             });
