@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyboard Hero - Single Player</title>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <style>
+        :root {
+            --neon-blue: #00ffff;
+            --neon-pink: #ff66ff;
+            --neon-green: #39ff14;
+            --neon-red: #ff3333;
+            --neon-yellow: #ffff00;
+            --bg-color: #121212;      
+            --panel-bg: #1e1e24;      
+        }
+
+        body {
+            margin: 0; background-color: var(--bg-color); color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            overflow: hidden; height: 100vh; width: 100vw;
+        }
+
+        /* --- WATERMARK --- */
+        .watermark {
+            position: fixed; bottom: 15px; right: 20px;
+            font-size: 24px; font-weight: 900;
+            color: rgba(255, 255, 255, 0.15);
+            z-index: 9999; pointer-events: none;
+            letter-spacing: 2px; user-select: none;
+        }
+
+        /* --- VIDEO LAYER --- */
+        #video-background {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; opacity: 0.3; pointer-events: none;
+        }
+
+        /* --- GAME UI LAYER --- */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; display: flex; justify-content: space-between; padding: 20px;
+            pointer-events: none; box-sizing: border-box;
+        }
+
+        .hud-panel {
+            background: rgba(30, 30, 36, 0.9); padding: 20px;
+            border: 2px solid #444; border-radius: 10px;
+            min-width: 200px; pointer-events: auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            height: fit-content;
+        }
+
+        /* --- HIGHWAY (GAMEPLAY) --- */
+        #game-container {
+            position: absolute; left: 50%; bottom: 0;
+            transform: translateX(-50%) perspective(800px) rotateX(40deg);
+            width: 400px; height: 120vh;
+            background: linear-gradient(180deg, #000 0%, #222 100%);
+            border-left: 5px solid #555; border-right: 5px solid #555;
+            z-index: 5;
+        }
+
+        .lane {
+            position: absolute; top: 0; height: 100%; width: 25%;
+            border-right: 1px solid #333; box-sizing: border-box;
+        }
+
+        .hit-zone {
+            position: absolute; bottom: 100px; width: 100%; display: flex;
+            padding: 0 5px; box-sizing: border-box;
+        }
+
+        .button-target {
+            width: 25%; height: 20px; border: 2px solid white; border-radius: 10px;
+            margin: 0 2px; background: rgba(255,255,255,0.1);
+        }
+        .button-target.pressed { background: white; box-shadow: 0 0 15px white; }
+
+        .note {
+            position: absolute; width: 20%; height: 20px; border-radius: 5px;
+            z-index: 100; box-shadow: 0 0 10px currentColor;
+        }
+        .note.lane-0 { background: var(--neon-green); left: 2.5%; }
+        .note.lane-1 { background: var(--neon-red); left: 27.5%; }
+        .note.lane-2 { background: var(--neon-blue); left: 52.5%; }
+        .note.lane-3 { background: var(--neon-pink); left: 77.5%; }
+
+        /* --- MENUS --- */
+        #menu-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 15, 20, 0.98); z-index: 50;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .menu-box {
+            background: #252530; padding: 40px; border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            width: 450px; text-align: center; border: 1px solid #444;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+
+        input {
+            padding: 15px; background: #15151a; border: 1px solid #555;
+            color: white; font-size: 16px; border-radius: 6px; text-align: center;
+        }
+
+        button {
+            padding: 15px; font-size: 16px; font-weight: bold; cursor: pointer;
+            border: none; border-radius: 6px; text-transform: uppercase;
+            transition: 0.2s;
+        }
+        .btn-primary { background: var(--neon-blue); color: black; }
+        .btn-primary:hover { background: white; }
+        .btn-start { background: var(--neon-green); color: black; }
+
+        .hidden { display: none !important; }
+        
+        #feedback-text {
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%);
+            font-size: 48px; font-weight: 900; opacity: 0; pointer-events: none;
+            -webkit-text-stroke: 1px black;
+        }
+        
+        #player-info {
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="video-background"><div id="yt-player"></div></div>
+    <div class="watermark">TIU - SINGLE PLAYER</div>
+
+    <div id="ui-layer">
+        <div class="hud-panel">
+            <div style="font-size:12px; color:#aaa;">SCORE</div>
+            <div id="score-display" style="font-size:32px; font-weight:bold;">0</div>
+            <div id="combo-display">Combo: 0</div>
+        </div>
+        <div class="hud-panel">
+            <div style="font-size:12px; color:#aaa; text-align:right;">PLAYER STATS</div>
+            <div id="player-info">
+                <span id="display-name" style="font-weight:bold; color:var(--neon-blue);">Player</span>
+                <span style="font-size:12px; color:#777;">ACTIVE</span>
+            </div>
+        </div>
+    </div>
+    
+    <div id="feedback-text">PERFECT</div>
+
+    <div id="game-container">
+        <div class="lane" style="left: 0%"></div>
+        <div class="lane" style="left: 25%"></div>
+        <div class="lane" style="left: 50%"></div>
+        <div class="lane" style="left: 75%"></div>
+        <div class="hit-zone">
+            <div class="button-target" id="btn-0"></div>
+            <div class="button-target" id="btn-1"></div>
+            <div class="button-target" id="btn-2"></div>
+            <div class="button-target" id="btn-3"></div>
+        </div>
+    </div>
+
+    <div id="menu-overlay">
+        
+        <div id="screen-setup" class="menu-box">
+            <h1 style="margin:0; color:var(--neon-blue);">KEYBOARD HERO</h1>
+            <p style="color:#aaa; margin:0;">Single Player Mode</p>
+            
+            <input type="text" id="inp-name" placeholder="Enter Your Name">
+            
+            <div style="height:1px; background:#444; width:100%; margin: 10px 0;"></div>
+            
+            <input type="text" id="inp-url" placeholder="Paste YouTube URL" onchange="updateVideo()">
+            <div id="video-info" style="font-size:12px; color:var(--neon-green);">No Video Loaded (Defaulting to Demo)</div>
+
+            <button class="btn-start" onclick="startGame()">START GAME</button>
+            <div id="login-status" style="font-size:12px; color:var(--neon-red);"></div>
+        </div>
+
+        <div id="screen-gameover" class="menu-box hidden">
+            <h2>GAME OVER</h2>
+            <div style="font-size:14px;">FINAL SCORE</div>
+            <div id="final-score" style="font-size:60px; color:var(--neon-green); font-weight:bold;">0</div>
+            <button class="btn-primary" onclick="location.reload()">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+        /* --- GLOBAL VARIABLES --- */
+        let ytPlayer;
+        let gameRunning = false;
+        let currentVideoId = ""; 
+        let songData = [];
+        let score = 0, combo = 0;
+        let playerName = "Player";
+
+        /* --- YOUTUBE API --- */
+        function onYouTubeIframeAPIReady() {
+            ytPlayer = new YT.Player('yt-player', {
+                height: '100%', width: '100%',
+                videoId: '',
+                playerVars: { 'autoplay':0, 'controls':0, 'disablekb':1, 'iv_load_policy':3 }
+            });
+        }
+
+        /* --- SETUP LOGIC --- */
+        function updateVideo() {
+            const url = document.getElementById('inp-url').value;
+            // Simple regex to grab ID from standard YT urls
+            const match = url.match(/v=([^#&?]*)/);
+            if(match && match[1]) {
+                currentVideoId = match[1];
+                document.getElementById('video-info').innerText = "Video Ready: " + currentVideoId;
+                ytPlayer.loadVideoById(currentVideoId);
+                setTimeout(() => ytPlayer.pauseVideo(), 1000); 
+            } else {
+                document.getElementById('video-info').innerText = "Invalid URL (Using previous/default)";
+            }
+        }
+
+        function startGame() {
+            const nameInput = document.getElementById('inp-name').value;
+            if(nameInput.trim() !== "") playerName = nameInput;
+            
+            document.getElementById('display-name').innerText = playerName;
+
+            // Default song if none selected
+            if(currentVideoId === "") {
+                currentVideoId = "5qap5aO4i9A"; // Lofi Girl study beat as fallback or similar
+                ytPlayer.loadVideoById(currentVideoId);
+            }
+
+            // Hide menu, start game
+            document.getElementById('menu-overlay').style.display = 'none';
+            runGame();
+        }
+
+        /* --- GAME ENGINE --- */
+        function runGame() {
+            let dur = ytPlayer.getDuration();
+            if(!dur || dur === 0) dur = 180; // Fallback duration
+
+            songData = generateNotes(dur);
+            score = 0; combo = 0;
+            updateScoreUI();
+            
+            // Clear existing notes
+            document.querySelectorAll('.note').forEach(n => n.remove());
+            
+            // Start Video
+            ytPlayer.unMute();
+            ytPlayer.playVideo();
+            
+            gameRunning = true;
+            requestAnimationFrame(gameLoop);
+        }
+
+        function generateNotes(duration) {
+            let notes = [];
+            // Generate roughly 2 notes per second for density
+            const totalNotes = Math.floor(duration * 2.5); 
+            for(let i=0; i<totalNotes; i++) {
+                notes.push({
+                    lane: Math.floor(Math.random()*4),
+                    time: 2000 + (i * 400), // Spacing
+                    hit: false,
+                    el: null
+                });
+            }
+            return notes;
+        }
+
+        function gameLoop() {
+            if(!gameRunning) return;
+
+            // Check if video ended
+            if(ytPlayer.getPlayerState() === 0) {
+                gameRunning = false;
+                finishGame();
+                return;
+            }
+
+            const currTime = ytPlayer.getCurrentTime() * 1000;
+            const SPAWN_AHEAD = 2000; // Milliseconds ahead to spawn note
+
+            songData.forEach(note => {
+                if(note.hit) return;
+                const diff = note.time - currTime;
+
+                // Spawn Note DOM element if within range
+                if(!note.el && diff < SPAWN_AHEAD && diff > -200) {
+                    const el = document.createElement('div');
+                    el.className = `note lane-${note.lane}`;
+                    document.getElementById('game-container').appendChild(el);
+                    note.el = el;
+                }
+
+                // Move Note
+                if(note.el) {
+                    // Calculate CSS top percentage (90% is the hit line)
+                    const percent = 90 - (diff / (SPAWN_AHEAD/90));
+                    note.el.style.top = percent + "%";
+                    
+                    // Miss logic
+                    if(diff < -200) {
+                        note.hit = true; 
+                        note.el.remove();
+                        // Reset combo on miss if song has actually started playing (skip intro buffer)
+                        if(currTime > 3000) {
+                            combo = 0; 
+                            updateScoreUI(); 
+                            showFeedback("MISS");
+                        }
+                    }
+                }
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        /* --- INPUTS --- */
+        const keys = { 'a':0, 's':1, 'd':2, 'f':3 };
+        
+        document.addEventListener('keydown', e => {
+            if(!gameRunning || keys[e.key.toLowerCase()] === undefined) return;
+            if(e.repeat) return;
+            
+            const lane = keys[e.key.toLowerCase()];
+            document.getElementById(`btn-${lane}`).classList.add('pressed');
+            checkHit(lane);
+        });
+        
+        document.addEventListener('keyup', e => {
+            if(keys[e.key.toLowerCase()] !== undefined) 
+                document.getElementById(`btn-${keys[e.key.toLowerCase()]}`).classList.remove('pressed');
+        });
+
+        function checkHit(lane) {
+            const currTime = ytPlayer.getCurrentTime() * 1000;
+            let hit = false;
+            
+            for(let note of songData) {
+                if(!note.hit && note.lane === lane) {
+                    const diff = Math.abs(note.time - currTime);
+                    // Hit window: +/- 200ms
+                    if(diff < 200) { 
+                        note.hit = true; 
+                        if(note.el) note.el.remove();
+                        
+                        // Score calculation
+                        let points = 100 + (combo * 10);
+                        score += points;
+                        combo++;
+                        
+                        showFeedback("HIT");
+                        updateScoreUI();
+                        hit = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Strumming empty lane breaks combo
+            if(!hit && combo > 0) { 
+                combo = 0; 
+                showFeedback("MISS"); 
+                updateScoreUI(); 
+            }
+        }
+
+        /* --- UTILS --- */
+        function updateScoreUI() {
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('combo-display').innerText = "Combo: " + combo;
+        }
+
+        function showFeedback(txt) {
+            const f = document.getElementById('feedback-text');
+            f.innerText = txt; 
+            f.style.opacity = 1;
+            setTimeout(() => f.style.opacity = 0, 300);
+        }
+
+        function finishGame() {
+            document.getElementById('menu-overlay').style.display = 'flex';
+            document.getElementById('screen-setup').classList.add('hidden');
+            document.getElementById('screen-gameover').classList.remove('hidden');
+            document.getElementById('final-score').innerText = score;
+        }
+    </script>
+</body>
+</html>
