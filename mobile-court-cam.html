@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pro Court Cam</title>
+    <title>Pro Court Cam v3 (Watermark)</title>
     <style>
         /* --- GLOBAL LAYOUT --- */
         body {
@@ -39,7 +39,7 @@
             max-width: 100%;
             max-height: 100%;
             aspect-ratio: 16/9;
-            z-index: 1; /* Bottom Layer */
+            z-index: 1;
         }
 
         /* LAYER 2: The Control Interface (Visible to You, NOT Recorded) */
@@ -49,46 +49,26 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 10; /* Top Layer */
-            pointer-events: none; /* Let touches pass through where there are no buttons */
-            display: none; /* Hidden until camera starts */
+            z-index: 10;
+            pointer-events: none;
+            display: none;
         }
 
         /* --- CONTROL BUTTONS --- */
         .control-group {
             position: absolute;
-            pointer-events: auto; /* Re-enable clicking */
+            pointer-events: auto;
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
 
-        /* Left Side: Home */
-        .group-left {
-            left: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
+        .group-left { left: 20px; top: 50%; transform: translateY(-50%); }
+        .group-right { right: 20px; top: 50%; transform: translateY(-50%); }
+        .group-top { top: 20px; left: 50%; transform: translateX(-50%); flex-direction: row; align-items: center; }
 
-        /* Right Side: Guest */
-        .group-right {
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        /* Top Center: Timer & Rec */
-        .group-top {
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            flex-direction: row;
-            align-items: center;
-        }
-
-        /* Button Styling */
         .hud-btn {
-            background: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+            background: rgba(0, 0, 0, 0.5);
             border: 2px solid rgba(255, 255, 255, 0.5);
             color: white;
             padding: 15px 20px;
@@ -103,58 +83,31 @@
             min-width: 80px;
         }
 
-        .hud-btn:active {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(0.95);
-        }
-
-        /* Specific Colors */
+        .hud-btn:active { background: rgba(255, 255, 255, 0.3); transform: scale(0.95); }
         .btn-home { border-color: #007bff; color: #80bfff; }
         .btn-guest { border-color: #dc3545; color: #ff808f; }
         .btn-clock { border-color: #28a745; color: #80ff9f; font-family: monospace; font-size: 1.5rem; }
         
         .btn-rec {
-            background: #cc0000;
-            border: 2px solid white;
-            color: white;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.8rem;
+            background: #cc0000; border: 2px solid white; color: white;
+            width: 60px; height: 60px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 0.8rem;
         }
         
-        .rec-active {
-            background: white;
-            color: red;
-            animation: pulse 1.5s infinite;
-        }
-
+        .rec-active { background: white; color: red; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% {opacity: 1;} 50% {opacity: 0.5;} 100% {opacity: 1;} }
 
-        /* --- STARTUP MODAL --- */
+        /* --- MODAL --- */
         #startup-modal {
-            position: fixed;
-            z-index: 100;
-            background: #111;
-            padding: 30px;
-            border-radius: 15px;
-            text-align: center;
-            border: 1px solid #444;
+            position: fixed; z-index: 100; background: #111; padding: 30px;
+            border-radius: 15px; text-align: center; border: 1px solid #444;
             box-shadow: 0 0 50px rgba(0,0,0,1);
         }
         .modal-btn {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            margin: 10px;
-            font-size: 1.2rem;
-            border-radius: 8px;
-            cursor: pointer;
+            background: #007bff; color: white; border: none; padding: 15px 30px;
+            margin: 10px; font-size: 1.2rem; border-radius: 8px; cursor: pointer;
         }
 
-        /* Utility: Hide raw video */
         #raw-video { display: none; }
     </style>
 </head>
@@ -162,7 +115,7 @@
 
     <div id="startup-modal">
         <h2>Select Resolution</h2>
-        <p>Landscape orientation recommended.</p>
+        <p>Landscape mode recommended.</p>
         <button class="modal-btn" onclick="startApp(1280, 720)">720p (HD)</button>
         <button class="modal-btn" onclick="startApp(1920, 1080)">1080p (Full HD)</button>
     </div>
@@ -171,7 +124,6 @@
         <canvas id="gameCanvas"></canvas>
 
         <div id="ui-layer">
-            
             <div class="control-group group-top">
                 <button class="hud-btn btn-clock" id="btn-clock" onclick="toggleTimer()">10:00</button>
                 <div style="width: 20px;"></div>
@@ -195,157 +147,107 @@
                 <button class="hud-btn btn-guest" onclick="updateScore('guest', 3)">+3</button>
                 <button class="hud-btn btn-guest" style="font-size:0.9rem; opacity:0.7" onclick="updateScore('guest', -1)">-1</button>
             </div>
-
         </div>
     </div>
 
     <video id="raw-video" autoplay muted playsinline></video>
 
     <script>
-        // --- GAME STATE ---
-        let homeScore = 0;
-        let guestScore = 0;
-        let timeLeft = 600; // 10:00
-        let period = 1;
-        let isTimerRunning = false;
-        let timerInterval = null;
+        let homeScore = 0, guestScore = 0, timeLeft = 600, period = 1;
+        let isTimerRunning = false, timerInterval = null;
 
-        // --- ELEMENTS ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('raw-video');
         const uiLayer = document.getElementById('ui-layer');
         const clockBtn = document.getElementById('btn-clock');
 
-        // --- STARTUP LOGIC ---
         async function startApp(w, h) {
             document.getElementById('startup-modal').style.display = 'none';
-            
-            // Set canvas size to resolution
-            canvas.width = w;
-            canvas.height = h;
-
+            canvas.width = w; canvas.height = h;
             try {
-                // Request Camera with selected resolution
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: "environment", // Rear camera
-                        width: { ideal: w }, 
-                        height: { ideal: h } 
-                    }, 
+                    video: { facingMode: "environment", width: { ideal: w }, height: { ideal: h } }, 
                     audio: true 
                 });
                 video.srcObject = stream;
                 video.play();
-                
-                uiLayer.style.display = 'block'; // Show buttons
-                drawLoop(); // Start engine
-            } catch (err) {
-                alert("Camera Error: " + err.message);
-            }
+                uiLayer.style.display = 'block';
+                drawLoop();
+            } catch (err) { alert("Camera Error: " + err.message); }
         }
 
-        // --- GRAPHICS ENGINE (This is what gets recorded) ---
         function drawLoop() {
-            // 1. Draw Camera Feed
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // 2. Draw Scoreboard Overlay (Bottom Bar Style)
-            const H = canvas.height;
-            const W = canvas.width;
             
-            // Background Bar
-            ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-            const barHeight = H * 0.15; // 15% of screen height
-            const barY = H - barHeight - (H * 0.05); // Lifted slightly from bottom
+            // Scoreboard Bar Logic
+            const H = canvas.height; const W = canvas.width;
+            const barHeight = H * 0.15;
+            const barY = H - barHeight - (H * 0.05);
             const barMargin = W * 0.1;
             const barWidth = W - (barMargin * 2);
-            
+
             // Draw Bar
+            ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
             ctx.fillRect(barMargin, barY, barWidth, barHeight);
-            ctx.strokeStyle = "#c9a050"; // Gold border
-            ctx.lineWidth = 4;
+            ctx.strokeStyle = "#c9a050"; ctx.lineWidth = 4;
             ctx.strokeRect(barMargin, barY, barWidth, barHeight);
 
-            // Text Settings
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
             const centerY = barY + (barHeight / 2);
 
-            // -- HOME --
-            ctx.fillStyle = "#3399ff"; // Blueish
-            ctx.font = "bold " + (H*0.04) + "px Arial";
+            // Scores
+            ctx.fillStyle = "#3399ff"; ctx.font = "bold " + (H*0.04) + "px Arial";
             ctx.fillText("HOME", barMargin + (barWidth * 0.15), centerY - (barHeight*0.2));
-            
-            ctx.fillStyle = "white";
-            ctx.font = "bold " + (H*0.08) + "px Arial Black";
+            ctx.fillStyle = "white"; ctx.font = "bold " + (H*0.08) + "px Arial Black";
             ctx.fillText(homeScore, barMargin + (barWidth * 0.15), centerY + (barHeight*0.2));
 
-            // -- GUEST --
-            ctx.fillStyle = "#ff5050"; // Reddish
-            ctx.font = "bold " + (H*0.04) + "px Arial";
+            ctx.fillStyle = "#ff5050"; ctx.font = "bold " + (H*0.04) + "px Arial";
             ctx.fillText("GUEST", barMargin + (barWidth * 0.85), centerY - (barHeight*0.2));
-            
-            ctx.fillStyle = "white";
-            ctx.font = "bold " + (H*0.08) + "px Arial Black";
+            ctx.fillStyle = "white"; ctx.font = "bold " + (H*0.08) + "px Arial Black";
             ctx.fillText(guestScore, barMargin + (barWidth * 0.85), centerY + (barHeight*0.2));
 
-            // -- CLOCK (Center) --
+            // Clock
             let m = Math.floor(timeLeft / 60);
             let s = timeLeft % 60;
             let timeStr = `${m}:${s<10?'0'+s:s}`;
-
-            ctx.fillStyle = "#00ff00"; // Green
-            ctx.font = "bold " + (H*0.09) + "px Courier New";
+            ctx.fillStyle = "#00ff00"; ctx.font = "bold " + (H*0.09) + "px Courier New";
             ctx.fillText(timeStr, W/2, centerY - (barHeight*0.1));
 
-            // -- PERIOD --
-            ctx.fillStyle = "#cccccc";
-            ctx.font = "bold " + (H*0.03) + "px Arial";
+            // Period
+            ctx.fillStyle = "#cccccc"; ctx.font = "bold " + (H*0.03) + "px Arial";
             let suffix = period === 1 ? "ST" : period === 2 ? "ND" : period === 3 ? "RD" : "TH";
             ctx.fillText(period + suffix + " QTR", W/2, centerY + (barHeight*0.3));
+
+            // --- NEW: DRAW WATERMARK ---
+            ctx.save();
+            ctx.fillStyle = "rgba(255, 255, 255, 0.25)"; // 25% opacity white
+            ctx.font = "bold " + (H*0.05) + "px Arial"; // Scaled size
+            ctx.textAlign = "right";
+            ctx.textBaseline = "bottom";
+            // Position: Bottom right corner with slight padding
+            ctx.fillText("TIU", W - (W*0.02), H - (H*0.02));
+            ctx.restore();
+            // ---------------------------
 
             requestAnimationFrame(drawLoop);
         }
 
-        // --- INTERACTIVITY ---
-        function updateScore(team, amt) {
-            if(team === 'home') homeScore += amt;
-            else guestScore += amt;
-            if(homeScore < 0) homeScore = 0;
-            if(guestScore < 0) guestScore = 0;
-        }
-
-        function toggleTimer() {
-            if(isTimerRunning) {
-                clearInterval(timerInterval);
-                isTimerRunning = false;
-                clockBtn.style.borderColor = "#28a745"; // Green border (Stopped)
-                clockBtn.style.color = "#80ff9f";
-            } else {
-                isTimerRunning = true;
-                clockBtn.style.borderColor = "#ff3333"; // Red border (Running)
-                clockBtn.style.color = "#white";
-                
-                timerInterval = setInterval(() => {
-                    if(timeLeft > 0) {
-                        timeLeft--;
-                        updateClockBtn();
-                    } else {
-                        toggleTimer(); // Stop at 0
-                    }
-                }, 1000);
-            }
-        }
-        
-        // Allow manual edit of timer by long-pressing (simulated by click-logic in desktop)
-        // For now, let's just make a simple edit function accessible via console or future upgrade
-        // Or add a double click listener:
+        // --- FIXED EDITING LOGIC ---
         clockBtn.addEventListener('dblclick', () => {
-             let newTime = prompt("Set Minutes:", Math.floor(timeLeft/60));
-             if(newTime && !isNaN(newTime)) {
-                 timeLeft = parseInt(newTime) * 60;
-                 updateClockBtn();
+             if(isTimerRunning) toggleTimer();
+             let val = prompt("Enter Time:\nExamples:\n':45' = 45 sec\n'1:30' = 1 min 30 sec\n'10' = 10 mins");
+             if (val) {
+                if (val.includes(":")) {
+                    let parts = val.split(":");
+                    let m = parts[0] === "" ? 0 : parseInt(parts[0]);
+                    let s = parseInt(parts[1]);
+                    if (!isNaN(m) && !isNaN(s)) timeLeft = (m * 60) + s;
+                } else {
+                    let m = parseInt(val);
+                    if (!isNaN(m)) timeLeft = m * 60;
+                }
+                updateClockBtn();
              }
         });
 
@@ -355,57 +257,52 @@
             clockBtn.innerText = `${m}:${s<10?'0'+s:s}`;
         }
 
-        function nextPeriod() {
-            period++;
-            if(period > 4) period = 1;
+        function updateScore(team, amt) {
+            if(team === 'home') homeScore += amt; else guestScore += amt;
+            if(homeScore < 0) homeScore = 0; if(guestScore < 0) guestScore = 0;
         }
 
-        // --- RECORDING LOGIC ---
-        let mediaRecorder;
-        let chunks = [];
-        let isRecording = false;
+        function toggleTimer() {
+            if(isTimerRunning) {
+                clearInterval(timerInterval); isTimerRunning = false;
+                clockBtn.style.borderColor = "#28a745"; clockBtn.style.color = "#80ff9f";
+            } else {
+                isTimerRunning = true;
+                clockBtn.style.borderColor = "#ff3333"; clockBtn.style.color = "white";
+                timerInterval = setInterval(() => {
+                    if(timeLeft > 0) { timeLeft--; updateClockBtn(); } 
+                    else toggleTimer();
+                }, 1000);
+            }
+        }
 
+        function nextPeriod() { period++; if(period > 4) period = 1; }
+
+        let mediaRecorder, chunks = [], isRecording = false;
         function toggleRecording() {
             const btn = document.getElementById('btn-rec');
-            
             if(!isRecording) {
-                // START RECORDING
-                // We capture the CANVAS (30 FPS)
                 const stream = canvas.captureStream(30);
-                
-                // Add Audio from the camera stream
                 const audioTracks = video.srcObject.getAudioTracks();
                 if(audioTracks.length > 0) stream.addTrack(audioTracks[0]);
-
-                mediaRecorder = new MediaRecorder(stream, { 
-                    mimeType: 'video/webm;codecs=vp9' 
-                });
-
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
                 mediaRecorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
-                
                 mediaRecorder.onstop = () => {
                     const blob = new Blob(chunks, { type: 'video/webm' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
+                    a.style.display = 'none'; a.href = url;
                     a.download = `Game_${new Date().toISOString().slice(0,19).replace(/:/g,"-")}.webm`;
-                    document.body.appendChild(a);
-                    a.click();
+                    document.body.appendChild(a); a.click();
                     setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
                     chunks = [];
                 };
-
                 mediaRecorder.start();
                 isRecording = true;
-                btn.classList.add('rec-active');
-                btn.innerText = "STOP";
+                btn.classList.add('rec-active'); btn.innerText = "STOP";
             } else {
-                // STOP RECORDING
-                mediaRecorder.stop();
-                isRecording = false;
-                btn.classList.remove('rec-active');
-                btn.innerText = "REC";
+                mediaRecorder.stop(); isRecording = false;
+                btn.classList.remove('rec-active'); btn.innerText = "REC";
             }
         }
     </script>
