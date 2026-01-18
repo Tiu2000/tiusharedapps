@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Court Cam App</title>
+    <style>
+        body {
+            background-color: #000;
+            color: white;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Stop scrolling */
+            font-family: sans-serif;
+            touch-action: manipulation; /* Improves touch response */
+        }
+
+        /* --- THE VIEWFINDER (CANVAS) --- */
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #111;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            aspect-ratio: 16/9;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* --- CONTROLS --- */
+        .controls {
+            padding: 15px;
+            background: #222;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            height: 160px; /* Fixed height for thumb area */
+        }
+
+        .btn {
+            background: #444;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn:active { background: #666; transform: scale(0.95); }
+
+        .btn-home { border-bottom: 4px solid #007bff; }
+        .btn-guest { border-bottom: 4px solid #dc3545; }
+        .btn-time { border-bottom: 4px solid #28a745; font-family: monospace; }
+        
+        .btn-rec { 
+            grid-column: span 3; 
+            background: #cc0000; 
+            color: white;
+            padding: 15px;
+            margin-top: 5px;
+        }
+        .recording-active { background: #fff !important; color: red !important; animation: pulse 1s infinite; }
+
+        @keyframes pulse { 0% {opacity:1;} 50% {opacity:0.5;} 100% {opacity:1;} }
+
+        /* Hidden raw video */
+        #raw-video { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="gameCanvas" width="1280" height="720"></canvas>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-home" onclick="updateScore('home', 1)">
+            HOME <span id="ui-home" style="font-size:1.8rem">0</span>
+        </button>
+
+        <button class="btn btn-time" onclick="toggleTimer()">
+            CLOCK <span id="ui-timer" style="font-size:1.8rem">10:00</span>
+        </button>
+
+        <button class="btn btn-guest" onclick="updateScore('guest', 1)">
+            GUEST <span id="ui-guest" style="font-size:1.8rem">0</span>
+        </button>
+
+        <button class="btn btn-rec" id="recBtn" onclick="toggleRecording()">
+            Start Recording
+        </button>
+    </div>
+
+    <video id="raw-video" autoplay muted playsinline></video>
+
+    <script>
+        // --- CONFIG ---
+        let homeScore = 0;
+        let guestScore = 0;
+        let timeLeft = 600; // 10 mins
+        let isTimerRunning = false;
+        let timerInterval = null;
+        let period = 1;
+
+        // --- SETUP CANVAS & VIDEO ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('raw-video');
+        
+        // Start Camera automatically
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment", width: 1280, height: 720 }, 
+                    audio: true 
+                });
+                video.srcObject = stream;
+                video.play();
+                drawLoop(); // Start the visual engine
+            } catch (e) {
+                alert("Camera Error: " + e.message);
+            }
+        }
+        initCamera();
+
+        // --- DRAW LOOP (The Engine) ---
+        function drawLoop() {
+            // 1. Draw Video Frame
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // 2. Draw Scoreboard Background
+            ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+            ctx.fillRect(100, 600, 1080, 100); // Bottom bar
+            
+            // Border
+            ctx.strokeStyle = "#c9a050";
+            ctx.lineWidth = 4;
+            ctx.strokeRect(100, 600, 1080, 100);
+
+            // 3. Draw Text
+            ctx.fillStyle = "white";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            // HOME
+            ctx.font = "bold 30px Arial";
+            ctx.fillText("HOME", 250, 630);
+            ctx.font = "bold 60px Arial Black";
+            ctx.fillText(homeScore, 250, 675);
+
+            // TIMER
+            ctx.fillStyle = "#00ff00";
+            ctx.font = "bold 60px Courier New";
+            let m = Math.floor(timeLeft / 60);
+            let s = timeLeft % 60;
+            let timeStr = `${m}:${s<10?'0'+s:s}`;
+            ctx.fillText(timeStr, 640, 650);
+            
+            // Period
+            ctx.fillStyle = "#ccc";
+            ctx.font = "bold 20px Arial";
+            ctx.fillText("QTR " + period, 640, 685);
+
+            // GUEST
+            ctx.fillStyle = "white";
+            ctx.font = "bold 30px Arial";
+            ctx.fillText("GUEST", 1030, 630);
+            ctx.font = "bold 60px Arial Black";
+            ctx.fillText(guestScore, 1030, 675);
+
+            requestAnimationFrame(drawLoop);
+        }
+
+        // --- GAME LOGIC ---
+        function updateScore(team, amt) {
+            if(team === 'home') homeScore += amt;
+            if(team === 'guest') guestScore += amt;
+            // Update UI buttons too
+            document.getElementById('ui-home').innerText = homeScore;
+            document.getElementById('ui-guest').innerText = guestScore;
+        }
+        
+        // Subtract shortcuts (Hold press not implemented, use negative logic if needed)
+        // For simplicity: Clicking adds. 
+
+        function toggleTimer() {
+            if(isTimerRunning) {
+                clearInterval(timerInterval);
+                isTimerRunning = false;
+            } else {
+                isTimerRunning = true;
+                timerInterval = setInterval(() => {
+                    if(timeLeft > 0) {
+                        timeLeft--;
+                        let m = Math.floor(timeLeft / 60);
+                        let s = timeLeft % 60;
+                        document.getElementById('ui-timer').innerText = `${m}:${s<10?'0'+s:s}`;
+                    }
+                }, 1000);
+            }
+        }
+
+        // --- RECORDING LOGIC ---
+        let mediaRecorder;
+        let chunks = [];
+        let isRecording = false;
+
+        function toggleRecording() {
+            const btn = document.getElementById('recBtn');
+            
+            if(!isRecording) {
+                // START
+                const stream = canvas.captureStream(30); // 30 FPS
+                
+                // Add audio from microphone (video stream has audio, canvas stream does not)
+                if(video.srcObject && video.srcObject.getAudioTracks().length > 0) {
+                     stream.addTrack(video.srcObject.getAudioTracks()[0]);
+                }
+
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+                
+                mediaRecorder.ondataavailable = (e) => { if(e.data.size > 0) chunks.push(e.data); };
+                mediaRecorder.onstop = saveVideo;
+                
+                mediaRecorder.start();
+                isRecording = true;
+                btn.innerText = "STOP RECORDING";
+                btn.classList.add('recording-active');
+            } else {
+                // STOP
+                mediaRecorder.stop();
+                isRecording = false;
+                btn.innerText = "Start Recording";
+                btn.classList.remove('recording-active');
+            }
+        }
+
+        function saveVideo() {
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `Game_${Date.now()}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
+            chunks = [];
+        }
+    </script>
+</body>
+</html>
