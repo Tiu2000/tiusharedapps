@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pro Court Cam v3 (Watermark)</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <title>Pro Court Cam v4</title>
     <style>
         /* --- GLOBAL LAYOUT --- */
         body {
@@ -42,7 +46,7 @@
             z-index: 1;
         }
 
-        /* LAYER 2: The Control Interface (Visible to You, NOT Recorded) */
+        /* LAYER 2: The Control Interface */
         #ui-layer {
             position: absolute;
             top: 0;
@@ -97,16 +101,18 @@
         .rec-active { background: white; color: red; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% {opacity: 1;} 50% {opacity: 0.5;} 100% {opacity: 1;} }
 
-        /* --- MODAL --- */
+        /* --- STARTUP SCREEN --- */
         #startup-modal {
             position: fixed; z-index: 100; background: #111; padding: 30px;
             border-radius: 15px; text-align: center; border: 1px solid #444;
             box-shadow: 0 0 50px rgba(0,0,0,1);
+            max-width: 90%;
         }
         .modal-btn {
-            background: #007bff; color: white; border: none; padding: 15px 30px;
-            margin: 10px; font-size: 1.2rem; border-radius: 8px; cursor: pointer;
+            background: #007bff; color: white; border: none; padding: 15px 20px;
+            margin: 10px; font-size: 1.1rem; border-radius: 8px; cursor: pointer; display: block; width: 100%;
         }
+        .btn-green { background: #28a745; }
 
         #raw-video { display: none; }
     </style>
@@ -114,10 +120,11 @@
 <body>
 
     <div id="startup-modal">
-        <h2>Select Resolution</h2>
-        <p>Landscape mode recommended.</p>
-        <button class="modal-btn" onclick="startApp(1280, 720)">720p (HD)</button>
-        <button class="modal-btn" onclick="startApp(1920, 1080)">1080p (Full HD)</button>
+        <h2>Pro Court Cam</h2>
+        <p style="color:#aaa; font-size:0.9rem">Turn phone sideways</p>
+        
+        <button class="modal-btn btn-green" onclick="goFullscreenAndStart(1280, 720)">Start HD (Fullscreen)</button>
+        <button class="modal-btn" onclick="goFullscreenAndStart(1920, 1080)">Start Full HD (Fullscreen)</button>
     </div>
 
     <div id="stage">
@@ -162,6 +169,26 @@
         const uiLayer = document.getElementById('ui-layer');
         const clockBtn = document.getElementById('btn-clock');
 
+        // --- NEW STARTUP SEQUENCE ---
+        async function goFullscreenAndStart(w, h) {
+            // 1. Try to force fullscreen mode
+            const elem = document.documentElement;
+            try {
+                if (elem.requestFullscreen) {
+                    await elem.requestFullscreen();
+                } else if (elem.webkitRequestFullscreen) { /* Safari */
+                    await elem.webkitRequestFullscreen();
+                } else if (elem.msRequestFullscreen) { /* IE11 */
+                    await elem.msRequestFullscreen();
+                }
+            } catch (err) {
+                console.log("Fullscreen denied (user interaction required first)");
+            }
+
+            // 2. Start Camera
+            startApp(w, h);
+        }
+
         async function startApp(w, h) {
             document.getElementById('startup-modal').style.display = 'none';
             canvas.width = w; canvas.height = h;
@@ -180,14 +207,13 @@
         function drawLoop() {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // Scoreboard Bar Logic
             const H = canvas.height; const W = canvas.width;
             const barHeight = H * 0.15;
             const barY = H - barHeight - (H * 0.05);
             const barMargin = W * 0.1;
             const barWidth = W - (barMargin * 2);
 
-            // Draw Bar
+            // Bar
             ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
             ctx.fillRect(barMargin, barY, barWidth, barHeight);
             ctx.strokeStyle = "#c9a050"; ctx.lineWidth = 4;
@@ -219,24 +245,21 @@
             let suffix = period === 1 ? "ST" : period === 2 ? "ND" : period === 3 ? "RD" : "TH";
             ctx.fillText(period + suffix + " QTR", W/2, centerY + (barHeight*0.3));
 
-            // --- NEW: DRAW WATERMARK ---
+            // Watermark
             ctx.save();
-            ctx.fillStyle = "rgba(255, 255, 255, 0.25)"; // 25% opacity white
-            ctx.font = "bold " + (H*0.05) + "px Arial"; // Scaled size
-            ctx.textAlign = "right";
-            ctx.textBaseline = "bottom";
-            // Position: Bottom right corner with slight padding
+            ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+            ctx.font = "bold " + (H*0.05) + "px Arial";
+            ctx.textAlign = "right"; ctx.textBaseline = "bottom";
             ctx.fillText("TIU", W - (W*0.02), H - (H*0.02));
             ctx.restore();
-            // ---------------------------
 
             requestAnimationFrame(drawLoop);
         }
 
-        // --- FIXED EDITING LOGIC ---
+        // Logic
         clockBtn.addEventListener('dblclick', () => {
              if(isTimerRunning) toggleTimer();
-             let val = prompt("Enter Time:\nExamples:\n':45' = 45 sec\n'1:30' = 1 min 30 sec\n'10' = 10 mins");
+             let val = prompt("Enter Time:\n(e.g. ':45' or '2:00' or '10')");
              if (val) {
                 if (val.includes(":")) {
                     let parts = val.split(":");
@@ -256,12 +279,10 @@
             let s = timeLeft % 60;
             clockBtn.innerText = `${m}:${s<10?'0'+s:s}`;
         }
-
         function updateScore(team, amt) {
             if(team === 'home') homeScore += amt; else guestScore += amt;
             if(homeScore < 0) homeScore = 0; if(guestScore < 0) guestScore = 0;
         }
-
         function toggleTimer() {
             if(isTimerRunning) {
                 clearInterval(timerInterval); isTimerRunning = false;
@@ -275,7 +296,6 @@
                 }, 1000);
             }
         }
-
         function nextPeriod() { period++; if(period > 4) period = 1; }
 
         let mediaRecorder, chunks = [], isRecording = false;
