@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Pro Court Cam v8 (Hardware Zoom)</title>
+    <style>
+        /* --- GLOBAL --- */
+        body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: sans-serif; user-select: none; }
+        
+        /* --- LAYOUT --- */
+        #stage { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        
+        canvas { position: absolute; max-width: 100%; max-height: 100%; aspect-ratio: 16/9; z-index: 1; }
+        
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: none; }
+        
+        /* --- CONTROLS --- */
+        .control-group { position: absolute; pointer-events: auto; display: flex; flex-direction: column; gap: 10px; }
+        .group-left { left: 20px; top: 50%; transform: translateY(-50%); }
+        .group-right { right: 20px; top: 50%; transform: translateY(-50%); }
+        .group-top { top: 20px; left: 50%; transform: translateX(-50%); flex-direction: row; align-items: center; }
+        
+        /* HARDWARE ZOOM SLIDER */
+        .group-zoom { 
+            right: 100px; top: 50%; transform: translateY(-50%); 
+            height: 200px; width: 40px; display: none; /* Hidden until cam loads */
+            flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.4); border-radius: 20px; padding: 10px 0;
+        }
+        /* Vertical Slider Styling */
+        input[type=range][orient=vertical] {
+            writing-mode: bt-lr; /* IE */
+            -webkit-appearance: slider-vertical; /* Webkit */
+            width: 8px; height: 160px; padding: 0 5px;
+        }
+
+        .hud-btn {
+            background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.5); color: #fff;
+            padding: 15px 20px; border-radius: 50px; font-weight: bold; font-size: 1.2rem;
+            min-width: 80px; text-align: center;
+        }
+        .hud-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.3); }
+        .btn-rec { background: #c00; border-color: #fff; width: 60px; height: 60px; border-radius: 50%; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; }
+        .rec-active { background: #fff; color: #f00; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% {opacity:1} 50% {opacity:0.5} 100% {opacity:1} }
+
+        /* MODAL */
+        #startup-modal { position: fixed; z-index: 100; background: #111; padding: 30px; border: 1px solid #444; border-radius: 10px; text-align: center; top:50%; left:50%; transform:translate(-50%, -50%); width: 80%; max-width: 400px; }
+        .modal-btn { background: #007bff; color: #fff; border: none; padding: 15px; width: 100%; margin: 5px 0; border-radius: 5px; font-size: 1.1rem; }
+        
+        #raw-video { display: none; }
+        
+        /* Zoom Label */
+        #zoom-label { font-size: 0.8rem; font-weight: bold; margin-bottom: 5px; text-shadow: 1px 1px 2px black; }
+    </style>
+</head>
+<body>
+
+    <div id="startup-modal">
+        <h2>Pro Court Cam</h2>
+        <p style="color:#aaa">Select Quality</p>
+        <button class="modal-btn" style="background:#28a745" onclick="initCamera(1280, 720)">Start HD (720p)</button>
+        <button class="modal-btn" onclick="initCamera(1920, 1080)">Start Full HD (1080p)</button>
+    </div>
+
+    <div id="stage">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="ui-layer">
+            <div style="position:absolute; top:20px; left:20px; pointer-events:auto;">
+                <button class="hud-btn" style="padding:10px 15px;" onclick="toggleFullScreen()">⛶</button>
+            </div>
+
+            <div class="control-group group-top">
+                <button class="hud-btn" style="border-color:#28a745; color:#80ff9f; font-family:monospace; font-size:1.5rem;" id="btn-clock" onclick="toggleTimer()">10:00</button>
+                <div style="width:20px"></div>
+                <button class="hud-btn btn-rec" id="btn-rec" onclick="toggleRecording()">REC</button>
+                <div style="width:20px"></div>
+                <button class="hud-btn" style="font-size:0.9rem;" onclick="nextPeriod()">PER 1</button>
+            </div>
+
+            <div class="control-group group-left">
+                <div style="text-align:center; font-weight:bold; color:#007bff; margin-bottom:5px;">HOME</div>
+                <button class="hud-btn" style="border-color:#007bff; color:#80bfff;" onclick="updateScore('home', 1)">+1</button>
+                <button class="hud-btn" style="border-color:#007bff; color:#80bfff;" onclick="updateScore('home', 2)">+2</button>
+                <button class="hud-btn" style="border-color:#007bff; color:#80bfff;" onclick="updateScore('home', 3)">+3</button>
+                <button class="hud-btn" style="border-color:#007bff; color:#80bfff; font-size:0.8rem; opacity:0.7;" onclick="updateScore('home', -1)">-1</button>
+            </div>
+
+            <div class="control-group group-right">
+                <div style="text-align:center; font-weight:bold; color:#dc3545; margin-bottom:5px;">GUEST</div>
+                <button class="hud-btn" style="border-color:#dc3545; color:#ff808f;" onclick="updateScore('guest', 1)">+1</button>
+                <button class="hud-btn" style="border-color:#dc3545; color:#ff808f;" onclick="updateScore('guest', 2)">+2</button>
+                <button class="hud-btn" style="border-color:#dc3545; color:#ff808f;" onclick="updateScore('guest', 3)">+3</button>
+                <button class="hud-btn" style="border-color:#dc3545; color:#ff808f; font-size:0.8rem; opacity:0.7;" onclick="updateScore('guest', -1)">-1</button>
+            </div>
+
+            <div class="control-group group-zoom" id="zoom-container">
+                <div id="zoom-label">1.0x</div>
+                <input type="range" id="zoom-slider" orient="vertical" min="1" max="10" step="0.1" value="1">
+            </div>
+        </div>
+    </div>
+
+    <video id="raw-video" autoplay muted playsinline></video>
+
+    <script>
+        // --- VARIABLES ---
+        let homeScore = 0, guestScore = 0, timeLeft = 600, period = 1;
+        let isTimerRunning = false, timerInterval = null;
+        let track = null; 
+
+        // --- ELEMENTS ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('raw-video');
+        const uiLayer = document.getElementById('ui-layer');
+        const clockBtn = document.getElementById('btn-clock');
+
+        // --- CAMERA INIT ---
+        async function initCamera(w, h) {
+            document.getElementById('startup-modal').style.display = 'none';
+            toggleFullScreen();
+            canvas.width = w; canvas.height = h;
+
+            try {
+                // Request Hardware Zoom capability
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: "environment", 
+                        width: { ideal: w }, 
+                        height: { ideal: h },
+                        zoom: true // Ask nicely for zoom
+                    }, 
+                    audio: true 
+                });
+                
+                video.srcObject = stream;
+                video.play();
+                
+                track = stream.getVideoTracks()[0];
+                setupHardwareZoom(); // Initialize the zoom slider
+
+                uiLayer.style.display = 'block';
+                drawLoop();
+            } catch (err) { alert("Cam Error: " + err.message); }
+        }
+
+        // --- HARDWARE ZOOM LOGIC ---
+        function setupHardwareZoom() {
+            const caps = track.getCapabilities();
+            const slider = document.getElementById('zoom-slider');
+            const container = document.getElementById('zoom-container');
+            const label = document.getElementById('zoom-label');
+
+            // Check if the camera supports hardware zoom
+            if (caps.zoom) {
+                container.style.display = 'flex';
+                // Set limits based on what the phone reports (e.g., 1x to 8x)
+                slider.min = caps.zoom.min;
+                slider.max = caps.zoom.max;
+                slider.step = caps.zoom.step || 0.1;
+                slider.value = 1;
+
+                slider.oninput = async (e) => {
+                    const zoomLevel = parseFloat(e.target.value);
+                    label.innerText = zoomLevel.toFixed(1) + "x";
+                    try {
+                        await track.applyConstraints({ 
+                            advanced: [{ zoom: zoomLevel }] 
+                        });
+                    } catch (err) { console.log("Zoom failed", err); }
+                };
+            } else {
+                console.log("Hardware zoom not supported by this browser.");
+            }
+        }
+
+        // --- GRAPHICS LOOP ---
+        function drawLoop() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Scoreboard UI
+            const H = canvas.height; const W = canvas.width;
+            const barH = H * 0.15; const barY = H - barH - (H * 0.05);
+            const barM = W * 0.1; const barW = W - (barM * 2);
+
+            // Bar Background
+            ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+            ctx.fillRect(barM, barY, barW, barH);
+            ctx.strokeStyle = "#c9a050"; ctx.lineWidth = 4;
+            ctx.strokeRect(barM, barY, barW, barH);
+
+            // Text Setup
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            const cY = barY + (barH/2);
+
+            // Home
+            ctx.fillStyle = "#3399ff"; ctx.font = `bold ${H*0.04}px Arial`;
+            ctx.fillText("HOME", barM + (barW*0.15), cY - (barH*0.2));
+            ctx.fillStyle = "white"; ctx.font = `bold ${H*0.08}px Arial Black`;
+            ctx.fillText(homeScore, barM + (barW*0.15), cY + (barH*0.2));
+
+            // Guest
+            ctx.fillStyle = "#ff5050"; ctx.font = `bold ${H*0.04}px Arial`;
+            ctx.fillText("GUEST", barM + (barW*0.85), cY - (barH*0.2));
+            ctx.fillStyle = "white"; ctx.font = `bold ${H*0.08}px Arial Black`;
+            ctx.fillText(guestScore, barM + (barW*0.85), cY + (barH*0.2));
+
+            // Clock
+            let m = Math.floor(timeLeft / 60); let s = timeLeft % 60;
+            let timeStr = `${m}:${s<10?'0'+s:s}`;
+            ctx.fillStyle = "#00ff00"; ctx.font = `bold ${H*0.09}px Courier New`;
+            ctx.fillText(timeStr, W/2, cY - (barH*0.1));
+
+            // Period
+            ctx.fillStyle = "#ccc"; ctx.font = `bold ${H*0.03}px Arial`;
+            let suf = period===1?"ST":period===2?"ND":period===3?"RD":"TH";
+            ctx.fillText(`${period}${suf} QTR`, W/2, cY + (barH*0.3));
+
+            // Watermark
+            ctx.save();
+            ctx.fillStyle = "rgba(255,255,255,0.25)";
+            ctx.font = `bold ${H*0.05}px Arial`;
+            ctx.textAlign = "right"; ctx.textBaseline = "bottom";
+            ctx.fillText("TIU", W - (W*0.02), H - (H*0.02));
+            ctx.restore();
+
+            requestAnimationFrame(drawLoop);
+        }
+
+        // --- GAME LOGIC ---
+        clockBtn.addEventListener('dblclick', () => {
+             if(isTimerRunning) toggleTimer();
+             let val = prompt("Enter Time (e.g. 8 or 1:30):");
+             if (val) {
+                if (val.includes(":")) {
+                    let p = val.split(":");
+                    timeLeft = (parseInt(p[0])*60) + parseInt(p[1]);
+                } else { timeLeft = parseInt(val) * 60; }
+                updateClock();
+             }
+        });
+
+        function updateClock() {
+            let m = Math.floor(timeLeft/60); let s = timeLeft%60;
+            clockBtn.innerText = `${m}:${s<10?'0'+s:s}`;
+        }
+        function updateScore(t, n) {
+            if(t==='home') homeScore+=n; else guestScore+=n;
+            if(homeScore<0) homeScore=0; if(guestScore<0) guestScore=0;
+        }
+        function toggleTimer() {
+            if(isTimerRunning) {
+                clearInterval(timerInterval); isTimerRunning=false;
+                clockBtn.style.color="#80ff9f"; clockBtn.style.borderColor="#28a745";
+            } else {
+                isTimerRunning=true;
+                clockBtn.style.color="#fff"; clockBtn.style.borderColor="#f33";
+                timerInterval = setInterval(() => {
+                    if(timeLeft>0) { timeLeft--; updateClock(); }
+                    else toggleTimer();
+                }, 1000);
+            }
+        }
+        function nextPeriod() { period++; if(period>4) period=1; }
+        
+        function toggleFullScreen() {
+            if(!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(e=>{});
+            }
+        }
+
+        // --- RECORDING ---
+        let mediaRecorder, chunks=[], isRecording=false;
+        function toggleRecording() {
+            const btn = document.getElementById('btn-rec');
+            if(!isRecording) {
+                const stream = canvas.captureStream(30);
+                // Mix in Mic Audio
+                if(video.srcObject && video.srcObject.getAudioTracks().length > 0) {
+                    stream.addTrack(video.srcObject.getAudioTracks()[0]);
+                }
+                
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+                mediaRecorder.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(chunks, {type:'video/webm'});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display='none'; a.href=url;
+                    a.download = `TIU_Game_${new Date().getTime()}.webm`;
+                    document.body.appendChild(a); a.click();
+                    setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);}, 100);
+                    chunks=[];
+                };
+                mediaRecorder.start();
+                isRecording=true;
+                btn.classList.add('rec-active'); btn.innerText="STOP";
+            } else {
+                mediaRecorder.stop();
+                isRecording=false;
+                btn.classList.remove('rec-active'); btn.innerText="REC";
+            }
+        }
+    </script>
+</body>
+</html>
