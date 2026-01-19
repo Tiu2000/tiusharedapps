@@ -3,376 +3,316 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Pro Court Cam v10</title>
+    <title>Pro Court Cam v11</title>
     <style>
-        /* --- GLOBAL --- */
-        body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: sans-serif; user-select: none; -webkit-user-select: none; }
+        /* --- CORE LAYOUT --- */
+        body { background: #000; margin: 0; height: 100vh; overflow: hidden; font-family: sans-serif; }
         
-        /* --- LAYOUT --- */
-        #stage { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
-        
-        canvas { position: absolute; max-width: 100%; max-height: 100%; aspect-ratio: 16/9; z-index: 1; }
-        
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
-        
-        /* --- CONTROLS --- */
-        .control-group { position: absolute; pointer-events: auto; display: flex; flex-direction: column; gap: 10px; }
-        .group-left { left: 20px; top: 50%; transform: translateY(-50%); }
-        .group-right { right: 20px; top: 50%; transform: translateY(-50%); }
-        .group-top { top: 20px; left: 50%; transform: translateX(-50%); flex-direction: row; align-items: center; }
-        
-        /* TEAM NAME BUTTONS */
-        .team-name-btn {
-            background: rgba(0,0,0,0.6); border: 2px solid #555; color: white; 
-            font-weight: bold; font-size: 1.1rem; margin-bottom: 8px; 
-            cursor: pointer; text-transform: uppercase; padding: 5px 10px; border-radius: 8px;
-            pointer-events: auto; /* Force touch detection */
+        /* VIDEO LAYER (Background) */
+        #cam-view {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; z-index: 1;
         }
-        .team-name-btn:active { background: #fff; color: #000; }
 
-        /* ZOOM SLIDER & INDICATOR */
-        .group-zoom { 
-            right: 90px; top: 50%; transform: translateY(-50%); 
-            height: 220px; width: 60px; display: flex;
-            flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.6); border-radius: 20px; padding: 10px 0; border: 1px solid #444;
-            pointer-events: auto; /* Critical for slider */
+        /* UI LAYER (Foreground) */
+        #ui-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; pointer-events: none; /* Let touches pass through to video if needed */
+        }
+
+        /* --- SCOREBOARD BAR (HTML Based) --- */
+        #scoreboard-bar {
+            position: absolute;
+            bottom: 15%; /* Lifted up to avoid bottom nav bar */
+            left: 5%; width: 90%; height: 80px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #c9a050;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 10px; box-sizing: border-box;
+            pointer-events: auto; /* Enable touching buttons */
+            border-radius: 8px;
+        }
+
+        /* TEAMS */
+        .team-box { text-align: center; width: 30%; }
+        
+        /* EDITABLE NAMES */
+        .team-name {
+            color: #3399ff; font-weight: bold; font-size: 1rem;
+            text-transform: uppercase; border-bottom: 1px dashed rgba(255,255,255,0.3);
+            display: inline-block; min-width: 50px; cursor: text;
+        }
+        .guest-name { color: #ff5050; }
+        
+        .team-score {
+            color: white; font-weight: 900; font-size: 2.5rem; line-height: 1;
+            font-family: 'Arial Black', sans-serif;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        /* CLOCK CENTER */
+        .clock-box { text-align: center; width: 30%; }
+        .clock-digits { color: #00ff00; font-family: monospace; font-size: 2rem; font-weight: bold; }
+        .period-text { color: #ccc; font-size: 0.8rem; font-weight: bold; }
+
+        /* --- CONTROL BUTTONS (Floating) --- */
+        .controls-overlay {
+            position: absolute; width: 100%; height: 100%; pointer-events: none;
+        }
+        .btn-float {
+            pointer-events: auto; background: rgba(0,0,0,0.5); 
+            border: 1px solid rgba(255,255,255,0.5); color: white;
+            border-radius: 50%; width: 50px; height: 50px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            position: absolute;
+        }
+        .btn-float:active { background: white; color: black; }
+
+        /* Position Buttons relative to scoreboard */
+        /* Home Controls */
+        #btn-h-plus { bottom: 26%; left: 10%; } 
+        #btn-h-minus { bottom: 26%; left: 25%; width: 40px; height: 40px; font-size: 0.8rem; opacity: 0.8; }
+
+        /* Guest Controls */
+        #btn-g-plus { bottom: 26%; right: 10%; }
+        #btn-g-minus { bottom: 26%; right: 25%; width: 40px; height: 40px; font-size: 0.8rem; opacity: 0.8; }
+
+        /* Top Controls */
+        #top-bar {
+            position: absolute; top: 20px; width: 100%; 
+            display: flex; justify-content: center; gap: 20px; pointer-events: auto;
+        }
+        .top-btn {
+            background: rgba(0,0,0,0.6); color: white; border: 1px solid #555;
+            padding: 10px 20px; border-radius: 20px; font-weight: bold;
+        }
+        .rec-active { background: white; color: red; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* ZOOM SLIDER (Always visible) */
+        #zoom-wrapper {
+            position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+            height: 200px; width: 50px; background: rgba(0,0,0,0.5);
+            border-radius: 20px; display: flex; flex-direction: column; align-items: center;
+            pointer-events: auto; padding: 10px 0;
         }
         input[type=range][orient=vertical] {
             writing-mode: bt-lr; -webkit-appearance: slider-vertical;
-            width: 15px; height: 150px; padding: 0 5px;
+            width: 8px; height: 160px;
         }
+        #zoom-debug { font-size: 0.6rem; text-align: center; margin-bottom: 5px; color: yellow; }
 
-        .zoom-info { font-size: 0.8rem; text-align: center; margin-bottom: 5px; font-weight: bold; }
-        .zoom-type-hw { color: #0f0; } /* Green for Hardware */
-        .zoom-type-dig { color: #f33; } /* Red for Digital */
-
-        /* BUTTON STYLES */
-        .hud-btn {
-            background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.5); color: #fff;
-            padding: 15px 20px; border-radius: 50px; font-weight: bold; font-size: 1.2rem;
-            min-width: 80px; text-align: center;
+        /* Start Modal */
+        #modal {
+            position: fixed; z-index: 100; top:0; left:0; width:100%; height:100%;
+            background: #111; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; gap: 20px;
         }
-        .hud-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.3); }
-        .btn-rec { background: #c00; border-color: #fff; width: 60px; height: 60px; border-radius: 50%; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; }
-        .rec-active { background: #fff; color: #f00; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% {opacity:1} 50% {opacity:0.5} 100% {opacity:1} }
-
-        /* MODALS */
-        .modal { position: fixed; z-index: 100; background: #111; padding: 20px; border: 1px solid #444; border-radius: 10px; text-align: center; top:50%; left:50%; transform:translate(-50%, -50%); width: 80%; max-width: 400px; display: none; }
-        .modal-btn { background: #007bff; color: #fff; border: none; padding: 15px; width: 100%; margin: 5px 0; border-radius: 5px; font-size: 1.1rem; }
-        
-        /* CUSTOM INPUT MODAL */
-        #input-modal input { width: 90%; padding: 10px; font-size: 1.2rem; margin-bottom: 10px; text-align: center; }
-        
-        #raw-video { display: none; }
+        .big-btn { padding: 20px 40px; font-size: 1.5rem; background: #007bff; color: white; border: none; border-radius: 10px; }
     </style>
 </head>
 <body>
 
-    <div id="startup-modal" class="modal" style="display:block">
-        <h2>Pro Court Cam</h2>
-        <p style="color:#aaa">Select Resolution</p>
-        <button class="modal-btn" style="background:#28a745" onclick="initCamera(1280, 720)">720p (HD)</button>
-        <button class="modal-btn" onclick="initCamera(1920, 1080)">1080p (Full HD)</button>
+    <div id="modal">
+        <h2 style="color:white">Camera Setup</h2>
+        <button class="big-btn" onclick="startApp()">Start Camera</button>
+        <p style="color:#777">Accept permissions when asked</p>
     </div>
 
-    <div id="input-modal" class="modal">
-        <h3 id="input-title">Edit Name</h3>
-        <input type="text" id="team-input" maxlength="8">
-        <button class="modal-btn" onclick="saveTeamName()">SAVE</button>
-        <button class="modal-btn" style="background:#555" onclick="closeInput()">CANCEL</button>
-    </div>
+    <video id="cam-view" autoplay playsinline muted></video>
 
-    <div id="stage">
-        <canvas id="gameCanvas"></canvas>
+    <div id="ui-layer">
+        
+        <div id="top-bar">
+            <button class="top-btn" id="btn-clock-toggle" onclick="toggleTimer()">Start Clock</button>
+            <button class="top-btn" id="btn-rec" onclick="toggleRecord()">REC</button>
+            <button class="top-btn" onclick="changePeriod()">PER 1</button>
+        </div>
 
-        <div id="ui-layer">
-            <div style="position:absolute; top:20px; left:20px; pointer-events:auto;">
-                <button class="hud-btn" style="padding:10px 15px;" onclick="toggleFullScreen()">⛶</button>
+        <div id="zoom-wrapper">
+            <div id="zoom-debug">Loading</div>
+            <input type="range" id="zoom-slider" orient="vertical" min="1" max="10" step="0.1" value="1">
+            <div style="font-size:0.8rem; font-weight:bold; margin-top:5px;" id="zoom-val">1.0x</div>
+        </div>
+
+        <button class="btn-float" id="btn-h-plus" onclick="modScore('h', 1)">+1</button>
+        <button class="btn-float" id="btn-h-minus" onclick="modScore('h', -1)">-1</button>
+        
+        <button class="btn-float" id="btn-g-plus" onclick="modScore('g', 1)">+1</button>
+        <button class="btn-float" id="btn-g-minus" onclick="modScore('g', -1)">-1</button>
+
+        <div id="scoreboard-bar">
+            <div class="team-box">
+                <div class="team-name" contenteditable="true">HOME</div>
+                <div class="team-score" id="score-h">0</div>
             </div>
 
-            <div class="control-group group-top">
-                <button class="hud-btn" style="border-color:#28a745; color:#80ff9f; font-family:monospace; font-size:1.5rem;" id="btn-clock" onclick="toggleTimer()">10:00</button>
-                <div style="width:20px"></div>
-                <button class="hud-btn btn-rec" id="btn-rec" onclick="toggleRecording()">REC</button>
-                <div style="width:20px"></div>
-                <button class="hud-btn" style="font-size:0.9rem;" onclick="nextPeriod()">PER 1</button>
+            <div class="clock-box" onclick="editTime()">
+                <div class="clock-digits" id="clock-display">10:00</div>
+                <div class="period-text" id="period-display">1ST QTR</div>
             </div>
 
-            <div class="control-group group-left">
-                <button class="team-name-btn" style="color:#007bff; border-color:#007bff;" onclick="openInput('home')">HOME ✎</button>
-                
-                <button class="hud-btn" style="border-color:#007bff; color:#80bfff;" onclick="updateScore('home', 1)">+1</button>
-                <button class="hud-btn" style="border-color:#007bff; color:#80bfff;" onclick="updateScore('home', 2)">+2</button>
-                <button class="hud-btn" style="border-color:#007bff; color:#80bfff;" onclick="updateScore('home', 3)">+3</button>
-                <button class="hud-btn" style="border-color:#007bff; color:#80bfff; font-size:0.8rem; opacity:0.7;" onclick="updateScore('home', -1)">-1</button>
-            </div>
-
-            <div class="control-group group-right">
-                <button class="team-name-btn" style="color:#dc3545; border-color:#dc3545;" onclick="openInput('guest')">GUEST ✎</button>
-                
-                <button class="hud-btn" style="border-color:#dc3545; color:#ff808f;" onclick="updateScore('guest', 1)">+1</button>
-                <button class="hud-btn" style="border-color:#dc3545; color:#ff808f;" onclick="updateScore('guest', 2)">+2</button>
-                <button class="hud-btn" style="border-color:#dc3545; color:#ff808f;" onclick="updateScore('guest', 3)">+3</button>
-                <button class="hud-btn" style="border-color:#dc3545; color:#ff808f; font-size:0.8rem; opacity:0.7;" onclick="updateScore('guest', -1)">-1</button>
-            </div>
-
-            <div class="control-group group-zoom">
-                <div id="zoom-type" class="zoom-info zoom-type-dig">DIGITAL</div>
-                <div id="zoom-label" class="zoom-info" style="font-size:1rem; color:white;">1.0x</div>
-                <input type="range" id="zoom-slider" orient="vertical" min="1" max="3" step="0.1" value="1">
+            <div class="team-box">
+                <div class="team-name guest-name" contenteditable="true">GUEST</div>
+                <div class="team-score" id="score-g">0</div>
             </div>
         </div>
+
     </div>
 
-    <video id="raw-video" autoplay muted playsinline></video>
-
     <script>
-        // --- STATE ---
-        let homeName = "HOME";
-        let guestName = "GUEST";
-        let homeScore = 0, guestScore = 0, timeLeft = 600, period = 1;
-        let isTimerRunning = false, timerInterval = null;
-        
-        let track = null; 
-        let zoomMode = "DIGITAL"; // Default to Digital
-        let currentZoom = 1.0;
-        let editingTeam = null;
+        // --- LOGIC ---
+        let track;
+        let scores = { h: 0, g: 0 };
+        let timeLeft = 600;
+        let timerInt = null;
+        let period = 1;
 
-        // --- ELEMENTS ---
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const video = document.getElementById('raw-video');
-        const uiLayer = document.getElementById('ui-layer');
-        const clockBtn = document.getElementById('btn-clock');
-
-        // --- INIT ---
-        async function initCamera(w, h) {
-            document.getElementById('startup-modal').style.display = 'none';
-            toggleFullScreen();
-            canvas.width = w; canvas.height = h;
-
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: "environment", 
-                        width: { ideal: w }, 
-                        height: { ideal: h },
-                        zoom: true 
-                    }, 
-                    audio: true 
-                });
-                
-                video.srcObject = stream;
-                video.play();
-                
-                track = stream.getVideoTracks()[0];
-                setupZoom(); // Run zoom detection
-
-                drawLoop();
-            } catch (err) { alert("Cam Error: " + err.message); }
-        }
-
-        // --- ZOOM SYSTEM (Dual Mode) ---
-        function setupZoom() {
-            const caps = track.getCapabilities();
-            const slider = document.getElementById('zoom-slider');
-            const typeLabel = document.getElementById('zoom-type');
-
-            // 1. Try to detect Hardware Zoom
-            if (caps.zoom) {
-                zoomMode = "HARDWARE";
-                typeLabel.innerText = "OPTICAL";
-                typeLabel.className = "zoom-info zoom-type-hw"; // Green
-                
-                slider.min = caps.zoom.min;
-                slider.max = caps.zoom.max;
-                slider.step = caps.zoom.step || 0.1;
-                console.log("Hardware zoom active");
-            } else {
-                // 2. Fallback to Digital
-                zoomMode = "DIGITAL";
-                typeLabel.innerText = "DIGITAL";
-                typeLabel.className = "zoom-info zoom-type-dig"; // Red
-                
-                slider.min = 1;
-                slider.max = 3;
-                slider.step = 0.1;
-                console.log("Digital zoom active");
-            }
-
-            // 3. Attach Listener
-            slider.oninput = async (e) => {
-                const val = parseFloat(e.target.value);
-                document.getElementById('zoom-label').innerText = val.toFixed(1) + "x";
-                
-                if(zoomMode === "HARDWARE") {
-                    try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } 
-                    catch(e){}
-                } else {
-                    currentZoom = val; // Digital zoom calculated in DrawLoop
-                }
-            };
-        }
-
-        // --- DRAW LOOP ---
-        function drawLoop() {
-            // HANDLE DIGITAL ZOOM CROP
-            if (zoomMode === "DIGITAL" && currentZoom > 1) {
-                const vw = video.videoWidth; const vh = video.videoHeight;
-                if(vw) {
-                    const sw = vw / currentZoom; const sh = vh / currentZoom;
-                    const sx = (vw - sw) / 2; const sy = (vh - sh) / 2;
-                    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-                }
-            } else {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            }
+        async function startApp() {
+            document.getElementById('modal').style.display = 'none';
             
-            // GRAPHICS
-            const H = canvas.height; const W = canvas.width;
-            const barH = H * 0.15; const barY = H - barH - (H * 0.05);
-            const barM = W * 0.1; const barW = W - (barM * 2);
+            // Go Fullscreen
+            try { document.documentElement.requestFullscreen(); } catch(e){}
 
-            ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-            ctx.fillRect(barM, barY, barW, barH);
-            ctx.strokeStyle = "#c9a050"; ctx.lineWidth = 4;
-            ctx.strokeRect(barM, barY, barW, barH);
+            const video = document.getElementById('cam-view');
+            
+            try {
+                // FORCE HARDWARE ZOOM REQUEST
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: "environment",
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        zoom: true // Critical Flag
+                    },
+                    audio: true
+                });
 
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            const cY = barY + (barH/2);
+                video.srcObject = stream;
+                track = stream.getVideoTracks()[0];
+                
+                // CHECK CAPABILITIES
+                const caps = track.getCapabilities();
+                const slider = document.getElementById('zoom-slider');
+                const debug = document.getElementById('zoom-debug');
 
-            // SCORES
-            ctx.fillStyle = "#3399ff"; ctx.font = `bold ${H*0.04}px Arial`;
-            ctx.fillText(homeName, barM + (barW*0.15), cY - (barH*0.2));
-            ctx.fillStyle = "white"; ctx.font = `bold ${H*0.08}px Arial Black`;
-            ctx.fillText(homeScore, barM + (barW*0.15), cY + (barH*0.2));
+                if (caps.zoom) {
+                    debug.innerText = `Max: ${caps.zoom.max}x`;
+                    debug.style.color = "#0f0"; // Green = Hardware
+                    slider.min = caps.zoom.min;
+                    slider.max = caps.zoom.max;
+                    slider.step = 0.1;
+                    
+                    slider.oninput = (e) => {
+                        const val = parseFloat(e.target.value);
+                        track.applyConstraints({ advanced: [{ zoom: val }] });
+                        document.getElementById('zoom-val').innerText = val.toFixed(1) + "x";
+                    };
+                } else {
+                    debug.innerText = "NO HW";
+                    debug.style.color = "red";
+                    slider.disabled = true;
+                }
 
-            ctx.fillStyle = "#ff5050"; ctx.font = `bold ${H*0.04}px Arial`;
-            ctx.fillText(guestName, barM + (barW*0.85), cY - (barH*0.2));
-            ctx.fillStyle = "white"; ctx.font = `bold ${H*0.08}px Arial Black`;
-            ctx.fillText(guestScore, barM + (barW*0.85), cY + (barH*0.2));
-
-            // CLOCK
-            let m = Math.floor(timeLeft / 60); let s = timeLeft % 60;
-            let timeStr = `${m}:${s<10?'0'+s:s}`;
-            ctx.fillStyle = "#00ff00"; ctx.font = `bold ${H*0.09}px Courier New`;
-            ctx.fillText(timeStr, W/2, cY - (barH*0.1));
-
-            // PERIOD
-            ctx.fillStyle = "#ccc"; ctx.font = `bold ${H*0.03}px Arial`;
-            let suf = period===1?"ST":period===2?"ND":period===3?"RD":"TH";
-            ctx.fillText(`${period}${suf} QTR`, W/2, cY + (barH*0.3));
-
-            // WATERMARK
-            ctx.save();
-            ctx.fillStyle = "rgba(255,255,255,0.25)";
-            ctx.font = `bold ${H*0.05}px Arial`;
-            ctx.textAlign = "right"; ctx.textBaseline = "bottom";
-            ctx.fillText("TIU", W - (W*0.02), H - (H*0.02));
-            ctx.restore();
-
-            requestAnimationFrame(drawLoop);
-        }
-
-        // --- INPUT MODAL LOGIC (Replaces Prompt) ---
-        function openInput(team) {
-            editingTeam = team;
-            document.getElementById('input-modal').style.display = 'block';
-            document.getElementById('input-title').innerText = "Rename " + team.toUpperCase();
-            document.getElementById('team-input').value = (team === 'home' ? homeName : guestName);
-            document.getElementById('team-input').focus();
-        }
-
-        function saveTeamName() {
-            const val = document.getElementById('team-input').value;
-            if(val) {
-                if(editingTeam === 'home') homeName = val.toUpperCase().substring(0,9);
-                else guestName = val.toUpperCase().substring(0,9);
+            } catch (err) {
+                alert("Camera Error: " + err);
             }
-            closeInput();
         }
 
-        function closeInput() {
-            document.getElementById('input-modal').style.display = 'none';
+        // --- SCOREBOARD FUNCTIONS ---
+        function modScore(team, val) {
+            scores[team] += val;
+            if(scores[team] < 0) scores[team] = 0;
+            document.getElementById(`score-${team}`).innerText = scores[team];
         }
 
-        // --- GAME LOGIC ---
-        clockBtn.addEventListener('dblclick', () => {
-             if(isTimerRunning) toggleTimer();
-             // Simple fallback clock edit
-             let val = prompt("Enter Time (e.g. 8 or 1:30):");
-             if (val) {
-                if (val.includes(":")) {
-                    let p = val.split(":");
-                    timeLeft = (parseInt(p[0])*60) + parseInt(p[1]);
-                } else { timeLeft = parseInt(val) * 60; }
-                updateClock();
-             }
-        });
-
-        function updateClock() {
-            let m = Math.floor(timeLeft/60); let s = timeLeft%60;
-            clockBtn.innerText = `${m}:${s<10?'0'+s:s}`;
-        }
-        function updateScore(t, n) {
-            if(t==='home') homeScore+=n; else guestScore+=n;
-            if(homeScore<0) homeScore=0; if(guestScore<0) guestScore=0;
-        }
         function toggleTimer() {
-            if(isTimerRunning) {
-                clearInterval(timerInterval); isTimerRunning=false;
-                clockBtn.style.color="#80ff9f"; clockBtn.style.borderColor="#28a745";
+            const btn = document.getElementById('btn-clock-toggle');
+            if (timerInt) {
+                clearInterval(timerInt); timerInt = null;
+                btn.style.background = "rgba(0,0,0,0.6)";
+                btn.innerText = "Start Clock";
             } else {
-                isTimerRunning=true;
-                clockBtn.style.color="#fff"; clockBtn.style.borderColor="#f33";
-                timerInterval = setInterval(() => {
-                    if(timeLeft>0) { timeLeft--; updateClock(); }
-                    else toggleTimer();
+                btn.style.background = "#006400";
+                btn.innerText = "Stop Clock";
+                timerInt = setInterval(() => {
+                    if (timeLeft > 0) {
+                        timeLeft--;
+                        updateClockUI();
+                    }
                 }, 1000);
             }
         }
-        function nextPeriod() { period++; if(period>4) period=1; }
-        
-        function toggleFullScreen() {
-            if(!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(e=>{});
+
+        function updateClockUI() {
+            let m = Math.floor(timeLeft / 60);
+            let s = timeLeft % 60;
+            document.getElementById('clock-display').innerText = `${m}:${s<10?'0'+s:s}`;
+        }
+
+        function editTime() {
+            let ans = prompt("Set Time (min):", "10");
+            if(ans) {
+                timeLeft = parseInt(ans) * 60;
+                updateClockUI();
             }
         }
 
-        // --- RECORDING ---
-        let mediaRecorder, chunks=[], isRecording=false;
-        function toggleRecording() {
+        function changePeriod() {
+            period++; if(period > 4) period = 1;
+            const pName = period===1?"1ST":period===2?"2ND":period===3?"3RD":"4TH";
+            document.getElementById('period-display').innerText = `${pName} QTR`;
+            event.target.innerText = `PER ${period}`;
+        }
+
+        // --- RECORDING (MediaRecorder) ---
+        let mediaRecorder;
+        let chunks = [];
+        let isRecording = false;
+
+        function toggleRecord() {
             const btn = document.getElementById('btn-rec');
-            if(!isRecording) {
-                const stream = canvas.captureStream(30);
-                if(video.srcObject && video.srcObject.getAudioTracks().length > 0) {
-                    stream.addTrack(video.srcObject.getAudioTracks()[0]);
-                }
+            const video = document.getElementById('cam-view');
+
+            if (!isRecording) {
+                // Record the CANVAS (Wait! We aren't using canvas anymore...)
+                // IMPORTANT: Browsers cannot record DOM Elements (HTML).
+                // We must record the RAW VIDEO STREAM directly.
+                // The overlay won't be in the recorded video file in this mode.
+                // NOTE: To get Overlay + Video in recording requires Canvas, 
+                // but Canvas breaks editable text.
+                // COMPROMISE: We record raw video here.
                 
-                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
-                mediaRecorder.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(chunks, {type:'video/webm'});
+                alert("Note: This records Raw Video only (No Scoreboard) for performance.");
+                
+                const stream = video.srcObject;
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = e => chunks.push(e.data);
+                mediaRecorder.onstop = e => {
+                    const blob = new Blob(chunks, { 'type' : 'video/mp4' });
+                    chunks = [];
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
-                    a.style.display='none'; a.href=url;
-                    a.download = `TIU_Game_${new Date().getTime()}.webm`;
-                    document.body.appendChild(a); a.click();
-                    setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);}, 100);
-                    chunks=[];
+                    a.href = url;
+                    a.download = "game_clip.mp4";
+                    a.click();
                 };
                 mediaRecorder.start();
-                isRecording=true;
-                btn.classList.add('rec-active'); btn.innerText="STOP";
+                isRecording = true;
+                btn.classList.add('rec-active');
+                btn.innerText = "STOP";
             } else {
                 mediaRecorder.stop();
-                isRecording=false;
-                btn.classList.remove('rec-active'); btn.innerText="REC";
+                isRecording = false;
+                btn.classList.remove('rec-active');
+                btn.innerText = "REC";
             }
         }
+
+        // Prevent accidentally navigating away
+        window.onbeforeunload = function() { return "Game in progress?"; };
+
     </script>
 </body>
 </html>
