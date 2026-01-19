@@ -11,6 +11,7 @@
             --accent: #FFE66D; /* Popcorn Yellow */
             --dark: #2C3E50;
             --light: #F7F9FC;
+            --danger: #e74c3c; /* Red for reset */
             --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
@@ -128,18 +129,29 @@
         .user-select {
             padding: 0 20px 20px;
             text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
-        
-        select {
+
+        .user-select label {
+            font-weight: bold;
+        }
+
+        /* Replaced select styling with input styling specific to user name */
+        #currentUser {
+            max-width: 150px;
             padding: 8px;
+            text-align: center;
+            border: 2px solid #ddd;
             border-radius: 8px;
-            border: 1px solid #ccc;
         }
 
         /* List */
         .movie-list {
             list-style: none;
-            padding: 0 20px 40px;
+            padding: 0 20px 20px;
             margin: 0;
             flex-grow: 1;
         }
@@ -203,6 +215,30 @@
             color: var(--dark);
         }
 
+        /* Reset Section */
+        .reset-section {
+            padding: 20px;
+            text-align: center;
+            background: #f8f8f8;
+            border-top: 1px solid #eee;
+        }
+
+        .reset-btn {
+            background: white;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .reset-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+
         /* Modal */
         .modal {
             display: none;
@@ -251,13 +287,7 @@
 
     <div class="user-select">
         <label>Voting as: </label>
-        <select id="currentUser">
-            <option value="Dad">👨 Dad</option>
-            <option value="Mom">👩 Mom</option>
-            <option value="Kid 1">👦 Kid 1</option>
-            <option value="Kid 2">👧 Kid 2</option>
-            <option value="Guest">👽 Guest</option>
-        </select>
+        <input type="text" id="currentUser" value="Dad" placeholder="Type name...">
     </div>
 
     <div class="input-group">
@@ -270,6 +300,10 @@
             <p>No suggestions yet!<br>Be the first to add one.</p>
         </div>
     </ul>
+
+    <div class="reset-section">
+        <button class="reset-btn" onclick="resetList()">🗑️ Reset List</button>
+    </div>
 </div>
 
 <div id="qrModal" class="modal" onclick="toggleQR()">
@@ -322,7 +356,7 @@
 
     function addMovie() {
         const input = document.getElementById('movieInput');
-        const user = document.getElementById('currentUser').value;
+        const user = document.getElementById('currentUser').value.trim() || "Anonymous";
         const title = input.value.trim();
 
         if (title) {
@@ -342,6 +376,13 @@
         const movie = movies.find(m => m.id === id);
         if (movie) {
             movie.votes += change;
+            renderMovies();
+        }
+    }
+
+    function resetList() {
+        if(confirm("Are you sure you want to clear the list?")) {
+            movies = [];
             renderMovies();
         }
     }
