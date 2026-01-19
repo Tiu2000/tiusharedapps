@@ -3,104 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pro Court Cam v11</title>
+    <title>Pro Court Cam v12</title>
     <style>
         /* --- CORE LAYOUT --- */
         body { background: #000; margin: 0; height: 100vh; overflow: hidden; font-family: sans-serif; }
         
-        /* VIDEO LAYER (Background) */
+        /* VIDEO LAYER */
         #cam-view {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             object-fit: cover; z-index: 1;
         }
 
-        /* UI LAYER (Foreground) */
+        /* UI LAYER */
         #ui-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 10; pointer-events: none; /* Let touches pass through to video if needed */
+            z-index: 10; pointer-events: none;
         }
 
         /* --- SCOREBOARD BAR (HTML Based) --- */
         #scoreboard-bar {
             position: absolute;
-            bottom: 15%; /* Lifted up to avoid bottom nav bar */
-            left: 5%; width: 90%; height: 80px;
-            background: rgba(0, 0, 0, 0.8);
+            bottom: 5%; /* Pushed lower (was 15%) */
+            left: 2.5%; width: 95%; height: 85px; /* Wider and slightly taller */
+            background: rgba(0, 0, 0, 0.85);
             border: 2px solid #c9a050;
             display: flex; justify-content: space-between; align-items: center;
             padding: 0 10px; box-sizing: border-box;
-            pointer-events: auto; /* Enable touching buttons */
-            border-radius: 8px;
+            pointer-events: auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
 
         /* TEAMS */
-        .team-box { text-align: center; width: 30%; }
+        .team-box { text-align: center; width: 30%; position: relative; }
         
-        /* EDITABLE NAMES */
         .team-name {
-            color: #3399ff; font-weight: bold; font-size: 1rem;
+            color: #3399ff; font-weight: bold; font-size: 1.1rem;
             text-transform: uppercase; border-bottom: 1px dashed rgba(255,255,255,0.3);
-            display: inline-block; min-width: 50px; cursor: text;
+            display: inline-block; min-width: 60px; cursor: text;
+            margin-bottom: 5px;
         }
         .guest-name { color: #ff5050; }
         
         .team-score {
-            color: white; font-weight: 900; font-size: 2.5rem; line-height: 1;
+            color: white; font-weight: 900; font-size: 2.8rem; line-height: 1;
             font-family: 'Arial Black', sans-serif;
             text-shadow: 2px 2px 0px #000;
         }
 
         /* CLOCK CENTER */
         .clock-box { text-align: center; width: 30%; }
-        .clock-digits { color: #00ff00; font-family: monospace; font-size: 2rem; font-weight: bold; }
-        .period-text { color: #ccc; font-size: 0.8rem; font-weight: bold; }
+        .clock-digits { color: #00ff00; font-family: monospace; font-size: 2.2rem; font-weight: bold; }
+        .period-text { color: #ccc; font-size: 0.9rem; font-weight: bold; margin-top: 2px; }
 
-        /* --- CONTROL BUTTONS (Floating) --- */
-        .controls-overlay {
-            position: absolute; width: 100%; height: 100%; pointer-events: none;
-        }
+        /* --- CONTROL BUTTONS (Moved Higher) --- */
         .btn-float {
-            pointer-events: auto; background: rgba(0,0,0,0.5); 
-            border: 1px solid rgba(255,255,255,0.5); color: white;
-            border-radius: 50%; width: 50px; height: 50px; font-weight: bold;
+            pointer-events: auto; background: rgba(0,0,0,0.6); 
+            border: 2px solid rgba(255,255,255,0.4); color: white;
+            border-radius: 50%; width: 55px; height: 55px; font-weight: bold; font-size: 1.2rem;
             display: flex; align-items: center; justify-content: center;
             position: absolute;
+            transition: transform 0.1s;
         }
-        .btn-float:active { background: white; color: black; }
+        .btn-float:active { background: white; color: black; transform: scale(0.9); }
 
-        /* Position Buttons relative to scoreboard */
-        /* Home Controls */
-        #btn-h-plus { bottom: 26%; left: 10%; } 
-        #btn-h-minus { bottom: 26%; left: 25%; width: 40px; height: 40px; font-size: 0.8rem; opacity: 0.8; }
+        /* HOME BUTTONS (Lifted Up) */
+        #btn-h-plus { bottom: 20%; left: 8%; } 
+        #btn-h-minus { bottom: 20%; left: 22%; width: 45px; height: 45px; font-size: 0.9rem; opacity: 0.8; }
 
-        /* Guest Controls */
-        #btn-g-plus { bottom: 26%; right: 10%; }
-        #btn-g-minus { bottom: 26%; right: 25%; width: 40px; height: 40px; font-size: 0.8rem; opacity: 0.8; }
+        /* GUEST BUTTONS (Lifted Up) */
+        #btn-g-plus { bottom: 20%; right: 8%; }
+        #btn-g-minus { bottom: 20%; right: 22%; width: 45px; height: 45px; font-size: 0.9rem; opacity: 0.8; }
 
         /* Top Controls */
         #top-bar {
             position: absolute; top: 20px; width: 100%; 
-            display: flex; justify-content: center; gap: 20px; pointer-events: auto;
+            display: flex; justify-content: center; gap: 15px; pointer-events: auto;
         }
         .top-btn {
-            background: rgba(0,0,0,0.6); color: white; border: 1px solid #555;
-            padding: 10px 20px; border-radius: 20px; font-weight: bold;
+            background: rgba(0,0,0,0.7); color: white; border: 1px solid #777;
+            padding: 12px 24px; border-radius: 30px; font-weight: bold; font-size: 0.9rem;
         }
-        .rec-active { background: white; color: red; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.5; } }
+        .rec-active { background: #ff3333; color: white; border-color: red; animation: blink 2s infinite; }
+        @keyframes blink { 50% { opacity: 0.7; } }
 
-        /* ZOOM SLIDER (Always visible) */
+        /* ZOOM SLIDER */
         #zoom-wrapper {
-            position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
-            height: 200px; width: 50px; background: rgba(0,0,0,0.5);
-            border-radius: 20px; display: flex; flex-direction: column; align-items: center;
-            pointer-events: auto; padding: 10px 0;
+            position: absolute; right: 20px; top: 45%; transform: translateY(-50%);
+            height: 220px; width: 50px; background: rgba(0,0,0,0.6);
+            border-radius: 25px; display: flex; flex-direction: column; align-items: center;
+            pointer-events: auto; padding: 15px 0; border: 1px solid #555;
         }
         input[type=range][orient=vertical] {
             writing-mode: bt-lr; -webkit-appearance: slider-vertical;
             width: 8px; height: 160px;
         }
-        #zoom-debug { font-size: 0.6rem; text-align: center; margin-bottom: 5px; color: yellow; }
+        #zoom-debug { font-size: 0.6rem; text-align: center; margin-bottom: 8px; color: #ffeb3b; }
+        #zoom-val { font-size:0.9rem; font-weight:bold; margin-top:8px; color: white; }
 
         /* Start Modal */
         #modal {
@@ -108,15 +107,15 @@
             background: #111; display: flex; flex-direction: column; 
             justify-content: center; align-items: center; gap: 20px;
         }
-        .big-btn { padding: 20px 40px; font-size: 1.5rem; background: #007bff; color: white; border: none; border-radius: 10px; }
+        .big-btn { padding: 20px 50px; font-size: 1.5rem; background: #007bff; color: white; border: none; border-radius: 12px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div id="modal">
-        <h2 style="color:white">Camera Setup</h2>
+        <h2 style="color:white; margin-bottom:0;">Pro Court Cam</h2>
+        <p style="color:#777; margin-top:0;">v12 Layout Fix</p>
         <button class="big-btn" onclick="startApp()">Start Camera</button>
-        <p style="color:#777">Accept permissions when asked</p>
     </div>
 
     <video id="cam-view" autoplay playsinline muted></video>
@@ -132,7 +131,7 @@
         <div id="zoom-wrapper">
             <div id="zoom-debug">Loading</div>
             <input type="range" id="zoom-slider" orient="vertical" min="1" max="10" step="0.1" value="1">
-            <div style="font-size:0.8rem; font-weight:bold; margin-top:5px;" id="zoom-val">1.0x</div>
+            <div id="zoom-val">1.0x</div>
         </div>
 
         <button class="btn-float" id="btn-h-plus" onclick="modScore('h', 1)">+1</button>
@@ -170,20 +169,17 @@
 
         async function startApp() {
             document.getElementById('modal').style.display = 'none';
-            
-            // Go Fullscreen
             try { document.documentElement.requestFullscreen(); } catch(e){}
 
             const video = document.getElementById('cam-view');
-            
             try {
-                // FORCE HARDWARE ZOOM REQUEST
+                // HARDWARE ZOOM REQUEST
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                         facingMode: "environment",
                         width: { ideal: 1920 },
                         height: { ideal: 1080 },
-                        zoom: true // Critical Flag
+                        zoom: true 
                     },
                     audio: true
                 });
@@ -191,14 +187,14 @@
                 video.srcObject = stream;
                 track = stream.getVideoTracks()[0];
                 
-                // CHECK CAPABILITIES
+                // CHECK ZOOM CAPS
                 const caps = track.getCapabilities();
                 const slider = document.getElementById('zoom-slider');
                 const debug = document.getElementById('zoom-debug');
 
                 if (caps.zoom) {
                     debug.innerText = `Max: ${caps.zoom.max}x`;
-                    debug.style.color = "#0f0"; // Green = Hardware
+                    debug.style.color = "#0f0";
                     slider.min = caps.zoom.min;
                     slider.max = caps.zoom.max;
                     slider.step = 0.1;
@@ -213,10 +209,7 @@
                     debug.style.color = "red";
                     slider.disabled = true;
                 }
-
-            } catch (err) {
-                alert("Camera Error: " + err);
-            }
+            } catch (err) { alert("Camera Error: " + err); }
         }
 
         // --- SCOREBOARD FUNCTIONS ---
@@ -230,7 +223,7 @@
             const btn = document.getElementById('btn-clock-toggle');
             if (timerInt) {
                 clearInterval(timerInt); timerInt = null;
-                btn.style.background = "rgba(0,0,0,0.6)";
+                btn.style.background = "rgba(0,0,0,0.7)";
                 btn.innerText = "Start Clock";
             } else {
                 btn.style.background = "#006400";
@@ -265,7 +258,7 @@
             event.target.innerText = `PER ${period}`;
         }
 
-        // --- RECORDING (MediaRecorder) ---
+        // --- RECORDING ---
         let mediaRecorder;
         let chunks = [];
         let isRecording = false;
@@ -275,19 +268,8 @@
             const video = document.getElementById('cam-view');
 
             if (!isRecording) {
-                // Record the CANVAS (Wait! We aren't using canvas anymore...)
-                // IMPORTANT: Browsers cannot record DOM Elements (HTML).
-                // We must record the RAW VIDEO STREAM directly.
-                // The overlay won't be in the recorded video file in this mode.
-                // NOTE: To get Overlay + Video in recording requires Canvas, 
-                // but Canvas breaks editable text.
-                // COMPROMISE: We record raw video here.
-                
-                alert("Note: This records Raw Video only (No Scoreboard) for performance.");
-                
                 const stream = video.srcObject;
                 mediaRecorder = new MediaRecorder(stream);
-                
                 mediaRecorder.ondataavailable = e => chunks.push(e.data);
                 mediaRecorder.onstop = e => {
                     const blob = new Blob(chunks, { 'type' : 'video/mp4' });
@@ -310,9 +292,7 @@
             }
         }
 
-        // Prevent accidentally navigating away
         window.onbeforeunload = function() { return "Game in progress?"; };
-
     </script>
 </body>
 </html>
