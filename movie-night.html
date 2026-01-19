@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Movie Night Vote!</title>
+    <style>
+        :root {
+            --primary: #FF6B6B; /* Cinema Red */
+            --secondary: #4ECDC4; /* Friendly Teal */
+            --accent: #FFE66D; /* Popcorn Yellow */
+            --dark: #2C3E50;
+            --light: #F7F9FC;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--light);
+            color: var(--dark);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+
+        header p {
+            margin: 5px 0 0;
+            opacity: 0.9;
+        }
+
+        /* QR Section */
+        .qr-section {
+            background: var(--accent);
+            padding: 15px;
+            text-align: center;
+            margin: 20px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .qr-section:active {
+            transform: scale(0.98);
+        }
+
+        .qr-icon {
+            font-size: 2rem;
+        }
+
+        .qr-text {
+            text-align: left;
+        }
+
+        .qr-text strong {
+            display: block;
+            color: var(--dark);
+        }
+
+        .qr-text small {
+            color: #555;
+        }
+
+        /* Input Section */
+        .input-group {
+            padding: 0 20px;
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--secondary);
+        }
+
+        button.add-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 0 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        /* User Selector */
+        .user-select {
+            padding: 0 20px 20px;
+            text-align: center;
+        }
+        
+        select {
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        /* List */
+        .movie-list {
+            list-style: none;
+            padding: 0 20px 40px;
+            margin: 0;
+            flex-grow: 1;
+        }
+
+        .movie-card {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+
+        .movie-card.top-pick {
+            border: 2px solid var(--accent);
+            background: #fffdf5;
+        }
+
+        .movie-info h3 {
+            margin: 0 0 5px;
+            font-size: 1.1rem;
+        }
+
+        .movie-info .suggested-by {
+            font-size: 0.8rem;
+            color: #888;
+            background: #f0f0f0;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .vote-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            min-width: 50px;
+        }
+
+        .vote-btn {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #ccc;
+            padding: 0;
+            transition: color 0.2s;
+        }
+
+        .vote-btn:hover {
+            color: var(--dark);
+        }
+
+        .vote-count {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--dark);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 90%;
+        }
+        .modal img {
+            max-width: 200px;
+            margin-bottom: 10px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            color: #aaa;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🍿 Movie Night</h1>
+        <p>Vote for tonight's watch!</p>
+    </header>
+
+    <div class="qr-section" onclick="toggleQR()">
+        <div class="qr-icon">📱</div>
+        <div class="qr-text">
+            <strong>Link Family Devices</strong>
+            <small>Tap to show QR Code</small>
+        </div>
+    </div>
+
+    <div class="user-select">
+        <label>Voting as: </label>
+        <select id="currentUser">
+            <option value="Dad">👨 Dad</option>
+            <option value="Mom">👩 Mom</option>
+            <option value="Kid 1">👦 Kid 1</option>
+            <option value="Kid 2">👧 Kid 2</option>
+            <option value="Guest">👽 Guest</option>
+        </select>
+    </div>
+
+    <div class="input-group">
+        <input type="text" id="movieInput" placeholder="Suggest a movie or show..." onkeypress="handleEnter(event)">
+        <button class="add-btn" onclick="addMovie()">+</button>
+    </div>
+
+    <ul class="movie-list" id="movieList">
+        <div class="empty-state">
+            <p>No suggestions yet!<br>Be the first to add one.</p>
+        </div>
+    </ul>
+</div>
+
+<div id="qrModal" class="modal" onclick="toggleQR()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h2>Scan to Join!</h2>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://example.com/family-movie-night" alt="QR Code">
+        <p>Scan this with your phone to vote together.</p>
+        <button style="padding:10px 20px; background:var(--primary); color:white; border:none; border-radius:5px; cursor:pointer;" onclick="toggleQR()">Close</button>
+    </div>
+</div>
+
+<script>
+    // Initial Data
+    let movies = [
+        { id: 1, title: "The Lion King", addedBy: "Kid 1", votes: 3 },
+        { id: 2, title: "Star Wars: A New Hope", addedBy: "Dad", votes: 5 }
+    ];
+
+    function renderMovies() {
+        const list = document.getElementById('movieList');
+        list.innerHTML = "";
+
+        // Sort by votes (highest first)
+        movies.sort((a, b) => b.votes - a.votes);
+
+        if (movies.length === 0) {
+            list.innerHTML = `<div class="empty-state"><p>No suggestions yet!<br>Be the first to add one.</p></div>`;
+            return;
+        }
+
+        movies.forEach((movie, index) => {
+            const isTopPick = index === 0;
+            const li = document.createElement('li');
+            li.className = `movie-card ${isTopPick ? 'top-pick' : ''}`;
+            
+            li.innerHTML = `
+                <div class="movie-info">
+                    <h3>${isTopPick ? '👑 ' : ''}${movie.title}</h3>
+                    <span class="suggested-by">Suggested by ${movie.addedBy}</span>
+                </div>
+                <div class="vote-controls">
+                    <button class="vote-btn" onclick="vote(${movie.id}, 1)">▲</button>
+                    <span class="vote-count">${movie.votes}</span>
+                    <button class="vote-btn" onclick="vote(${movie.id}, -1)">▼</button>
+                </div>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    function addMovie() {
+        const input = document.getElementById('movieInput');
+        const user = document.getElementById('currentUser').value;
+        const title = input.value.trim();
+
+        if (title) {
+            const newMovie = {
+                id: Date.now(),
+                title: title,
+                addedBy: user,
+                votes: 1
+            };
+            movies.push(newMovie);
+            input.value = "";
+            renderMovies();
+        }
+    }
+
+    function vote(id, change) {
+        const movie = movies.find(m => m.id === id);
+        if (movie) {
+            movie.votes += change;
+            renderMovies();
+        }
+    }
+
+    function handleEnter(e) {
+        if (e.key === 'Enter') {
+            addMovie();
+        }
+    }
+
+    function toggleQR() {
+        const modal = document.getElementById('qrModal');
+        modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    // Initial Render
+    renderMovies();
+</script>
+
+</body>
+</html>
