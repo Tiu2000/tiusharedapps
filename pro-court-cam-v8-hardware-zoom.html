@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Pro Court Cam v8 (Hardware Zoom)</title>
+    <title>Pro Court Cam v10</title>
     <style>
         /* --- GLOBAL --- */
-        body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: sans-serif; user-select: none; }
+        body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: sans-serif; user-select: none; -webkit-user-select: none; }
         
         /* --- LAYOUT --- */
         #stage { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
         
         canvas { position: absolute; max-width: 100%; max-height: 100%; aspect-ratio: 16/9; z-index: 1; }
         
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: none; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
         
         /* --- CONTROLS --- */
         .control-group { position: absolute; pointer-events: auto; display: flex; flex-direction: column; gap: 10px; }
@@ -22,20 +22,33 @@
         .group-right { right: 20px; top: 50%; transform: translateY(-50%); }
         .group-top { top: 20px; left: 50%; transform: translateX(-50%); flex-direction: row; align-items: center; }
         
-        /* HARDWARE ZOOM SLIDER */
-        .group-zoom { 
-            right: 100px; top: 50%; transform: translateY(-50%); 
-            height: 200px; width: 40px; display: none; /* Hidden until cam loads */
-            flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.4); border-radius: 20px; padding: 10px 0;
+        /* TEAM NAME BUTTONS */
+        .team-name-btn {
+            background: rgba(0,0,0,0.6); border: 2px solid #555; color: white; 
+            font-weight: bold; font-size: 1.1rem; margin-bottom: 8px; 
+            cursor: pointer; text-transform: uppercase; padding: 5px 10px; border-radius: 8px;
+            pointer-events: auto; /* Force touch detection */
         }
-        /* Vertical Slider Styling */
+        .team-name-btn:active { background: #fff; color: #000; }
+
+        /* ZOOM SLIDER & INDICATOR */
+        .group-zoom { 
+            right: 90px; top: 50%; transform: translateY(-50%); 
+            height: 220px; width: 60px; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.6); border-radius: 20px; padding: 10px 0; border: 1px solid #444;
+            pointer-events: auto; /* Critical for slider */
+        }
         input[type=range][orient=vertical] {
-            writing-mode: bt-lr; /* IE */
-            -webkit-appearance: slider-vertical; /* Webkit */
-            width: 8px; height: 160px; padding: 0 5px;
+            writing-mode: bt-lr; -webkit-appearance: slider-vertical;
+            width: 15px; height: 150px; padding: 0 5px;
         }
 
+        .zoom-info { font-size: 0.8rem; text-align: center; margin-bottom: 5px; font-weight: bold; }
+        .zoom-type-hw { color: #0f0; } /* Green for Hardware */
+        .zoom-type-dig { color: #f33; } /* Red for Digital */
+
+        /* BUTTON STYLES */
         .hud-btn {
             background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.5); color: #fff;
             padding: 15px 20px; border-radius: 50px; font-weight: bold; font-size: 1.2rem;
@@ -46,23 +59,30 @@
         .rec-active { background: #fff; color: #f00; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% {opacity:1} 50% {opacity:0.5} 100% {opacity:1} }
 
-        /* MODAL */
-        #startup-modal { position: fixed; z-index: 100; background: #111; padding: 30px; border: 1px solid #444; border-radius: 10px; text-align: center; top:50%; left:50%; transform:translate(-50%, -50%); width: 80%; max-width: 400px; }
+        /* MODALS */
+        .modal { position: fixed; z-index: 100; background: #111; padding: 20px; border: 1px solid #444; border-radius: 10px; text-align: center; top:50%; left:50%; transform:translate(-50%, -50%); width: 80%; max-width: 400px; display: none; }
         .modal-btn { background: #007bff; color: #fff; border: none; padding: 15px; width: 100%; margin: 5px 0; border-radius: 5px; font-size: 1.1rem; }
         
-        #raw-video { display: none; }
+        /* CUSTOM INPUT MODAL */
+        #input-modal input { width: 90%; padding: 10px; font-size: 1.2rem; margin-bottom: 10px; text-align: center; }
         
-        /* Zoom Label */
-        #zoom-label { font-size: 0.8rem; font-weight: bold; margin-bottom: 5px; text-shadow: 1px 1px 2px black; }
+        #raw-video { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="startup-modal">
+    <div id="startup-modal" class="modal" style="display:block">
         <h2>Pro Court Cam</h2>
-        <p style="color:#aaa">Select Quality</p>
-        <button class="modal-btn" style="background:#28a745" onclick="initCamera(1280, 720)">Start HD (720p)</button>
-        <button class="modal-btn" onclick="initCamera(1920, 1080)">Start Full HD (1080p)</button>
+        <p style="color:#aaa">Select Resolution</p>
+        <button class="modal-btn" style="background:#28a745" onclick="initCamera(1280, 720)">720p (HD)</button>
+        <button class="modal-btn" onclick="initCamera(1920, 1080)">1080p (Full HD)</button>
+    </div>
+
+    <div id="input-modal" class="modal">
+        <h3 id="input-title">Edit Name</h3>
+        <input type="text" id="team-input" maxlength="8">
+        <button class="modal-btn" onclick="saveTeamName()">SAVE</button>
+        <button class="modal-btn" style="background:#555" onclick="closeInput()">CANCEL</button>
     </div>
 
     <div id="stage">
@@ -82,7 +102,8 @@
             </div>
 
             <div class="control-group group-left">
-                <div style="text-align:center; font-weight:bold; color:#007bff; margin-bottom:5px;">HOME</div>
+                <button class="team-name-btn" style="color:#007bff; border-color:#007bff;" onclick="openInput('home')">HOME ✎</button>
+                
                 <button class="hud-btn" style="border-color:#007bff; color:#80bfff;" onclick="updateScore('home', 1)">+1</button>
                 <button class="hud-btn" style="border-color:#007bff; color:#80bfff;" onclick="updateScore('home', 2)">+2</button>
                 <button class="hud-btn" style="border-color:#007bff; color:#80bfff;" onclick="updateScore('home', 3)">+3</button>
@@ -90,16 +111,18 @@
             </div>
 
             <div class="control-group group-right">
-                <div style="text-align:center; font-weight:bold; color:#dc3545; margin-bottom:5px;">GUEST</div>
+                <button class="team-name-btn" style="color:#dc3545; border-color:#dc3545;" onclick="openInput('guest')">GUEST ✎</button>
+                
                 <button class="hud-btn" style="border-color:#dc3545; color:#ff808f;" onclick="updateScore('guest', 1)">+1</button>
                 <button class="hud-btn" style="border-color:#dc3545; color:#ff808f;" onclick="updateScore('guest', 2)">+2</button>
                 <button class="hud-btn" style="border-color:#dc3545; color:#ff808f;" onclick="updateScore('guest', 3)">+3</button>
                 <button class="hud-btn" style="border-color:#dc3545; color:#ff808f; font-size:0.8rem; opacity:0.7;" onclick="updateScore('guest', -1)">-1</button>
             </div>
 
-            <div class="control-group group-zoom" id="zoom-container">
-                <div id="zoom-label">1.0x</div>
-                <input type="range" id="zoom-slider" orient="vertical" min="1" max="10" step="0.1" value="1">
+            <div class="control-group group-zoom">
+                <div id="zoom-type" class="zoom-info zoom-type-dig">DIGITAL</div>
+                <div id="zoom-label" class="zoom-info" style="font-size:1rem; color:white;">1.0x</div>
+                <input type="range" id="zoom-slider" orient="vertical" min="1" max="3" step="0.1" value="1">
             </div>
         </div>
     </div>
@@ -107,10 +130,16 @@
     <video id="raw-video" autoplay muted playsinline></video>
 
     <script>
-        // --- VARIABLES ---
+        // --- STATE ---
+        let homeName = "HOME";
+        let guestName = "GUEST";
         let homeScore = 0, guestScore = 0, timeLeft = 600, period = 1;
         let isTimerRunning = false, timerInterval = null;
+        
         let track = null; 
+        let zoomMode = "DIGITAL"; // Default to Digital
+        let currentZoom = 1.0;
+        let editingTeam = null;
 
         // --- ELEMENTS ---
         const canvas = document.getElementById('gameCanvas');
@@ -119,20 +148,19 @@
         const uiLayer = document.getElementById('ui-layer');
         const clockBtn = document.getElementById('btn-clock');
 
-        // --- CAMERA INIT ---
+        // --- INIT ---
         async function initCamera(w, h) {
             document.getElementById('startup-modal').style.display = 'none';
             toggleFullScreen();
             canvas.width = w; canvas.height = h;
 
             try {
-                // Request Hardware Zoom capability
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         facingMode: "environment", 
                         width: { ideal: w }, 
                         height: { ideal: h },
-                        zoom: true // Ask nicely for zoom
+                        zoom: true 
                     }, 
                     audio: true 
                 });
@@ -141,86 +169,104 @@
                 video.play();
                 
                 track = stream.getVideoTracks()[0];
-                setupHardwareZoom(); // Initialize the zoom slider
+                setupZoom(); // Run zoom detection
 
-                uiLayer.style.display = 'block';
                 drawLoop();
             } catch (err) { alert("Cam Error: " + err.message); }
         }
 
-        // --- HARDWARE ZOOM LOGIC ---
-        function setupHardwareZoom() {
+        // --- ZOOM SYSTEM (Dual Mode) ---
+        function setupZoom() {
             const caps = track.getCapabilities();
             const slider = document.getElementById('zoom-slider');
-            const container = document.getElementById('zoom-container');
-            const label = document.getElementById('zoom-label');
+            const typeLabel = document.getElementById('zoom-type');
 
-            // Check if the camera supports hardware zoom
+            // 1. Try to detect Hardware Zoom
             if (caps.zoom) {
-                container.style.display = 'flex';
-                // Set limits based on what the phone reports (e.g., 1x to 8x)
+                zoomMode = "HARDWARE";
+                typeLabel.innerText = "OPTICAL";
+                typeLabel.className = "zoom-info zoom-type-hw"; // Green
+                
                 slider.min = caps.zoom.min;
                 slider.max = caps.zoom.max;
                 slider.step = caps.zoom.step || 0.1;
-                slider.value = 1;
-
-                slider.oninput = async (e) => {
-                    const zoomLevel = parseFloat(e.target.value);
-                    label.innerText = zoomLevel.toFixed(1) + "x";
-                    try {
-                        await track.applyConstraints({ 
-                            advanced: [{ zoom: zoomLevel }] 
-                        });
-                    } catch (err) { console.log("Zoom failed", err); }
-                };
+                console.log("Hardware zoom active");
             } else {
-                console.log("Hardware zoom not supported by this browser.");
+                // 2. Fallback to Digital
+                zoomMode = "DIGITAL";
+                typeLabel.innerText = "DIGITAL";
+                typeLabel.className = "zoom-info zoom-type-dig"; // Red
+                
+                slider.min = 1;
+                slider.max = 3;
+                slider.step = 0.1;
+                console.log("Digital zoom active");
             }
+
+            // 3. Attach Listener
+            slider.oninput = async (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('zoom-label').innerText = val.toFixed(1) + "x";
+                
+                if(zoomMode === "HARDWARE") {
+                    try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } 
+                    catch(e){}
+                } else {
+                    currentZoom = val; // Digital zoom calculated in DrawLoop
+                }
+            };
         }
 
-        // --- GRAPHICS LOOP ---
+        // --- DRAW LOOP ---
         function drawLoop() {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // HANDLE DIGITAL ZOOM CROP
+            if (zoomMode === "DIGITAL" && currentZoom > 1) {
+                const vw = video.videoWidth; const vh = video.videoHeight;
+                if(vw) {
+                    const sw = vw / currentZoom; const sh = vh / currentZoom;
+                    const sx = (vw - sw) / 2; const sy = (vh - sh) / 2;
+                    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+                }
+            } else {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            }
             
-            // Scoreboard UI
+            // GRAPHICS
             const H = canvas.height; const W = canvas.width;
             const barH = H * 0.15; const barY = H - barH - (H * 0.05);
             const barM = W * 0.1; const barW = W - (barM * 2);
 
-            // Bar Background
             ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
             ctx.fillRect(barM, barY, barW, barH);
             ctx.strokeStyle = "#c9a050"; ctx.lineWidth = 4;
             ctx.strokeRect(barM, barY, barW, barH);
 
-            // Text Setup
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             const cY = barY + (barH/2);
 
-            // Home
+            // SCORES
             ctx.fillStyle = "#3399ff"; ctx.font = `bold ${H*0.04}px Arial`;
-            ctx.fillText("HOME", barM + (barW*0.15), cY - (barH*0.2));
+            ctx.fillText(homeName, barM + (barW*0.15), cY - (barH*0.2));
             ctx.fillStyle = "white"; ctx.font = `bold ${H*0.08}px Arial Black`;
             ctx.fillText(homeScore, barM + (barW*0.15), cY + (barH*0.2));
 
-            // Guest
             ctx.fillStyle = "#ff5050"; ctx.font = `bold ${H*0.04}px Arial`;
-            ctx.fillText("GUEST", barM + (barW*0.85), cY - (barH*0.2));
+            ctx.fillText(guestName, barM + (barW*0.85), cY - (barH*0.2));
             ctx.fillStyle = "white"; ctx.font = `bold ${H*0.08}px Arial Black`;
             ctx.fillText(guestScore, barM + (barW*0.85), cY + (barH*0.2));
 
-            // Clock
+            // CLOCK
             let m = Math.floor(timeLeft / 60); let s = timeLeft % 60;
             let timeStr = `${m}:${s<10?'0'+s:s}`;
             ctx.fillStyle = "#00ff00"; ctx.font = `bold ${H*0.09}px Courier New`;
             ctx.fillText(timeStr, W/2, cY - (barH*0.1));
 
-            // Period
+            // PERIOD
             ctx.fillStyle = "#ccc"; ctx.font = `bold ${H*0.03}px Arial`;
             let suf = period===1?"ST":period===2?"ND":period===3?"RD":"TH";
             ctx.fillText(`${period}${suf} QTR`, W/2, cY + (barH*0.3));
 
-            // Watermark
+            // WATERMARK
             ctx.save();
             ctx.fillStyle = "rgba(255,255,255,0.25)";
             ctx.font = `bold ${H*0.05}px Arial`;
@@ -231,9 +277,32 @@
             requestAnimationFrame(drawLoop);
         }
 
+        // --- INPUT MODAL LOGIC (Replaces Prompt) ---
+        function openInput(team) {
+            editingTeam = team;
+            document.getElementById('input-modal').style.display = 'block';
+            document.getElementById('input-title').innerText = "Rename " + team.toUpperCase();
+            document.getElementById('team-input').value = (team === 'home' ? homeName : guestName);
+            document.getElementById('team-input').focus();
+        }
+
+        function saveTeamName() {
+            const val = document.getElementById('team-input').value;
+            if(val) {
+                if(editingTeam === 'home') homeName = val.toUpperCase().substring(0,9);
+                else guestName = val.toUpperCase().substring(0,9);
+            }
+            closeInput();
+        }
+
+        function closeInput() {
+            document.getElementById('input-modal').style.display = 'none';
+        }
+
         // --- GAME LOGIC ---
         clockBtn.addEventListener('dblclick', () => {
              if(isTimerRunning) toggleTimer();
+             // Simple fallback clock edit
              let val = prompt("Enter Time (e.g. 8 or 1:30):");
              if (val) {
                 if (val.includes(":")) {
@@ -279,7 +348,6 @@
             const btn = document.getElementById('btn-rec');
             if(!isRecording) {
                 const stream = canvas.captureStream(30);
-                // Mix in Mic Audio
                 if(video.srcObject && video.srcObject.getAudioTracks().length > 0) {
                     stream.addTrack(video.srcObject.getAudioTracks()[0]);
                 }
