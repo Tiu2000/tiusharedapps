@@ -4,75 +4,77 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Pro Court Cam v11</title>
+    <title>Pro Court Cam v12</title>
     <style>
         /* --- GLOBAL --- */
-        body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: sans-serif; user-select: none; -webkit-user-select: none; }
+        body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
         
         /* --- LAYOUT --- */
         #stage { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
         
-        canvas { position: absolute; max-width: 100%; max-height: 100%; aspect-ratio: 16/9; z-index: 1; }
+        canvas { position: absolute; max-width: 100%; max-height: 100%; aspect-ratio: 16/9; z-index: 1; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
         
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
         
-        /* --- SYSTEM BUTTONS (ALWAYS VISIBLE) --- */
+        /* --- SYSTEM BUTTONS --- */
         #system-controls { position: absolute; top: 15px; left: 15px; z-index: 999; display: flex; gap: 10px; }
+        #reset-controls { position: absolute; top: 15px; right: 15px; z-index: 999; }
+
         .sys-btn { 
             background: rgba(0,0,0,0.6); border: 1px solid #777; color: #fff; 
-            width: 50px; height: 50px; border-radius: 8px; font-size: 1.5rem; 
+            width: 45px; height: 45px; border-radius: 8px; font-size: 1.2rem; 
             display: flex; align-items: center; justify-content: center; cursor: pointer;
+            backdrop-filter: blur(4px);
         }
         .sys-btn:active { background: #fff; color: #000; }
+        .btn-danger { border-color: #f33; color: #f33; }
 
-        /* --- GAME CONTROLS --- */
-        .control-group { position: absolute; pointer-events: auto; display: flex; flex-direction: column; gap: 10px; }
-        .group-left { left: 20px; top: 50%; transform: translateY(-50%); }
-        .group-right { right: 20px; top: 50%; transform: translateY(-50%); }
+        /* --- CONTROLS --- */
+        .control-group { position: absolute; pointer-events: auto; display: flex; flex-direction: column; gap: 8px; }
+        .group-left { left: 20px; top: 55%; transform: translateY(-50%); }
+        .group-right { right: 20px; top: 55%; transform: translateY(-50%); }
         .group-top { top: 20px; left: 50%; transform: translateX(-50%); flex-direction: row; align-items: center; }
         
-        /* TEAM NAME BUTTONS */
+        /* EDITABLE NAMES */
         .team-name-btn {
-            background: rgba(0,0,0,0.6); border: 2px solid #555; color: white; 
-            font-weight: bold; font-size: 1.1rem; margin-bottom: 8px; 
-            cursor: pointer; text-transform: uppercase; padding: 5px 10px; border-radius: 8px;
-            pointer-events: auto;
+            background: rgba(0,0,0,0.8); border: 1px solid #555; color: white; 
+            font-weight: 700; font-size: 1rem; margin-bottom: 10px; 
+            cursor: pointer; text-transform: uppercase; padding: 8px 12px; border-radius: 6px;
+            pointer-events: auto; letter-spacing: 1px;
         }
-        .team-name-btn:active { background: #fff; color: #000; }
 
-        /* ZOOM SLIDER & INDICATOR */
+        /* ZOOM SLIDER */
         .group-zoom { 
-            right: 90px; top: 50%; transform: translateY(-50%); 
-            height: 220px; width: 60px; display: flex;
+            right: 100px; top: 55%; transform: translateY(-50%); 
+            height: 200px; width: 50px; display: flex;
             flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.6); border-radius: 20px; padding: 10px 0; border: 1px solid #444;
-            pointer-events: auto;
+            background: rgba(0,0,0,0.6); border-radius: 25px; padding: 10px 0; border: 1px solid #444;
+            pointer-events: auto; backdrop-filter: blur(5px);
         }
         input[type=range][orient=vertical] {
             writing-mode: bt-lr; -webkit-appearance: slider-vertical;
-            width: 15px; height: 150px; padding: 0 5px;
+            width: 10px; height: 140px; margin: 10px 0;
         }
-
-        .zoom-info { font-size: 0.8rem; text-align: center; margin-bottom: 5px; font-weight: bold; }
-        .zoom-type-hw { color: #0f0; } /* Green */
-        .zoom-type-dig { color: #f33; } /* Red */
+        .zoom-info { font-size: 0.7rem; font-weight: 700; text-align: center; }
+        .zoom-type-hw { color: #0f0; } 
+        .zoom-type-dig { color: #f33; } 
 
         /* HUD BUTTONS */
         .hud-btn {
-            background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.5); color: #fff;
-            padding: 15px 20px; border-radius: 50px; font-weight: bold; font-size: 1.2rem;
-            min-width: 80px; text-align: center;
+            background: rgba(20,20,20,0.7); border: 1px solid rgba(255,255,255,0.3); color: #fff;
+            padding: 12px 0; border-radius: 8px; font-weight: bold; font-size: 1.1rem;
+            width: 70px; text-align: center;
         }
-        .hud-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.3); }
-        .btn-rec { background: #c00; border-color: #fff; width: 60px; height: 60px; border-radius: 50%; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; }
+        .hud-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.2); }
+        .btn-rec { background: #d00; border: 2px solid #fff; width: 55px; height: 55px; border-radius: 50%; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px #d00; }
         .rec-active { background: #fff; color: #f00; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% {opacity:1} 50% {opacity:0.5} 100% {opacity:1} }
 
         /* MODALS */
-        .modal { position: fixed; z-index: 100; background: #111; padding: 20px; border: 1px solid #444; border-radius: 10px; text-align: center; top:50%; left:50%; transform:translate(-50%, -50%); width: 80%; max-width: 400px; display: none; }
-        .modal-btn { background: #007bff; color: #fff; border: none; padding: 15px; width: 100%; margin: 5px 0; border-radius: 5px; font-size: 1.1rem; }
-        
-        #input-modal input { width: 90%; padding: 10px; font-size: 1.2rem; margin-bottom: 10px; text-align: center; }
+        .modal { position: fixed; z-index: 100; background: #1a1a1a; padding: 25px; border: 1px solid #333; border-radius: 12px; text-align: center; top:50%; left:50%; transform:translate(-50%, -50%); width: 85%; max-width: 350px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .modal h3 { margin-top: 0; color: #eee; }
+        .modal-btn { background: #007bff; color: #fff; border: none; padding: 12px; width: 100%; margin: 8px 0; border-radius: 6px; font-size: 1rem; font-weight: 600; }
+        #input-modal input { width: 90%; padding: 12px; font-size: 1.1rem; margin-bottom: 15px; text-align: center; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; }
         
         #raw-video { display: none; }
     </style>
@@ -83,19 +85,22 @@
         <button class="sys-btn" onclick="toggleFullScreen()">⛶</button>
         <button class="sys-btn" onclick="location.reload()">↻</button>
     </div>
+    <div id="reset-controls">
+        <button class="sys-btn btn-danger" onclick="resetGameData()">✕</button>
+    </div>
 
     <div id="startup-modal" class="modal" style="display:block">
-        <h2>Pro Court Cam v11</h2>
-        <p style="color:#aaa">Select Resolution</p>
+        <h3>Pro Court Cam</h3>
+        <p style="color:#888; font-size:0.9rem; margin-bottom:20px;">v12 • Professional Edition</p>
         <button class="modal-btn" style="background:#28a745" onclick="initCamera(1280, 720)">720p (HD)</button>
         <button class="modal-btn" onclick="initCamera(1920, 1080)">1080p (Full HD)</button>
     </div>
 
     <div id="input-modal" class="modal">
         <h3 id="input-title">Edit Name</h3>
-        <input type="text" id="team-input" maxlength="8">
+        <input type="text" id="team-input" maxlength="10">
         <button class="modal-btn" onclick="saveTeamName()">SAVE</button>
-        <button class="modal-btn" style="background:#555" onclick="closeInput()">CANCEL</button>
+        <button class="modal-btn" style="background:#444" onclick="closeInput()">CANCEL</button>
     </div>
 
     <div id="stage">
@@ -104,32 +109,32 @@
         <div id="ui-layer">
             
             <div class="control-group group-top">
-                <button class="hud-btn" style="border-color:#28a745; color:#80ff9f; font-family:monospace; font-size:1.5rem;" id="btn-clock" onclick="toggleTimer()">10:00</button>
-                <div style="width:20px"></div>
+                <button class="hud-btn" style="width:100px; border-color:#28a745; color:#80ff9f; font-family:monospace; font-size:1.4rem;" id="btn-clock" onclick="toggleTimer()">10:00</button>
+                <div style="width:15px"></div>
                 <button class="hud-btn btn-rec" id="btn-rec" onclick="toggleRecording()">REC</button>
-                <div style="width:20px"></div>
-                <button class="hud-btn" style="font-size:0.9rem;" onclick="nextPeriod()">PER 1</button>
+                <div style="width:15px"></div>
+                <button class="hud-btn" style="font-size:0.8rem;" onclick="nextPeriod()">PER 1</button>
             </div>
 
             <div class="control-group group-left">
-                <button class="team-name-btn" style="color:#007bff; border-color:#007bff;" onclick="openInput('home')">HOME ✎</button>
-                <button class="hud-btn" style="border-color:#007bff; color:#80bfff;" onclick="updateScore('home', 1)">+1</button>
-                <button class="hud-btn" style="border-color:#007bff; color:#80bfff;" onclick="updateScore('home', 2)">+2</button>
-                <button class="hud-btn" style="border-color:#007bff; color:#80bfff;" onclick="updateScore('home', 3)">+3</button>
-                <button class="hud-btn" style="border-color:#007bff; color:#80bfff; font-size:0.8rem; opacity:0.7;" onclick="updateScore('home', -1)">-1</button>
+                <button class="team-name-btn" style="border-left: 4px solid #007bff;" onclick="openInput('home')">HOME ✎</button>
+                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 1)">+1</button>
+                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 2)">+2</button>
+                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 3)">+3</button>
+                <button class="hud-btn" style="color:#80bfff; font-size:0.8rem; opacity:0.6;" onclick="updateScore('home', -1)">-1</button>
             </div>
 
             <div class="control-group group-right">
-                <button class="team-name-btn" style="color:#dc3545; border-color:#dc3545;" onclick="openInput('guest')">GUEST ✎</button>
-                <button class="hud-btn" style="border-color:#dc3545; color:#ff808f;" onclick="updateScore('guest', 1)">+1</button>
-                <button class="hud-btn" style="border-color:#dc3545; color:#ff808f;" onclick="updateScore('guest', 2)">+2</button>
-                <button class="hud-btn" style="border-color:#dc3545; color:#ff808f;" onclick="updateScore('guest', 3)">+3</button>
-                <button class="hud-btn" style="border-color:#dc3545; color:#ff808f; font-size:0.8rem; opacity:0.7;" onclick="updateScore('guest', -1)">-1</button>
+                <button class="team-name-btn" style="border-left: 4px solid #dc3545;" onclick="openInput('guest')">GUEST ✎</button>
+                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 1)">+1</button>
+                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 2)">+2</button>
+                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 3)">+3</button>
+                <button class="hud-btn" style="color:#ff808f; font-size:0.8rem; opacity:0.6;" onclick="updateScore('guest', -1)">-1</button>
             </div>
 
             <div class="control-group group-zoom">
-                <div id="zoom-type" class="zoom-info zoom-type-dig">DIGITAL</div>
-                <div id="zoom-label" class="zoom-info" style="font-size:1rem; color:white;">1.0x</div>
+                <div id="zoom-type" class="zoom-info zoom-type-dig">DIG</div>
+                <div id="zoom-label" class="zoom-info" style="font-size:0.9rem; color:white; margin-top:2px;">1.0x</div>
                 <input type="range" id="zoom-slider" orient="vertical" min="1" max="3" step="0.1" value="1">
             </div>
         </div>
@@ -138,9 +143,36 @@
     <video id="raw-video" autoplay muted playsinline></video>
 
     <script>
-        // --- DATA ---
-        let homeName = "HOME", guestName = "GUEST";
-        let homeScore = 0, guestScore = 0, timeLeft = 600, period = 1;
+        // --- DATA WITH PERSISTENCE ---
+        const STORAGE_KEY = 'court_cam_v12_data';
+        let gameData = {
+            homeName: "HOME",
+            guestName: "GUEST",
+            homeScore: 0,
+            guestScore: 0,
+            timeLeft: 600,
+            period: 1
+        };
+
+        // Load saved data
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if(saved) {
+            try { gameData = JSON.parse(saved); } catch(e) { console.log('Save Error'); }
+        }
+
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData));
+        }
+
+        function resetGameData() {
+            if(confirm("Reset entire game?")) {
+                gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 };
+                saveData();
+                updateClockUI();
+            }
+        }
+
+        // --- STATE ---
         let isTimerRunning = false, timerInterval = null;
         let track = null; 
         let zoomMode = "DIGITAL"; 
@@ -154,10 +186,13 @@
         const uiLayer = document.getElementById('ui-layer');
         const clockBtn = document.getElementById('btn-clock');
 
-        // --- CAMERA START ---
+        // Apply saved time to UI immediately
+        updateClockUI();
+
+        // --- INIT ---
         async function initCamera(w, h) {
             document.getElementById('startup-modal').style.display = 'none';
-            toggleFullScreen(); // Force fullscreen on start
+            toggleFullScreen();
             canvas.width = w; canvas.height = h;
 
             try {
@@ -173,14 +208,13 @@
                 
                 video.srcObject = stream;
                 video.play();
-                
                 track = stream.getVideoTracks()[0];
-                setupZoom(); // Check hardware zoom
-                drawLoop(); // Start graphics
-            } catch (err) { alert("Camera Error: " + err.message); }
+                setupZoom();
+                drawLoop();
+            } catch (err) { alert("Cam Error: " + err.message); }
         }
 
-        // --- ZOOM LOGIC ---
+        // --- ZOOM ---
         function setupZoom() {
             const caps = track.getCapabilities();
             const slider = document.getElementById('zoom-slider');
@@ -215,9 +249,9 @@
             };
         }
 
-        // --- DRAW LOOP ---
+        // --- PROFESSIONAL DRAW LOOP ---
         function drawLoop() {
-            // Video & Digital Zoom Processing
+            // 1. Draw Video
             if (zoomMode === "DIGITAL" && currentZoom > 1) {
                 const vw = video.videoWidth; const vh = video.videoHeight;
                 if(vw) {
@@ -229,90 +263,152 @@
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             }
             
-            // Scoreboard Background
+            // 2. Scoreboard Metrics
             const H = canvas.height; const W = canvas.width;
-            const barH = H * 0.15; const barY = H - barH - (H * 0.05);
-            const barM = W * 0.1; const barW = W - (barM * 2);
+            
+            // Responsive sizing
+            const sbHeight = H * 0.14; 
+            const sbWidth = W * 0.7; // Wider, centered bar
+            const sbX = (W - sbWidth) / 2;
+            const sbY = H - sbHeight - (H * 0.04);
 
-            ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-            ctx.fillRect(barM, barY, barW, barH);
-            ctx.strokeStyle = "#c9a050"; ctx.lineWidth = 4;
-            ctx.strokeRect(barM, barY, barW, barH);
+            // 3. Draw Main Bar (Gradient Background)
+            const grad = ctx.createLinearGradient(sbX, sbY, sbX, sbY + sbHeight);
+            grad.addColorStop(0, "rgba(20, 20, 20, 0.9)");
+            grad.addColorStop(1, "rgba(0, 0, 0, 0.95)");
+            
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.roundRect(sbX, sbY, sbWidth, sbHeight, 10);
+            ctx.fill();
 
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            const cY = barY + (barH/2);
+            // 4. Gold Trim Border
+            ctx.strokeStyle = "#c9a050"; 
+            ctx.lineWidth = 2;
+            ctx.stroke();
 
-            // Scores & Names
-            ctx.fillStyle = "#3399ff"; ctx.font = `bold ${H*0.04}px Arial`;
-            ctx.fillText(homeName, barM + (barW*0.15), cY - (barH*0.2));
-            ctx.fillStyle = "white"; ctx.font = `bold ${H*0.08}px Arial Black`;
-            ctx.fillText(homeScore, barM + (barW*0.15), cY + (barH*0.2));
+            // 5. Layout Columns
+            // We split the bar into: [ HOME (35%) | CLOCK (30%) | GUEST (35%) ]
+            const colW = sbWidth / 3;
+            const cY = sbY + (sbHeight/2);
+            
+            // --- HOME SECTION ---
+            // Score Box Background
+            ctx.fillStyle = "#0056b3"; // Darker Blue
+            ctx.beginPath();
+            ctx.roundRect(sbX + 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5);
+            ctx.fill();
 
-            ctx.fillStyle = "#ff5050"; ctx.font = `bold ${H*0.04}px Arial`;
-            ctx.fillText(guestName, barM + (barW*0.85), cY - (barH*0.2));
-            ctx.fillStyle = "white"; ctx.font = `bold ${H*0.08}px Arial Black`;
-            ctx.fillText(guestScore, barM + (barW*0.85), cY + (barH*0.2));
+            // Name
+            ctx.fillStyle = "#fff";
+            ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`;
+            ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            ctx.fillText(gameData.homeName, sbX + (colW * 0.5), cY);
 
-            // Clock & Period
-            let m = Math.floor(timeLeft / 60); let s = timeLeft % 60;
+            // Score
+            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`;
+            ctx.textAlign = "center";
+            ctx.fillText(gameData.homeScore, sbX + 10 + (colW * 0.2), cY + 3);
+
+            // --- GUEST SECTION ---
+            const gStart = sbX + (colW * 2);
+            
+            // Score Box Background
+            ctx.fillStyle = "#b30000"; // Darker Red
+            ctx.beginPath();
+            ctx.roundRect(gStart + (colW * 0.6) - 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5);
+            ctx.fill();
+
+            // Name
+            ctx.fillStyle = "#fff";
+            ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`;
+            ctx.textAlign = "right"; 
+            ctx.fillText(gameData.guestName, gStart + (colW * 0.5), cY);
+
+            // Score
+            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`;
+            ctx.textAlign = "center";
+            ctx.fillText(gameData.guestScore, gStart + (colW * 0.6) + (colW*0.2) - 10, cY + 3);
+
+            // --- CENTER CLOCK SECTION ---
+            const cStart = sbX + colW;
+            
+            // Vertical Dividers
+            ctx.fillStyle = "rgba(255,255,255,0.2)";
+            ctx.fillRect(cStart, sbY + 15, 2, sbHeight - 30);
+            ctx.fillRect(gStart, sbY + 15, 2, sbHeight - 30);
+
+            // Time
+            let m = Math.floor(gameData.timeLeft / 60); let s = gameData.timeLeft % 60;
             let timeStr = `${m}:${s<10?'0'+s:s}`;
-            ctx.fillStyle = "#00ff00"; ctx.font = `bold ${H*0.09}px Courier New`;
-            ctx.fillText(timeStr, W/2, cY - (barH*0.1));
+            
+            // Color changes if timer stopped
+            ctx.fillStyle = isTimerRunning ? "#0f0" : "#ccc"; 
+            ctx.font = `bold ${H*0.065}px 'Courier New', monospace`;
+            ctx.textAlign = "center";
+            ctx.fillText(timeStr, cStart + (colW/2), cY - (sbHeight * 0.15));
 
-            ctx.fillStyle = "#ccc"; ctx.font = `bold ${H*0.03}px Arial`;
-            let suf = period===1?"ST":period===2?"ND":period===3?"RD":"TH";
-            ctx.fillText(`${period}${suf} QTR`, W/2, cY + (barH*0.3));
+            // Period
+            ctx.fillStyle = "#aaa";
+            ctx.font = `bold ${H*0.025}px sans-serif`;
+            let suf = gameData.period===1?"ST":gameData.period===2?"ND":gameData.period===3?"RD":"TH";
+            ctx.fillText(`${gameData.period}${suf} QTR`, cStart + (colW/2), cY + (sbHeight * 0.25));
 
-            // Watermark
+            // 6. Watermark
             ctx.save();
-            ctx.fillStyle = "rgba(255,255,255,0.25)";
-            ctx.font = `bold ${H*0.05}px Arial`;
-            ctx.textAlign = "right"; ctx.textBaseline = "bottom";
-            ctx.fillText("TIU", W - (W*0.02), H - (H*0.02));
+            ctx.fillStyle = "rgba(255,255,255,0.3)";
+            ctx.font = `bold ${H*0.04}px sans-serif`;
+            ctx.textAlign = "right"; ctx.textBaseline = "top";
+            ctx.fillText("TIU LIVE", W - 20, 20);
             ctx.restore();
 
             requestAnimationFrame(drawLoop);
         }
 
-        // --- NAME EDITING ---
+        // --- LOGIC ---
         function openInput(team) {
             editingTeam = team;
             document.getElementById('input-modal').style.display = 'block';
             document.getElementById('input-title').innerText = "Rename " + team.toUpperCase();
-            document.getElementById('team-input').value = (team === 'home' ? homeName : guestName);
+            document.getElementById('team-input').value = (team === 'home' ? gameData.homeName : gameData.guestName);
             document.getElementById('team-input').focus();
         }
         function saveTeamName() {
             const val = document.getElementById('team-input').value;
             if(val) {
-                if(editingTeam === 'home') homeName = val.toUpperCase().substring(0,9);
-                else guestName = val.toUpperCase().substring(0,9);
+                if(editingTeam === 'home') gameData.homeName = val.toUpperCase();
+                else gameData.guestName = val.toUpperCase();
+                saveData();
             }
             closeInput();
         }
         function closeInput() { document.getElementById('input-modal').style.display = 'none'; }
 
-        // --- CONTROLS ---
         clockBtn.addEventListener('dblclick', () => {
              if(isTimerRunning) toggleTimer();
              let val = prompt("Enter Time (e.g. 8 or 1:30):");
              if (val) {
                 if (val.includes(":")) {
                     let p = val.split(":");
-                    timeLeft = (parseInt(p[0])*60) + parseInt(p[1]);
-                } else { timeLeft = parseInt(val) * 60; }
-                updateClock();
+                    gameData.timeLeft = (parseInt(p[0])*60) + parseInt(p[1]);
+                } else { gameData.timeLeft = parseInt(val) * 60; }
+                updateClockUI();
+                saveData();
              }
         });
 
-        function updateClock() {
-            let m = Math.floor(timeLeft/60); let s = timeLeft%60;
+        function updateClockUI() {
+            let m = Math.floor(gameData.timeLeft/60); let s = gameData.timeLeft%60;
             clockBtn.innerText = `${m}:${s<10?'0'+s:s}`;
         }
+
         function updateScore(t, n) {
-            if(t==='home') homeScore+=n; else guestScore+=n;
-            if(homeScore<0) homeScore=0; if(guestScore<0) guestScore=0;
+            if(t==='home') gameData.homeScore+=n; else gameData.guestScore+=n;
+            if(gameData.homeScore<0) gameData.homeScore=0; 
+            if(gameData.guestScore<0) gameData.guestScore=0;
+            saveData();
         }
+
         function toggleTimer() {
             if(isTimerRunning) {
                 clearInterval(timerInterval); isTimerRunning=false;
@@ -321,22 +417,30 @@
                 isTimerRunning=true;
                 clockBtn.style.color="#fff"; clockBtn.style.borderColor="#f33";
                 timerInterval = setInterval(() => {
-                    if(timeLeft>0) { timeLeft--; updateClock(); }
+                    if(gameData.timeLeft>0) { 
+                        gameData.timeLeft--; 
+                        updateClockUI(); 
+                        if(gameData.timeLeft % 5 === 0) saveData(); // Auto-save every 5s while running
+                    }
                     else toggleTimer();
                 }, 1000);
             }
         }
-        function nextPeriod() { period++; if(period>4) period=1; }
+
+        function nextPeriod() { 
+            gameData.period++; 
+            if(gameData.period>4) gameData.period=1; 
+            saveData();
+        }
         
         function toggleFullScreen() {
             if(!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(e=>{ console.log(e); });
+                document.documentElement.requestFullscreen().catch(e=>{});
             } else {
                 document.exitFullscreen().catch(e=>{});
             }
         }
 
-        // --- RECORDING ---
         let mediaRecorder, chunks=[], isRecording=false;
         function toggleRecording() {
             const btn = document.getElementById('btn-rec');
@@ -353,7 +457,7 @@
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.style.display='none'; a.href=url;
-                    a.download = `TIU_Game_${new Date().getTime()}.webm`;
+                    a.download = `Game_${new Date().getTime()}.webm`;
                     document.body.appendChild(a); a.click();
                     setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);}, 100);
                     chunks=[];
