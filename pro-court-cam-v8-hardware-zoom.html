@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Pro Court Cam v14</title>
+    <title>Pro Court Cam v15</title>
     <style>
         /* --- GLOBAL --- */
         body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
@@ -24,7 +24,7 @@
             background: rgba(0,0,0,0.6); border: 1px solid #777; color: #fff; 
             width: 45px; height: 45px; border-radius: 8px; font-size: 1.2rem; 
             display: flex; align-items: center; justify-content: center; cursor: pointer;
-            backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px); pointer-events: auto;
         }
         .sys-btn:active { background: #fff; color: #000; }
         .btn-danger { border-color: #f33; color: #f33; }
@@ -33,6 +33,8 @@
         .control-group { position: absolute; pointer-events: auto; display: flex; flex-direction: column; gap: 8px; }
         .group-left { left: 20px; top: 55%; transform: translateY(-50%); }
         .group-right { right: 20px; top: 55%; transform: translateY(-50%); }
+        
+        /* Top Group needs to move based on UI position, handled in JS/CSS logic generally, but fixed for now */
         .group-top { top: 20px; left: 50%; transform: translateX(-50%); flex-direction: row; align-items: center; }
         
         /* EDITABLE NAMES */
@@ -70,6 +72,12 @@
         .rec-active { background: #fff; color: #f00; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% {opacity:1} 50% {opacity:0.5} 100% {opacity:1} }
 
+        /* AUDIO METER */
+        #audio-meter {
+            width: 10px; height: 50px; background: #333; border: 1px solid #555; border-radius: 5px; overflow: hidden; position: relative; display: flex; align-items: flex-end;
+        }
+        #audio-level { width: 100%; height: 0%; background: #0f0; transition: height 0.1s; }
+
         /* MODALS */
         .modal { position: fixed; z-index: 100; background: #1a1a1a; padding: 25px; border: 1px solid #333; border-radius: 12px; text-align: center; top:50%; left:50%; transform:translate(-50%, -50%); width: 85%; max-width: 350px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .modal h3 { margin-top: 0; color: #eee; }
@@ -77,7 +85,6 @@
         #input-modal input { width: 90%; padding: 12px; font-size: 1.1rem; margin-bottom: 15px; text-align: center; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; }
         
         #raw-video { display: none; }
-        
         .warning-text { color:#ffcc00; font-size: 0.8rem; margin: 10px 0; background: rgba(255,200,0,0.1); padding: 5px; border-radius: 4px; }
     </style>
 </head>
@@ -86,6 +93,7 @@
     <div id="system-controls">
         <button class="sys-btn" onclick="toggleFullScreen()">⛶</button>
         <button class="sys-btn" onclick="location.reload()">↻</button>
+        <button class="sys-btn" onclick="toggleScoreboardPos()">⬍</button>
     </div>
     <div id="reset-controls">
         <button class="sys-btn btn-danger" onclick="resetGameData()">✕</button>
@@ -93,10 +101,10 @@
 
     <div id="startup-modal" class="modal" style="display:block">
         <h3>Pro Court Cam</h3>
-        <p style="color:#888; font-size:0.9rem; margin-bottom:10px;">v14 • Resilient Edition</p>
+        <p style="color:#888; font-size:0.9rem; margin-bottom:10px;">v15 • Audio + Flash</p>
         
         <div class="warning-text">
-            ⚠️ <b>Tip:</b> Enable "Do Not Disturb" or "Airplane Mode" to prevent calls from stopping the recording.
+            ⚠️ <b>Tip:</b> Enable "Do Not Disturb" to prevent call interruptions.
         </div>
 
         <button class="modal-btn" style="background:#28a745" onclick="initCamera(1280, 720)">720p (HD)</button>
@@ -115,9 +123,13 @@
 
         <div id="ui-layer">
             
-            <div class="control-group group-top">
+            <div class="control-group group-top" id="top-bar">
                 <button class="hud-btn" style="width:100px; border-color:#28a745; color:#80ff9f; font-family:monospace; font-size:1.4rem;" id="btn-clock" onclick="toggleTimer()">10:00</button>
-                <div style="width:15px"></div>
+                <div style="width:10px"></div>
+                
+                <div id="audio-meter"><div id="audio-level"></div></div>
+
+                <div style="width:10px"></div>
                 <button class="hud-btn btn-rec" id="btn-rec" onclick="toggleRecording()">REC</button>
                 <div style="width:15px"></div>
                 <button class="hud-btn" style="font-size:0.8rem;" onclick="nextPeriod()">PER 1</button>
@@ -150,31 +162,22 @@
     <video id="raw-video" autoplay muted playsinline></video>
 
     <script>
-        // --- WAKE LOCK (PREVENT SLEEP) ---
+        // --- WAKE LOCK ---
         let wakeLock = null;
         async function requestWakeLock() {
-            try {
-                wakeLock = await navigator.wakeLock.request('screen');
-                console.log('Screen Wake Lock active');
-                wakeLock.addEventListener('release', () => { console.log('Wake Lock released'); });
-            } catch (err) { console.error(`${err.name}, ${err.message}`); }
+            try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
         }
-
-        // --- AUTO RESUME LOGIC ---
         document.addEventListener("visibilitychange", async () => {
             if (document.visibilityState === 'visible') {
-                // If user returns from a call/interruption
                 requestWakeLock();
-                if(video.paused) {
-                    try { await video.play(); console.log("Auto-resume video"); } 
-                    catch(e) { console.log("Resume failed", e); }
-                }
+                if(video.paused) try { await video.play(); } catch(e){}
             }
         });
 
         // --- DATA PERSISTENCE ---
-        const STORAGE_KEY = 'court_cam_v14_data';
+        const STORAGE_KEY = 'court_cam_v15_data';
         let gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 };
+        let scoreboardPos = "BOTTOM"; // Default
 
         const saved = localStorage.getItem(STORAGE_KEY);
         if(saved) { try { gameData = JSON.parse(saved); } catch(e) {} }
@@ -195,11 +198,20 @@
         let zoomMode = "DIGITAL"; 
         let currentZoom = 1.0;
         let editingTeam = null;
+        
+        // Flash Effects
+        let homeFlash = 0; // >0 means flashing
+        let guestFlash = 0;
+
+        // Audio Context
+        let audioContext, analyser, microphone, javascriptNode;
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('raw-video');
         const clockBtn = document.getElementById('btn-clock');
+        const audioLevelBar = document.getElementById('audio-level');
+        const topBar = document.getElementById('top-bar');
 
         updateClockUI();
 
@@ -207,7 +219,7 @@
         async function initCamera(w, h) {
             document.getElementById('startup-modal').style.display = 'none';
             toggleFullScreen();
-            requestWakeLock(); // Enable Wake Lock
+            requestWakeLock();
             
             canvas.width = w; canvas.height = h;
 
@@ -220,9 +232,41 @@
                 video.srcObject = stream;
                 video.play();
                 track = stream.getVideoTracks()[0];
+                
+                setupAudio(stream); // Init Audio Meter
                 setupZoom();
                 drawLoop();
             } catch (err) { alert("Cam Error: " + err.message); }
+        }
+
+        // --- AUDIO METER SETUP ---
+        function setupAudio(stream) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            microphone = audioContext.createMediaStreamSource(stream);
+            javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+
+            analyser.smoothingTimeConstant = 0.8;
+            analyser.fftSize = 1024;
+
+            microphone.connect(analyser);
+            analyser.connect(javascriptNode);
+            javascriptNode.connect(audioContext.destination);
+
+            javascriptNode.onaudioprocess = function() {
+                var array = new Uint8Array(analyser.frequencyBinCount);
+                analyser.getByteFrequencyData(array);
+                var values = 0;
+                var length = array.length;
+                for (var i = 0; i < length; i++) { values += array[i]; }
+                var average = values / length;
+                
+                // Update UI bar
+                let pct = Math.min(100, average * 2); // Amplify slightly for visibility
+                audioLevelBar.style.height = pct + "%";
+                if(pct > 80) audioLevelBar.style.background = "#f00"; // Clip red
+                else audioLevelBar.style.background = "#0f0";
+            }
         }
 
         // --- ZOOM ---
@@ -256,9 +300,21 @@
             };
         }
 
+        // --- MOVE UI ---
+        function toggleScoreboardPos() {
+            scoreboardPos = (scoreboardPos === "BOTTOM") ? "TOP" : "BOTTOM";
+            
+            // Adjust the physical buttons too
+            if(scoreboardPos === "TOP") {
+                topBar.style.top = "80%"; // Move clock/rec to bottom
+            } else {
+                topBar.style.top = "20px"; // Move clock/rec to top
+            }
+        }
+
         // --- DRAW LOOP ---
         function drawLoop() {
-            // Draw Video
+            // Video
             if (zoomMode === "DIGITAL" && currentZoom > 1) {
                 const vw = video.videoWidth; const vh = video.videoHeight;
                 if(vw) {
@@ -268,12 +324,20 @@
                 }
             } else { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); }
             
-            // Scoreboard Metrics
+            // --- SCOREBOARD RENDER ---
             const H = canvas.height; const W = canvas.width;
             const sbHeight = H * 0.14; const sbWidth = W * 0.7; 
-            const sbX = (W - sbWidth) / 2; const sbY = H - sbHeight - (H * 0.04);
+            const sbX = (W - sbWidth) / 2; 
+            
+            // Dynamic Y Position
+            let sbY;
+            if (scoreboardPos === "BOTTOM") {
+                sbY = H - sbHeight - (H * 0.04);
+            } else {
+                sbY = (H * 0.04);
+            }
 
-            // Bar Background
+            // Main Bar
             const grad = ctx.createLinearGradient(sbX, sbY, sbX, sbY + sbHeight);
             grad.addColorStop(0, "rgba(20, 20, 20, 0.9)");
             grad.addColorStop(1, "rgba(0, 0, 0, 0.95)");
@@ -284,20 +348,28 @@
             // Columns
             const colW = sbWidth / 3; const cY = sbY + (sbHeight/2);
             
-            // Home
+            // HOME RENDER
             ctx.fillStyle = "#0056b3"; ctx.beginPath(); ctx.roundRect(sbX + 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
             ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`;
             ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(gameData.homeName, sbX + (colW * 0.5), cY);
-            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.homeScore, sbX + 10 + (colW * 0.2), cY + 3);
+            
+            // Home Score with FLASH
+            if (homeFlash > 0) { ctx.fillStyle = "#ffff00"; homeFlash--; } else { ctx.fillStyle = "#fff"; }
+            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; 
+            ctx.fillText(gameData.homeScore, sbX + 10 + (colW * 0.2), cY + 3);
 
-            // Guest
+            // GUEST RENDER
             const gStart = sbX + (colW * 2);
             ctx.fillStyle = "#b30000"; ctx.beginPath(); ctx.roundRect(gStart + (colW * 0.6) - 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
             ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`;
             ctx.textAlign = "right"; ctx.fillText(gameData.guestName, gStart + (colW * 0.5), cY);
-            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.guestScore, gStart + (colW * 0.6) + (colW*0.2) - 10, cY + 3);
+            
+            // Guest Score with FLASH
+            if (guestFlash > 0) { ctx.fillStyle = "#ffff00"; guestFlash--; } else { ctx.fillStyle = "#fff"; }
+            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; 
+            ctx.fillText(gameData.guestScore, gStart + (colW * 0.6) + (colW*0.2) - 10, cY + 3);
 
-            // Clock
+            // CLOCK RENDER
             const cStart = sbX + colW;
             ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(cStart, sbY + 15, 2, sbHeight - 30); ctx.fillRect(gStart, sbY + 15, 2, sbHeight - 30);
             let m = Math.floor(gameData.timeLeft / 60); let s = gameData.timeLeft % 60; let timeStr = `${m}:${s<10?'0'+s:s}`;
@@ -307,7 +379,7 @@
             let suf = gameData.period===1?"ST":gameData.period===2?"ND":gameData.period===3?"RD":"TH";
             ctx.fillText(`${gameData.period}${suf} QTR`, cStart + (colW/2), cY + (sbHeight * 0.25));
 
-            // Watermark
+            // WATERMARK
             ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.font = `bold ${H*0.04}px sans-serif`;
             ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText("TIU", W - 20, 20); ctx.restore();
 
@@ -351,8 +423,15 @@
         }
 
         function updateScore(t, n) {
-            if(t==='home') gameData.homeScore+=n; else gameData.guestScore+=n;
-            if(gameData.homeScore<0) gameData.homeScore=0; if(gameData.guestScore<0) gameData.guestScore=0;
+            if(t==='home') { 
+                gameData.homeScore+=n; 
+                if(gameData.homeScore<0) gameData.homeScore=0; 
+                homeFlash = 15; // Trigger Flash frames
+            } else { 
+                gameData.guestScore+=n; 
+                if(gameData.guestScore<0) gameData.guestScore=0;
+                guestFlash = 15; // Trigger Flash frames
+            }
             saveData();
         }
 
