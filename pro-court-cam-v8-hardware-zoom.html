@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Pro Court Cam v15</title>
+    <title>Pro Court Cam v16</title>
     <style>
         /* --- GLOBAL --- */
         body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
@@ -34,8 +34,8 @@
         .group-left { left: 20px; top: 55%; transform: translateY(-50%); }
         .group-right { right: 20px; top: 55%; transform: translateY(-50%); }
         
-        /* Top Group needs to move based on UI position, handled in JS/CSS logic generally, but fixed for now */
-        .group-top { top: 20px; left: 50%; transform: translateX(-50%); flex-direction: row; align-items: center; }
+        /* Top Group */
+        .group-top { top: 20px; left: 50%; transform: translateX(-50%); flex-direction: row; align-items: center; transition: top 0.3s ease; }
         
         /* EDITABLE NAMES */
         .team-name-btn {
@@ -45,9 +45,10 @@
             pointer-events: auto; letter-spacing: 1px;
         }
 
-        /* ZOOM SLIDER */
+        /* ZOOM SLIDER - MOVED LEFT */
         .group-zoom { 
-            right: 100px; top: 55%; transform: translateY(-50%); 
+            right: 150px; /* Increased from 100px to 150px to prevent blocking buttons */
+            top: 55%; transform: translateY(-50%); 
             height: 200px; width: 50px; display: flex;
             flex-direction: column; align-items: center; justify-content: center;
             background: rgba(0,0,0,0.6); border-radius: 25px; padding: 10px 0; border: 1px solid #444;
@@ -101,7 +102,7 @@
 
     <div id="startup-modal" class="modal" style="display:block">
         <h3>Pro Court Cam</h3>
-        <p style="color:#888; font-size:0.9rem; margin-bottom:10px;">v15 • Audio + Flash</p>
+        <p style="color:#888; font-size:0.9rem; margin-bottom:10px;">v16 • Spaced Layout</p>
         
         <div class="warning-text">
             ⚠️ <b>Tip:</b> Enable "Do Not Disturb" to prevent call interruptions.
@@ -175,7 +176,7 @@
         });
 
         // --- DATA PERSISTENCE ---
-        const STORAGE_KEY = 'court_cam_v15_data';
+        const STORAGE_KEY = 'court_cam_v16_data';
         let gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 };
         let scoreboardPos = "BOTTOM"; // Default
 
@@ -200,7 +201,7 @@
         let editingTeam = null;
         
         // Flash Effects
-        let homeFlash = 0; // >0 means flashing
+        let homeFlash = 0; 
         let guestFlash = 0;
 
         // Audio Context
@@ -241,32 +242,33 @@
 
         // --- AUDIO METER SETUP ---
         function setupAudio(stream) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            microphone = audioContext.createMediaStreamSource(stream);
-            javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
 
-            analyser.smoothingTimeConstant = 0.8;
-            analyser.fftSize = 1024;
+                analyser.smoothingTimeConstant = 0.8;
+                analyser.fftSize = 1024;
 
-            microphone.connect(analyser);
-            analyser.connect(javascriptNode);
-            javascriptNode.connect(audioContext.destination);
+                microphone.connect(analyser);
+                analyser.connect(javascriptNode);
+                javascriptNode.connect(audioContext.destination);
 
-            javascriptNode.onaudioprocess = function() {
-                var array = new Uint8Array(analyser.frequencyBinCount);
-                analyser.getByteFrequencyData(array);
-                var values = 0;
-                var length = array.length;
-                for (var i = 0; i < length; i++) { values += array[i]; }
-                var average = values / length;
-                
-                // Update UI bar
-                let pct = Math.min(100, average * 2); // Amplify slightly for visibility
-                audioLevelBar.style.height = pct + "%";
-                if(pct > 80) audioLevelBar.style.background = "#f00"; // Clip red
-                else audioLevelBar.style.background = "#0f0";
-            }
+                javascriptNode.onaudioprocess = function() {
+                    var array = new Uint8Array(analyser.frequencyBinCount);
+                    analyser.getByteFrequencyData(array);
+                    var values = 0;
+                    var length = array.length;
+                    for (var i = 0; i < length; i++) { values += array[i]; }
+                    var average = values / length;
+                    
+                    let pct = Math.min(100, average * 2); 
+                    audioLevelBar.style.height = pct + "%";
+                    if(pct > 80) audioLevelBar.style.background = "#f00"; 
+                    else audioLevelBar.style.background = "#0f0";
+                }
+            } catch(e) { console.log("Audio meter error: " + e); }
         }
 
         // --- ZOOM ---
@@ -304,11 +306,10 @@
         function toggleScoreboardPos() {
             scoreboardPos = (scoreboardPos === "BOTTOM") ? "TOP" : "BOTTOM";
             
-            // Adjust the physical buttons too
             if(scoreboardPos === "TOP") {
-                topBar.style.top = "80%"; // Move clock/rec to bottom
+                topBar.style.top = "80%"; 
             } else {
-                topBar.style.top = "20px"; // Move clock/rec to top
+                topBar.style.top = "20px"; 
             }
         }
 
@@ -426,11 +427,11 @@
             if(t==='home') { 
                 gameData.homeScore+=n; 
                 if(gameData.homeScore<0) gameData.homeScore=0; 
-                homeFlash = 15; // Trigger Flash frames
+                homeFlash = 15; 
             } else { 
                 gameData.guestScore+=n; 
                 if(gameData.guestScore<0) gameData.guestScore=0;
-                guestFlash = 15; // Trigger Flash frames
+                guestFlash = 15; 
             }
             saveData();
         }
