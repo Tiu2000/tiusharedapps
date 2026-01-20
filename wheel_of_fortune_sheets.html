@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wheel of Knowledge - TIU Pro</title>
+    <title>Wheel of Knowledge - Universal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -303,16 +303,24 @@
 
     <div id="addPuzzleModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm">
         <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full border border-slate-600">
-            <h2 class="text-2xl font-bold text-white mb-4">Add Custom Puzzles</h2>
+            <h2 class="text-2xl font-bold text-white mb-4">Import Puzzles</h2>
             
             <div class="bg-indigo-900/40 p-4 rounded-lg border border-indigo-500/50 mb-6">
-                <label class="block text-indigo-300 text-xs font-bold uppercase mb-2">Import from Google Sheet (CSV)</label>
+                <label class="block text-indigo-300 text-xs font-bold uppercase mb-2">Import from Google Doc or Sheet</label>
                 <div class="flex gap-2">
-                    <input id="sheetUrl" type="text" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs" placeholder="Paste 'Published to Web' CSV Link">
-                    <button class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 rounded text-xs" onclick="fetchGoogleSheet()">LOAD</button>
+                    <input id="sheetUrl" type="text" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs" placeholder="Paste 'Published to Web' Link">
+                    <button class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 rounded text-xs" onclick="fetchRemoteData()">LOAD</button>
                 </div>
-                <p class="text-[10px] text-slate-400 mt-2">Format: Col A (Category), Col B (Phrase). File > Share > Publish to web > CSV.</p>
+                <div class="mt-2 text-[10px] text-slate-400 space-y-1">
+                    <p><strong>Google Sheet:</strong> File > Share > Publish to web > CSV.</p>
+                    <p><strong>Google Doc:</strong> File > Share > Publish to web.</p>
+                    <p class="italic text-slate-500">Doc Format: Each line must be "CATEGORY: PHRASE"</p>
+                </div>
             </div>
+            
+            <button onclick="clearCustomPuzzles()" class="w-full mb-4 bg-red-900/50 hover:bg-red-900 border border-red-700 text-red-300 text-xs font-bold py-2 rounded">
+                ⚠ RESET / CLEAR ALL CUSTOM PUZZLES
+            </button>
             
             <div class="relative flex py-2 items-center">
                 <div class="flex-grow border-t border-slate-700"></div>
@@ -422,7 +430,21 @@
             { category: "Person", word: "ABRAHAM LINCOLN" },
             { category: "Event", word: "THE SUPER BOWL" }
         ];
-        let customPuzzles = JSON.parse(localStorage.getItem('wof_custom_puzzles')) || [];
+        
+        // SAFE LOAD: Filter out garbage puzzles from previous bad imports
+        let stored = localStorage.getItem('wof_custom_puzzles');
+        let customPuzzles = [];
+        try {
+            if(stored) {
+                let parsed = JSON.parse(stored);
+                // Filter out the buggy "HTML" or "{" puzzles automatically
+                customPuzzles = parsed.filter(p => p.category !== "HTML" && p.word !== "{" && p.word.length > 1);
+            }
+        } catch(e) {
+            console.log("Resetting corrupted puzzles");
+            customPuzzles = [];
+        }
+
         let currentPuzzle = { category: "", word: "", revealed: [], guessedLetters: new Set() };
         let currentSpinValue = 0;
         const VOWELS = ['A', 'E', 'I', 'O', 'U'];
@@ -924,23 +946,19 @@
             document.getElementById('solveInputContainer').classList.add('hidden');
         }
 
-        // FIXED: Helper to normalize string for comparison
         function normalizeText(str) {
             return str.toUpperCase().trim().replace(/\s+/g, ' ');
         }
 
         function checkSolve(phrase) {
-            // FIXED: Compare normalized strings to avoid whitespace errors
             const attempt = normalizeText(phrase);
             const actual = normalizeText(currentPuzzle.word);
 
             if(attempt === actual) {
-                // Reveal all
                 for(let i=0; i<currentPuzzle.word.length; i++) currentPuzzle.revealed[i] = true;
                 renderPuzzle();
                 notify(`${teams[currentTeamIndex].name} WINS!`, "success");
-                playSolveFanfare(); // Added Fanfare
-                // Bonus
+                playSolveFanfare();
                 if(teams[currentTeamIndex].score < 1000) teams[currentTeamIndex].score = 1000;
                 renderTeams();
                 syncRemoteState(`${teams[currentTeamIndex].name} SOLVED IT!`);
@@ -951,39 +969,59 @@
             }
         }
         
-        // --- GOOGLE SHEETS IMPORT LOGIC ---
-        async function fetchGoogleSheet() {
+        // --- UPDATED: UNIVERSAL DATA IMPORT (DOCS & SHEETS) ---
+        async function fetchRemoteData() {
             const url = document.getElementById('sheetUrl').value.trim();
             if(!url) { notify("Please enter a URL.", "error"); return; }
             
             try {
-                notify("Fetching CSV...", "neutral");
+                notify("Fetching Data...", "neutral");
                 const res = await fetch(url);
                 if(!res.ok) throw new Error("Failed to fetch");
-                const text = await res.text();
                 
-                const lines = text.split('\n').filter(l => l.trim());
+                const contentType = res.headers.get("content-type");
+                const text = await res.text();
+                let lines = [];
+
+                // 1. Try Parse as HTML (Google Docs Published to Web)
+                if(contentType && contentType.includes("text/html")) {
+                    const doc = new DOMParser().parseFromString(text, 'text/html');
+                    // Google docs put text in specific containers, but body.innerText usually grabs it all
+                    const plainText = doc.body.innerText || ""; 
+                    lines = plainText.split('\n');
+                } else {
+                    // 2. Treat as Plain Text / CSV
+                    lines = text.split('\n');
+                }
+                
                 let added = 0;
                 
-                // Skip header (i=1)
-                for(let i=1; i<lines.length; i++) {
-                    // Split by comma, handling quotes if possible, or basic split
-                    // Basic regex for CSV splitting:
-                    const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-                    // Fallback if simple structure
-                    const simpleRow = lines[i].split(',');
-                    
-                    let cat, phr;
-                    
-                    if(row && row.length >= 2) {
-                        cat = row[0].replace(/^"|"$/g, '').trim();
-                        phr = row[1].replace(/^"|"$/g, '').trim();
-                    } else if (simpleRow.length >= 2) {
-                        cat = simpleRow[0].trim();
-                        phr = simpleRow.slice(1).join(',').trim(); // Join rest in case phrase has commas
+                // Process lines looking for patterns
+                for(let i=0; i<lines.length; i++) {
+                    const line = lines[i].trim();
+                    if(!line) continue;
+
+                    let cat = null, phr = null;
+
+                    // Strategy A: "Category: Phrase" (Colon separator - Good for Docs)
+                    if(line.includes(':')) {
+                        const parts = line.split(':');
+                        if(parts.length >= 2) {
+                            cat = parts[0].trim();
+                            phr = parts.slice(1).join(':').trim();
+                        }
+                    }
+                    // Strategy B: "Category, Phrase" (Comma separator - Good for CSV)
+                    else if(line.includes(',')) {
+                        const parts = line.split(',');
+                        if(parts.length >= 2) {
+                            cat = parts[0].trim();
+                            phr = parts.slice(1).join(',').trim();
+                        }
                     }
 
-                    if(cat && phr) {
+                    // VALIDATION: Prevent the glitch (HTML tags ending up as puzzles)
+                    if(cat && phr && phr.length > 1 && !cat.startsWith('<') && !phr.startsWith('<') && !phr.startsWith('{')) {
                         customPuzzles.push({category: cat, word: phr});
                         added++;
                     }
@@ -994,14 +1032,22 @@
                     notify(`Imported ${added} puzzles!`, "success");
                     document.getElementById('sheetUrl').value = "";
                     document.getElementById('addPuzzleModal').classList.add('hidden');
-                    // Start the first imported puzzle immediately
                     startPuzzle(customPuzzles[customPuzzles.length - added]);
                 } else {
-                    notify("No valid rows found.", "error");
+                    notify("No valid puzzles found. Check format.", "error");
                 }
             } catch(e) {
                 console.error(e);
-                notify("Error loading sheet. Check format/CORS.", "error");
+                notify("Error loading data. Check URL.", "error");
+            }
+        }
+
+        function clearCustomPuzzles() {
+            if(confirm("Delete all custom puzzles?")) {
+                localStorage.removeItem('wof_custom_puzzles');
+                customPuzzles = [];
+                alert("Puzzles cleared. Page will reload.");
+                window.location.reload();
             }
         }
 
@@ -1044,7 +1090,6 @@
             const container = document.getElementById('teamsContainer');
             container.innerHTML = '';
             
-            // NEW: Update top banner
             const banner = document.getElementById('turnBanner');
             const bannerName = document.getElementById('turnBannerName');
             
@@ -1085,7 +1130,6 @@
             syncRemoteState(`It is ${teams[currentTeamIndex].name}'s Turn`);
         }
 
-        // Renaming Logic
         function renderTeamEditor() {
             const list = document.getElementById('teamListEditor');
             list.innerHTML = '';
