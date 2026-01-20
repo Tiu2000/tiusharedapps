@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School QR Scanner</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 { margin-bottom: 20px; }
+        #reader {
+            width: 500px;
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px dashed #00ff00;
+            max-width: 80%;
+            word-wrap: break-word;
+            text-align: center;
+        }
+        button {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background-color: #00ff00;
+            color: black;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        button:hover { background-color: #00cc00; }
+        a { color: #00ff00; }
+    </style>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body>
+
+    <h1>>> QR_INTERCEPTOR <<</h1>
+    
+    <div id="reader"></div>
+    <div id="result">Waiting for target...</div>
+    <button id="copyBtn" style="display:none;" onclick="copyText()">Copy Data</button>
+
+    <script>
+        const resultContainer = document.getElementById('result');
+        const copyBtn = document.getElementById('copyBtn');
+        let lastResult = "";
+
+        function onScanSuccess(decodedText, decodedResult) {
+            if (decodedText !== lastResult) {
+                lastResult = decodedText;
+                
+                // Check if it is a URL
+                if (decodedText.startsWith("http")) {
+                    resultContainer.innerHTML = `Success! <br><a href="${decodedText}" target="_blank">${decodedText}</a>`;
+                } else {
+                    resultContainer.innerText = decodedText;
+                }
+                
+                copyBtn.style.display = "block";
+                
+                // Optional: Stop scanning after success
+                // html5QrcodeScanner.clear();
+            }
+        }
+
+        function onScanFailure(error) {
+            // handle scan failure, usually better to ignore and keep scanning.
+        }
+
+        let html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader",
+            { fps: 10, qrbox: {width: 250, height: 250} },
+            /* verbose= */ false);
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+
+        function copyText() {
+            navigator.clipboard.writeText(lastResult);
+            alert("Data copied to clipboard!");
+        }
+    </script>
+</body>
+</html>
