@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Pro Court Cam v12</title>
+    <title>Pro Court Cam v14</title>
     <style>
         /* --- GLOBAL --- */
         body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
@@ -77,6 +77,8 @@
         #input-modal input { width: 90%; padding: 12px; font-size: 1.1rem; margin-bottom: 15px; text-align: center; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; }
         
         #raw-video { display: none; }
+        
+        .warning-text { color:#ffcc00; font-size: 0.8rem; margin: 10px 0; background: rgba(255,200,0,0.1); padding: 5px; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -91,7 +93,12 @@
 
     <div id="startup-modal" class="modal" style="display:block">
         <h3>Pro Court Cam</h3>
-        <p style="color:#888; font-size:0.9rem; margin-bottom:20px;">v12 • Professional Edition</p>
+        <p style="color:#888; font-size:0.9rem; margin-bottom:10px;">v14 • Resilient Edition</p>
+        
+        <div class="warning-text">
+            ⚠️ <b>Tip:</b> Enable "Do Not Disturb" or "Airplane Mode" to prevent calls from stopping the recording.
+        </div>
+
         <button class="modal-btn" style="background:#28a745" onclick="initCamera(1280, 720)">720p (HD)</button>
         <button class="modal-btn" onclick="initCamera(1920, 1080)">1080p (Full HD)</button>
     </div>
@@ -143,26 +150,36 @@
     <video id="raw-video" autoplay muted playsinline></video>
 
     <script>
-        // --- DATA WITH PERSISTENCE ---
-        const STORAGE_KEY = 'court_cam_v12_data';
-        let gameData = {
-            homeName: "HOME",
-            guestName: "GUEST",
-            homeScore: 0,
-            guestScore: 0,
-            timeLeft: 600,
-            period: 1
-        };
+        // --- WAKE LOCK (PREVENT SLEEP) ---
+        let wakeLock = null;
+        async function requestWakeLock() {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Screen Wake Lock active');
+                wakeLock.addEventListener('release', () => { console.log('Wake Lock released'); });
+            } catch (err) { console.error(`${err.name}, ${err.message}`); }
+        }
 
-        // Load saved data
+        // --- AUTO RESUME LOGIC ---
+        document.addEventListener("visibilitychange", async () => {
+            if (document.visibilityState === 'visible') {
+                // If user returns from a call/interruption
+                requestWakeLock();
+                if(video.paused) {
+                    try { await video.play(); console.log("Auto-resume video"); } 
+                    catch(e) { console.log("Resume failed", e); }
+                }
+            }
+        });
+
+        // --- DATA PERSISTENCE ---
+        const STORAGE_KEY = 'court_cam_v14_data';
+        let gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 };
+
         const saved = localStorage.getItem(STORAGE_KEY);
-        if(saved) {
-            try { gameData = JSON.parse(saved); } catch(e) { console.log('Save Error'); }
-        }
+        if(saved) { try { gameData = JSON.parse(saved); } catch(e) {} }
 
-        function saveData() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData));
-        }
+        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData)); }
 
         function resetGameData() {
             if(confirm("Reset entire game?")) {
@@ -179,30 +196,24 @@
         let currentZoom = 1.0;
         let editingTeam = null;
 
-        // --- ELEMENTS ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('raw-video');
-        const uiLayer = document.getElementById('ui-layer');
         const clockBtn = document.getElementById('btn-clock');
 
-        // Apply saved time to UI immediately
         updateClockUI();
 
         // --- INIT ---
         async function initCamera(w, h) {
             document.getElementById('startup-modal').style.display = 'none';
             toggleFullScreen();
+            requestWakeLock(); // Enable Wake Lock
+            
             canvas.width = w; canvas.height = h;
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: "environment", 
-                        width: { ideal: w }, 
-                        height: { ideal: h },
-                        zoom: true 
-                    }, 
+                    video: { facingMode: "environment", width: { ideal: w }, height: { ideal: h }, zoom: true }, 
                     audio: true 
                 });
                 
@@ -239,19 +250,15 @@
             slider.oninput = async (e) => {
                 const val = parseFloat(e.target.value);
                 document.getElementById('zoom-label').innerText = val.toFixed(1) + "x";
-                
                 if(zoomMode === "HARDWARE") {
-                    try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } 
-                    catch(e){}
-                } else {
-                    currentZoom = val;
-                }
+                    try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } catch(e){}
+                } else { currentZoom = val; }
             };
         }
 
-        // --- PROFESSIONAL DRAW LOOP ---
+        // --- DRAW LOOP ---
         function drawLoop() {
-            // 1. Draw Video
+            // Draw Video
             if (zoomMode === "DIGITAL" && currentZoom > 1) {
                 const vw = video.videoWidth; const vh = video.videoHeight;
                 if(vw) {
@@ -259,108 +266,50 @@
                     const sx = (vw - sw) / 2; const sy = (vh - sh) / 2;
                     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
                 }
-            } else {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            }
+            } else { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); }
             
-            // 2. Scoreboard Metrics
+            // Scoreboard Metrics
             const H = canvas.height; const W = canvas.width;
-            
-            // Responsive sizing
-            const sbHeight = H * 0.14; 
-            const sbWidth = W * 0.7; // Wider, centered bar
-            const sbX = (W - sbWidth) / 2;
-            const sbY = H - sbHeight - (H * 0.04);
+            const sbHeight = H * 0.14; const sbWidth = W * 0.7; 
+            const sbX = (W - sbWidth) / 2; const sbY = H - sbHeight - (H * 0.04);
 
-            // 3. Draw Main Bar (Gradient Background)
+            // Bar Background
             const grad = ctx.createLinearGradient(sbX, sbY, sbX, sbY + sbHeight);
             grad.addColorStop(0, "rgba(20, 20, 20, 0.9)");
             grad.addColorStop(1, "rgba(0, 0, 0, 0.95)");
-            
             ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.roundRect(sbX, sbY, sbWidth, sbHeight, 10);
-            ctx.fill();
+            ctx.beginPath(); ctx.roundRect(sbX, sbY, sbWidth, sbHeight, 10); ctx.fill();
+            ctx.strokeStyle = "#c9a050"; ctx.lineWidth = 2; ctx.stroke();
 
-            // 4. Gold Trim Border
-            ctx.strokeStyle = "#c9a050"; 
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // 5. Layout Columns
-            // We split the bar into: [ HOME (35%) | CLOCK (30%) | GUEST (35%) ]
-            const colW = sbWidth / 3;
-            const cY = sbY + (sbHeight/2);
+            // Columns
+            const colW = sbWidth / 3; const cY = sbY + (sbHeight/2);
             
-            // --- HOME SECTION ---
-            // Score Box Background
-            ctx.fillStyle = "#0056b3"; // Darker Blue
-            ctx.beginPath();
-            ctx.roundRect(sbX + 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5);
-            ctx.fill();
+            // Home
+            ctx.fillStyle = "#0056b3"; ctx.beginPath(); ctx.roundRect(sbX + 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`;
+            ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(gameData.homeName, sbX + (colW * 0.5), cY);
+            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.homeScore, sbX + 10 + (colW * 0.2), cY + 3);
 
-            // Name
-            ctx.fillStyle = "#fff";
-            ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`;
-            ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            ctx.fillText(gameData.homeName, sbX + (colW * 0.5), cY);
-
-            // Score
-            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`;
-            ctx.textAlign = "center";
-            ctx.fillText(gameData.homeScore, sbX + 10 + (colW * 0.2), cY + 3);
-
-            // --- GUEST SECTION ---
+            // Guest
             const gStart = sbX + (colW * 2);
-            
-            // Score Box Background
-            ctx.fillStyle = "#b30000"; // Darker Red
-            ctx.beginPath();
-            ctx.roundRect(gStart + (colW * 0.6) - 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5);
-            ctx.fill();
+            ctx.fillStyle = "#b30000"; ctx.beginPath(); ctx.roundRect(gStart + (colW * 0.6) - 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`;
+            ctx.textAlign = "right"; ctx.fillText(gameData.guestName, gStart + (colW * 0.5), cY);
+            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.guestScore, gStart + (colW * 0.6) + (colW*0.2) - 10, cY + 3);
 
-            // Name
-            ctx.fillStyle = "#fff";
-            ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`;
-            ctx.textAlign = "right"; 
-            ctx.fillText(gameData.guestName, gStart + (colW * 0.5), cY);
-
-            // Score
-            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`;
-            ctx.textAlign = "center";
-            ctx.fillText(gameData.guestScore, gStart + (colW * 0.6) + (colW*0.2) - 10, cY + 3);
-
-            // --- CENTER CLOCK SECTION ---
+            // Clock
             const cStart = sbX + colW;
-            
-            // Vertical Dividers
-            ctx.fillStyle = "rgba(255,255,255,0.2)";
-            ctx.fillRect(cStart, sbY + 15, 2, sbHeight - 30);
-            ctx.fillRect(gStart, sbY + 15, 2, sbHeight - 30);
-
-            // Time
-            let m = Math.floor(gameData.timeLeft / 60); let s = gameData.timeLeft % 60;
-            let timeStr = `${m}:${s<10?'0'+s:s}`;
-            
-            // Color changes if timer stopped
-            ctx.fillStyle = isTimerRunning ? "#0f0" : "#ccc"; 
-            ctx.font = `bold ${H*0.065}px 'Courier New', monospace`;
-            ctx.textAlign = "center";
+            ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(cStart, sbY + 15, 2, sbHeight - 30); ctx.fillRect(gStart, sbY + 15, 2, sbHeight - 30);
+            let m = Math.floor(gameData.timeLeft / 60); let s = gameData.timeLeft % 60; let timeStr = `${m}:${s<10?'0'+s:s}`;
+            ctx.fillStyle = isTimerRunning ? "#0f0" : "#ccc"; ctx.font = `bold ${H*0.065}px 'Courier New', monospace`; ctx.textAlign = "center";
             ctx.fillText(timeStr, cStart + (colW/2), cY - (sbHeight * 0.15));
-
-            // Period
-            ctx.fillStyle = "#aaa";
-            ctx.font = `bold ${H*0.025}px sans-serif`;
+            ctx.fillStyle = "#aaa"; ctx.font = `bold ${H*0.025}px sans-serif`;
             let suf = gameData.period===1?"ST":gameData.period===2?"ND":gameData.period===3?"RD":"TH";
             ctx.fillText(`${gameData.period}${suf} QTR`, cStart + (colW/2), cY + (sbHeight * 0.25));
 
-            // 6. Watermark
-            ctx.save();
-            ctx.fillStyle = "rgba(255,255,255,0.3)";
-            ctx.font = `bold ${H*0.04}px sans-serif`;
-            ctx.textAlign = "right"; ctx.textBaseline = "top";
-            ctx.fillText("TIU LIVE", W - 20, 20);
-            ctx.restore();
+            // Watermark
+            ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.font = `bold ${H*0.04}px sans-serif`;
+            ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText("TIU", W - 20, 20); ctx.restore();
 
             requestAnimationFrame(drawLoop);
         }
@@ -392,8 +341,7 @@
                     let p = val.split(":");
                     gameData.timeLeft = (parseInt(p[0])*60) + parseInt(p[1]);
                 } else { gameData.timeLeft = parseInt(val) * 60; }
-                updateClockUI();
-                saveData();
+                updateClockUI(); saveData();
              }
         });
 
@@ -404,8 +352,7 @@
 
         function updateScore(t, n) {
             if(t==='home') gameData.homeScore+=n; else gameData.guestScore+=n;
-            if(gameData.homeScore<0) gameData.homeScore=0; 
-            if(gameData.guestScore<0) gameData.guestScore=0;
+            if(gameData.homeScore<0) gameData.homeScore=0; if(gameData.guestScore<0) gameData.guestScore=0;
             saveData();
         }
 
@@ -418,27 +365,17 @@
                 clockBtn.style.color="#fff"; clockBtn.style.borderColor="#f33";
                 timerInterval = setInterval(() => {
                     if(gameData.timeLeft>0) { 
-                        gameData.timeLeft--; 
-                        updateClockUI(); 
-                        if(gameData.timeLeft % 5 === 0) saveData(); // Auto-save every 5s while running
-                    }
-                    else toggleTimer();
+                        gameData.timeLeft--; updateClockUI(); 
+                        if(gameData.timeLeft % 5 === 0) saveData(); 
+                    } else toggleTimer();
                 }, 1000);
             }
         }
-
-        function nextPeriod() { 
-            gameData.period++; 
-            if(gameData.period>4) gameData.period=1; 
-            saveData();
-        }
+        function nextPeriod() { gameData.period++; if(gameData.period>4) gameData.period=1; saveData(); }
         
         function toggleFullScreen() {
-            if(!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(e=>{});
-            } else {
-                document.exitFullscreen().catch(e=>{});
-            }
+            if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e=>{});
+            else document.exitFullscreen().catch(e=>{});
         }
 
         let mediaRecorder, chunks=[], isRecording=false;
@@ -446,10 +383,7 @@
             const btn = document.getElementById('btn-rec');
             if(!isRecording) {
                 const stream = canvas.captureStream(30);
-                if(video.srcObject && video.srcObject.getAudioTracks().length > 0) {
-                    stream.addTrack(video.srcObject.getAudioTracks()[0]);
-                }
-                
+                if(video.srcObject && video.srcObject.getAudioTracks().length > 0) stream.addTrack(video.srcObject.getAudioTracks()[0]);
                 mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
                 mediaRecorder.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
                 mediaRecorder.onstop = () => {
