@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Pro Court Cam v25 (Source Fix)</title>
+    <title>Pro Court Cam v25 (Fixed)</title>
     <style>
         /* --- GLOBAL --- */
         body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
@@ -106,7 +106,7 @@
 
     <div id="startup-modal" class="modal" style="display:block">
         <h3>Pro Court Cam v25</h3>
-        <p style="color:#888; font-size:0.9rem;">Source Selector Fix</p>
+        <p style="color:#888; font-size:0.9rem;">Source Selector Fix + Polyfill</p>
         
         <div style="text-align:left; font-size:0.8rem; color:#aaa; margin-bottom:5px;">Select Camera Source:</div>
         
@@ -199,6 +199,24 @@
         }
         window.onerror = function(msg, url, line) { log(`ERR: ${msg} (Line ${line})`); };
 
+        // --- POLYFILLS (CRITICAL FIX) ---
+        // Adds roundRect support for older browsers/iOS
+        if (typeof CanvasRenderingContext2D.prototype.roundRect !== 'function') {
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                if (w < 2 * r) r = w / 2;
+                if (h < 2 * r) r = h / 2;
+                this.beginPath();
+                this.moveTo(x + r, y);
+                this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r);
+                this.arcTo(x, y + h, x, y, r);
+                this.arcTo(x, y, x + w, y, r);
+                this.closePath();
+                return this;
+            };
+            log("Sys: roundRect Polyfill applied.");
+        }
+
         // --- WAKE LOCK ---
         let wakeLock = null;
         async function requestWakeLock() { try { wakeLock = await navigator.wakeLock.request('screen'); log("WakeLock acquired"); } catch (err) { log("WakeLock fail: " + err.message); } }
@@ -233,11 +251,8 @@
         async function loadCameras() {
             log("Init: Loading cameras...");
             try {
-                // FIXED: Create a stream just to ask permission, then kill it immediately
-                // This prevents "Ghost" cameras running in background
+                // Trigger permission prompt
                 const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); 
-                
-                // Stop the temp stream immediately after permission is granted
                 tempStream.getTracks().forEach(t => t.stop());
 
                 const devices = await navigator.mediaDevices.enumerateDevices();
@@ -259,12 +274,9 @@
                 });
                 
                 log(`Init: Found ${videoDevices.length} cameras`);
-                if(videoDevices.length === 0) log("Warning: Device list empty. Try Refresh button.");
-
             } catch(e) { log("Init Error: " + e.message); }
         }
         
-        // Auto-load on start
         loadCameras();
 
         function openStartupModal() { document.getElementById('startup-modal').style.display = 'block'; }
@@ -280,6 +292,7 @@
             if(track) {
                 log("Stopping previous track...");
                 track.stop();
+                track = null;
             }
 
             const selectedId = cameraSelect.value;
@@ -297,28 +310,38 @@
             }
 
             try {
-                log("Requesting user media (SAFE MODE)...");
+                log("Requesting user media...");
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 log("Stream acquired. Attaching to video...");
+                
                 video.srcObject = stream;
                 
-                try {
-                    await video.play();
-                    log("Video playing!");
-                } catch (playErr) {
-                    log("Play Error: " + playErr.message);
-                }
+                // Important for mobile play
+                video.onloadedmetadata = async () => {
+                    try {
+                        await video.play();
+                        log("Video playing!");
+                        
+                        track = stream.getVideoTracks()[0];
+                        const settings = track.getSettings();
+                        log(`Track Active: ${settings.width}x${settings.height} @ ${settings.frameRate}fps`);
+                        
+                        setupAudio(stream);
+                        setupZoom(); 
+                        
+                        // Prevent multiple draw loops
+                        if(!window.isDrawing) {
+                            window.isDrawing = true;
+                            drawLoop();
+                        }
+                    } catch (playErr) {
+                        log("Play Error: " + playErr.message);
+                    }
+                };
 
-                track = stream.getVideoTracks()[0];
-                const settings = track.getSettings();
-                log(`Track Active: ${settings.width}x${settings.height} @ ${settings.frameRate}fps`);
-                
-                setupAudio(stream);
-                setupZoom(); 
-                if(!audioContext) drawLoop(); 
             } catch(e) {
                 log(`FATAL ERROR: ${e.name}: ${e.message}`);
-                alert("Camera Failed! Please open Settings > Logs and copy the error.");
+                alert("Camera Failed: " + e.message);
                 openStartupModal(); 
             }
         }
@@ -326,7 +349,9 @@
         // --- AUDIO ---
         function setupAudio(stream) {
             try {
-                if(audioContext) audioContext.close();
+                if(audioContext) {
+                    audioContext.close().catch(e => console.log(e));
+                }
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 const analyser = audioContext.createAnalyser();
                 const microphone = audioContext.createMediaStreamSource(stream);
@@ -350,7 +375,8 @@
 
         // --- ZOOM ---
         function setupZoom() {
-            const caps = track.getCapabilities();
+            if(!track) return;
+            const caps = track.getCapabilities ? track.getCapabilities() : {};
             const slider = document.getElementById('zoom-slider');
             const typeLabel = document.getElementById('zoom-type');
 
@@ -368,13 +394,13 @@
                 typeLabel.innerText = "DIGITAL";
                 typeLabel.className = "zoom-info zoom-type-dig";
                 slider.min = 1; slider.max = 5; slider.step = 0.1; slider.value = 1;
-                log("Zoom: Digital only (Hardware zoom not reported)");
+                log("Zoom: Digital only");
             }
 
             slider.oninput = async (e) => {
                 const val = parseFloat(e.target.value);
                 document.getElementById('zoom-label').innerText = val.toFixed(1) + "x";
-                if(zoomMode === "HARDWARE") {
+                if(zoomMode === "HARDWARE" && track) {
                     try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } catch(e){ log("Zoom fail: " + e.message); }
                 } else { currentZoom = val; }
             };
@@ -432,53 +458,59 @@
 
         // --- DRAWING ---
         function drawLoop() {
-            // Video Draw
-            if (zoomMode === "DIGITAL" && currentZoom > 1) {
-                const vw = video.videoWidth, vh = video.videoHeight;
-                if(vw) {
-                    const sw = vw/currentZoom, sh = vh/currentZoom, sx = (vw-sw)/2, sy = (vh-sh)/2;
-                    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-                }
-            } else { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); }
-            
-            // Scoreboard UI Draw
-            const H = canvas.height, W = canvas.width;
-            const sbHeight = H * 0.14, sbWidth = W * 0.7; 
-            const sbX = (W - sbWidth) / 2; 
-            const sbY = (scoreboardPos === "BOTTOM") ? H - sbHeight - (H * 0.04) : (H * 0.04);
+            try {
+                // Video Draw
+                if (zoomMode === "DIGITAL" && currentZoom > 1) {
+                    const vw = video.videoWidth, vh = video.videoHeight;
+                    if(vw) {
+                        const sw = vw/currentZoom, sh = vh/currentZoom, sx = (vw-sw)/2, sy = (vh-sh)/2;
+                        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+                    }
+                } else { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); }
+                
+                // Scoreboard UI Draw
+                const H = canvas.height, W = canvas.width;
+                const sbHeight = H * 0.14, sbWidth = W * 0.7; 
+                const sbX = (W - sbWidth) / 2; 
+                const sbY = (scoreboardPos === "BOTTOM") ? H - sbHeight - (H * 0.04) : (H * 0.04);
 
-            const grad = ctx.createLinearGradient(sbX, sbY, sbX, sbY + sbHeight);
-            grad.addColorStop(0, "rgba(20, 20, 20, 0.9)"); grad.addColorStop(1, "rgba(0, 0, 0, 0.95)");
-            ctx.fillStyle = grad; ctx.beginPath(); ctx.roundRect(sbX, sbY, sbWidth, sbHeight, 10); ctx.fill();
-            ctx.strokeStyle = "#c9a050"; ctx.lineWidth = 2; ctx.stroke();
+                const grad = ctx.createLinearGradient(sbX, sbY, sbX, sbY + sbHeight);
+                grad.addColorStop(0, "rgba(20, 20, 20, 0.9)"); grad.addColorStop(1, "rgba(0, 0, 0, 0.95)");
+                
+                // CRITICAL: Uses polyfill if native not supported
+                ctx.fillStyle = grad; ctx.beginPath(); ctx.roundRect(sbX, sbY, sbWidth, sbHeight, 10); ctx.fill();
+                ctx.strokeStyle = "#c9a050"; ctx.lineWidth = 2; ctx.stroke();
 
-            const colW = sbWidth / 3, cY = sbY + (sbHeight/2);
-            
-            // Teams
-            ctx.fillStyle = "#0056b3"; ctx.beginPath(); ctx.roundRect(sbX + 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(gameData.homeName, sbX + (colW * 0.5), cY);
-            if (homeFlash > 0) { ctx.fillStyle = "#ffff00"; homeFlash--; } else { ctx.fillStyle = "#fff"; }
-            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.homeScore, sbX + 10 + (colW * 0.2), cY + 3);
+                const colW = sbWidth / 3, cY = sbY + (sbHeight/2);
+                
+                // Teams
+                ctx.fillStyle = "#0056b3"; ctx.beginPath(); ctx.roundRect(sbX + 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
+                ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(gameData.homeName, sbX + (colW * 0.5), cY);
+                if (homeFlash > 0) { ctx.fillStyle = "#ffff00"; homeFlash--; } else { ctx.fillStyle = "#fff"; }
+                ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.homeScore, sbX + 10 + (colW * 0.2), cY + 3);
 
-            const gStart = sbX + (colW * 2);
-            ctx.fillStyle = "#b30000"; ctx.beginPath(); ctx.roundRect(gStart + (colW * 0.6) - 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`; ctx.textAlign = "right"; ctx.fillText(gameData.guestName, gStart + (colW * 0.5), cY);
-            if (guestFlash > 0) { ctx.fillStyle = "#ffff00"; guestFlash--; } else { ctx.fillStyle = "#fff"; }
-            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.guestScore, gStart + (colW * 0.6) + (colW*0.2) - 10, cY + 3);
+                const gStart = sbX + (colW * 2);
+                ctx.fillStyle = "#b30000"; ctx.beginPath(); ctx.roundRect(gStart + (colW * 0.6) - 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
+                ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`; ctx.textAlign = "right"; ctx.fillText(gameData.guestName, gStart + (colW * 0.5), cY);
+                if (guestFlash > 0) { ctx.fillStyle = "#ffff00"; guestFlash--; } else { ctx.fillStyle = "#fff"; }
+                ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.guestScore, gStart + (colW * 0.6) + (colW*0.2) - 10, cY + 3);
 
-            // Clock
-            const cStart = sbX + colW;
-            ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(cStart, sbY + 15, 2, sbHeight - 30); ctx.fillRect(gStart, sbY + 15, 2, sbHeight - 30);
-            let m = Math.floor(gameData.timeLeft / 60), s = gameData.timeLeft % 60;
-            ctx.fillStyle = isTimerRunning ? "#0f0" : "#ccc"; ctx.font = `bold ${H*0.065}px 'Courier New', monospace`; ctx.textAlign = "center";
-            ctx.fillText(`${m}:${s<10?'0'+s:s}`, cStart + (colW/2), cY - (sbHeight * 0.15));
-            ctx.fillStyle = "#aaa"; ctx.font = `bold ${H*0.025}px sans-serif`;
-            let suf = gameData.period===1?"ST":gameData.period===2?"ND":gameData.period===3?"RD":"TH";
-            ctx.fillText(`${gameData.period}${suf} QTR`, cStart + (colW/2), cY + (sbHeight * 0.25));
+                // Clock
+                const cStart = sbX + colW;
+                ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(cStart, sbY + 15, 2, sbHeight - 30); ctx.fillRect(gStart, sbY + 15, 2, sbHeight - 30);
+                let m = Math.floor(gameData.timeLeft / 60), s = gameData.timeLeft % 60;
+                ctx.fillStyle = isTimerRunning ? "#0f0" : "#ccc"; ctx.font = `bold ${H*0.065}px 'Courier New', monospace`; ctx.textAlign = "center";
+                ctx.fillText(`${m}:${s<10?'0'+s:s}`, cStart + (colW/2), cY - (sbHeight * 0.15));
+                ctx.fillStyle = "#aaa"; ctx.font = `bold ${H*0.025}px sans-serif`;
+                let suf = gameData.period===1?"ST":gameData.period===2?"ND":gameData.period===3?"RD":"TH";
+                ctx.fillText(`${gameData.period}${suf} QTR`, cStart + (colW/2), cY + (sbHeight * 0.25));
 
-            ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.font = `bold ${H*0.04}px sans-serif`; ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText("TIU", W - 20, 20); ctx.restore();
+                ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.font = `bold ${H*0.04}px sans-serif`; ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText("TIU", W - 20, 20); ctx.restore();
 
-            requestAnimationFrame(drawLoop);
+                requestAnimationFrame(drawLoop);
+            } catch(e) {
+                log("DRAW ERROR (Retrying): " + e.message);
+            }
         }
 
         // --- INPUTS ---
