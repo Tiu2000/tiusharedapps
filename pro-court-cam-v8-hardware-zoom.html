@@ -3,194 +3,436 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pro Court Cam v23 (Debug)</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Pro Court Cam v22</title>
     <style>
-        body { background: #000; margin: 0; height: 100vh; overflow: hidden; font-family: sans-serif; color: white; }
+        /* --- GLOBAL --- */
+        body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
         
-        /* THE STAGE */
+        /* --- LAYOUT --- */
         #stage { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
         
-        /* CANVAS (The Game Layer) */
-        canvas { position: absolute; max-width: 100%; max-height: 100%; aspect-ratio: 16/9; z-index: 2; }
+        canvas { position: absolute; max-width: 100%; max-height: 100%; aspect-ratio: 16/9; z-index: 1; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
         
-        /* RAW VIDEO (Hidden behind canvas, but ACTIVE) */
-        #raw-video { 
-            position: absolute; top: 0; left: 0; width: 100px; opacity: 0.1; z-index: 0; pointer-events: none;
-        }
-
-        /* UI LAYER */
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
         
-        /* DEBUG LOG BOX */
-        #debug-log {
-            position: absolute; bottom: 10px; left: 10px; width: 300px; height: 100px;
-            background: rgba(255, 0, 0, 0.2); border: 1px solid red; font-size: 10px;
-            overflow-y: scroll; z-index: 9999; pointer-events: none; font-family: monospace;
-            padding: 5px; color: #fff;
-        }
+        /* --- SYSTEM BUTTONS --- */
+        #system-controls { position: absolute; top: 15px; left: 15px; z-index: 999; display: flex; gap: 10px; }
+        #reset-controls { position: absolute; top: 15px; right: 15px; z-index: 999; }
 
-        /* BUTTONS */
-        .sys-btn { position: absolute; top: 10px; left: 10px; z-index: 100; background: rgba(0,0,0,0.5); color: white; border: 1px solid white; padding: 10px; cursor: pointer; pointer-events: auto; }
-        .restart-btn { left: 70px; background: rgba(200, 0, 0, 0.5); }
+        .sys-btn { 
+            background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.7); 
+            width: 45px; height: 45px; border-radius: 8px; font-size: 1.2rem; 
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            backdrop-filter: blur(2px); pointer-events: auto; transition: all 0.2s;
+        }
+        .sys-btn:active { background: rgba(255,255,255,0.8); color: #000; }
+        .btn-danger { border-color: rgba(255,50,50,0.5); color: rgba(255,50,50,0.7); }
         
-        /* SCOREBOARD CONTROLS (Simplified for test) */
-        .hud-btn { pointer-events: auto; background: rgba(0,0,0,0.5); border: 1px solid #fff; color: #fff; padding: 10px; position: absolute; bottom: 20px; }
+        /* --- CONTROLS --- */
+        .control-group { position: absolute; pointer-events: auto; display: flex; flex-direction: column; gap: 8px; }
+        .group-left { left: 20px; top: 55%; transform: translateY(-50%); }
+        .group-right { right: 20px; top: 55%; transform: translateY(-50%); }
+        .group-top { top: 20px; left: 50%; transform: translateX(-50%); flex-direction: row; align-items: center; transition: top 0.3s ease; }
         
+        .team-name-btn {
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.9); 
+            font-weight: 700; font-size: 1rem; margin-bottom: 10px; 
+            cursor: pointer; text-transform: uppercase; padding: 8px 12px; border-radius: 6px;
+            pointer-events: auto; letter-spacing: 1px; transition: background 0.2s;
+        }
+        
+        /* ZOOM SLIDER */
+        .group-zoom { 
+            right: 150px; top: 55%; transform: translateY(-50%); 
+            height: 200px; width: 50px; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.25); border-radius: 25px; padding: 10px 0; border: 1px solid rgba(255,255,255,0.15);
+            pointer-events: auto; backdrop-filter: blur(2px);
+        }
+        input[type=range][orient=vertical] {
+            writing-mode: bt-lr; -webkit-appearance: slider-vertical;
+            width: 10px; height: 140px; margin: 10px 0; opacity: 0.6;
+        }
+        .zoom-info { font-size: 0.7rem; font-weight: 700; text-align: center; opacity: 0.8; }
+        .zoom-type-hw { color: #0f0; } 
+        .zoom-type-dig { color: #f33; } 
+
+        /* HUD BUTTONS */
+        .hud-btn {
+            background: rgba(20,20,20,0.25); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.8);
+            padding: 12px 0; border-radius: 8px; font-weight: bold; font-size: 1.1rem;
+            width: 70px; text-align: center; backdrop-filter: blur(2px); transition: all 0.1s;
+        }
+        .hud-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.3); color: #fff; }
+        
+        /* REC BUTTONS */
+        .btn-rec { background: rgba(200,0,0,0.6); border: 2px solid rgba(255,255,255,0.5); width: 55px; height: 55px; border-radius: 50%; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
+        .rec-active { background: rgba(255,255,255,0.9); color: #f00; border-color: #f00; animation: pulse 2s infinite; font-size: 0.65rem; }
+        .rec-paused { background: rgba(255, 200, 0, 0.9); color: #000; border-color: #fff; animation: none; font-size: 0.6rem; }
+        @keyframes pulse { 0% {opacity:1} 50% {opacity:0.6} 100% {opacity:1} }
+        
+        #rec-timer { display: none; font-family: 'Courier New', monospace; font-weight: bold; font-size: 1.2rem; color: #f00; margin: 0 10px; text-shadow: 0 0 5px #000; }
+        #btn-stop { display: none; width: 45px; height: 45px; background: rgba(200,0,0,0.8); border: 2px solid #fff; border-radius: 8px; align-items: center; justify-content: center; font-size: 1.2rem; margin-left: 8px; }
+
+        /* AUDIO METER */
+        #audio-meter { width: 8px; height: 45px; background: rgba(50,50,50,0.3); border: 1px solid rgba(100,100,100,0.3); border-radius: 5px; overflow: hidden; position: relative; display: flex; align-items: flex-end; }
+        #audio-level { width: 100%; height: 0%; background: rgba(0,255,0,0.7); transition: height 0.1s; }
+
+        /* MODALS */
+        .modal { position: fixed; z-index: 100; background: #1a1a1a; padding: 25px; border: 1px solid #333; border-radius: 12px; text-align: center; top:50%; left:50%; transform:translate(-50%, -50%); width: 85%; max-width: 350px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .modal h3 { margin-top: 0; color: #eee; }
+        .modal-btn { background: #007bff; color: #fff; border: none; padding: 12px; width: 100%; margin: 8px 0; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+        #input-modal input { width: 90%; padding: 12px; font-size: 1.1rem; margin-bottom: 15px; text-align: center; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; }
+        
+        select { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 6px; margin-bottom: 10px; font-size: 1rem; }
+
+        #raw-video { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="debug-log">Waiting for logs...</div>
+    <div id="system-controls">
+        <button class="sys-btn" onclick="toggleFullScreen()">⛶</button>
+        <button class="sys-btn" onclick="openStartupModal()">⚙️</button> <button class="sys-btn" onclick="toggleScoreboardPos()">⬍</button>
+    </div>
+    <div id="reset-controls">
+        <button class="sys-btn btn-danger" onclick="resetGameData()">✕</button>
+    </div>
 
-    <button class="sys-btn" onclick="openCamSelect()">⚙️ CAM</button>
-    <button class="sys-btn restart-btn" onclick="location.reload()">↻ RELOAD</button>
+    <div id="startup-modal" class="modal" style="display:block">
+        <h3>Pro Court Cam v22</h3>
+        <p style="color:#888; font-size:0.9rem;">Stable • Source Selector</p>
+        
+        <div style="text-align:left; font-size:0.8rem; color:#aaa; margin-bottom:5px;">Select Camera Source:</div>
+        <select id="camera-select"></select>
+
+        <button class="modal-btn" style="background:#28a745" onclick="startSelectedCamera(1280, 720, 5000000)">Start 720p (Stable)</button>
+        <button class="modal-btn" onclick="startSelectedCamera(1920, 1080, 8000000)">Start 1080p (Pro)</button>
+        
+        <hr style="border-color:#333; margin:15px 0;">
+        <button class="modal-btn" style="background:#dc3545" onclick="forceRestartCamera()">⚠️ Force Restart Camera</button>
+        <button class="modal-btn" style="background:#444" onclick="closeModal()">Close Menu</button>
+    </div>
+
+    <div id="input-modal" class="modal">
+        <h3 id="input-title">Edit Name</h3>
+        <input type="text" id="team-input" maxlength="10">
+        <button class="modal-btn" onclick="saveTeamName()">SAVE</button>
+        <button class="modal-btn" style="background:#444" onclick="closeInput()">CANCEL</button>
+    </div>
 
     <div id="stage">
-        <video id="raw-video" autoplay playsinline webkit-playsinline muted></video>
         <canvas id="gameCanvas"></canvas>
-        
+
         <div id="ui-layer">
-            <div style="position:absolute; top:20px; width:100%; text-align:center;">
-                <h2 style="margin:0; text-shadow:0 2px 4px #000;">DIAGNOSTIC MODE</h2>
-                <p style="margin:0; font-size:0.8rem; color:#ccc;">v23 • Basic Stream</p>
+            <div class="control-group group-top" id="top-bar">
+                <button class="hud-btn" style="width:100px; border-color:rgba(40,167,69,0.5); color:#80ff9f; font-family:monospace; font-size:1.4rem;" id="btn-clock" onclick="toggleTimer()">10:00</button>
+                <div style="width:10px"></div>
+                <div id="audio-meter"><div id="audio-level"></div></div>
+                <div style="width:10px"></div>
+                <button class="hud-btn btn-rec" id="btn-rec" onclick="toggleRecordState()">REC</button>
+                <div id="rec-timer">00:00:00</div>
+                <button class="hud-btn" id="btn-stop" onclick="stopRecording()">■</button>
+                <div style="width:15px"></div>
+                <button class="hud-btn" style="font-size:0.8rem;" onclick="nextPeriod()">PER 1</button>
+            </div>
+
+            <div class="control-group group-left">
+                <button class="team-name-btn" style="border-left: 4px solid #007bff;" onclick="openInput('home')">HOME ✎</button>
+                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 1)">+1</button>
+                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 2)">+2</button>
+                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 3)">+3</button>
+                <button class="hud-btn" style="color:#80bfff; font-size:0.8rem; opacity:0.6;" onclick="updateScore('home', -1)">-1</button>
+            </div>
+
+            <div class="control-group group-right">
+                <button class="team-name-btn" style="border-left: 4px solid #dc3545;" onclick="openInput('guest')">GUEST ✎</button>
+                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 1)">+1</button>
+                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 2)">+2</button>
+                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 3)">+3</button>
+                <button class="hud-btn" style="color:#ff808f; font-size:0.8rem; opacity:0.6;" onclick="updateScore('guest', -1)">-1</button>
+            </div>
+
+            <div class="control-group group-zoom">
+                <div id="zoom-type" class="zoom-info zoom-type-dig">DIG</div>
+                <div id="zoom-label" class="zoom-info" style="font-size:0.9rem; color:rgba(255,255,255,0.8); margin-top:2px;">1.0x</div>
+                <input type="range" id="zoom-slider" orient="vertical" min="1" max="5" step="0.1" value="1">
             </div>
         </div>
     </div>
 
-    <div id="cam-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#222; padding:20px; z-index:2000; border:1px solid #555; text-align:center;">
-        <h3>Select Camera</h3>
-        <select id="cam-select" style="width:100%; padding:10px; margin-bottom:10px;"></select>
-        <button onclick="startStream()" style="padding:10px 20px; background:#007bff; color:white; border:none;">START</button>
-        <button onclick="document.getElementById('cam-modal').style.display='none'" style="padding:10px 20px; background:#444; color:white; border:none;">CLOSE</button>
-    </div>
+    <video id="raw-video" autoplay muted playsinline></video>
 
     <script>
-        const video = document.getElementById('raw-video');
+        // --- WAKE LOCK ---
+        let wakeLock = null;
+        async function requestWakeLock() { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
+        document.addEventListener("visibilitychange", async () => { if (document.visibilityState === 'visible') requestWakeLock(); });
+
+        // --- DATA PERSISTENCE ---
+        const STORAGE_KEY = 'court_cam_v22_data';
+        let gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 };
+        let scoreboardPos = "BOTTOM"; 
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if(saved) { try { gameData = JSON.parse(saved); } catch(e) {} }
+        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData)); }
+        function resetGameData() { if(confirm("Reset game?")) { gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 }; saveData(); updateClockUI(); } }
+
+        // --- STATE ---
+        let isTimerRunning = false, timerInterval = null;
+        let track = null; 
+        let zoomMode = "DIGITAL"; 
+        let currentZoom = 1.0;
+        let targetW=1280, targetH=720, targetBitrate = 5000000;
+        let homeFlash = 0, guestFlash = 0;
+        let audioContext;
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const logBox = document.getElementById('debug-log');
-        const camSelect = document.getElementById('cam-select');
-        let stream = null;
+        const video = document.getElementById('raw-video');
+        const cameraSelect = document.getElementById('camera-select');
+        const topBar = document.getElementById('top-bar');
+        const clockBtn = document.getElementById('btn-clock');
 
-        function log(msg) {
-            console.log(msg);
-            logBox.innerHTML = `> ${msg}<br>` + logBox.innerHTML;
-        }
-
-        // 1. INITIAL LOAD
-        window.onload = async () => {
-            log("App Loaded. Checking permissions...");
+        // --- INITIALIZATION ---
+        // 1. Populate Camera List on Load
+        async function loadCameras() {
             try {
-                // Ask for permission simply first
-                await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                log("Permissions Granted.");
-                populateCameras();
-            } catch (e) {
-                log("PERMISSION ERROR: " + e.message);
-                alert("Camera permission denied. Check browser settings.");
-            }
-        };
+                await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); // Ask permission
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                
+                cameraSelect.innerHTML = "";
+                // Add "Default" option first (safest)
+                let optDef = document.createElement('option');
+                optDef.value = "default";
+                optDef.text = "System Default (Back)";
+                cameraSelect.appendChild(optDef);
 
-        // 2. FIND CAMERAS
-        async function populateCameras() {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const videoDevices = devices.filter(device => device.kind === 'videoinput');
-            
-            camSelect.innerHTML = "";
-            
-            // Add "Default" option
-            let optDef = document.createElement('option');
-            optDef.value = "default";
-            optDef.text = "Default System Camera";
-            camSelect.appendChild(optDef);
-
-            if (videoDevices.length === 0) {
-                log("No cameras found!");
-            } else {
-                log(`Found ${videoDevices.length} cameras.`);
-                videoDevices.forEach((device, i) => {
+                videoDevices.forEach((device, index) => {
                     let opt = document.createElement('option');
                     opt.value = device.deviceId;
-                    opt.text = device.label || `Camera ${i + 1}`;
-                    camSelect.appendChild(opt);
+                    opt.text = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(opt);
                 });
-            }
-            // Auto-start default
-            startStream();
+            } catch(e) { console.error(e); }
         }
+        loadCameras();
 
-        function openCamSelect() {
-            document.getElementById('cam-modal').style.display = 'block';
-        }
+        function openStartupModal() { document.getElementById('startup-modal').style.display = 'block'; }
+        function closeModal() { document.getElementById('startup-modal').style.display = 'none'; }
 
-        // 3. START STREAM
-        async function startStream() {
-            document.getElementById('cam-modal').style.display = 'none';
-            if(stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
+        async function startSelectedCamera(w, h, bitrate) {
+            targetW = w; targetH = h; targetBitrate = bitrate;
+            canvas.width = w; canvas.height = h;
+            closeModal();
+            requestWakeLock();
+            
+            if(track) track.stop(); // Stop existing
 
-            const deviceId = camSelect.value;
-            log(`Requesting camera: ${deviceId}...`);
-
+            const selectedId = cameraSelect.value;
             const constraints = {
-                audio: false, // Turn off audio for video test to prevent feedback
-                video: {
-                    width: { ideal: 1280 }, // Lower res for safety
-                    height: { ideal: 720 }
-                }
+                video: { width: { ideal: w }, height: { ideal: h }, zoom: true },
+                audio: true
             };
 
-            if (deviceId !== "default") {
-                constraints.video.deviceId = { exact: deviceId };
+            if (selectedId === "default") {
+                constraints.video.facingMode = "environment";
             } else {
-                constraints.video.facingMode = "environment"; // Prefer back camera
+                constraints.video.deviceId = { exact: selectedId };
             }
 
             try {
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-                log("Stream acquired. Attaching to video...");
-                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
-                
-                // CRITICAL: Explicit play call
                 await video.play();
-                log("Video playing! Resolution: " + video.videoWidth + "x" + video.videoHeight);
+                track = stream.getVideoTracks()[0];
                 
-                // Resize canvas to match video
-                canvas.width = video.videoWidth || 1280;
-                canvas.height = video.videoHeight || 720;
-                
-                draw(); // Start loop
-            } catch (e) {
-                log("STREAM ERROR: " + e.name + ": " + e.message);
+                setupAudio(stream);
+                setupZoom();
+                if(!audioContext) drawLoop(); // Start loop only once
+            } catch(e) {
+                alert("Camera Error: " + e.message + "\nTry selecting 'System Default'.");
             }
         }
 
-        // 4. DRAW LOOP
-        function draw() {
-            if (video.paused || video.ended) {
-                log("Video paused/ended. Stopping draw.");
-                return;
+        async function forceRestartCamera() {
+             if(track) track.stop();
+             video.srcObject = null;
+             // Force simplest reload
+             cameraSelect.value = "default";
+             startSelectedCamera(1280, 720, 5000000);
+        }
+
+        // --- AUDIO ---
+        function setupAudio(stream) {
+            try {
+                if(audioContext) audioContext.close();
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const analyser = audioContext.createAnalyser();
+                const microphone = audioContext.createMediaStreamSource(stream);
+                const javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+                analyser.smoothingTimeConstant = 0.8; analyser.fftSize = 1024;
+                microphone.connect(analyser); analyser.connect(javascriptNode); javascriptNode.connect(audioContext.destination);
+                
+                javascriptNode.onaudioprocess = function() {
+                    const array = new Uint8Array(analyser.frequencyBinCount);
+                    analyser.getByteFrequencyData(array);
+                    let values = 0; for(let i=0; i<array.length; i++) values += array[i];
+                    let pct = Math.min(100, (values / array.length) * 2);
+                    const bar = document.getElementById('audio-level');
+                    bar.style.height = pct + "%";
+                    bar.style.background = pct > 80 ? "rgba(255,0,0,0.8)" : "rgba(0,255,0,0.8)";
+                }
+            } catch(e) {}
+        }
+
+        // --- ZOOM ---
+        function setupZoom() {
+            const caps = track.getCapabilities();
+            const slider = document.getElementById('zoom-slider');
+            const typeLabel = document.getElementById('zoom-type');
+
+            if (caps.zoom) {
+                zoomMode = "HARDWARE";
+                typeLabel.innerText = "OPTICAL";
+                typeLabel.className = "zoom-info zoom-type-hw"; 
+                slider.min = caps.zoom.min;
+                slider.max = caps.zoom.max;
+                slider.step = caps.zoom.step || 0.1;
+                slider.value = track.getSettings().zoom || 1;
+            } else {
+                zoomMode = "DIGITAL";
+                typeLabel.innerText = "DIGITAL";
+                typeLabel.className = "zoom-info zoom-type-dig";
+                slider.min = 1; slider.max = 5; slider.step = 0.1; slider.value = 1;
             }
+
+            slider.oninput = async (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('zoom-label').innerText = val.toFixed(1) + "x";
+                if(zoomMode === "HARDWARE") {
+                    try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } catch(e){}
+                } else { currentZoom = val; }
+            };
+        }
+
+        // --- RECORDING ---
+        let mediaRecorder, chunks=[], recState="IDLE", recSeconds=0, recTimerInterval=null;
+        const recBtn = document.getElementById('btn-rec'), stopBtn = document.getElementById('btn-stop'), recTimer = document.getElementById('rec-timer');
+
+        function toggleRecordState() {
+            if(recState === "IDLE") startRecording();
+            else if(recState === "RECORDING") pauseRecording();
+            else if(recState === "PAUSED") resumeRecording();
+        }
+
+        function updateRecTimerDisplay() {
+            recSeconds++;
+            let h = Math.floor(recSeconds/3600), m = Math.floor((recSeconds%3600)/60), s = recSeconds%60;
+            recTimer.innerText = (h<10?"0"+h:h)+":"+(m<10?"0"+m:m)+":"+(s<10?"0"+s:s);
+        }
+
+        function startRecording() {
+            try {
+                const stream = canvas.captureStream(30);
+                if(video.srcObject) {
+                    const audioTracks = video.srcObject.getAudioTracks();
+                    if(audioTracks.length > 0) stream.addTrack(audioTracks[0]);
+                }
+                
+                let opts = { videoBitsPerSecond: targetBitrate };
+                let ext = 'webm';
+                if(MediaRecorder.isTypeSupported('video/mp4')) { opts.mimeType = 'video/mp4'; ext = 'mp4'; }
+
+                mediaRecorder = new MediaRecorder(stream, opts);
+                mediaRecorder.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
+                mediaRecorder.onstop = () => saveVideoFile(ext);
+                mediaRecorder.start(1000); 
+
+                recState = "RECORDING";
+                recBtn.innerText = "PAUSE"; recBtn.className = "hud-btn btn-rec rec-active";
+                stopBtn.style.display = "flex"; recTimer.style.display = "block"; recTimer.style.color = "#f00";
+                recSeconds = 0; recTimer.innerText = "00:00:00";
+                recTimerInterval = setInterval(updateRecTimerDisplay, 1000);
+            } catch(e) { alert("Rec Error: " + e.message); }
+        }
+        function pauseRecording() { mediaRecorder.pause(); recState = "PAUSED"; recBtn.innerText = "RESUME"; recBtn.className = "hud-btn btn-rec rec-paused"; clearInterval(recTimerInterval); recTimer.style.color = "#ffcc00"; }
+        function resumeRecording() { mediaRecorder.resume(); recState = "RECORDING"; recBtn.innerText = "PAUSE"; recBtn.className = "hud-btn btn-rec rec-active"; recTimer.style.color = "#f00"; recTimerInterval = setInterval(updateRecTimerDisplay, 1000); }
+        function stopRecording() { mediaRecorder.stop(); recState = "IDLE"; recBtn.innerText = "REC"; recBtn.className = "hud-btn btn-rec"; stopBtn.style.display = "none"; clearInterval(recTimerInterval); recTimer.style.display = "none"; }
+        function saveVideoFile(ext) {
+            const blob = new Blob(chunks, {type: mediaRecorder.mimeType}); chunks=[];
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Game_${Date.now()}.${ext}`; document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a);}, 100);
+        }
+
+        // --- DRAWING ---
+        function drawLoop() {
+            // Video Draw
+            if (zoomMode === "DIGITAL" && currentZoom > 1) {
+                const vw = video.videoWidth, vh = video.videoHeight;
+                if(vw) {
+                    const sw = vw/currentZoom, sh = vh/currentZoom, sx = (vw-sw)/2, sy = (vh-sh)/2;
+                    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+                }
+            } else { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); }
             
-            // Draw video to canvas
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // Scoreboard UI Draw
+            const H = canvas.height, W = canvas.width;
+            const sbHeight = H * 0.14, sbWidth = W * 0.7; 
+            const sbX = (W - sbWidth) / 2; 
+            const sbY = (scoreboardPos === "BOTTOM") ? H - sbHeight - (H * 0.04) : (H * 0.04);
 
-            // Draw simple UI overlay
-            ctx.fillStyle = "rgba(0,0,0,0.5)";
-            ctx.fillRect(10, 10, 200, 60);
-            ctx.fillStyle = "#0f0";
-            ctx.font = "30px monospace";
-            ctx.fillText("LIVE FEED", 20, 50);
+            const grad = ctx.createLinearGradient(sbX, sbY, sbX, sbY + sbHeight);
+            grad.addColorStop(0, "rgba(20, 20, 20, 0.9)"); grad.addColorStop(1, "rgba(0, 0, 0, 0.95)");
+            ctx.fillStyle = grad; ctx.beginPath(); ctx.roundRect(sbX, sbY, sbWidth, sbHeight, 10); ctx.fill();
+            ctx.strokeStyle = "#c9a050"; ctx.lineWidth = 2; ctx.stroke();
 
-            requestAnimationFrame(draw);
+            const colW = sbWidth / 3, cY = sbY + (sbHeight/2);
+            
+            // Teams
+            ctx.fillStyle = "#0056b3"; ctx.beginPath(); ctx.roundRect(sbX + 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(gameData.homeName, sbX + (colW * 0.5), cY);
+            if (homeFlash > 0) { ctx.fillStyle = "#ffff00"; homeFlash--; } else { ctx.fillStyle = "#fff"; }
+            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.homeScore, sbX + 10 + (colW * 0.2), cY + 3);
+
+            const gStart = sbX + (colW * 2);
+            ctx.fillStyle = "#b30000"; ctx.beginPath(); ctx.roundRect(gStart + (colW * 0.6) - 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`; ctx.textAlign = "right"; ctx.fillText(gameData.guestName, gStart + (colW * 0.5), cY);
+            if (guestFlash > 0) { ctx.fillStyle = "#ffff00"; guestFlash--; } else { ctx.fillStyle = "#fff"; }
+            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.guestScore, gStart + (colW * 0.6) + (colW*0.2) - 10, cY + 3);
+
+            // Clock
+            const cStart = sbX + colW;
+            ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(cStart, sbY + 15, 2, sbHeight - 30); ctx.fillRect(gStart, sbY + 15, 2, sbHeight - 30);
+            let m = Math.floor(gameData.timeLeft / 60), s = gameData.timeLeft % 60;
+            ctx.fillStyle = isTimerRunning ? "#0f0" : "#ccc"; ctx.font = `bold ${H*0.065}px 'Courier New', monospace`; ctx.textAlign = "center";
+            ctx.fillText(`${m}:${s<10?'0'+s:s}`, cStart + (colW/2), cY - (sbHeight * 0.15));
+            ctx.fillStyle = "#aaa"; ctx.font = `bold ${H*0.025}px sans-serif`;
+            let suf = gameData.period===1?"ST":gameData.period===2?"ND":gameData.period===3?"RD":"TH";
+            ctx.fillText(`${gameData.period}${suf} QTR`, cStart + (colW/2), cY + (sbHeight * 0.25));
+
+            ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.font = `bold ${H*0.04}px sans-serif`; ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText("TIU", W - 20, 20); ctx.restore();
+
+            requestAnimationFrame(drawLoop);
         }
 
-        // Error Listeners
-        video.addEventListener('error', (e) => log("Video Element Error: " + JSON.stringify(e)));
-        video.addEventListener('loadeddata', () => log("Event: loadeddata"));
-        video.addEventListener('playing', () => log("Event: playing"));
+        // --- INPUTS ---
+        function openInput(team) { editingTeam = team; document.getElementById('input-modal').style.display = 'block'; document.getElementById('input-title').innerText = "Rename " + team.toUpperCase(); document.getElementById('team-input').value = (team==='home'?gameData.homeName:gameData.guestName); document.getElementById('team-input').focus(); }
+        function saveTeamName() { const val = document.getElementById('team-input').value; if(val){ if(editingTeam==='home')gameData.homeName=val.toUpperCase(); else gameData.guestName=val.toUpperCase(); saveData(); } closeInput(); }
+        function closeInput() { document.getElementById('input-modal').style.display = 'none'; }
+        
+        clockBtn.addEventListener('dblclick', () => {
+             if(isTimerRunning) toggleTimer();
+             let val = prompt("Enter Time (e.g. 8 or 1:30):");
+             if (val) { if (val.includes(":")) { let p = val.split(":"); gameData.timeLeft = (parseInt(p[0])*60) + parseInt(p[1]); } else { gameData.timeLeft = parseInt(val) * 60; } updateClockUI(); saveData(); }
+        });
+        function updateClockUI() { let m = Math.floor(gameData.timeLeft/60), s = gameData.timeLeft%60; clockBtn.innerText = `${m}:${s<10?'0'+s:s}`; }
+        function updateScore(t, n) { if(t==='home'){ gameData.homeScore=Math.max(0, gameData.homeScore+n); homeFlash=15; } else { gameData.guestScore=Math.max(0, gameData.guestScore+n); guestFlash=15; } saveData(); }
+        function toggleTimer() { if(isTimerRunning){ clearInterval(timerInterval); isTimerRunning=false; clockBtn.style.color="#80ff9f"; clockBtn.style.borderColor="rgba(40,167,69,0.5)"; } else { isTimerRunning=true; clockBtn.style.color="#fff"; clockBtn.style.borderColor="#f33"; timerInterval = setInterval(() => { if(gameData.timeLeft>0){ gameData.timeLeft--; updateClockUI(); if(gameData.timeLeft%5===0)saveData(); } else toggleTimer(); }, 1000); } }
+        function nextPeriod() { gameData.period++; if(gameData.period>4) gameData.period=1; saveData(); }
+        function toggleScoreboardPos() { scoreboardPos = (scoreboardPos==="BOTTOM")?"TOP":"BOTTOM"; topBar.style.top = (scoreboardPos==="TOP")?"80%":"20px"; }
+        function toggleFullScreen() { if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e=>{}); else document.exitFullscreen().catch(e=>{}); }
     </script>
 </body>
 </html>
