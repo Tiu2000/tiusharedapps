@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Pro Court Cam v26 (Timer Toggle)</title>
+    <title>Pro Court Cam v27 (Camera Fix)</title>
     <style>
         /* --- GLOBAL --- */
         body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
@@ -84,13 +83,11 @@
         .modal h3 { margin-top: 0; color: #eee; }
         .modal-btn { background: #007bff; color: #fff; border: none; padding: 12px; width: 100%; margin: 8px 0; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; }
         
-        /* CASH APP BUTTON */
-        .btn-cashapp { background: #00D632; color: #fff; margin-top: 5px; }
-        .btn-cashapp:active { background: #00b32a; }
-        
         /* SETTINGS CHECKBOX */
         .settings-row { display: flex; justify-content: center; align-items: center; margin: 15px 0; gap: 10px; color: #ccc; font-size: 0.95rem; }
         input[type="checkbox"] { width: 18px; height: 18px; accent-color: #007bff; cursor: pointer; }
+        
+        .btn-cashapp { background: #00D632; color: #fff; margin-top: 5px; }
 
         #input-modal input { width: 90%; padding: 12px; font-size: 1.1rem; margin-bottom: 15px; text-align: center; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; }
         
@@ -114,8 +111,8 @@
     </div>
 
     <div id="startup-modal" class="modal" style="display:block">
-        <h3>Pro Court Cam v26</h3>
-        <p style="color:#888; font-size:0.9rem;">Source Selector Fix + Polyfill</p>
+        <h3>Pro Court Cam v27</h3>
+        <p style="color:#888; font-size:0.9rem;">Robust Camera Selector</p>
         
         <div style="text-align:left; font-size:0.8rem; color:#aaa; margin-bottom:5px;">Select Camera Source:</div>
         
@@ -162,6 +159,198 @@
         <div id="ui-layer">
             <div class="control-group group-top" id="top-bar">
                 <button class="hud-btn" style="width:100px; border-color:rgba(40,167,69,0.5); color:#80ff9f; font-family:monospace; font-size:1.4rem;" id="btn-clock" onclick="toggleTimer()">10:00</button>
+                <div style="width:10px"></div>
+                <div id="audio-meter"><div id="audio-level"></div></div>
+                <div style="width:10px"></div>
+                <button class="hud-btn btn-rec" id="btn-rec" onclick="toggleRecordState()">REC</button>
+                <div id="rec-timer">00:00:00</div>
+                <button class="hud-btn" id="btn-stop" onclick="stopRecording()">■</button>
+                <div style="width:15px"></div>
+                <button class="hud-btn" style="font-size:0.8rem;" onclick="nextPeriod()">PER 1</button>
+            </div>
+
+            <div class="control-group group-left">
+                <button class="team-name-btn" style="border-left: 4px solid #007bff;" onclick="openInput('home')">HOME ✎</button>
+                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 1)">+1</button>
+                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 2)">+2</button>
+                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 3)">+3</button>
+                <button class="hud-btn" style="color:#80bfff; font-size:0.8rem; opacity:0.6;" onclick="updateScore('home', -1)">-1</button>
+            </div>
+
+            <div class="control-group group-right">
+                <button class="team-name-btn" style="border-left: 4px solid #dc3545;" onclick="openInput('guest')">GUEST ✎</button>
+                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 1)">+1</button>
+                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 2)">+2</button>
+                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 3)">+3</button>
+                <button class="hud-btn" style="color:#ff808f; font-size:0.8rem; opacity:0.6;" onclick="updateScore('guest', -1)">-1</button>
+            </div>
+
+            <div class="control-group group-zoom">
+                <div id="zoom-type" class="zoom-info zoom-type-dig">DIG</div>
+                <div id="zoom-label" class="zoom-info" style="font-size:0.9rem; color:rgba(255,255,255,0.8); margin-top:2px;">1.0x</div>
+                <input type="range" id="zoom-slider" orient="vertical" min="1" max="5" step="0.1" value="1">
+            </div>
+        </div>
+    </div>
+
+    <video id="raw-video" autoplay muted playsinline></video>
+
+    <script>
+        // --- LOGGING UTILS ---
+        let debugLogs = [];
+        function log(msg) {
+            const ts = new Date().toLocaleTimeString();
+            const line = `[${ts}] ${msg}`;
+            debugLogs.push(line);
+            console.log(line);
+            const area = document.getElementById('log-textarea');
+            if(area) area.value = debugLogs.join('\n');
+        }
+        function openLogModal() { document.getElementById('log-modal').style.display = 'block'; document.getElementById('startup-modal').style.display = 'none'; }
+        function closeLogModal() { document.getElementById('log-modal').style.display = 'none'; document.getElementById('startup-modal').style.display = 'block'; }
+        function copyLogs() {
+            const area = document.getElementById('log-textarea');
+            area.select();
+            area.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(area.value).then(() => { alert("Logs copied!"); });
+        }
+        window.onerror = function(msg, url, line) { log(`ERR: ${msg} (Line ${line})`); };
+
+        // --- POLYFILLS ---
+        if (typeof CanvasRenderingContext2D.prototype.roundRect !== 'function') {
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                if (w < 2 * r) r = w / 2; if (h < 2 * r) r = h / 2;
+                this.beginPath(); this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r); this.arcTo(x, y + h, x, y, r); this.arcTo(x, y, x + w, y, r);
+                this.closePath(); return this;
+            };
+        }
+
+        // --- WAKE LOCK ---
+        let wakeLock = null;
+        async function requestWakeLock() { try { wakeLock = await navigator.wakeLock.request('screen'); log("WakeLock acquired"); } catch (err) { log("WakeLock fail: " + err.message); } }
+        document.addEventListener("visibilitychange", async () => { if (document.visibilityState === 'visible') requestWakeLock(); });
+
+        // --- DATA PERSISTENCE ---
+        const STORAGE_KEY = 'court_cam_v27_data';
+        let gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 };
+        let scoreboardPos = "BOTTOM"; 
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if(saved) { try { gameData = JSON.parse(saved); } catch(e) {} }
+        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData)); }
+        function resetGameData() { if(confirm("Reset game?")) { gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 }; saveData(); updateClockUI(); } }
+
+        // --- STATE ---
+        let isTimerRunning = false, timerInterval = null;
+        let track = null; 
+        let zoomMode = "DIGITAL"; 
+        let currentZoom = 1.0;
+        let targetW=1280, targetH=720, targetBitrate = 5000000;
+        let homeFlash = 0, guestFlash = 0;
+        let audioContext;
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('raw-video');
+        const cameraSelect = document.getElementById('camera-select');
+        const topBar = document.getElementById('top-bar');
+        const clockBtn = document.getElementById('btn-clock');
+
+        // --- INITIALIZATION & CAMERAS ---
+        async function loadCameras() {
+            log("Init: Loading cameras (v27 Safer Mode)...");
+            cameraSelect.innerHTML = "<option>Loading...</option>";
+
+            try {
+                // STEP 1: Request VIDEO ONLY first. This prevents microphone errors from blocking camera access.
+                const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                // We got permission! Release the camera immediately.
+                tempStream.getTracks().forEach(t => t.stop());
+
+                // STEP 2: Now that we have permission, list the devices.
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                
+                cameraSelect.innerHTML = ""; // Clear loading message
+
+                if(videoDevices.length === 0) {
+                    let opt = document.createElement('option');
+                    opt.text = "No Cameras Found (Check Permissions)";
+                    cameraSelect.appendChild(opt);
+                    log("Init: No video devices found.");
+                } else {
+                    // Add Default Option
+                    let optDef = document.createElement('option');
+                    optDef.value = "default";
+                    optDef.text = "System Default (Back)";
+                    cameraSelect.appendChild(optDef);
+
+                    // Add Specific Cameras
+                    videoDevices.forEach((device, index) => {
+                        let opt = document.createElement('option');
+                        opt.value = device.deviceId;
+                        opt.text = device.label || `Camera ${index + 1}`;
+                        cameraSelect.appendChild(opt);
+                    });
+                    log(`Init: Found ${videoDevices.length} cameras`);
+                }
+
+            } catch(e) { 
+                log("Init Error: " + e.message); 
+                cameraSelect.innerHTML = `<option>Error: ${e.name}</option>`;
+                
+                // Add a "Force Default" option in case enumeration fails but getUserMedia still works
+                let optForce = document.createElement('option');
+                optForce.value = "default";
+                optForce.text = "Force Attempt (Default)";
+                cameraSelect.appendChild(optForce);
+            }
+        }
+        
+        // Load immediately
+        loadCameras();
+
+        function openStartupModal() { document.getElementById('startup-modal').style.display = 'block'; }
+        function closeModal() { document.getElementById('startup-modal').style.display = 'none'; }
+        
+        function toggleTimerVisibility() {
+            const chk = document.getElementById('chk-timer');
+            const btn = document.getElementById('btn-clock');
+            if (chk && btn) {
+                btn.style.display = chk.checked ? 'block' : 'none';
+                if (!chk.checked && isTimerRunning) toggleTimer();
+            }
+        }
+
+        async function startSelectedCamera(w, h, bitrate) {
+            log(`Starting Camera: ${w}x${h}`);
+            targetW = w; targetH = h; targetBitrate = bitrate;
+            canvas.width = w; canvas.height = h;
+            closeModal();
+            requestWakeLock();
+            toggleTimerVisibility();
+            
+            if(track) { track.stop(); track = null; }
+
+            const selectedId = cameraSelect.value;
+            const constraints = { video: { width: { ideal: w }, height: { ideal: h } }, audio: true };
+
+            if (selectedId === "default") {
+                constraints.video.facingMode = "environment";
+            } else {
+                constraints.video.deviceId = { exact: selectedId };
+            }
+
+            try {
+                // Try Video + Audio first
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                handleStreamSuccess(stream);
+            } catch(e) {
+                log(`Audio/Video Error: ${e.message}. Retrying Video Only...`);
+                // If Audio fails (common bug), try VIDEO ONLY
+                try {
+                    constraints.audio = false;
+                    const stream = await navigator.mediaDevices.getUserMedia(const)">10:00</button>
                 <div style="width:10px"></div>
                 <div id="audio-meter"><div id="audio-level"></div></div>
                 <div style="width:10px"></div>
