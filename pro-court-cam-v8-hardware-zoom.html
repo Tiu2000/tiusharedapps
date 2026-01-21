@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Pro Court Cam v22</title>
+    <title>Pro Court Cam v23 (Debug)</title>
     <style>
         /* --- GLOBAL --- */
         body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
@@ -87,6 +87,9 @@
         
         select { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 6px; margin-bottom: 10px; font-size: 1rem; }
 
+        /* LOG MODAL */
+        #log-textarea { width: 100%; height: 150px; background: #000; color: #0f0; font-family: monospace; font-size: 0.8rem; border: 1px solid #555; margin-bottom: 10px; resize: none; }
+
         #raw-video { display: none; }
     </style>
 </head>
@@ -101,18 +104,22 @@
     </div>
 
     <div id="startup-modal" class="modal" style="display:block">
-        <h3>Pro Court Cam v22</h3>
-        <p style="color:#888; font-size:0.9rem;">Stable • Source Selector</p>
+        <h3>Pro Court Cam v23</h3>
+        <p style="color:#888; font-size:0.9rem;">Diagnostic Mode</p>
         
         <div style="text-align:left; font-size:0.8rem; color:#aaa; margin-bottom:5px;">Select Camera Source:</div>
         <select id="camera-select"></select>
 
         <button class="modal-btn" style="background:#28a745" onclick="startSelectedCamera(1280, 720, 5000000)">Start 720p (Stable)</button>
         <button class="modal-btn" onclick="startSelectedCamera(1920, 1080, 8000000)">Start 1080p (Pro)</button>
-        
-        <hr style="border-color:#333; margin:15px 0;">
-        <button class="modal-btn" style="background:#dc3545" onclick="forceRestartCamera()">⚠️ Force Restart Camera</button>
-        <button class="modal-btn" style="background:#444" onclick="closeModal()">Close Menu</button>
+        <button class="modal-btn" style="background:#555; margin-top:10px;" onclick="openLogModal()">📝 View/Copy Logs</button>
+    </div>
+
+    <div id="log-modal" class="modal">
+        <h3>Debug Logs</h3>
+        <textarea id="log-textarea" readonly></textarea>
+        <button class="modal-btn" onclick="copyLogs()">📋 Copy to Clipboard</button>
+        <button class="modal-btn" style="background:#444" onclick="closeLogModal()">Close</button>
     </div>
 
     <div id="input-modal" class="modal">
@@ -165,13 +172,35 @@
     <video id="raw-video" autoplay muted playsinline></video>
 
     <script>
+        // --- LOGGING UTILS ---
+        let debugLogs = [];
+        function log(msg) {
+            const ts = new Date().toLocaleTimeString();
+            const line = `[${ts}] ${msg}`;
+            debugLogs.push(line);
+            console.log(line);
+            const area = document.getElementById('log-textarea');
+            if(area) area.value = debugLogs.join('\n');
+        }
+        function openLogModal() { document.getElementById('log-modal').style.display = 'block'; document.getElementById('startup-modal').style.display = 'none'; }
+        function closeLogModal() { document.getElementById('log-modal').style.display = 'none'; document.getElementById('startup-modal').style.display = 'block'; }
+        function copyLogs() {
+            const area = document.getElementById('log-textarea');
+            area.select();
+            area.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(area.value).then(() => {
+                alert("Logs copied to clipboard!");
+            });
+        }
+        window.onerror = function(msg, url, line) { log(`ERR: ${msg} (Line ${line})`); };
+
         // --- WAKE LOCK ---
         let wakeLock = null;
-        async function requestWakeLock() { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
+        async function requestWakeLock() { try { wakeLock = await navigator.wakeLock.request('screen'); log("WakeLock acquired"); } catch (err) { log("WakeLock fail: " + err.message); } }
         document.addEventListener("visibilitychange", async () => { if (document.visibilityState === 'visible') requestWakeLock(); });
 
         // --- DATA PERSISTENCE ---
-        const STORAGE_KEY = 'court_cam_v22_data';
+        const STORAGE_KEY = 'court_cam_v23_data';
         let gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 };
         let scoreboardPos = "BOTTOM"; 
         const saved = localStorage.getItem(STORAGE_KEY);
@@ -196,15 +225,16 @@
         const clockBtn = document.getElementById('btn-clock');
 
         // --- INITIALIZATION ---
-        // 1. Populate Camera List on Load
         async function loadCameras() {
+            log("Init: Loading cameras...");
             try {
-                await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); // Ask permission
+                // Initial request to trigger permission
+                await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); 
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(d => d.kind === 'videoinput');
                 
                 cameraSelect.innerHTML = "";
-                // Add "Default" option first (safest)
+                // Add "Default" option
                 let optDef = document.createElement('option');
                 optDef.value = "default";
                 optDef.text = "System Default (Back)";
@@ -216,7 +246,8 @@
                     opt.text = device.label || `Camera ${index + 1}`;
                     cameraSelect.appendChild(opt);
                 });
-            } catch(e) { console.error(e); }
+                log(`Init: Found ${videoDevices.length} cameras`);
+            } catch(e) { log("Init Error: " + e.message); }
         }
         loadCameras();
 
@@ -224,14 +255,20 @@
         function closeModal() { document.getElementById('startup-modal').style.display = 'none'; }
 
         async function startSelectedCamera(w, h, bitrate) {
+            log(`Starting Camera: ${w}x${h}`);
             targetW = w; targetH = h; targetBitrate = bitrate;
             canvas.width = w; canvas.height = h;
             closeModal();
             requestWakeLock();
             
-            if(track) track.stop(); // Stop existing
+            if(track) {
+                log("Stopping previous track...");
+                track.stop();
+            }
 
             const selectedId = cameraSelect.value;
+            log(`Selected ID: ${selectedId}`);
+
             const constraints = {
                 video: { width: { ideal: w }, height: { ideal: h }, zoom: true },
                 audio: true
@@ -244,25 +281,31 @@
             }
 
             try {
+                log("Requesting user media...");
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                log("Stream acquired. Attaching to video...");
                 video.srcObject = stream;
-                await video.play();
+                
+                // CRITICAL: Explicit play promise handling
+                try {
+                    await video.play();
+                    log("Video playing!");
+                } catch (playErr) {
+                    log("Play Error: " + playErr.message);
+                }
+
                 track = stream.getVideoTracks()[0];
+                const settings = track.getSettings();
+                log(`Track Active: ${settings.width}x${settings.height} @ ${settings.frameRate}fps`);
                 
                 setupAudio(stream);
                 setupZoom();
-                if(!audioContext) drawLoop(); // Start loop only once
+                if(!audioContext) drawLoop(); 
             } catch(e) {
-                alert("Camera Error: " + e.message + "\nTry selecting 'System Default'.");
+                log(`FATAL ERROR: ${e.name}: ${e.message}`);
+                alert("Camera Failed! Please open Settings > Logs and copy the error.");
+                openStartupModal(); // Re-open menu on failure
             }
-        }
-
-        async function forceRestartCamera() {
-             if(track) track.stop();
-             video.srcObject = null;
-             // Force simplest reload
-             cameraSelect.value = "default";
-             startSelectedCamera(1280, 720, 5000000);
         }
 
         // --- AUDIO ---
@@ -282,10 +325,12 @@
                     let values = 0; for(let i=0; i<array.length; i++) values += array[i];
                     let pct = Math.min(100, (values / array.length) * 2);
                     const bar = document.getElementById('audio-level');
-                    bar.style.height = pct + "%";
-                    bar.style.background = pct > 80 ? "rgba(255,0,0,0.8)" : "rgba(0,255,0,0.8)";
+                    if(bar) {
+                        bar.style.height = pct + "%";
+                        bar.style.background = pct > 80 ? "rgba(255,0,0,0.8)" : "rgba(0,255,0,0.8)";
+                    }
                 }
-            } catch(e) {}
+            } catch(e) { log("Audio setup warning: " + e.message); }
         }
 
         // --- ZOOM ---
@@ -302,18 +347,20 @@
                 slider.max = caps.zoom.max;
                 slider.step = caps.zoom.step || 0.1;
                 slider.value = track.getSettings().zoom || 1;
+                log(`Zoom: Hardware supported (${caps.zoom.min}-${caps.zoom.max})`);
             } else {
                 zoomMode = "DIGITAL";
                 typeLabel.innerText = "DIGITAL";
                 typeLabel.className = "zoom-info zoom-type-dig";
                 slider.min = 1; slider.max = 5; slider.step = 0.1; slider.value = 1;
+                log("Zoom: Digital only");
             }
 
             slider.oninput = async (e) => {
                 const val = parseFloat(e.target.value);
                 document.getElementById('zoom-label').innerText = val.toFixed(1) + "x";
                 if(zoomMode === "HARDWARE") {
-                    try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } catch(e){}
+                    try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } catch(e){ log("Zoom fail: " + e.message); }
                 } else { currentZoom = val; }
             };
         }
@@ -336,6 +383,7 @@
 
         function startRecording() {
             try {
+                log("Rec: Starting...");
                 const stream = canvas.captureStream(30);
                 if(video.srcObject) {
                     const audioTracks = video.srcObject.getAudioTracks();
@@ -356,12 +404,13 @@
                 stopBtn.style.display = "flex"; recTimer.style.display = "block"; recTimer.style.color = "#f00";
                 recSeconds = 0; recTimer.innerText = "00:00:00";
                 recTimerInterval = setInterval(updateRecTimerDisplay, 1000);
-            } catch(e) { alert("Rec Error: " + e.message); }
+            } catch(e) { log("Rec Error: " + e.message); alert("Rec Error: " + e.message); }
         }
         function pauseRecording() { mediaRecorder.pause(); recState = "PAUSED"; recBtn.innerText = "RESUME"; recBtn.className = "hud-btn btn-rec rec-paused"; clearInterval(recTimerInterval); recTimer.style.color = "#ffcc00"; }
         function resumeRecording() { mediaRecorder.resume(); recState = "RECORDING"; recBtn.innerText = "PAUSE"; recBtn.className = "hud-btn btn-rec rec-active"; recTimer.style.color = "#f00"; recTimerInterval = setInterval(updateRecTimerDisplay, 1000); }
         function stopRecording() { mediaRecorder.stop(); recState = "IDLE"; recBtn.innerText = "REC"; recBtn.className = "hud-btn btn-rec"; stopBtn.style.display = "none"; clearInterval(recTimerInterval); recTimer.style.display = "none"; }
         function saveVideoFile(ext) {
+            log(`Rec: Saving ${chunks.length} chunks`);
             const blob = new Blob(chunks, {type: mediaRecorder.mimeType}); chunks=[];
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Game_${Date.now()}.${ext}`; document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a);}, 100);
         }
