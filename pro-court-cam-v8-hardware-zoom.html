@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Pro Court Cam v21</title>
+    <title>Pro Court Cam v22</title>
     <style>
         /* --- GLOBAL --- */
         body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
@@ -28,8 +28,7 @@
         }
         .sys-btn:active { background: rgba(255,255,255,0.8); color: #000; }
         .btn-danger { border-color: rgba(255,50,50,0.5); color: rgba(255,50,50,0.7); }
-        .btn-cam-switch { border-color: rgba(255,200,0,0.5); color: rgba(255,200,0,0.8); }
-
+        
         /* --- CONTROLS --- */
         .control-group { position: absolute; pointer-events: auto; display: flex; flex-direction: column; gap: 8px; }
         .group-left { left: 20px; top: 55%; transform: translateY(-50%); }
@@ -42,12 +41,10 @@
             cursor: pointer; text-transform: uppercase; padding: 8px 12px; border-radius: 6px;
             pointer-events: auto; letter-spacing: 1px; transition: background 0.2s;
         }
-        .team-name-btn:active { background: rgba(0,0,0,0.6); }
-
+        
         /* ZOOM SLIDER */
         .group-zoom { 
-            right: 150px; 
-            top: 55%; transform: translateY(-50%); 
+            right: 150px; top: 55%; transform: translateY(-50%); 
             height: 200px; width: 50px; display: flex;
             flex-direction: column; align-items: center; justify-content: center;
             background: rgba(0,0,0,0.25); border-radius: 25px; padding: 10px 0; border: 1px solid rgba(255,255,255,0.15);
@@ -74,20 +71,9 @@
         .rec-active { background: rgba(255,255,255,0.9); color: #f00; border-color: #f00; animation: pulse 2s infinite; font-size: 0.65rem; }
         .rec-paused { background: rgba(255, 200, 0, 0.9); color: #000; border-color: #fff; animation: none; font-size: 0.6rem; }
         @keyframes pulse { 0% {opacity:1} 50% {opacity:0.6} 100% {opacity:1} }
-
-        /* STOP BUTTON */
-        #btn-stop { display: none; width: 45px; height: 45px; background: rgba(200,0,0,0.8); border: 2px solid #fff; border-radius: 8px; align-items: center; justify-content: center; font-size: 1.2rem; margin-left: 8px; }
         
-        /* RECORDING TIMER */
         #rec-timer { display: none; font-family: 'Courier New', monospace; font-weight: bold; font-size: 1.2rem; color: #f00; margin: 0 10px; text-shadow: 0 0 5px #000; }
-
-        /* TOAST NOTIFICATION */
-        #toast {
-            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
-            background: rgba(50,50,50,0.8); color: #fff; padding: 10px 20px; border-radius: 20px;
-            font-size: 0.9rem; pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: 1000;
-            white-space: nowrap;
-        }
+        #btn-stop { display: none; width: 45px; height: 45px; background: rgba(200,0,0,0.8); border: 2px solid #fff; border-radius: 8px; align-items: center; justify-content: center; font-size: 1.2rem; margin-left: 8px; }
 
         /* AUDIO METER */
         #audio-meter { width: 8px; height: 45px; background: rgba(50,50,50,0.3); border: 1px solid rgba(100,100,100,0.3); border-radius: 5px; overflow: hidden; position: relative; display: flex; align-items: flex-end; }
@@ -96,36 +82,37 @@
         /* MODALS */
         .modal { position: fixed; z-index: 100; background: #1a1a1a; padding: 25px; border: 1px solid #333; border-radius: 12px; text-align: center; top:50%; left:50%; transform:translate(-50%, -50%); width: 85%; max-width: 350px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .modal h3 { margin-top: 0; color: #eee; }
-        .modal-btn { background: #007bff; color: #fff; border: none; padding: 12px; width: 100%; margin: 8px 0; border-radius: 6px; font-size: 1rem; font-weight: 600; }
+        .modal-btn { background: #007bff; color: #fff; border: none; padding: 12px; width: 100%; margin: 8px 0; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; }
         #input-modal input { width: 90%; padding: 12px; font-size: 1.1rem; margin-bottom: 15px; text-align: center; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; }
         
+        select { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 6px; margin-bottom: 10px; font-size: 1rem; }
+
         #raw-video { display: none; }
-        .warning-text { color:#ffcc00; font-size: 0.8rem; margin: 10px 0; background: rgba(255,200,0,0.1); padding: 5px; border-radius: 4px; }
     </style>
 </head>
 <body>
 
     <div id="system-controls">
         <button class="sys-btn" onclick="toggleFullScreen()">⛶</button>
-        <button class="sys-btn btn-cam-switch" onclick="trySwitchCamera()">📷</button>
-        <button class="sys-btn" onclick="toggleScoreboardPos()">⬍</button>
+        <button class="sys-btn" onclick="openStartupModal()">⚙️</button> <button class="sys-btn" onclick="toggleScoreboardPos()">⬍</button>
     </div>
     <div id="reset-controls">
         <button class="sys-btn btn-danger" onclick="resetGameData()">✕</button>
     </div>
-    
-    <div id="toast">Camera Switched</div>
 
     <div id="startup-modal" class="modal" style="display:block">
-        <h3>Pro Court Cam</h3>
-        <p style="color:#888; font-size:0.9rem; margin-bottom:10px;">v21 • Smart Switcher</p>
+        <h3>Pro Court Cam v22</h3>
+        <p style="color:#888; font-size:0.9rem;">Stable • Source Selector</p>
         
-        <div class="warning-text">
-            ⚠️ <b>Note:</b> If camera switch fails, it will skip to the next valid one.
-        </div>
+        <div style="text-align:left; font-size:0.8rem; color:#aaa; margin-bottom:5px;">Select Camera Source:</div>
+        <select id="camera-select"></select>
 
-        <button class="modal-btn" style="background:#28a745" onclick="initSystem(1280, 720, 5000000)">720p (Good)</button>
-        <button class="modal-btn" onclick="initSystem(1920, 1080, 8000000)">1080p (Pro)</button>
+        <button class="modal-btn" style="background:#28a745" onclick="startSelectedCamera(1280, 720, 5000000)">Start 720p (Stable)</button>
+        <button class="modal-btn" onclick="startSelectedCamera(1920, 1080, 8000000)">Start 1080p (Pro)</button>
+        
+        <hr style="border-color:#333; margin:15px 0;">
+        <button class="modal-btn" style="background:#dc3545" onclick="forceRestartCamera()">⚠️ Force Restart Camera</button>
+        <button class="modal-btn" style="background:#444" onclick="closeModal()">Close Menu</button>
     </div>
 
     <div id="input-modal" class="modal">
@@ -139,7 +126,6 @@
         <canvas id="gameCanvas"></canvas>
 
         <div id="ui-layer">
-            
             <div class="control-group group-top" id="top-bar">
                 <button class="hud-btn" style="width:100px; border-color:rgba(40,167,69,0.5); color:#80ff9f; font-family:monospace; font-size:1.4rem;" id="btn-clock" onclick="toggleTimer()">10:00</button>
                 <div style="width:10px"></div>
@@ -171,7 +157,7 @@
             <div class="control-group group-zoom">
                 <div id="zoom-type" class="zoom-info zoom-type-dig">DIG</div>
                 <div id="zoom-label" class="zoom-info" style="font-size:0.9rem; color:rgba(255,255,255,0.8); margin-top:2px;">1.0x</div>
-                <input type="range" id="zoom-slider" orient="vertical" min="1" max="3" step="0.1" value="1">
+                <input type="range" id="zoom-slider" orient="vertical" min="1" max="5" step="0.1" value="1">
             </div>
         </div>
     </div>
@@ -181,179 +167,125 @@
     <script>
         // --- WAKE LOCK ---
         let wakeLock = null;
-        async function requestWakeLock() {
-            try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
-        }
-        document.addEventListener("visibilitychange", async () => {
-            if (document.visibilityState === 'visible') {
-                requestWakeLock();
-                if(video.paused) try { await video.play(); } catch(e){}
-            }
-        });
+        async function requestWakeLock() { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
+        document.addEventListener("visibilitychange", async () => { if (document.visibilityState === 'visible') requestWakeLock(); });
 
         // --- DATA PERSISTENCE ---
-        const STORAGE_KEY = 'court_cam_v21_data';
+        const STORAGE_KEY = 'court_cam_v22_data';
         let gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 };
         let scoreboardPos = "BOTTOM"; 
-
         const saved = localStorage.getItem(STORAGE_KEY);
         if(saved) { try { gameData = JSON.parse(saved); } catch(e) {} }
-
         function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData)); }
-
-        function resetGameData() {
-            if(confirm("Reset entire game?")) {
-                gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 };
-                saveData();
-                updateClockUI();
-            }
-        }
+        function resetGameData() { if(confirm("Reset game?")) { gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 }; saveData(); updateClockUI(); } }
 
         // --- STATE ---
         let isTimerRunning = false, timerInterval = null;
         let track = null; 
         let zoomMode = "DIGITAL"; 
-        
-        let targetW=1920, targetH=1080, targetBitrate = 5000000;
-        
-        // CAMERA HANDLING
-        let videoDevices = [];
-        let currentDeviceIndex = 0;
-        let attempts = 0; // Prevent infinite loops
-        
-        let editingTeam = null;
+        let currentZoom = 1.0;
+        let targetW=1280, targetH=720, targetBitrate = 5000000;
         let homeFlash = 0, guestFlash = 0;
-        let audioContext, analyser, microphone, javascriptNode;
+        let audioContext;
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('raw-video');
-        const clockBtn = document.getElementById('btn-clock');
-        const audioLevelBar = document.getElementById('audio-level');
+        const cameraSelect = document.getElementById('camera-select');
         const topBar = document.getElementById('top-bar');
-        const toast = document.getElementById('toast');
+        const clockBtn = document.getElementById('btn-clock');
 
-        updateClockUI();
-
-        // --- INIT SYSTEM ---
-        async function initSystem(w, h, bitrate) {
-            targetW = w; targetH = h; targetBitrate = bitrate;
-            document.getElementById('startup-modal').style.display = 'none';
-            toggleFullScreen();
-            requestWakeLock();
-            canvas.width = w; canvas.height = h;
-
+        // --- INITIALIZATION ---
+        // 1. Populate Camera List on Load
+        async function loadCameras() {
             try {
-                // Initial permission
-                await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); // Ask permission
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                videoDevices = devices.filter(d => d.kind === 'videoinput');
+                const videoDevices = devices.filter(d => d.kind === 'videoinput');
                 
-                // Try to find a back camera start point
-                const backIdx = videoDevices.findIndex(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('environment'));
-                if(backIdx !== -1) currentDeviceIndex = backIdx;
-                
-                startStream();
-            } catch(e) { alert("Camera Permission Error: " + e.message); }
-        }
+                cameraSelect.innerHTML = "";
+                // Add "Default" option first (safest)
+                let optDef = document.createElement('option');
+                optDef.value = "default";
+                optDef.text = "System Default (Back)";
+                cameraSelect.appendChild(optDef);
 
-        async function startStream() {
-            if(track) track.stop();
+                videoDevices.forEach((device, index) => {
+                    let opt = document.createElement('option');
+                    opt.value = device.deviceId;
+                    opt.text = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(opt);
+                });
+            } catch(e) { console.error(e); }
+        }
+        loadCameras();
+
+        function openStartupModal() { document.getElementById('startup-modal').style.display = 'block'; }
+        function closeModal() { document.getElementById('startup-modal').style.display = 'none'; }
+
+        async function startSelectedCamera(w, h, bitrate) {
+            targetW = w; targetH = h; targetBitrate = bitrate;
+            canvas.width = w; canvas.height = h;
+            closeModal();
+            requestWakeLock();
             
-            const deviceId = videoDevices.length > 0 ? videoDevices[currentDeviceIndex].deviceId : undefined;
-            
-            // NOTICE: Removed {exact} to be less strict, but if deviceId is provided we use it
+            if(track) track.stop(); // Stop existing
+
+            const selectedId = cameraSelect.value;
             const constraints = {
-                video: { 
-                    width: { ideal: targetW }, 
-                    height: { ideal: targetH },
-                    zoom: true 
-                },
+                video: { width: { ideal: w }, height: { ideal: h }, zoom: true },
                 audio: true
             };
-            
-            if(deviceId) {
-                constraints.video.deviceId = { exact: deviceId };
-            } else {
+
+            if (selectedId === "default") {
                 constraints.video.facingMode = "environment";
+            } else {
+                constraints.video.deviceId = { exact: selectedId };
             }
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
-                video.play();
+                await video.play();
                 track = stream.getVideoTracks()[0];
                 
-                setupAudio(stream); 
+                setupAudio(stream);
                 setupZoom();
-                
-                // Show Toast
-                const label = track.label || "Camera " + currentDeviceIndex;
-                showToast("Active: " + label.substring(0, 20) + "...");
-
-                attempts = 0; // Reset attempts on success
-                if(!audioContext) drawLoop();
-
+                if(!audioContext) drawLoop(); // Start loop only once
             } catch(e) {
-                console.log("Stream failed for index " + currentDeviceIndex + ": " + e);
-                // SMART SKIP LOGIC
-                attempts++;
-                if(attempts < videoDevices.length) {
-                    currentDeviceIndex++;
-                    if(currentDeviceIndex >= videoDevices.length) currentDeviceIndex = 0;
-                    startStream(); // Recursive retry
-                } else {
-                    alert("Could not initialize any camera. Please refresh.");
-                }
+                alert("Camera Error: " + e.message + "\nTry selecting 'System Default'.");
             }
         }
 
-        function trySwitchCamera() {
-            if(videoDevices.length < 2) {
-                 showToast("No other cameras found");
-                 return;
-            }
-            currentDeviceIndex++;
-            if(currentDeviceIndex >= videoDevices.length) currentDeviceIndex = 0;
-            attempts = 0; // Reset attempts before trying to switch
-            startStream();
+        async function forceRestartCamera() {
+             if(track) track.stop();
+             video.srcObject = null;
+             // Force simplest reload
+             cameraSelect.value = "default";
+             startSelectedCamera(1280, 720, 5000000);
         }
 
-        function showToast(msg) {
-            toast.innerText = msg;
-            toast.style.opacity = 1;
-            setTimeout(() => { toast.style.opacity = 0; }, 3000);
-        }
-
+        // --- AUDIO ---
         function setupAudio(stream) {
             try {
                 if(audioContext) audioContext.close();
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioContext.createAnalyser();
-                microphone = audioContext.createMediaStreamSource(stream);
-                javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
-
-                analyser.smoothingTimeConstant = 0.8;
-                analyser.fftSize = 1024;
-
-                microphone.connect(analyser);
-                analyser.connect(javascriptNode);
-                javascriptNode.connect(audioContext.destination);
-
+                const analyser = audioContext.createAnalyser();
+                const microphone = audioContext.createMediaStreamSource(stream);
+                const javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+                analyser.smoothingTimeConstant = 0.8; analyser.fftSize = 1024;
+                microphone.connect(analyser); analyser.connect(javascriptNode); javascriptNode.connect(audioContext.destination);
+                
                 javascriptNode.onaudioprocess = function() {
-                    var array = new Uint8Array(analyser.frequencyBinCount);
+                    const array = new Uint8Array(analyser.frequencyBinCount);
                     analyser.getByteFrequencyData(array);
-                    var values = 0;
-                    var length = array.length;
-                    for (var i = 0; i < length; i++) { values += array[i]; }
-                    var average = values / length;
-                    
-                    let pct = Math.min(100, average * 2); 
-                    audioLevelBar.style.height = pct + "%";
-                    if(pct > 80) audioLevelBar.style.background = "rgba(255,0,0,0.8)"; 
-                    else audioLevelBar.style.background = "rgba(0,255,0,0.8)";
+                    let values = 0; for(let i=0; i<array.length; i++) values += array[i];
+                    let pct = Math.min(100, (values / array.length) * 2);
+                    const bar = document.getElementById('audio-level');
+                    bar.style.height = pct + "%";
+                    bar.style.background = pct > 80 ? "rgba(255,0,0,0.8)" : "rgba(0,255,0,0.8)";
                 }
-            } catch(e) { console.log("Audio meter error: " + e); }
+            } catch(e) {}
         }
 
         // --- ZOOM ---
@@ -374,9 +306,7 @@
                 zoomMode = "DIGITAL";
                 typeLabel.innerText = "DIGITAL";
                 typeLabel.className = "zoom-info zoom-type-dig";
-                slider.min = 1;
-                slider.max = 3;
-                slider.step = 0.1;
+                slider.min = 1; slider.max = 5; slider.step = 0.1; slider.value = 1;
             }
 
             slider.oninput = async (e) => {
@@ -384,22 +314,13 @@
                 document.getElementById('zoom-label').innerText = val.toFixed(1) + "x";
                 if(zoomMode === "HARDWARE") {
                     try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } catch(e){}
-                } 
+                } else { currentZoom = val; }
             };
         }
 
-        function toggleScoreboardPos() {
-            scoreboardPos = (scoreboardPos === "BOTTOM") ? "TOP" : "BOTTOM";
-            if(scoreboardPos === "TOP") topBar.style.top = "80%"; 
-            else topBar.style.top = "20px"; 
-        }
-
-        // --- RECORDING LOGIC ---
-        let mediaRecorder, chunks=[], recState="IDLE"; 
-        const recBtn = document.getElementById('btn-rec');
-        const stopBtn = document.getElementById('btn-stop');
-        const recTimer = document.getElementById('rec-timer');
-        let recSeconds = 0, recTimerInterval = null;
+        // --- RECORDING ---
+        let mediaRecorder, chunks=[], recState="IDLE", recSeconds=0, recTimerInterval=null;
+        const recBtn = document.getElementById('btn-rec'), stopBtn = document.getElementById('btn-stop'), recTimer = document.getElementById('rec-timer');
 
         function toggleRecordState() {
             if(recState === "IDLE") startRecording();
@@ -409,169 +330,108 @@
 
         function updateRecTimerDisplay() {
             recSeconds++;
-            let h = Math.floor(recSeconds / 3600);
-            let m = Math.floor((recSeconds % 3600) / 60);
-            let s = recSeconds % 60;
-            recTimer.innerText = (h < 10 ? "0"+h : h) + ":" + (m < 10 ? "0"+m : m) + ":" + (s < 10 ? "0"+s : s);
+            let h = Math.floor(recSeconds/3600), m = Math.floor((recSeconds%3600)/60), s = recSeconds%60;
+            recTimer.innerText = (h<10?"0"+h:h)+":"+(m<10?"0"+m:m)+":"+(s<10?"0"+s:s);
         }
 
         function startRecording() {
             try {
                 const stream = canvas.captureStream(30);
-                if(video.srcObject && video.srcObject.getAudioTracks().length > 0) stream.addTrack(video.srcObject.getAudioTracks()[0]);
+                if(video.srcObject) {
+                    const audioTracks = video.srcObject.getAudioTracks();
+                    if(audioTracks.length > 0) stream.addTrack(audioTracks[0]);
+                }
                 
-                let options = { videoBitsPerSecond: targetBitrate };
+                let opts = { videoBitsPerSecond: targetBitrate };
                 let ext = 'webm';
-                if (MediaRecorder.isTypeSupported('video/mp4')) { options.mimeType = 'video/mp4'; ext = 'mp4'; }
-                else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) { options.mimeType = 'video/webm;codecs=vp9'; }
-                else if (MediaRecorder.isTypeSupported('video/webm')) { options.mimeType = 'video/webm'; }
+                if(MediaRecorder.isTypeSupported('video/mp4')) { opts.mimeType = 'video/mp4'; ext = 'mp4'; }
 
-                mediaRecorder = new MediaRecorder(stream, options);
+                mediaRecorder = new MediaRecorder(stream, opts);
                 mediaRecorder.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
                 mediaRecorder.onstop = () => saveVideoFile(ext);
                 mediaRecorder.start(1000); 
 
                 recState = "RECORDING";
-                recBtn.innerText = "PAUSE";
-                recBtn.className = "hud-btn btn-rec rec-active";
-                stopBtn.style.display = "flex";
-                recSeconds = 0; recTimer.innerText = "00:00:00"; recTimer.style.display = "block"; recTimer.style.color = "#f00";
+                recBtn.innerText = "PAUSE"; recBtn.className = "hud-btn btn-rec rec-active";
+                stopBtn.style.display = "flex"; recTimer.style.display = "block"; recTimer.style.color = "#f00";
+                recSeconds = 0; recTimer.innerText = "00:00:00";
                 recTimerInterval = setInterval(updateRecTimerDisplay, 1000);
-                
-            } catch(e) { alert("Recording error: " + e.message); }
+            } catch(e) { alert("Rec Error: " + e.message); }
         }
-
-        function pauseRecording() {
-            if(mediaRecorder && mediaRecorder.state === "recording") {
-                mediaRecorder.pause();
-                recState = "PAUSED";
-                recBtn.innerText = "RESUME";
-                recBtn.className = "hud-btn btn-rec rec-paused";
-                clearInterval(recTimerInterval);
-                recTimer.style.color = "#ffcc00"; 
-            }
-        }
-
-        function resumeRecording() {
-            if(mediaRecorder && mediaRecorder.state === "paused") {
-                mediaRecorder.resume();
-                recState = "RECORDING";
-                recBtn.innerText = "PAUSE";
-                recBtn.className = "hud-btn btn-rec rec-active";
-                recTimer.style.color = "#f00";
-                recTimerInterval = setInterval(updateRecTimerDisplay, 1000);
-            }
-        }
-
-        function stopRecording() {
-            if(mediaRecorder) {
-                mediaRecorder.stop();
-                recState = "IDLE";
-                recBtn.innerText = "REC";
-                recBtn.className = "hud-btn btn-rec";
-                stopBtn.style.display = "none";
-                clearInterval(recTimerInterval);
-                recTimer.style.display = "none";
-            }
-        }
-
+        function pauseRecording() { mediaRecorder.pause(); recState = "PAUSED"; recBtn.innerText = "RESUME"; recBtn.className = "hud-btn btn-rec rec-paused"; clearInterval(recTimerInterval); recTimer.style.color = "#ffcc00"; }
+        function resumeRecording() { mediaRecorder.resume(); recState = "RECORDING"; recBtn.innerText = "PAUSE"; recBtn.className = "hud-btn btn-rec rec-active"; recTimer.style.color = "#f00"; recTimerInterval = setInterval(updateRecTimerDisplay, 1000); }
+        function stopRecording() { mediaRecorder.stop(); recState = "IDLE"; recBtn.innerText = "REC"; recBtn.className = "hud-btn btn-rec"; stopBtn.style.display = "none"; clearInterval(recTimerInterval); recTimer.style.display = "none"; }
         function saveVideoFile(ext) {
-            const blob = new Blob(chunks, {type: mediaRecorder.mimeType});
-            chunks=[];
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display='none'; a.href=url;
-            a.download = `Game_${new Date().getTime()}.${ext}`;
-            document.body.appendChild(a); a.click();
-            setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);}, 100);
+            const blob = new Blob(chunks, {type: mediaRecorder.mimeType}); chunks=[];
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Game_${Date.now()}.${ext}`; document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a);}, 100);
         }
 
-        // --- DRAW LOOP ---
+        // --- DRAWING ---
         function drawLoop() {
-            if (zoomMode === "DIGITAL" && currentZoom > 1) { /* Digital Zoom Code (Omitted as Hardware pref) */ } 
-            else { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); }
+            // Video Draw
+            if (zoomMode === "DIGITAL" && currentZoom > 1) {
+                const vw = video.videoWidth, vh = video.videoHeight;
+                if(vw) {
+                    const sw = vw/currentZoom, sh = vh/currentZoom, sx = (vw-sw)/2, sy = (vh-sh)/2;
+                    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+                }
+            } else { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); }
             
-            const H = canvas.height; const W = canvas.width;
-            const sbHeight = H * 0.14; const sbWidth = W * 0.7; 
+            // Scoreboard UI Draw
+            const H = canvas.height, W = canvas.width;
+            const sbHeight = H * 0.14, sbWidth = W * 0.7; 
             const sbX = (W - sbWidth) / 2; 
-            let sbY = (scoreboardPos === "BOTTOM") ? H - sbHeight - (H * 0.04) : (H * 0.04);
+            const sbY = (scoreboardPos === "BOTTOM") ? H - sbHeight - (H * 0.04) : (H * 0.04);
 
             const grad = ctx.createLinearGradient(sbX, sbY, sbX, sbY + sbHeight);
-            grad.addColorStop(0, "rgba(20, 20, 20, 0.9)");
-            grad.addColorStop(1, "rgba(0, 0, 0, 0.95)");
-            ctx.fillStyle = grad;
-            ctx.beginPath(); ctx.roundRect(sbX, sbY, sbWidth, sbHeight, 10); ctx.fill();
+            grad.addColorStop(0, "rgba(20, 20, 20, 0.9)"); grad.addColorStop(1, "rgba(0, 0, 0, 0.95)");
+            ctx.fillStyle = grad; ctx.beginPath(); ctx.roundRect(sbX, sbY, sbWidth, sbHeight, 10); ctx.fill();
             ctx.strokeStyle = "#c9a050"; ctx.lineWidth = 2; ctx.stroke();
 
-            const colW = sbWidth / 3; const cY = sbY + (sbHeight/2);
+            const colW = sbWidth / 3, cY = sbY + (sbHeight/2);
             
+            // Teams
             ctx.fillStyle = "#0056b3"; ctx.beginPath(); ctx.roundRect(sbX + 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`;
-            ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(gameData.homeName, sbX + (colW * 0.5), cY);
-            
+            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(gameData.homeName, sbX + (colW * 0.5), cY);
             if (homeFlash > 0) { ctx.fillStyle = "#ffff00"; homeFlash--; } else { ctx.fillStyle = "#fff"; }
-            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; 
-            ctx.fillText(gameData.homeScore, sbX + 10 + (colW * 0.2), cY + 3);
+            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.homeScore, sbX + 10 + (colW * 0.2), cY + 3);
 
             const gStart = sbX + (colW * 2);
             ctx.fillStyle = "#b30000"; ctx.beginPath(); ctx.roundRect(gStart + (colW * 0.6) - 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`;
-            ctx.textAlign = "right"; ctx.fillText(gameData.guestName, gStart + (colW * 0.5), cY);
-            
+            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`; ctx.textAlign = "right"; ctx.fillText(gameData.guestName, gStart + (colW * 0.5), cY);
             if (guestFlash > 0) { ctx.fillStyle = "#ffff00"; guestFlash--; } else { ctx.fillStyle = "#fff"; }
-            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; 
-            ctx.fillText(gameData.guestScore, gStart + (colW * 0.6) + (colW*0.2) - 10, cY + 3);
+            ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.guestScore, gStart + (colW * 0.6) + (colW*0.2) - 10, cY + 3);
 
+            // Clock
             const cStart = sbX + colW;
             ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(cStart, sbY + 15, 2, sbHeight - 30); ctx.fillRect(gStart, sbY + 15, 2, sbHeight - 30);
-            let m = Math.floor(gameData.timeLeft / 60); let s = gameData.timeLeft % 60; let timeStr = `${m}:${s<10?'0'+s:s}`;
+            let m = Math.floor(gameData.timeLeft / 60), s = gameData.timeLeft % 60;
             ctx.fillStyle = isTimerRunning ? "#0f0" : "#ccc"; ctx.font = `bold ${H*0.065}px 'Courier New', monospace`; ctx.textAlign = "center";
-            ctx.fillText(timeStr, cStart + (colW/2), cY - (sbHeight * 0.15));
+            ctx.fillText(`${m}:${s<10?'0'+s:s}`, cStart + (colW/2), cY - (sbHeight * 0.15));
             ctx.fillStyle = "#aaa"; ctx.font = `bold ${H*0.025}px sans-serif`;
             let suf = gameData.period===1?"ST":gameData.period===2?"ND":gameData.period===3?"RD":"TH";
             ctx.fillText(`${gameData.period}${suf} QTR`, cStart + (colW/2), cY + (sbHeight * 0.25));
 
-            ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.font = `bold ${H*0.04}px sans-serif`;
-            ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText("TIU", W - 20, 20); ctx.restore();
+            ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.font = `bold ${H*0.04}px sans-serif`; ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText("TIU", W - 20, 20); ctx.restore();
 
             requestAnimationFrame(drawLoop);
         }
 
-        // --- LOGIC ---
-        function openInput(team) {
-            editingTeam = team;
-            document.getElementById('input-modal').style.display = 'block';
-            document.getElementById('input-title').innerText = "Rename " + team.toUpperCase();
-            document.getElementById('team-input').value = (team === 'home' ? gameData.homeName : gameData.guestName);
-            document.getElementById('team-input').focus();
-        }
-        function saveTeamName() {
-            const val = document.getElementById('team-input').value;
-            if(val) {
-                if(editingTeam === 'home') gameData.homeName = val.toUpperCase();
-                else gameData.guestName = val.toUpperCase();
-                saveData();
-            }
-            closeInput();
-        }
+        // --- INPUTS ---
+        function openInput(team) { editingTeam = team; document.getElementById('input-modal').style.display = 'block'; document.getElementById('input-title').innerText = "Rename " + team.toUpperCase(); document.getElementById('team-input').value = (team==='home'?gameData.homeName:gameData.guestName); document.getElementById('team-input').focus(); }
+        function saveTeamName() { const val = document.getElementById('team-input').value; if(val){ if(editingTeam==='home')gameData.homeName=val.toUpperCase(); else gameData.guestName=val.toUpperCase(); saveData(); } closeInput(); }
         function closeInput() { document.getElementById('input-modal').style.display = 'none'; }
         
         clockBtn.addEventListener('dblclick', () => {
              if(isTimerRunning) toggleTimer();
              let val = prompt("Enter Time (e.g. 8 or 1:30):");
-             if (val) {
-                if (val.includes(":")) { let p = val.split(":"); gameData.timeLeft = (parseInt(p[0])*60) + parseInt(p[1]); } 
-                else { gameData.timeLeft = parseInt(val) * 60; }
-                updateClockUI(); saveData();
-             }
+             if (val) { if (val.includes(":")) { let p = val.split(":"); gameData.timeLeft = (parseInt(p[0])*60) + parseInt(p[1]); } else { gameData.timeLeft = parseInt(val) * 60; } updateClockUI(); saveData(); }
         });
-        function updateClockUI() { let m = Math.floor(gameData.timeLeft/60); let s = gameData.timeLeft%60; clockBtn.innerText = `${m}:${s<10?'0'+s:s}`; }
-        function updateScore(t, n) { if(t==='home') { gameData.homeScore+=n; if(gameData.homeScore<0)gameData.homeScore=0; homeFlash=15; } else { gameData.guestScore+=n; if(gameData.guestScore<0)gameData.guestScore=0; guestFlash=15; } saveData(); }
-        function toggleTimer() {
-            if(isTimerRunning) { clearInterval(timerInterval); isTimerRunning=false; clockBtn.style.color="#80ff9f"; clockBtn.style.borderColor="rgba(40,167,69,0.5)"; } 
-            else { isTimerRunning=true; clockBtn.style.color="#fff"; clockBtn.style.borderColor="#f33"; timerInterval = setInterval(() => { if(gameData.timeLeft>0) { gameData.timeLeft--; updateClockUI(); if(gameData.timeLeft%5===0) saveData(); } else toggleTimer(); }, 1000); }
-        }
+        function updateClockUI() { let m = Math.floor(gameData.timeLeft/60), s = gameData.timeLeft%60; clockBtn.innerText = `${m}:${s<10?'0'+s:s}`; }
+        function updateScore(t, n) { if(t==='home'){ gameData.homeScore=Math.max(0, gameData.homeScore+n); homeFlash=15; } else { gameData.guestScore=Math.max(0, gameData.guestScore+n); guestFlash=15; } saveData(); }
+        function toggleTimer() { if(isTimerRunning){ clearInterval(timerInterval); isTimerRunning=false; clockBtn.style.color="#80ff9f"; clockBtn.style.borderColor="rgba(40,167,69,0.5)"; } else { isTimerRunning=true; clockBtn.style.color="#fff"; clockBtn.style.borderColor="#f33"; timerInterval = setInterval(() => { if(gameData.timeLeft>0){ gameData.timeLeft--; updateClockUI(); if(gameData.timeLeft%5===0)saveData(); } else toggleTimer(); }, 1000); } }
         function nextPeriod() { gameData.period++; if(gameData.period>4) gameData.period=1; saveData(); }
+        function toggleScoreboardPos() { scoreboardPos = (scoreboardPos==="BOTTOM")?"TOP":"BOTTOM"; topBar.style.top = (scoreboardPos==="TOP")?"80%":"20px"; }
         function toggleFullScreen() { if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e=>{}); else document.exitFullscreen().catch(e=>{}); }
     </script>
 </body>
