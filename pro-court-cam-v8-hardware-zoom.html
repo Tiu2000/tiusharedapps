@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Pro Court Cam v25 (Fixed)</title>
+    <title>Pro Court Cam v25 (Fixed + Support)</title>
     <style>
         /* --- GLOBAL --- */
         body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
@@ -83,6 +83,11 @@
         .modal { position: fixed; z-index: 100; background: #1a1a1a; padding: 25px; border: 1px solid #333; border-radius: 12px; text-align: center; top:50%; left:50%; transform:translate(-50%, -50%); width: 85%; max-width: 350px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .modal h3 { margin-top: 0; color: #eee; }
         .modal-btn { background: #007bff; color: #fff; border: none; padding: 12px; width: 100%; margin: 8px 0; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+        
+        /* CASH APP BUTTON */
+        .btn-cashapp { background: #00D632; color: #fff; margin-top: 5px; }
+        .btn-cashapp:active { background: #00b32a; }
+
         #input-modal input { width: 90%; padding: 12px; font-size: 1.1rem; margin-bottom: 15px; text-align: center; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; }
         
         select { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 6px; margin-bottom: 10px; font-size: 1rem; }
@@ -117,7 +122,15 @@
 
         <button class="modal-btn" style="background:#28a745" onclick="startSelectedCamera(1280, 720, 5000000)">Start 720p</button>
         <button class="modal-btn" onclick="startSelectedCamera(1920, 1080, 8000000)">Start 1080p</button>
-        <button class="modal-btn" style="background:#555; margin-top:10px;" onclick="openLogModal()">📝 View/Copy Logs</button>
+        
+        <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 15px;">
+            <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 10px; margin-top:0;">Enjoying the app? Buy me a coffee ☕</p>
+            <button class="modal-btn btn-cashapp" onclick="window.open('https://cash.app/$AnthonyTiu', '_blank')">
+                $ Pay with Cash App
+            </button>
+        </div>
+
+        <button class="modal-btn" style="background:#555; margin-top:20px; font-size:0.8rem; padding:8px;" onclick="openLogModal()">📝 View/Copy Logs</button>
     </div>
 
     <div id="log-modal" class="modal">
@@ -251,7 +264,6 @@
         async function loadCameras() {
             log("Init: Loading cameras...");
             try {
-                // Trigger permission prompt
                 const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); 
                 tempStream.getTracks().forEach(t => t.stop());
 
@@ -316,7 +328,6 @@
                 
                 video.srcObject = stream;
                 
-                // Important for mobile play
                 video.onloadedmetadata = async () => {
                     try {
                         await video.play();
@@ -329,7 +340,6 @@
                         setupAudio(stream);
                         setupZoom(); 
                         
-                        // Prevent multiple draw loops
                         if(!window.isDrawing) {
                             window.isDrawing = true;
                             drawLoop();
@@ -459,7 +469,6 @@
         // --- DRAWING ---
         function drawLoop() {
             try {
-                // Video Draw
                 if (zoomMode === "DIGITAL" && currentZoom > 1) {
                     const vw = video.videoWidth, vh = video.videoHeight;
                     if(vw) {
@@ -477,7 +486,6 @@
                 const grad = ctx.createLinearGradient(sbX, sbY, sbX, sbY + sbHeight);
                 grad.addColorStop(0, "rgba(20, 20, 20, 0.9)"); grad.addColorStop(1, "rgba(0, 0, 0, 0.95)");
                 
-                // CRITICAL: Uses polyfill if native not supported
                 ctx.fillStyle = grad; ctx.beginPath(); ctx.roundRect(sbX, sbY, sbWidth, sbHeight, 10); ctx.fill();
                 ctx.strokeStyle = "#c9a050"; ctx.lineWidth = 2; ctx.stroke();
 
