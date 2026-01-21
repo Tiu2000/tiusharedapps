@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pro Court Cam v27 (Camera Fix)</title>
+    <title>Pro Court Cam v28 (Ultimate)</title>
     <style>
         /* --- GLOBAL --- */
         body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
@@ -13,9 +13,11 @@
         
         canvas { position: absolute; max-width: 100%; max-height: 100%; aspect-ratio: 16/9; z-index: 1; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
         
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
-        
-        /* --- SYSTEM BUTTONS --- */
+        /* The UI Layer - Toggled by Clean Feed */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; transition: opacity 0.3s; }
+        .ui-hidden { opacity: 0; pointer-events: none !important; }
+
+        /* --- SYSTEM BUTTONS (Always visible mostly) --- */
         #system-controls { position: absolute; top: 15px; left: 15px; z-index: 999; display: flex; gap: 10px; }
         #reset-controls { position: absolute; top: 15px; right: 15px; z-index: 999; }
 
@@ -27,6 +29,7 @@
         }
         .sys-btn:active { background: rgba(255,255,255,0.8); color: #000; }
         .btn-danger { border-color: rgba(255,50,50,0.5); color: rgba(255,50,50,0.7); }
+        .btn-active { background: #fff; color: #000; }
         
         /* --- CONTROLS --- */
         .control-group { position: absolute; pointer-events: auto; display: flex; flex-direction: column; gap: 8px; }
@@ -39,6 +42,7 @@
             font-weight: 700; font-size: 1rem; margin-bottom: 10px; 
             cursor: pointer; text-transform: uppercase; padding: 8px 12px; border-radius: 6px;
             pointer-events: auto; letter-spacing: 1px; transition: background 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
         }
         
         /* ZOOM SLIDER */
@@ -89,7 +93,8 @@
         
         .btn-cashapp { background: #00D632; color: #fff; margin-top: 5px; }
 
-        #input-modal input { width: 90%; padding: 12px; font-size: 1.1rem; margin-bottom: 15px; text-align: center; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; }
+        #input-modal input[type=text] { width: 90%; padding: 12px; font-size: 1.1rem; margin-bottom: 15px; text-align: center; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; }
+        #input-modal input[type=color] { width: 50px; height: 50px; border: none; background: none; cursor: pointer; }
         
         select { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 6px; margin-bottom: 10px; font-size: 1rem; }
 
@@ -97,25 +102,28 @@
         #log-textarea { width: 100%; height: 150px; background: #000; color: #0f0; font-family: monospace; font-size: 0.8rem; border: 1px solid #555; margin-bottom: 10px; resize: none; }
 
         #raw-video { display: none; }
+        
+        /* Color Swatch in Button */
+        .color-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.8); display: inline-block; }
     </style>
 </head>
 <body>
 
     <div id="system-controls">
-        <button class="sys-btn" onclick="toggleFullScreen()">⛶</button>
-        <button class="sys-btn" onclick="openStartupModal()">⚙️</button>
-        <button class="sys-btn" onclick="toggleScoreboardPos()">⬍</button>
+        <button class="sys-btn" onclick="toggleFullScreen()" title="Fullscreen">⛶</button>
+        <button class="sys-btn" onclick="openStartupModal()" title="Settings">⚙️</button>
+        <button class="sys-btn" onclick="toggleScoreboardPos()" title="Move Scoreboard">⬍</button>
+        <button class="sys-btn" id="btn-clean" onclick="toggleCleanFeed()" title="Clean Feed (Hide UI)">👁️</button>
     </div>
     <div id="reset-controls">
         <button class="sys-btn btn-danger" onclick="resetGameData()">✕</button>
     </div>
 
     <div id="startup-modal" class="modal" style="display:block">
-        <h3>Pro Court Cam v27</h3>
-        <p style="color:#888; font-size:0.9rem;">Robust Camera Selector</p>
+        <h3>Pro Court Cam v28</h3>
+        <p style="color:#888; font-size:0.9rem;">Ultimate Edition</p>
         
         <div style="text-align:left; font-size:0.8rem; color:#aaa; margin-bottom:5px;">Select Camera Source:</div>
-        
         <div style="display:flex; gap:10px; margin-bottom:5px;">
             <select id="camera-select" style="flex-grow:1; margin-bottom:0;"></select>
             <button class="sys-btn" style="width:42px; height:42px; margin:0; background:#333;" onclick="loadCameras()">↻</button>
@@ -126,8 +134,8 @@
             <label for="chk-timer" style="cursor:pointer">Show Game Timer</label>
         </div>
 
-        <button class="modal-btn" style="background:#28a745" onclick="startSelectedCamera(1280, 720, 5000000)">Start 720p</button>
-        <button class="modal-btn" onclick="startSelectedCamera(1920, 1080, 8000000)">Start 1080p</button>
+        <button class="modal-btn" style="background:#28a745" onclick="startSelectedCamera(1280, 720, 5000000)">Start 720p (Smooth)</button>
+        <button class="modal-btn" onclick="startSelectedCamera(1920, 1080, 8000000)">Start 1080p (High Res)</button>
         
         <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 15px;">
             <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 10px; margin-top:0;">Enjoying the app? Buy me a coffee ☕</p>
@@ -135,8 +143,7 @@
                 $ Pay with Cash App
             </button>
         </div>
-
-        <button class="modal-btn" style="background:#555; margin-top:20px; font-size:0.8rem; padding:8px;" onclick="openLogModal()">📝 View/Copy Logs</button>
+        <button class="modal-btn" style="background:#555; margin-top:20px; font-size:0.8rem; padding:8px;" onclick="openLogModal()">📝 Logs</button>
     </div>
 
     <div id="log-modal" class="modal">
@@ -147,9 +154,13 @@
     </div>
 
     <div id="input-modal" class="modal">
-        <h3 id="input-title">Edit Name</h3>
-        <input type="text" id="team-input" maxlength="10">
-        <button class="modal-btn" onclick="saveTeamName()">SAVE</button>
+        <h3 id="input-title">Edit Team</h3>
+        <input type="text" id="team-input" maxlength="10" placeholder="Team Name">
+        <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:15px;">
+            <span style="color:#aaa;">Jersey Color:</span>
+            <input type="color" id="team-color">
+        </div>
+        <button class="modal-btn" onclick="saveTeamData()">SAVE</button>
         <button class="modal-btn" style="background:#444" onclick="closeInput()">CANCEL</button>
     </div>
 
@@ -170,7 +181,9 @@
             </div>
 
             <div class="control-group group-left">
-                <button class="team-name-btn" style="border-left: 4px solid #007bff;" onclick="openInput('home')">HOME ✎</button>
+                <button class="team-name-btn" id="btn-home-name" onclick="openInput('home')">
+                    <span class="color-dot" id="dot-home"></span> HOME ✎
+                </button>
                 <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 1)">+1</button>
                 <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 2)">+2</button>
                 <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 3)">+3</button>
@@ -178,7 +191,9 @@
             </div>
 
             <div class="control-group group-right">
-                <button class="team-name-btn" style="border-left: 4px solid #dc3545;" onclick="openInput('guest')">GUEST ✎</button>
+                <button class="team-name-btn" id="btn-guest-name" onclick="openInput('guest')">
+                    <span class="color-dot" id="dot-guest"></span> GUEST ✎
+                </button>
                 <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 1)">+1</button>
                 <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 2)">+2</button>
                 <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 3)">+3</button>
@@ -196,25 +211,18 @@
     <video id="raw-video" autoplay muted playsinline></video>
 
     <script>
-        // --- LOGGING UTILS ---
+        // --- LOGGING ---
         let debugLogs = [];
         function log(msg) {
             const ts = new Date().toLocaleTimeString();
-            const line = `[${ts}] ${msg}`;
-            debugLogs.push(line);
-            console.log(line);
+            console.log(`[${ts}] ${msg}`);
+            debugLogs.push(`[${ts}] ${msg}`);
             const area = document.getElementById('log-textarea');
             if(area) area.value = debugLogs.join('\n');
         }
         function openLogModal() { document.getElementById('log-modal').style.display = 'block'; document.getElementById('startup-modal').style.display = 'none'; }
         function closeLogModal() { document.getElementById('log-modal').style.display = 'none'; document.getElementById('startup-modal').style.display = 'block'; }
-        function copyLogs() {
-            const area = document.getElementById('log-textarea');
-            area.select();
-            area.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(area.value).then(() => { alert("Logs copied!"); });
-        }
-        window.onerror = function(msg, url, line) { log(`ERR: ${msg} (Line ${line})`); };
+        function copyLogs() { navigator.clipboard.writeText(document.getElementById('log-textarea').value).then(() => alert("Logs copied!")); }
 
         // --- POLYFILLS ---
         if (typeof CanvasRenderingContext2D.prototype.roundRect !== 'function') {
@@ -228,86 +236,72 @@
 
         // --- WAKE LOCK ---
         let wakeLock = null;
-        async function requestWakeLock() { try { wakeLock = await navigator.wakeLock.request('screen'); log("WakeLock acquired"); } catch (err) { log("WakeLock fail: " + err.message); } }
+        async function requestWakeLock() { try { wakeLock = await navigator.wakeLock.request('screen'); log("WakeLock ON"); } catch (err) { log("WakeLock ERR: " + err.message); } }
         document.addEventListener("visibilitychange", async () => { if (document.visibilityState === 'visible') requestWakeLock(); });
 
-        // --- DATA PERSISTENCE ---
-        const STORAGE_KEY = 'court_cam_v27_data';
-        let gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 };
-        let scoreboardPos = "BOTTOM"; 
+        // --- GAME STATE ---
+        const STORAGE_KEY = 'court_cam_v28_data';
+        let gameData = { 
+            homeName: "HOME", guestName: "GUEST", 
+            homeScore: 0, guestScore: 0, 
+            timeLeft: 600, period: 1,
+            homeColor: "#0056b3", guestColor: "#b30000" // Default Blue vs Red
+        };
+        let scoreboardPos = "BOTTOM";
+        let cleanFeed = false;
+        
+        // Load Data
         const saved = localStorage.getItem(STORAGE_KEY);
         if(saved) { try { gameData = JSON.parse(saved); } catch(e) {} }
-        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData)); }
-        function resetGameData() { if(confirm("Reset game?")) { gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 }; saveData(); updateClockUI(); } }
+        
+        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData)); updateButtonColors(); }
+        function resetGameData() { 
+            if(confirm("Reset game?")) { 
+                gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1, homeColor: "#0056b3", guestColor: "#b30000" }; 
+                saveData(); updateClockUI(); 
+            } 
+        }
 
-        // --- STATE ---
+        // --- APP VARIABLES ---
         let isTimerRunning = false, timerInterval = null;
-        let track = null; 
-        let zoomMode = "DIGITAL"; 
-        let currentZoom = 1.0;
+        let track = null, audioContext;
+        let zoomMode = "DIGITAL", currentZoom = 1.0;
         let targetW=1280, targetH=720, targetBitrate = 5000000;
         let homeFlash = 0, guestFlash = 0;
-        let audioContext;
+        let editingTeam = ''; // 'home' or 'guest'
 
+        // --- DOM ELEMENTS ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('raw-video');
         const cameraSelect = document.getElementById('camera-select');
         const topBar = document.getElementById('top-bar');
         const clockBtn = document.getElementById('btn-clock');
+        const uiLayer = document.getElementById('ui-layer');
 
-        // --- INITIALIZATION & CAMERAS ---
+        // --- INITIALIZATION ---
         async function loadCameras() {
-            log("Init: Loading cameras (v27 Safer Mode)...");
+            log("Loading cameras...");
             cameraSelect.innerHTML = "<option>Loading...</option>";
-
             try {
-                // STEP 1: Request VIDEO ONLY first. This prevents microphone errors from blocking camera access.
+                // Permission trick
                 const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                // We got permission! Release the camera immediately.
                 tempStream.getTracks().forEach(t => t.stop());
-
-                // STEP 2: Now that we have permission, list the devices.
+                
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(d => d.kind === 'videoinput');
-                
-                cameraSelect.innerHTML = ""; // Clear loading message
+                cameraSelect.innerHTML = ""; 
 
                 if(videoDevices.length === 0) {
-                    let opt = document.createElement('option');
-                    opt.text = "No Cameras Found (Check Permissions)";
-                    cameraSelect.appendChild(opt);
-                    log("Init: No video devices found.");
+                    let opt = document.createElement('option'); opt.text = "No Cameras Found"; cameraSelect.appendChild(opt);
                 } else {
-                    // Add Default Option
-                    let optDef = document.createElement('option');
-                    optDef.value = "default";
-                    optDef.text = "System Default (Back)";
-                    cameraSelect.appendChild(optDef);
-
-                    // Add Specific Cameras
+                    let optDef = document.createElement('option'); optDef.value = "default"; optDef.text = "System Default (Back)"; cameraSelect.appendChild(optDef);
                     videoDevices.forEach((device, index) => {
-                        let opt = document.createElement('option');
-                        opt.value = device.deviceId;
-                        opt.text = device.label || `Camera ${index + 1}`;
-                        cameraSelect.appendChild(opt);
+                        let opt = document.createElement('option'); opt.value = device.deviceId; opt.text = device.label || `Camera ${index + 1}`; cameraSelect.appendChild(opt);
                     });
-                    log(`Init: Found ${videoDevices.length} cameras`);
                 }
-
-            } catch(e) { 
-                log("Init Error: " + e.message); 
-                cameraSelect.innerHTML = `<option>Error: ${e.name}</option>`;
-                
-                // Add a "Force Default" option in case enumeration fails but getUserMedia still works
-                let optForce = document.createElement('option');
-                optForce.value = "default";
-                optForce.text = "Force Attempt (Default)";
-                cameraSelect.appendChild(optForce);
-            }
+            } catch(e) { log("Cam Error: " + e.message); cameraSelect.innerHTML = "<option>Error (Check perms)</option>"; }
         }
-        
-        // Load immediately
         loadCameras();
 
         function openStartupModal() { document.getElementById('startup-modal').style.display = 'block'; }
@@ -315,153 +309,137 @@
         
         function toggleTimerVisibility() {
             const chk = document.getElementById('chk-timer');
-            const btn = document.getElementById('btn-clock');
-            if (chk && btn) {
-                btn.style.display = chk.checked ? 'block' : 'none';
-                if (!chk.checked && isTimerRunning) toggleTimer();
-            }
+            clockBtn.style.display = chk.checked ? 'block' : 'none';
         }
 
         async function startSelectedCamera(w, h, bitrate) {
-            log(`Starting Camera: ${w}x${h}`);
+            log(`Start: ${w}x${h}`);
             targetW = w; targetH = h; targetBitrate = bitrate;
             canvas.width = w; canvas.height = h;
-            closeModal();
-            requestWakeLock();
-            toggleTimerVisibility();
+            closeModal(); requestWakeLock(); toggleTimerVisibility(); updateButtonColors();
             
             if(track) { track.stop(); track = null; }
-
             const selectedId = cameraSelect.value;
             const constraints = { video: { width: { ideal: w }, height: { ideal: h } }, audio: true };
-
-            if (selectedId === "default") {
-                constraints.video.facingMode = "environment";
-            } else {
-                constraints.video.deviceId = { exact: selectedId };
-            }
+            if (selectedId === "default") constraints.video.facingMode = "environment";
+            else constraints.video.deviceId = { exact: selectedId };
 
             try {
-                // Try Video + Audio first
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 handleStreamSuccess(stream);
             } catch(e) {
-                log(`Audio/Video Error: ${e.message}. Retrying Video Only...`);
-                // If Audio fails (common bug), try VIDEO ONLY
+                log("Audio failed, trying video only...");
+                constraints.audio = false;
                 try {
-                    constraints.audio = false;
                     const stream = await navigator.mediaDevices.getUserMedia(constraints);
                     handleStreamSuccess(stream);
-                    alert("Warning: Microphone access failed. Recording will be video only.");
-                } catch (videoErr) {
-                    log(`FATAL: ${videoErr.message}`);
-                    alert("Camera Failed completely: " + videoErr.message);
-                    openStartupModal();
-                }
+                    alert("Microphone failed. Recording video only.");
+                } catch (videoErr) { log("FATAL: " + videoErr.message); alert("Camera Init Failed."); }
             }
         }
 
         function handleStreamSuccess(stream) {
             video.srcObject = stream;
             video.onloadedmetadata = async () => {
-                try {
-                    await video.play();
-                    track = stream.getVideoTracks()[0];
-                    if (stream.getAudioTracks().length > 0) setupAudio(stream);
-                    setupZoom(); 
-                    if(!window.isDrawing) { window.isDrawing = true; drawLoop(); }
-                } catch (playErr) { log("Play Error: " + playErr.message); }
+                await video.play();
+                track = stream.getVideoTracks()[0];
+                if (stream.getAudioTracks().length > 0) setupAudio(stream);
+                setupZoom();
+                if(!window.isDrawing) { window.isDrawing = true; drawLoop(); }
             };
         }
 
         // --- AUDIO ---
         function setupAudio(stream) {
-            try {
-                if(audioContext) { audioContext.close().catch(e => {}); }
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const analyser = audioContext.createAnalyser();
-                const microphone = audioContext.createMediaStreamSource(stream);
-                const javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
-                analyser.smoothingTimeConstant = 0.8; analyser.fftSize = 1024;
-                microphone.connect(analyser); analyser.connect(javascriptNode); javascriptNode.connect(audioContext.destination);
-                
-                javascriptNode.onaudioprocess = function() {
-                    const array = new Uint8Array(analyser.frequencyBinCount);
-                    analyser.getByteFrequencyData(array);
-                    let values = 0; for(let i=0; i<array.length; i++) values += array[i];
-                    let pct = Math.min(100, (values / array.length) * 2);
-                    const bar = document.getElementById('audio-level');
-                    if(bar) {
-                        bar.style.height = pct + "%";
-                        bar.style.background = pct > 80 ? "rgba(255,0,0,0.8)" : "rgba(0,255,0,0.8)";
-                    }
-                }
-            } catch(e) { log("Audio setup warning: " + e.message); }
+            if(audioContext) audioContext.close();
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const src = audioContext.createMediaStreamSource(stream);
+            const analyzer = audioContext.createAnalyser();
+            const processor = audioContext.createScriptProcessor(2048, 1, 1);
+            src.connect(analyzer); analyzer.connect(processor); processor.connect(audioContext.destination);
+            processor.onaudioprocess = () => {
+                const array = new Uint8Array(analyzer.frequencyBinCount);
+                analyzer.getByteFrequencyData(array);
+                let values = 0; for(let i=0; i<array.length; i++) values += array[i];
+                let pct = Math.min(100, (values / array.length) * 2.5);
+                const bar = document.getElementById('audio-level');
+                if(bar) { bar.style.height = pct + "%"; bar.style.background = pct>80?"#f00":"#0f0"; }
+            }
         }
 
-        // --- ZOOM ---
+        // --- ZOOM (PINCH ADDED) ---
         function setupZoom() {
             if(!track) return;
             const caps = track.getCapabilities ? track.getCapabilities() : {};
             const slider = document.getElementById('zoom-slider');
-            const typeLabel = document.getElementById('zoom-type');
-
+            
             if (caps.zoom) {
                 zoomMode = "HARDWARE";
-                typeLabel.innerText = "OPTICAL";
-                typeLabel.className = "zoom-info zoom-type-hw"; 
-                slider.min = caps.zoom.min;
-                slider.max = caps.zoom.max;
-                slider.step = caps.zoom.step || 0.1;
+                document.getElementById('zoom-type').className = "zoom-info zoom-type-hw";
+                slider.min = caps.zoom.min; slider.max = caps.zoom.max; slider.step = caps.zoom.step || 0.1;
                 slider.value = track.getSettings().zoom || 1;
             } else {
                 zoomMode = "DIGITAL";
-                typeLabel.innerText = "DIGITAL";
-                typeLabel.className = "zoom-info zoom-type-dig";
+                document.getElementById('zoom-type').className = "zoom-info zoom-type-dig";
                 slider.min = 1; slider.max = 5; slider.step = 0.1; slider.value = 1;
             }
 
             slider.oninput = async (e) => {
                 const val = parseFloat(e.target.value);
                 document.getElementById('zoom-label').innerText = val.toFixed(1) + "x";
-                if(zoomMode === "HARDWARE" && track) {
-                    try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } catch(e){}
-                } else { currentZoom = val; }
+                if(zoomMode === "HARDWARE") await track.applyConstraints({advanced:[{zoom:val}]});
+                else currentZoom = val;
             };
         }
 
-        // --- RECORDING ---
+        // PINCH LOGIC
+        let initialPinch = 0, initialZoomVal = 1;
+        canvas.addEventListener('touchstart', e => {
+            if(e.touches.length === 2) {
+                initialPinch = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
+                initialZoomVal = parseFloat(document.getElementById('zoom-slider').value);
+            }
+        });
+        canvas.addEventListener('touchmove', e => {
+            if(e.touches.length === 2) {
+                e.preventDefault();
+                const dist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
+                const delta = dist - initialPinch;
+                let newVal = initialZoomVal + (delta * 0.01);
+                const s = document.getElementById('zoom-slider');
+                newVal = Math.min(Math.max(newVal, parseFloat(s.min)), parseFloat(s.max));
+                s.value = newVal; s.dispatchEvent(new Event('input'));
+            }
+        });
+
+        // --- RECORDING (SAFETY) ---
         let mediaRecorder, chunks=[], recState="IDLE", recSeconds=0, recTimerInterval=null;
         const recBtn = document.getElementById('btn-rec'), stopBtn = document.getElementById('btn-stop'), recTimer = document.getElementById('rec-timer');
 
         function toggleRecordState() {
-            if(recState === "IDLE") startRecording();
-            else if(recState === "RECORDING") pauseRecording();
-            else if(recState === "PAUSED") resumeRecording();
+            if(recState==="IDLE") startRecording();
+            else if(recState==="RECORDING") pauseRecording();
+            else if(recState==="PAUSED") resumeRecording();
         }
-
+        
         function updateRecTimerDisplay() {
             recSeconds++;
-            let h = Math.floor(recSeconds/3600), m = Math.floor((recSeconds%3600)/60), s = recSeconds%60;
-            recTimer.innerText = (h<10?"0"+h:h)+":"+(m<10?"0"+m:m)+":"+(s<10?"0"+s:s);
+            let h=Math.floor(recSeconds/3600), m=Math.floor((recSeconds%3600)/60), s=recSeconds%60;
+            recTimer.innerText = `${h<10?'0'+h:h}:${m<10?'0'+m:m}:${s<10?'0'+s:s}`;
         }
 
         function startRecording() {
             try {
-                log("Rec: Starting...");
+                log("Rec Start");
                 const stream = canvas.captureStream(30);
-                if(video.srcObject) {
-                    const audioTracks = video.srcObject.getAudioTracks();
-                    if(audioTracks.length > 0) stream.addTrack(audioTracks[0]);
-                }
+                if(video.srcObject && video.srcObject.getAudioTracks().length > 0) stream.addTrack(video.srcObject.getAudioTracks()[0]);
                 
                 let opts = { videoBitsPerSecond: targetBitrate };
-                let ext = 'webm';
-                if(MediaRecorder.isTypeSupported('video/mp4')) { opts.mimeType = 'video/mp4'; ext = 'mp4'; }
+                if(MediaRecorder.isTypeSupported('video/mp4')) opts.mimeType = 'video/mp4';
 
                 mediaRecorder = new MediaRecorder(stream, opts);
                 mediaRecorder.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
-                mediaRecorder.onstop = () => saveVideoFile(ext);
+                mediaRecorder.onstop = () => saveVideoFile();
                 mediaRecorder.start(1000); 
 
                 recState = "RECORDING";
@@ -469,90 +447,148 @@
                 stopBtn.style.display = "flex"; recTimer.style.display = "block"; recTimer.style.color = "#f00";
                 recSeconds = 0; recTimer.innerText = "00:00:00";
                 recTimerInterval = setInterval(updateRecTimerDisplay, 1000);
-            } catch(e) { log("Rec Error: " + e.message); alert("Rec Error: " + e.message); }
+            } catch(e) { alert("Rec Start Failed: " + e.message); }
         }
-        function pauseRecording() { mediaRecorder.pause(); recState = "PAUSED"; recBtn.innerText = "RESUME"; recBtn.className = "hud-btn btn-rec rec-paused"; clearInterval(recTimerInterval); recTimer.style.color = "#ffcc00"; }
-        function resumeRecording() { mediaRecorder.resume(); recState = "RECORDING"; recBtn.innerText = "PAUSE"; recBtn.className = "hud-btn btn-rec rec-active"; recTimer.style.color = "#f00"; recTimerInterval = setInterval(updateRecTimerDisplay, 1000); }
-        function stopRecording() { mediaRecorder.stop(); recState = "IDLE"; recBtn.innerText = "REC"; recBtn.className = "hud-btn btn-rec"; stopBtn.style.display = "none"; clearInterval(recTimerInterval); recTimer.style.display = "none"; }
-        function saveVideoFile(ext) {
+
+        function pauseRecording() { mediaRecorder.pause(); recState="PAUSED"; recBtn.innerText="RESUME"; recBtn.className="hud-btn btn-rec rec-paused"; clearInterval(recTimerInterval); recTimer.style.color="#fc0"; }
+        function resumeRecording() { mediaRecorder.resume(); recState="RECORDING"; recBtn.innerText="PAUSE"; recBtn.className="hud-btn btn-rec rec-active"; recTimer.style.color="#f00"; recTimerInterval=setInterval(updateRecTimerDisplay, 1000); }
+        function stopRecording() { 
+            if(confirm("Stop recording and SAVE file now?")) {
+                mediaRecorder.stop(); recState="IDLE"; recBtn.innerText="REC"; recBtn.className="hud-btn btn-rec"; stopBtn.style.display="none"; clearInterval(recTimerInterval); recTimer.style.display="none"; 
+            }
+        }
+        
+        function saveVideoFile() {
             const blob = new Blob(chunks, {type: mediaRecorder.mimeType}); chunks=[];
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Game_${Date.now()}.${ext}`; document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a);}, 100);
+            const ext = mediaRecorder.mimeType.includes("mp4") ? "mp4" : "webm";
+            const a = document.createElement('a');
+            // Filename: Game_Q1_Timestamp.mp4
+            a.download = `Game_Q${gameData.period}_${Date.now()}.${ext}`;
+            a.href = URL.createObjectURL(blob);
+            document.body.appendChild(a); a.click(); setTimeout(()=>document.body.removeChild(a), 100);
+            log("Video saved!");
         }
 
         // --- DRAWING ---
         function drawLoop() {
-            try {
-                if (zoomMode === "DIGITAL" && currentZoom > 1) {
-                    const vw = video.videoWidth, vh = video.videoHeight;
-                    if(vw) {
-                        const sw = vw/currentZoom, sh = vh/currentZoom, sx = (vw-sw)/2, sy = (vh-sh)/2;
-                        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-                    }
-                } else { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); }
-                
-                // Scoreboard UI Draw
-                const H = canvas.height, W = canvas.width;
-                const sbHeight = H * 0.14, sbWidth = W * 0.7; 
-                const sbX = (W - sbWidth) / 2; 
-                const sbY = (scoreboardPos === "BOTTOM") ? H - sbHeight - (H * 0.04) : (H * 0.04);
-
-                const grad = ctx.createLinearGradient(sbX, sbY, sbX, sbY + sbHeight);
-                grad.addColorStop(0, "rgba(20, 20, 20, 0.9)"); grad.addColorStop(1, "rgba(0, 0, 0, 0.95)");
-                
-                ctx.fillStyle = grad; ctx.beginPath(); ctx.roundRect(sbX, sbY, sbWidth, sbHeight, 10); ctx.fill();
-                ctx.strokeStyle = "#c9a050"; ctx.lineWidth = 2; ctx.stroke();
-
-                const colW = sbWidth / 3, cY = sbY + (sbHeight/2);
-                
-                // Teams
-                ctx.fillStyle = "#0056b3"; ctx.beginPath(); ctx.roundRect(sbX + 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
-                ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(gameData.homeName, sbX + (colW * 0.5), cY);
-                if (homeFlash > 0) { ctx.fillStyle = "#ffff00"; homeFlash--; } else { ctx.fillStyle = "#fff"; }
-                ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.homeScore, sbX + 10 + (colW * 0.2), cY + 3);
-
-                const gStart = sbX + (colW * 2);
-                ctx.fillStyle = "#b30000"; ctx.beginPath(); ctx.roundRect(gStart + (colW * 0.6) - 10, sbY + 10, (colW * 0.4), sbHeight - 20, 5); ctx.fill();
-                ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI', sans-serif`; ctx.textAlign = "right"; ctx.fillText(gameData.guestName, gStart + (colW * 0.5), cY);
-                if (guestFlash > 0) { ctx.fillStyle = "#ffff00"; guestFlash--; } else { ctx.fillStyle = "#fff"; }
-                ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.guestScore, gStart + (colW * 0.6) + (colW*0.2) - 10, cY + 3);
-
-                // Clock / Period
-                const cStart = sbX + colW;
-                ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(cStart, sbY + 15, 2, sbHeight - 30); ctx.fillRect(gStart, sbY + 15, 2, sbHeight - 30);
-                
-                const showTimer = document.getElementById('chk-timer').checked;
-                if (showTimer) {
-                    let m = Math.floor(gameData.timeLeft / 60), s = gameData.timeLeft % 60;
-                    ctx.fillStyle = isTimerRunning ? "#0f0" : "#ccc"; ctx.font = `bold ${H*0.065}px 'Courier New', monospace`; ctx.textAlign = "center";
-                    ctx.fillText(`${m}:${s<10?'0'+s:s}`, cStart + (colW/2), cY - (sbHeight * 0.15));
+            // Draw Video
+            if(zoomMode==="DIGITAL" && currentZoom>1) {
+                const vw = video.videoWidth, vh = video.videoHeight;
+                if(vw) {
+                    const sw = vw/currentZoom, sh = vh/currentZoom;
+                    ctx.drawImage(video, (vw-sw)/2, (vh-sh)/2, sw, sh, 0, 0, canvas.width, canvas.height);
                 }
+            } else { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); }
 
-                ctx.fillStyle = "#aaa"; ctx.font = `bold ${H*0.025}px sans-serif`;
-                let suf = gameData.period===1?"ST":gameData.period===2?"ND":gameData.period===3?"RD":"TH";
-                ctx.fillText(`${gameData.period}${suf} QTR`, cStart + (colW/2), cY + (sbHeight * (showTimer ? 0.25 : 0.1)));
+            // Scoreboard Draw Logic
+            const H = canvas.height, W = canvas.width;
+            const sbH = H*0.14, sbW = W*0.7; 
+            const sbX = (W-sbW)/2;
+            const sbY = (scoreboardPos==="BOTTOM") ? H-sbH-(H*0.04) : (H*0.04);
+            
+            // Main BG
+            const grad = ctx.createLinearGradient(sbX, sbY, sbX, sbY+sbH);
+            grad.addColorStop(0, "rgba(20,20,20,0.9)"); grad.addColorStop(1, "rgba(0,0,0,0.95)");
+            ctx.fillStyle = grad; ctx.beginPath(); ctx.roundRect(sbX, sbY, sbW, sbH, 10); ctx.fill();
+            ctx.strokeStyle="#c9a050"; ctx.lineWidth=2; ctx.stroke();
 
-                ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.font = `bold ${H*0.04}px sans-serif`; ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText("TIU", W - 20, 20); ctx.restore();
+            const colW = sbW/3, cY = sbY+(sbH/2);
+            
+            // HOME (Custom Color)
+            ctx.fillStyle = gameData.homeColor || "#0056b3"; 
+            ctx.beginPath(); ctx.roundRect(sbX+10, sbY+10, (colW*0.4), sbH-20, 5); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI'`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; 
+            ctx.fillText(gameData.homeName, sbX+(colW*0.5), cY);
+            
+            if(homeFlash>0) { ctx.fillStyle="#ff0"; homeFlash--; } else ctx.fillStyle="#fff";
+            ctx.font = `bold ${H*0.07}px 'Segoe UI'`; ctx.textAlign="center";
+            ctx.fillText(gameData.homeScore, sbX+10+(colW*0.2), cY+3);
 
-                requestAnimationFrame(drawLoop);
-            } catch(e) { log("DRAW ERROR (Retrying): " + e.message); }
+            // GUEST (Custom Color)
+            const gStart = sbX+(colW*2);
+            ctx.fillStyle = gameData.guestColor || "#b30000";
+            ctx.beginPath(); ctx.roundRect(gStart+(colW*0.6)-10, sbY+10, (colW*0.4), sbH-20, 5); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI'`; ctx.textAlign="right";
+            ctx.fillText(gameData.guestName, gStart+(colW*0.5), cY);
+
+            if(guestFlash>0) { ctx.fillStyle="#ff0"; guestFlash--; } else ctx.fillStyle="#fff";
+            ctx.font = `bold ${H*0.07}px 'Segoe UI'`; ctx.textAlign="center";
+            ctx.fillText(gameData.guestScore, gStart+(colW*0.6)+(colW*0.2)-10, cY+3);
+
+            // CLOCK
+            const cStart = sbX+colW;
+            ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(cStart, sbY+15, 2, sbH-30); ctx.fillRect(gStart, sbY+15, 2, sbH-30);
+            
+            if(document.getElementById('chk-timer').checked) {
+                let m = Math.floor(gameData.timeLeft/60), s = gameData.timeLeft%60;
+                ctx.fillStyle = isTimerRunning ? "#0f0" : "#ccc"; ctx.font = `bold ${H*0.065}px 'Courier New'`; ctx.textAlign="center";
+                ctx.fillText(`${m}:${s<10?'0'+s:s}`, cStart+(colW/2), cY-(sbH*0.15));
+            }
+            ctx.fillStyle="#aaa"; ctx.font = `bold ${H*0.025}px sans-serif`;
+            let suf = gameData.period===1?"ST":gameData.period===2?"ND":gameData.period===3?"RD":"TH";
+            ctx.fillText(`${gameData.period}${suf} QTR`, cStart+(colW/2), cY+(sbH*(document.getElementById('chk-timer').checked?0.25:0.1)));
+
+            requestAnimationFrame(drawLoop);
         }
 
-        // --- INPUTS ---
-        function openInput(team) { editingTeam = team; document.getElementById('input-modal').style.display = 'block'; document.getElementById('input-title').innerText = "Rename " + team.toUpperCase(); document.getElementById('team-input').value = (team==='home'?gameData.homeName:gameData.guestName); document.getElementById('team-input').focus(); }
-        function saveTeamName() { const val = document.getElementById('team-input').value; if(val){ if(editingTeam==='home')gameData.homeName=val.toUpperCase(); else gameData.guestName=val.toUpperCase(); saveData(); } closeInput(); }
+        // --- INPUTS & CONTROLS ---
+        function openInput(team) { 
+            editingTeam = team; 
+            document.getElementById('input-modal').style.display = 'block'; 
+            document.getElementById('input-title').innerText = "Edit " + team.toUpperCase();
+            document.getElementById('team-input').value = (team==='home'?gameData.homeName:gameData.guestName);
+            document.getElementById('team-color').value = (team==='home'?gameData.homeColor:gameData.guestColor);
+        }
+        function saveTeamData() {
+            const name = document.getElementById('team-input').value;
+            const color = document.getElementById('team-color').value;
+            if(editingTeam==='home') { gameData.homeName = name.toUpperCase(); gameData.homeColor = color; }
+            else { gameData.guestName = name.toUpperCase(); gameData.guestColor = color; }
+            saveData(); closeInput();
+        }
         function closeInput() { document.getElementById('input-modal').style.display = 'none'; }
         
+        function updateButtonColors() {
+            document.getElementById('dot-home').style.backgroundColor = gameData.homeColor;
+            document.getElementById('btn-home-name').style.borderLeftColor = gameData.homeColor;
+            document.getElementById('dot-guest').style.backgroundColor = gameData.guestColor;
+            document.getElementById('btn-guest-name').style.borderLeftColor = gameData.guestColor;
+        }
+
+        // --- GAME LOGIC ---
+        function updateScore(t, n) { 
+            if(t==='home') { gameData.homeScore=Math.max(0, gameData.homeScore+n); homeFlash=15; }
+            else { gameData.guestScore=Math.max(0, gameData.guestScore+n); guestFlash=15; }
+            saveData(); 
+        }
+        function nextPeriod() {
+            if(recState === "RECORDING") {
+                if(!confirm(`You are still recording Period ${gameData.period}. Stop and Save it now?`)) return;
+                stopRecording(); // This will trigger the save logic
+            }
+            gameData.period++; 
+            if(gameData.period>4) gameData.period=1; 
+            gameData.timeLeft = 600; // Reset clock for new quarter
+            saveData(); updateClockUI();
+        }
+        function toggleTimer() {
+            if(isTimerRunning) { clearInterval(timerInterval); isTimerRunning=false; clockBtn.style.color="#80ff9f"; clockBtn.style.borderColor="rgba(40,167,69,0.5)"; }
+            else { isTimerRunning=true; clockBtn.style.color="#fff"; clockBtn.style.borderColor="#f33"; timerInterval=setInterval(()=>{ if(gameData.timeLeft>0){gameData.timeLeft--; updateClockUI(); if(gameData.timeLeft%5===0)saveData();} else toggleTimer();}, 1000); }
+        }
         clockBtn.addEventListener('dblclick', () => {
              if(isTimerRunning) toggleTimer();
-             let val = prompt("Enter Time (e.g. 8 or 1:30):");
+             let val = prompt("Set Time (e.g. 8 or 1:30):");
              if (val) { if (val.includes(":")) { let p = val.split(":"); gameData.timeLeft = (parseInt(p[0])*60) + parseInt(p[1]); } else { gameData.timeLeft = parseInt(val) * 60; } updateClockUI(); saveData(); }
         });
-        function updateClockUI() { let m = Math.floor(gameData.timeLeft/60), s = gameData.timeLeft%60; clockBtn.innerText = `${m}:${s<10?'0'+s:s}`; }
-        function updateScore(t, n) { if(t==='home'){ gameData.homeScore=Math.max(0, gameData.homeScore+n); homeFlash=15; } else { gameData.guestScore=Math.max(0, gameData.guestScore+n); guestFlash=15; } saveData(); }
-        function toggleTimer() { if(isTimerRunning){ clearInterval(timerInterval); isTimerRunning=false; clockBtn.style.color="#80ff9f"; clockBtn.style.borderColor="rgba(40,167,69,0.5)"; } else { isTimerRunning=true; clockBtn.style.color="#fff"; clockBtn.style.borderColor="#f33"; timerInterval = setInterval(() => { if(gameData.timeLeft>0){ gameData.timeLeft--; updateClockUI(); if(gameData.timeLeft%5===0)saveData(); } else toggleTimer(); }, 1000); } }
-        function nextPeriod() { gameData.period++; if(gameData.period>4) gameData.period=1; saveData(); }
-        function toggleScoreboardPos() { scoreboardPos = (scoreboardPos==="BOTTOM")?"TOP":"BOTTOM"; topBar.style.top = (scoreboardPos==="TOP")?"80%":"20px"; }
-        function toggleFullScreen() { if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e=>{}); else document.exitFullscreen().catch(e=>{}); }
+        function updateClockUI() { let m=Math.floor(gameData.timeLeft/60), s=gameData.timeLeft%60; clockBtn.innerText=`${m}:${s<10?'0'+s:s}`; }
+        function toggleScoreboardPos() { scoreboardPos=(scoreboardPos==="BOTTOM")?"TOP":"BOTTOM"; topBar.style.top=(scoreboardPos==="TOP")?"80%":"20px"; }
+        function toggleFullScreen() { if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{}); else document.exitFullscreen().catch(()=>{}); }
+        function toggleCleanFeed() {
+            cleanFeed = !cleanFeed;
+            uiLayer.className = cleanFeed ? "ui-hidden" : "";
+            const btn = document.getElementById('btn-clean');
+            btn.className = cleanFeed ? "sys-btn btn-active" : "sys-btn";
+        }
     </script>
 </body>
 </html>
