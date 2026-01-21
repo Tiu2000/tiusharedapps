@@ -350,729 +350,34 @@
                 // If Audio fails (common bug), try VIDEO ONLY
                 try {
                     constraints.audio = false;
-                    const stream = await navigator.mediaDevices.getUserMedia(const<div style="width:10px"></div>
-                <button class="hud-btn btn-rec" id="btn-rec" onclick="toggleRecordState()">REC</button>
-                <div id="rec-timer">00:00:00</div>
-                <button class="hud-btn" id="btn-stop" onclick="stopRecording()">■</button>
-                <div style="width:15px"></div>
-                <button class="hud-btn" style="font-size:0.8rem;" onclick="nextPeriod()">PER 1</button>
-            </div>
-
-            <div class="control-group group-left">
-                <button class="team-name-btn" style="border-left: 4px solid #007bff;" onclick="openInput('home')">HOME ✎</button>
-                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 1)">+1</button>
-                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 2)">+2</button>
-                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 3)">+3</button>
-                <button class="hud-btn" style="color:#80bfff; font-size:0.8rem; opacity:0.6;" onclick="updateScore('home', -1)">-1</button>
-            </div>
-
-            <div class="control-group group-right">
-                <button class="team-name-btn" style="border-left: 4px solid #dc3545;" onclick="openInput('guest')">GUEST ✎</button>
-                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 1)">+1</button>
-                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 2)">+2</button>
-                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 3)">+3</button>
-                <button class="hud-btn" style="color:#ff808f; font-size:0.8rem; opacity:0.6;" onclick="updateScore('guest', -1)">-1</button>
-            </div>
-
-            <div class="control-group group-zoom">
-                <div id="zoom-type" class="zoom-info zoom-type-dig">DIG</div>
-                <div id="zoom-label" class="zoom-info" style="font-size:0.9rem; color:rgba(255,255,255,0.8); margin-top:2px;">1.0x</div>
-                <input type="range" id="zoom-slider" orient="vertical" min="1" max="5" step="0.1" value="1">
-            </div>
-        </div>
-    </div>
-
-    <video id="raw-video" autoplay muted playsinline></video>
-
-    <script>
-        // --- LOGGING UTILS ---
-        let debugLogs = [];
-        function log(msg) {
-            const ts = new Date().toLocaleTimeString();
-            const line = `[${ts}] ${msg}`;
-            debugLogs.push(line);
-            console.log(line);
-            const area = document.getElementById('log-textarea');
-            if(area) area.value = debugLogs.join('\n');
-        }
-        function openLogModal() { document.getElementById('log-modal').style.display = 'block'; document.getElementById('startup-modal').style.display = 'none'; }
-        function closeLogModal() { document.getElementById('log-modal').style.display = 'none'; document.getElementById('startup-modal').style.display = 'block'; }
-        function copyLogs() {
-            const area = document.getElementById('log-textarea');
-            area.select();
-            area.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(area.value).then(() => { alert("Logs copied!"); });
-        }
-        window.onerror = function(msg, url, line) { log(`ERR: ${msg} (Line ${line})`); };
-
-        // --- POLYFILLS ---
-        if (typeof CanvasRenderingContext2D.prototype.roundRect !== 'function') {
-            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
-                if (w < 2 * r) r = w / 2; if (h < 2 * r) r = h / 2;
-                this.beginPath(); this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r);
-                this.arcTo(x + w, y + h, x, y + h, r); this.arcTo(x, y + h, x, y, r); this.arcTo(x, y, x + w, y, r);
-                this.closePath(); return this;
-            };
-        }
-
-        // --- WAKE LOCK ---
-        let wakeLock = null;
-        async function requestWakeLock() { try { wakeLock = await navigator.wakeLock.request('screen'); log("WakeLock acquired"); } catch (err) { log("WakeLock fail: " + err.message); } }
-        document.addEventListener("visibilitychange", async () => { if (document.visibilityState === 'visible') requestWakeLock(); });
-
-        // --- DATA PERSISTENCE ---
-        const STORAGE_KEY = 'court_cam_v27_data';
-        let gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 };
-        let scoreboardPos = "BOTTOM"; 
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if(saved) { try { gameData = JSON.parse(saved); } catch(e) {} }
-        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData)); }
-        function resetGameData() { if(confirm("Reset game?")) { gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 }; saveData(); updateClockUI(); } }
-
-        // --- STATE ---
-        let isTimerRunning = false, timerInterval = null;
-        let track = null; 
-        let zoomMode = "DIGITAL"; 
-        let currentZoom = 1.0;
-        let targetW=1280, targetH=720, targetBitrate = 5000000;
-        let homeFlash = 0, guestFlash = 0;
-        let audioContext;
-
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const video = document.getElementById('raw-video');
-        const cameraSelect = document.getElementById('camera-select');
-        const topBar = document.getElementById('top-bar');
-        const clockBtn = document.getElementById('btn-clock');
-
-        // --- INITIALIZATION & CAMERAS ---
-        async function loadCameras() {
-            log("Init: Loading cameras (v27 Safer Mode)...");
-            cameraSelect.innerHTML = "<option>Loading...</option>";
-
-            try {
-                // STEP 1: Request VIDEO ONLY first. This prevents microphone errors from blocking camera access.
-                const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                // We got permission! Release the camera immediately.
-                tempStream.getTracks().forEach(t => t.stop());
-
-                // STEP 2: Now that we have permission, list the devices.
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(d => d.kind === 'videoinput');
-                
-                cameraSelect.innerHTML = ""; // Clear loading message
-
-                if(videoDevices.length === 0) {
-                    let opt = document.createElement('option');
-                    opt.text = "No Cameras Found (Check Permissions)";
-                    cameraSelect.appendChild(opt);
-                    log("Init: No video devices found.");
-                } else {
-                    // Add Default Option
-                    let optDef = document.createElement('option');
-                    optDef.value = "default";
-                    optDef.text = "System Default (Back)";
-                    cameraSelect.appendChild(optDef);
-
-                    // Add Specific Cameras
-                    videoDevices.forEach((device, index) => {
-                        let opt = document.createElement('option');
-                        opt.value = device.deviceId;
-                        opt.text = device.label || `Camera ${index + 1}`;
-                        cameraSelect.appendChild(opt);
-                    });
-                    log(`Init: Found ${videoDevices.length} cameras`);
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    handleStreamSuccess(stream);
+                    alert("Warning: Microphone access failed. Recording will be video only.");
+                } catch (videoErr) {
+                    log(`FATAL: ${videoErr.message}`);
+                    alert("Camera Failed completely: " + videoErr.message);
+                    openStartupModal();
                 }
-
-            } catch(e) { 
-                log("Init Error: " + e.message); 
-                cameraSelect.innerHTML = `<option>Error: ${e.name}</option>`;
-                
-                // Add a "Force Default" option in case enumeration fails but getUserMedia still works
-                let optForce = document.createElement('option');
-                optForce.value = "default";
-                optForce.text = "Force Attempt (Default)";
-                cameraSelect.appendChild(optForce);
-            }
-        }
-        
-        // Load immediately
-        loadCameras();
-
-        function openStartupModal() { document.getElementById('startup-modal').style.display = 'block'; }
-        function closeModal() { document.getElementById('startup-modal').style.display = 'none'; }
-        
-        function toggleTimerVisibility() {
-            const chk = document.getElementById('chk-timer');
-            const btn = document.getElementById('btn-clock');
-            if (chk && btn) {
-                btn.style.display = chk.checked ? 'block' : 'none';
-                if (!chk.checked && isTimerRunning) toggleTimer();
             }
         }
 
-        async function startSelectedCamera(w, h, bitrate) {
-            log(`Starting Camera: ${w}x${h}`);
-            targetW = w; targetH = h; targetBitrate = bitrate;
-            canvas.width = w; canvas.height = h;
-            closeModal();
-            requestWakeLock();
-            toggleTimerVisibility();
-            
-            if(track) { track.stop(); track = null; }
-
-            const selectedId = cameraSelect.value;
-            const constraints = { video: { width: { ideal: w }, height: { ideal: h } }, audio: true };
-
-            if (selectedId === "default") {
-                constraints.video.facingMode = "environment";
-            } else {
-                constraints.video.deviceId = { exact: selectedId };
-            }
-
-            try {
-                // Try Video + Audio first
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                handleStreamSuccess(stream);
-            } catch(e) {
-                log(`Audio/Video Error: ${e.message}. Retrying Video Only...`);
-                // If Audio fails (common bug), try VIDEO ONLY
+        function handleStreamSuccess(stream) {
+            video.srcObject = stream;
+            video.onloadedmetadata = async () => {
                 try {
-                    constraints.audio = false;
-                    const stream = await navigator.mediaDevices.getUserMedia(const)">10:00</button>
-                <div style="width:10px"></div>
-                <div id="audio-meter"><div id="audio-level"></div></div>
-                <div style="width:10px"></div>
-                <button class="hud-btn btn-rec" id="btn-rec" onclick="toggleRecordState()">REC</button>
-                <div id="rec-timer">00:00:00</div>
-                <button class="hud-btn" id="btn-stop" onclick="stopRecording()">■</button>
-                <div style="width:15px"></div>
-                <button class="hud-btn" style="font-size:0.8rem;" onclick="nextPeriod()">PER 1</button>
-            </div>
-
-            <div class="control-group group-left">
-                <button class="team-name-btn" style="border-left: 4px solid #007bff;" onclick="openInput('home')">HOME ✎</button>
-                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 1)">+1</button>
-                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 2)">+2</button>
-                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 3)">+3</button>
-                <button class="hud-btn" style="color:#80bfff; font-size:0.8rem; opacity:0.6;" onclick="updateScore('home', -1)">-1</button>
-            </div>
-
-            <div class="control-group group-right">
-                <button class="team-name-btn" style="border-left: 4px solid #dc3545;" onclick="openInput('guest')">GUEST ✎</button>
-                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 1)">+1</button>
-                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 2)">+2</button>
-                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 3)">+3</button>
-                <button class="hud-btn" style="color:#ff808f; font-size:0.8rem; opacity:0.6;" onclick="updateScore('guest', -1)">-1</button>
-            </div>
-
-            <div class="control-group group-zoom">
-                <div id="zoom-type" class="zoom-info zoom-type-dig">DIG</div>
-                <div id="zoom-label" class="zoom-info" style="font-size:0.9rem; color:rgba(255,255,255,0.8); margin-top:2px;">1.0x</div>
-                <input type="range" id="zoom-slider" orient="vertical" min="1" max="5" step="0.1" value="1">
-            </div>
-        </div>
-    </div>
-
-    <video id="raw-video" autoplay muted playsinline></video>
-
-    <script>
-        // --- LOGGING UTILS ---
-        let debugLogs = [];
-        function log(msg) {
-            const ts = new Date().toLocaleTimeString();
-            const line = `[${ts}] ${msg}`;
-            debugLogs.push(line);
-            console.log(line);
-            const area = document.getElementById('log-textarea');
-            if(area) area.value = debugLogs.join('\n');
-        }
-        function openLogModal() { document.getElementById('log-modal').style.display = 'block'; document.getElementById('startup-modal').style.display = 'none'; }
-        function closeLogModal() { document.getElementById('log-modal').style.display = 'none'; document.getElementById('startup-modal').style.display = 'block'; }
-        function copyLogs() {
-            const area = document.getElementById('log-textarea');
-            area.select();
-            area.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(area.value).then(() => {
-                alert("Logs copied to clipboard!");
-            });
-        }
-        window.onerror = function(msg, url, line) { log(`ERR: ${msg} (Line ${line})`); };
-
-        // --- POLYFILLS (CRITICAL FIX) ---
-        if (typeof CanvasRenderingContext2D.prototype.roundRect !== 'function') {
-            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
-                if (w < 2 * r) r = w / 2;
-                if (h < 2 * r) r = h / 2;
-                this.beginPath();
-                this.moveTo(x + r, y);
-                this.arcTo(x + w, y, x + w, y + h, r);
-                this.arcTo(x + w, y + h, x, y + h, r);
-                this.arcTo(x, y + h, x, y, r);
-                this.arcTo(x, y, x + w, y, r);
-                this.closePath();
-                return this;
+                    await video.play();
+                    track = stream.getVideoTracks()[0];
+                    if (stream.getAudioTracks().length > 0) setupAudio(stream);
+                    setupZoom(); 
+                    if(!window.isDrawing) { window.isDrawing = true; drawLoop(); }
+                } catch (playErr) { log("Play Error: " + playErr.message); }
             };
-            log("Sys: roundRect Polyfill applied.");
-        }
-
-        // --- WAKE LOCK ---
-        let wakeLock = null;
-        async function requestWakeLock() { try { wakeLock = await navigator.wakeLock.request('screen'); log("WakeLock acquired"); } catch (err) { log("WakeLock fail: " + err.message); } }
-        document.addEventListener("visibilitychange", async () => { if (document.visibilityState === 'visible') requestWakeLock(); });
-
-        // --- DATA PERSISTENCE ---
-        const STORAGE_KEY = 'court_cam_v26_data';
-        let gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 };
-        let scoreboardPos = "BOTTOM"; 
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if(saved) { try { gameData = JSON.parse(saved); } catch(e) {} }
-        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData)); }
-        function resetGameData() { if(confirm("Reset game?")) { gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 }; saveData(); updateClockUI(); } }
-
-        // --- STATE ---
-        let isTimerRunning = false, timerInterval = null;
-        let track = null; 
-        let zoomMode = "DIGITAL"; 
-        let currentZoom = 1.0;
-        let targetW=1280, targetH=720, targetBitrate = 5000000;
-        let homeFlash = 0, guestFlash = 0;
-        let audioContext;
-
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const video = document.getElementById('raw-video');
-        const cameraSelect = document.getElementById('camera-select');
-        const topBar = document.getElementById('top-bar');
-        const clockBtn = document.getElementById('btn-clock');
-
-        // --- INITIALIZATION ---
-        async function loadCameras() {
-            log("Init: Loading cameras...");
-            try {
-                const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); 
-                tempStream.getTracks().forEach(t => t.stop());
-
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(d => d.kind === 'videoinput');
-                
-                cameraSelect.innerHTML = "";
-                
-                let optDef = document.createElement('option');
-                optDef.value = "default";
-                optDef.text = "System Default (Back)";
-                cameraSelect.appendChild(optDef);
-
-                videoDevices.forEach((device, index) => {
-                    let opt = document.createElement('option');
-                    opt.value = device.deviceId;
-                    opt.text = device.label || `Camera ${index + 1}`;
-                    cameraSelect.appendChild(opt);
-                });
-                
-                log(`Init: Found ${videoDevices.length} cameras`);
-            } catch(e) { log("Init Error: " + e.message); }
-        }
-        
-        loadCameras();
-
-        function openStartupModal() { document.getElementById('startup-modal').style.display = 'block'; }
-        function closeModal() { document.getElementById('startup-modal').style.display = 'none'; }
-        
-        // --- NEW: TOGGLE TIMER ---
-        function toggleTimerVisibility() {
-            const chk = document.getElementById('chk-timer');
-            const btn = document.getElementById('btn-clock');
-            if (chk && btn) {
-                btn.style.display = chk.checked ? 'block' : 'none';
-                // Stop timer if hidden to be safe
-                if (!chk.checked && isTimerRunning) toggleTimer();
-            }
-        }
-
-        async function startSelectedCamera(w, h, bitrate) {
-            log(`Starting Camera: ${w}x${h}`);
-            targetW = w; targetH = h; targetBitrate = bitrate;
-            canvas.width = w; canvas.height = h;
-            closeModal();
-            requestWakeLock();
-            
-            // Ensure toggle state is applied
-            toggleTimerVisibility();
-            
-            if(track) {
-                log("Stopping previous track...");
-                track.stop();
-                track = null;
-            }
-
-            const selectedId = cameraSelect.value;
-            const constraints = {
-                video: { width: { ideal: w }, height: { ideal: h } },
-                audio: true
-            };
-
-            if (selectedId === "default") {
-                constraints.video.facingMode = "environment";
-            } else {
-                constraints.video.deviceId = { exact: selectedId };
-            }
-
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = stream;
-                
-                video.onloadedmetadata = async () => {
-                    try {
-                        await video.play();
-                        track = stream.getVideoTracks()[0];
-                        setupAudio(stream);
-                        setupZoom(); 
-                        if(!window.isDrawing) { window.isDrawing = true; drawLoop(); }
-                    } catch (playErr) { log("Play Error: " + playErr.message); }
-                };
-
-            } catch(e) {
-                log(`FATAL ERROR: ${e.name}: ${e.message}`);
-                alert("Camera Failed: " + e.message);
-                openStartupModal(); 
-            }
         }
 
         // --- AUDIO ---
         function setupAudio(stream) {
             try {
                 if(audioContext) { audioContext.close().catch(e => {}); }
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const analyser = audioContext.createAnalyser();
-                    
-        .team-name-btn {
-            background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.9); 
-            font-weight: 700; font-size: 1rem; margin-bottom: 10px; 
-            cursor: pointer; text-transform: uppercase; padding: 8px 12px; border-radius: 6px;
-            pointer-events: auto; letter-spacing: 1px; transition: background 0.2s;
-        }
-        
-        /* ZOOM SLIDER */
-        .group-zoom { 
-            right: 150px; top: 55%; transform: translateY(-50%); 
-            height: 200px; width: 50px; display: flex;
-            flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.25); border-radius: 25px; padding: 10px 0; border: 1px solid rgba(255,255,255,0.15);
-            pointer-events: auto; backdrop-filter: blur(2px);
-        }
-        input[type=range][orient=vertical] {
-            writing-mode: bt-lr; -webkit-appearance: slider-vertical;
-            width: 10px; height: 140px; margin: 10px 0; opacity: 0.6;
-        }
-        .zoom-info { font-size: 0.7rem; font-weight: 700; text-align: center; opacity: 0.8; }
-        .zoom-type-hw { color: #0f0; } 
-        .zoom-type-dig { color: #f33; } 
-
-        /* HUD BUTTONS */
-        .hud-btn {
-            background: rgba(20,20,20,0.25); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.8);
-            padding: 12px 0; border-radius: 8px; font-weight: bold; font-size: 1.1rem;
-            width: 70px; text-align: center; backdrop-filter: blur(2px); transition: all 0.1s;
-        }
-        .hud-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.3); color: #fff; }
-        
-        /* REC BUTTONS */
-        .btn-rec { background: rgba(200,0,0,0.6); border: 2px solid rgba(255,255,255,0.5); width: 55px; height: 55px; border-radius: 50%; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
-        .rec-active { background: rgba(255,255,255,0.9); color: #f00; border-color: #f00; animation: pulse 2s infinite; font-size: 0.65rem; }
-        .rec-paused { background: rgba(255, 200, 0, 0.9); color: #000; border-color: #fff; animation: none; font-size: 0.6rem; }
-        @keyframes pulse { 0% {opacity:1} 50% {opacity:0.6} 100% {opacity:1} }
-        
-        #rec-timer { display: none; font-family: 'Courier New', monospace; font-weight: bold; font-size: 1.2rem; color: #f00; margin: 0 10px; text-shadow: 0 0 5px #000; }
-        #btn-stop { display: none; width: 45px; height: 45px; background: rgba(200,0,0,0.8); border: 2px solid #fff; border-radius: 8px; align-items: center; justify-content: center; font-size: 1.2rem; margin-left: 8px; }
-
-        /* AUDIO METER */
-        #audio-meter { width: 8px; height: 45px; background: rgba(50,50,50,0.3); border: 1px solid rgba(100,100,100,0.3); border-radius: 5px; overflow: hidden; position: relative; display: flex; align-items: flex-end; }
-        #audio-level { width: 100%; height: 0%; background: rgba(0,255,0,0.7); transition: height 0.1s; }
-
-        /* MODALS */
-        .modal { position: fixed; z-index: 100; background: #1a1a1a; padding: 25px; border: 1px solid #333; border-radius: 12px; text-align: center; top:50%; left:50%; transform:translate(-50%, -50%); width: 85%; max-width: 350px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
-        .modal h3 { margin-top: 0; color: #eee; }
-        .modal-btn { background: #007bff; color: #fff; border: none; padding: 12px; width: 100%; margin: 8px 0; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; }
-        
-        /* CASH APP BUTTON */
-        .btn-cashapp { background: #00D632; color: #fff; margin-top: 5px; }
-        .btn-cashapp:active { background: #00b32a; }
-
-        #input-modal input { width: 90%; padding: 12px; font-size: 1.1rem; margin-bottom: 15px; text-align: center; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; }
-        
-        select { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 6px; margin-bottom: 10px; font-size: 1rem; }
-
-        /* LOG MODAL */
-        #log-textarea { width: 100%; height: 150px; background: #000; color: #0f0; font-family: monospace; font-size: 0.8rem; border: 1px solid #555; margin-bottom: 10px; resize: none; }
-
-        #raw-video { display: none; }
-    </style>
-</head>
-<body>
-
-    <div id="system-controls">
-        <button class="sys-btn" onclick="toggleFullScreen()">⛶</button>
-        <button class="sys-btn" onclick="openStartupModal()">⚙️</button>
-        <button class="sys-btn" onclick="toggleScoreboardPos()">⬍</button>
-    </div>
-    <div id="reset-controls">
-        <button class="sys-btn btn-danger" onclick="resetGameData()">✕</button>
-    </div>
-
-    <div id="startup-modal" class="modal" style="display:block">
-        <h3>Pro Court Cam v25</h3>
-        <p style="color:#888; font-size:0.9rem;">Source Selector Fix + Polyfill</p>
-        
-        <div style="text-align:left; font-size:0.8rem; color:#aaa; margin-bottom:5px;">Select Camera Source:</div>
-        
-        <div style="display:flex; gap:10px; margin-bottom:10px;">
-            <select id="camera-select" style="flex-grow:1; margin-bottom:0;"></select>
-            <button class="sys-btn" style="width:42px; height:42px; margin:0; background:#333;" onclick="loadCameras()">↻</button>
-        </div>
-
-        <button class="modal-btn" style="background:#28a745" onclick="startSelectedCamera(1280, 720, 5000000)">Start 720p</button>
-        <button class="modal-btn" onclick="startSelectedCamera(1920, 1080, 8000000)">Start 1080p</button>
-        
-        <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 15px;">
-            <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 10px; margin-top:0;">Enjoying the app? Buy me a coffee ☕</p>
-            <button class="modal-btn btn-cashapp" onclick="window.open('https://cash.app/$AnthonyTiu', '_blank')">
-                $ Pay with Cash App
-            </button>
-        </div>
-
-        <button class="modal-btn" style="background:#555; margin-top:20px; font-size:0.8rem; padding:8px;" onclick="openLogModal()">📝 View/Copy Logs</button>
-    </div>
-
-    <div id="log-modal" class="modal">
-        <h3>Debug Logs</h3>
-        <textarea id="log-textarea" readonly></textarea>
-        <button class="modal-btn" onclick="copyLogs()">📋 Copy to Clipboard</button>
-        <button class="modal-btn" style="background:#444" onclick="closeLogModal()">Close</button>
-    </div>
-
-    <div id="input-modal" class="modal">
-        <h3 id="input-title">Edit Name</h3>
-        <input type="text" id="team-input" maxlength="10">
-        <button class="modal-btn" onclick="saveTeamName()">SAVE</button>
-        <button class="modal-btn" style="background:#444" onclick="closeInput()">CANCEL</button>
-    </div>
-
-    <div id="stage">
-        <canvas id="gameCanvas"></canvas>
-
-        <div id="ui-layer">
-            <div class="control-group group-top" id="top-bar">
-                <button class="hud-btn" style="width:100px; border-color:rgba(40,167,69,0.5); color:#80ff9f; font-family:monospace; font-size:1.4rem;" id="btn-clock" onclick="toggleTimer()">10:00</button>
-                <div style="width:10px"></div>
-                <div id="audio-meter"><div id="audio-level"></div></div>
-                <div style="width:10px"></div>
-                <button class="hud-btn btn-rec" id="btn-rec" onclick="toggleRecordState()">REC</button>
-                <div id="rec-timer">00:00:00</div>
-                <button class="hud-btn" id="btn-stop" onclick="stopRecording()">■</button>
-                <div style="width:15px"></div>
-                <button class="hud-btn" style="font-size:0.8rem;" onclick="nextPeriod()">PER 1</button>
-            </div>
-
-            <div class="control-group group-left">
-                <button class="team-name-btn" style="border-left: 4px solid #007bff;" onclick="openInput('home')">HOME ✎</button>
-                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 1)">+1</button>
-                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 2)">+2</button>
-                <button class="hud-btn" style="color:#80bfff;" onclick="updateScore('home', 3)">+3</button>
-                <button class="hud-btn" style="color:#80bfff; font-size:0.8rem; opacity:0.6;" onclick="updateScore('home', -1)">-1</button>
-            </div>
-
-            <div class="control-group group-right">
-                <button class="team-name-btn" style="border-left: 4px solid #dc3545;" onclick="openInput('guest')">GUEST ✎</button>
-                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 1)">+1</button>
-                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 2)">+2</button>
-                <button class="hud-btn" style="color:#ff808f;" onclick="updateScore('guest', 3)">+3</button>
-                <button class="hud-btn" style="color:#ff808f; font-size:0.8rem; opacity:0.6;" onclick="updateScore('guest', -1)">-1</button>
-            </div>
-
-            <div class="control-group group-zoom">
-                <div id="zoom-type" class="zoom-info zoom-type-dig">DIG</div>
-                <div id="zoom-label" class="zoom-info" style="font-size:0.9rem; color:rgba(255,255,255,0.8); margin-top:2px;">1.0x</div>
-                <input type="range" id="zoom-slider" orient="vertical" min="1" max="5" step="0.1" value="1">
-            </div>
-        </div>
-    </div>
-
-    <video id="raw-video" autoplay muted playsinline></video>
-
-    <script>
-        // --- LOGGING UTILS ---
-        let debugLogs = [];
-        function log(msg) {
-            const ts = new Date().toLocaleTimeString();
-            const line = `[${ts}] ${msg}`;
-            debugLogs.push(line);
-            console.log(line);
-            const area = document.getElementById('log-textarea');
-            if(area) area.value = debugLogs.join('\n');
-        }
-        function openLogModal() { document.getElementById('log-modal').style.display = 'block'; document.getElementById('startup-modal').style.display = 'none'; }
-        function closeLogModal() { document.getElementById('log-modal').style.display = 'none'; document.getElementById('startup-modal').style.display = 'block'; }
-        function copyLogs() {
-            const area = document.getElementById('log-textarea');
-            area.select();
-            area.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(area.value).then(() => {
-                alert("Logs copied to clipboard!");
-            });
-        }
-        window.onerror = function(msg, url, line) { log(`ERR: ${msg} (Line ${line})`); };
-
-        // --- POLYFILLS (CRITICAL FIX) ---
-        // Adds roundRect support for older browsers/iOS
-        if (typeof CanvasRenderingContext2D.prototype.roundRect !== 'function') {
-            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
-                if (w < 2 * r) r = w / 2;
-                if (h < 2 * r) r = h / 2;
-                this.beginPath();
-                this.moveTo(x + r, y);
-                this.arcTo(x + w, y, x + w, y + h, r);
-                this.arcTo(x + w, y + h, x, y + h, r);
-                this.arcTo(x, y + h, x, y, r);
-                this.arcTo(x, y, x + w, y, r);
-                this.closePath();
-                return this;
-            };
-            log("Sys: roundRect Polyfill applied.");
-        }
-
-        // --- WAKE LOCK ---
-        let wakeLock = null;
-        async function requestWakeLock() { try { wakeLock = await navigator.wakeLock.request('screen'); log("WakeLock acquired"); } catch (err) { log("WakeLock fail: " + err.message); } }
-        document.addEventListener("visibilitychange", async () => { if (document.visibilityState === 'visible') requestWakeLock(); });
-
-        // --- DATA PERSISTENCE ---
-        const STORAGE_KEY = 'court_cam_v25_data';
-        let gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 };
-        let scoreboardPos = "BOTTOM"; 
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if(saved) { try { gameData = JSON.parse(saved); } catch(e) {} }
-        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData)); }
-        function resetGameData() { if(confirm("Reset game?")) { gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1 }; saveData(); updateClockUI(); } }
-
-        // --- STATE ---
-        let isTimerRunning = false, timerInterval = null;
-        let track = null; 
-        let zoomMode = "DIGITAL"; 
-        let currentZoom = 1.0;
-        let targetW=1280, targetH=720, targetBitrate = 5000000;
-        let homeFlash = 0, guestFlash = 0;
-        let audioContext;
-
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const video = document.getElementById('raw-video');
-        const cameraSelect = document.getElementById('camera-select');
-        const topBar = document.getElementById('top-bar');
-        const clockBtn = document.getElementById('btn-clock');
-
-        // --- INITIALIZATION ---
-        async function loadCameras() {
-            log("Init: Loading cameras...");
-            try {
-                const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); 
-                tempStream.getTracks().forEach(t => t.stop());
-
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(d => d.kind === 'videoinput');
-                
-                cameraSelect.innerHTML = "";
-                
-                // Add "Default" option
-                let optDef = document.createElement('option');
-                optDef.value = "default";
-                optDef.text = "System Default (Back)";
-                cameraSelect.appendChild(optDef);
-
-                videoDevices.forEach((device, index) => {
-                    let opt = document.createElement('option');
-                    opt.value = device.deviceId;
-                    opt.text = device.label || `Camera ${index + 1}`;
-                    cameraSelect.appendChild(opt);
-                });
-                
-                log(`Init: Found ${videoDevices.length} cameras`);
-            } catch(e) { log("Init Error: " + e.message); }
-        }
-        
-        loadCameras();
-
-        function openStartupModal() { document.getElementById('startup-modal').style.display = 'block'; }
-        function closeModal() { document.getElementById('startup-modal').style.display = 'none'; }
-
-        async function startSelectedCamera(w, h, bitrate) {
-            log(`Starting Camera: ${w}x${h}`);
-            targetW = w; targetH = h; targetBitrate = bitrate;
-            canvas.width = w; canvas.height = h;
-            closeModal();
-            requestWakeLock();
-            
-            if(track) {
-                log("Stopping previous track...");
-                track.stop();
-                track = null;
-            }
-
-            const selectedId = cameraSelect.value;
-            log(`Selected ID: ${selectedId}`);
-
-            const constraints = {
-                video: { width: { ideal: w }, height: { ideal: h } },
-                audio: true
-            };
-
-            if (selectedId === "default") {
-                constraints.video.facingMode = "environment";
-            } else {
-                constraints.video.deviceId = { exact: selectedId };
-            }
-
-            try {
-                log("Requesting user media...");
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                log("Stream acquired. Attaching to video...");
-                
-                video.srcObject = stream;
-                
-                video.onloadedmetadata = async () => {
-                    try {
-                        await video.play();
-                        log("Video playing!");
-                        
-                        track = stream.getVideoTracks()[0];
-                        const settings = track.getSettings();
-                        log(`Track Active: ${settings.width}x${settings.height} @ ${settings.frameRate}fps`);
-                        
-                        setupAudio(stream);
-                        setupZoom(); 
-                        
-                        if(!window.isDrawing) {
-                            window.isDrawing = true;
-                            drawLoop();
-                        }
-                    } catch (playErr) {
-                        log("Play Error: " + playErr.message);
-                    }
-                };
-
-            } catch(e) {
-                log(`FATAL ERROR: ${e.name}: ${e.message}`);
-                alert("Camera Failed: " + e.message);
-                openStartupModal(); 
-            }
-        }
-
-        // --- AUDIO ---
-        function setupAudio(stream) {
-            try {
-                if(audioContext) {
-                    audioContext.close().catch(e => console.log(e));
-                }
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 const analyser = audioContext.createAnalyser();
                 const microphone = audioContext.createMediaStreamSource(stream);
@@ -1109,20 +414,18 @@
                 slider.max = caps.zoom.max;
                 slider.step = caps.zoom.step || 0.1;
                 slider.value = track.getSettings().zoom || 1;
-                log(`Zoom: Hardware supported (${caps.zoom.min}-${caps.zoom.max})`);
             } else {
                 zoomMode = "DIGITAL";
                 typeLabel.innerText = "DIGITAL";
                 typeLabel.className = "zoom-info zoom-type-dig";
                 slider.min = 1; slider.max = 5; slider.step = 0.1; slider.value = 1;
-                log("Zoom: Digital only");
             }
 
             slider.oninput = async (e) => {
                 const val = parseFloat(e.target.value);
                 document.getElementById('zoom-label').innerText = val.toFixed(1) + "x";
                 if(zoomMode === "HARDWARE" && track) {
-                    try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } catch(e){ log("Zoom fail: " + e.message); }
+                    try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } catch(e){}
                 } else { currentZoom = val; }
             };
         }
@@ -1172,7 +475,6 @@
         function resumeRecording() { mediaRecorder.resume(); recState = "RECORDING"; recBtn.innerText = "PAUSE"; recBtn.className = "hud-btn btn-rec rec-active"; recTimer.style.color = "#f00"; recTimerInterval = setInterval(updateRecTimerDisplay, 1000); }
         function stopRecording() { mediaRecorder.stop(); recState = "IDLE"; recBtn.innerText = "REC"; recBtn.className = "hud-btn btn-rec"; stopBtn.style.display = "none"; clearInterval(recTimerInterval); recTimer.style.display = "none"; }
         function saveVideoFile(ext) {
-            log(`Rec: Saving ${chunks.length} chunks`);
             const blob = new Blob(chunks, {type: mediaRecorder.mimeType}); chunks=[];
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Game_${Date.now()}.${ext}`; document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a);}, 100);
         }
@@ -1214,22 +516,25 @@
                 if (guestFlash > 0) { ctx.fillStyle = "#ffff00"; guestFlash--; } else { ctx.fillStyle = "#fff"; }
                 ctx.font = `bold ${H*0.07}px 'Segoe UI', sans-serif`; ctx.textAlign = "center"; ctx.fillText(gameData.guestScore, gStart + (colW * 0.6) + (colW*0.2) - 10, cY + 3);
 
-                // Clock
+                // Clock / Period
                 const cStart = sbX + colW;
                 ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(cStart, sbY + 15, 2, sbHeight - 30); ctx.fillRect(gStart, sbY + 15, 2, sbHeight - 30);
-                let m = Math.floor(gameData.timeLeft / 60), s = gameData.timeLeft % 60;
-                ctx.fillStyle = isTimerRunning ? "#0f0" : "#ccc"; ctx.font = `bold ${H*0.065}px 'Courier New', monospace`; ctx.textAlign = "center";
-                ctx.fillText(`${m}:${s<10?'0'+s:s}`, cStart + (colW/2), cY - (sbHeight * 0.15));
+                
+                const showTimer = document.getElementById('chk-timer').checked;
+                if (showTimer) {
+                    let m = Math.floor(gameData.timeLeft / 60), s = gameData.timeLeft % 60;
+                    ctx.fillStyle = isTimerRunning ? "#0f0" : "#ccc"; ctx.font = `bold ${H*0.065}px 'Courier New', monospace`; ctx.textAlign = "center";
+                    ctx.fillText(`${m}:${s<10?'0'+s:s}`, cStart + (colW/2), cY - (sbHeight * 0.15));
+                }
+
                 ctx.fillStyle = "#aaa"; ctx.font = `bold ${H*0.025}px sans-serif`;
                 let suf = gameData.period===1?"ST":gameData.period===2?"ND":gameData.period===3?"RD":"TH";
-                ctx.fillText(`${gameData.period}${suf} QTR`, cStart + (colW/2), cY + (sbHeight * 0.25));
+                ctx.fillText(`${gameData.period}${suf} QTR`, cStart + (colW/2), cY + (sbHeight * (showTimer ? 0.25 : 0.1)));
 
                 ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.font = `bold ${H*0.04}px sans-serif`; ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText("TIU", W - 20, 20); ctx.restore();
 
                 requestAnimationFrame(drawLoop);
-            } catch(e) {
-                log("DRAW ERROR (Retrying): " + e.message);
-            }
+            } catch(e) { log("DRAW ERROR (Retrying): " + e.message); }
         }
 
         // --- INPUTS ---
