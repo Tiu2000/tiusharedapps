@@ -3,21 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pro Court Cam v28 (Ultimate)</title>
+    <title>Pro Court Cam v30</title>
     <style>
         /* --- GLOBAL --- */
         body { background: #000; color: #fff; margin: 0; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
         
         /* --- LAYOUT --- */
         #stage { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
-        
         canvas { position: absolute; max-width: 100%; max-height: 100%; aspect-ratio: 16/9; z-index: 1; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
         
-        /* The UI Layer - Toggled by Clean Feed */
+        /* UI Layer */
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; transition: opacity 0.3s; }
         .ui-hidden { opacity: 0; pointer-events: none !important; }
 
-        /* --- SYSTEM BUTTONS (Always visible mostly) --- */
+        /* System Controls */
         #system-controls { position: absolute; top: 15px; left: 15px; z-index: 999; display: flex; gap: 10px; }
         #reset-controls { position: absolute; top: 15px; right: 15px; z-index: 999; }
 
@@ -31,7 +30,7 @@
         .btn-danger { border-color: rgba(255,50,50,0.5); color: rgba(255,50,50,0.7); }
         .btn-active { background: #fff; color: #000; }
         
-        /* --- CONTROLS --- */
+        /* Game Controls */
         .control-group { position: absolute; pointer-events: auto; display: flex; flex-direction: column; gap: 8px; }
         .group-left { left: 20px; top: 55%; transform: translateY(-50%); }
         .group-right { right: 20px; top: 55%; transform: translateY(-50%); }
@@ -45,7 +44,7 @@
             display: flex; align-items: center; justify-content: center; gap: 5px;
         }
         
-        /* ZOOM SLIDER */
+        /* Zoom Slider */
         .group-zoom { 
             right: 150px; top: 55%; transform: translateY(-50%); 
             height: 200px; width: 50px; display: flex;
@@ -61,7 +60,7 @@
         .zoom-type-hw { color: #0f0; } 
         .zoom-type-dig { color: #f33; } 
 
-        /* HUD BUTTONS */
+        /* HUD Buttons */
         .hud-btn {
             background: rgba(20,20,20,0.25); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.8);
             padding: 12px 0; border-radius: 8px; font-weight: bold; font-size: 1.1rem;
@@ -69,7 +68,7 @@
         }
         .hud-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.3); color: #fff; }
         
-        /* REC BUTTONS */
+        /* REC Button */
         .btn-rec { background: rgba(200,0,0,0.6); border: 2px solid rgba(255,255,255,0.5); width: 55px; height: 55px; border-radius: 50%; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
         .rec-active { background: rgba(255,255,255,0.9); color: #f00; border-color: #f00; animation: pulse 2s infinite; font-size: 0.65rem; }
         .rec-paused { background: rgba(255, 200, 0, 0.9); color: #000; border-color: #fff; animation: none; font-size: 0.6rem; }
@@ -78,16 +77,22 @@
         #rec-timer { display: none; font-family: 'Courier New', monospace; font-weight: bold; font-size: 1.2rem; color: #f00; margin: 0 10px; text-shadow: 0 0 5px #000; }
         #btn-stop { display: none; width: 45px; height: 45px; background: rgba(200,0,0,0.8); border: 2px solid #fff; border-radius: 8px; align-items: center; justify-content: center; font-size: 1.2rem; margin-left: 8px; }
 
-        /* AUDIO METER */
+        /* Audio Meter */
         #audio-meter { width: 8px; height: 45px; background: rgba(50,50,50,0.3); border: 1px solid rgba(100,100,100,0.3); border-radius: 5px; overflow: hidden; position: relative; display: flex; align-items: flex-end; }
         #audio-level { width: 100%; height: 0%; background: rgba(0,255,0,0.7); transition: height 0.1s; }
 
-        /* MODALS */
+        /* Modals */
         .modal { position: fixed; z-index: 100; background: #1a1a1a; padding: 25px; border: 1px solid #333; border-radius: 12px; text-align: center; top:50%; left:50%; transform:translate(-50%, -50%); width: 85%; max-width: 350px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .modal h3 { margin-top: 0; color: #eee; }
         .modal-btn { background: #007bff; color: #fff; border: none; padding: 12px; width: 100%; margin: 8px 0; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; }
         
-        /* SETTINGS CHECKBOX */
+        /* WARNING BOX */
+        .warning-box {
+            background: rgba(255, 50, 50, 0.15); border: 1px solid rgba(255, 50, 50, 0.5);
+            color: #ffcccc; font-size: 0.85rem; text-align: left; padding: 10px; 
+            border-radius: 6px; margin-bottom: 15px; line-height: 1.4;
+        }
+
         .settings-row { display: flex; justify-content: center; align-items: center; margin: 15px 0; gap: 10px; color: #ccc; font-size: 0.95rem; }
         input[type="checkbox"] { width: 18px; height: 18px; accent-color: #007bff; cursor: pointer; }
         
@@ -98,12 +103,8 @@
         
         select { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 6px; margin-bottom: 10px; font-size: 1rem; }
 
-        /* LOG MODAL */
         #log-textarea { width: 100%; height: 150px; background: #000; color: #0f0; font-family: monospace; font-size: 0.8rem; border: 1px solid #555; margin-bottom: 10px; resize: none; }
-
         #raw-video { display: none; }
-        
-        /* Color Swatch in Button */
         .color-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.8); display: inline-block; }
     </style>
 </head>
@@ -116,13 +117,20 @@
         <button class="sys-btn" id="btn-clean" onclick="toggleCleanFeed()" title="Clean Feed (Hide UI)">👁️</button>
     </div>
     <div id="reset-controls">
-        <button class="sys-btn btn-danger" onclick="resetGameData()">✕</button>
+        <button class="sys-btn btn-danger" onclick="resetGameData()" title="New Game">↺</button>
     </div>
 
     <div id="startup-modal" class="modal" style="display:block">
-        <h3>Pro Court Cam v28</h3>
-        <p style="color:#888; font-size:0.9rem;">Ultimate Edition</p>
+        <h3>Pro Court Cam v30</h3>
         
+        <div class="warning-box">
+            <strong>⚠️ MEMORY WARNING:</strong><br>
+            If recording back-to-back games (JV then Varsity), please <strong>REFRESH</strong> the page between games to clear phone memory.
+        </div>
+        
+        <div style="text-align:left; font-size:0.8rem; color:#aaa; margin-bottom:5px;">Game Label (for filename):</div>
+        <input type="text" id="game-label" value="VAR" style="width:100%; padding:8px; background:#222; color:#fff; border:1px solid #444; margin-bottom:10px; text-align:center;" placeholder="e.g. JV, VAR, GIRLS">
+
         <div style="text-align:left; font-size:0.8rem; color:#aaa; margin-bottom:5px;">Select Camera Source:</div>
         <div style="display:flex; gap:10px; margin-bottom:5px;">
             <select id="camera-select" style="flex-grow:1; margin-bottom:0;"></select>
@@ -134,7 +142,7 @@
             <label for="chk-timer" style="cursor:pointer">Show Game Timer</label>
         </div>
 
-        <button class="modal-btn" style="background:#28a745" onclick="startSelectedCamera(1280, 720, 5000000)">Start 720p (Smooth)</button>
+        <button class="modal-btn" style="background:#28a745" onclick="startSelectedCamera(1280, 720, 5000000)">Start 720p (Safe)</button>
         <button class="modal-btn" onclick="startSelectedCamera(1920, 1080, 8000000)">Start 1080p (High Res)</button>
         
         <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 15px;">
@@ -155,7 +163,7 @@
 
     <div id="input-modal" class="modal">
         <h3 id="input-title">Edit Team</h3>
-        <input type="text" id="team-input" maxlength="10" placeholder="Team Name">
+        <input type="text" id="team-input" maxlength="20" placeholder="Team Name">
         <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:15px;">
             <span style="color:#aaa;">Jersey Color:</span>
             <input type="color" id="team-color">
@@ -240,12 +248,12 @@
         document.addEventListener("visibilitychange", async () => { if (document.visibilityState === 'visible') requestWakeLock(); });
 
         // --- GAME STATE ---
-        const STORAGE_KEY = 'court_cam_v28_data';
+        const STORAGE_KEY = 'court_cam_v30_data';
         let gameData = { 
             homeName: "HOME", guestName: "GUEST", 
             homeScore: 0, guestScore: 0, 
             timeLeft: 600, period: 1,
-            homeColor: "#0056b3", guestColor: "#b30000" // Default Blue vs Red
+            homeColor: "#0056b3", guestColor: "#b30000"
         };
         let scoreboardPos = "BOTTOM";
         let cleanFeed = false;
@@ -256,8 +264,10 @@
         
         function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData)); updateButtonColors(); }
         function resetGameData() { 
-            if(confirm("Reset game?")) { 
-                gameData = { homeName: "HOME", guestName: "GUEST", homeScore: 0, guestScore: 0, timeLeft: 600, period: 1, homeColor: "#0056b3", guestColor: "#b30000" }; 
+            if(confirm("Start NEW GAME? This resets scores.")) { 
+                gameData.homeScore = 0; gameData.guestScore = 0;
+                gameData.period = 1; gameData.timeLeft = 600;
+                // We do NOT reset names here, assume same teams unless changed.
                 saveData(); updateClockUI(); 
             } 
         }
@@ -268,7 +278,7 @@
         let zoomMode = "DIGITAL", currentZoom = 1.0;
         let targetW=1280, targetH=720, targetBitrate = 5000000;
         let homeFlash = 0, guestFlash = 0;
-        let editingTeam = ''; // 'home' or 'guest'
+        let editingTeam = '';
 
         // --- DOM ELEMENTS ---
         const canvas = document.getElementById('gameCanvas');
@@ -284,7 +294,6 @@
             log("Loading cameras...");
             cameraSelect.innerHTML = "<option>Loading...</option>";
             try {
-                // Permission trick
                 const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
                 tempStream.getTracks().forEach(t => t.stop());
                 
@@ -426,6 +435,12 @@
             recSeconds++;
             let h=Math.floor(recSeconds/3600), m=Math.floor((recSeconds%3600)/60), s=recSeconds%60;
             recTimer.innerText = `${h<10?'0'+h:h}:${m<10?'0'+m:m}:${s<10?'0'+s:s}`;
+            if(recSeconds > 900 && recSeconds % 10 === 0) {
+                 log("WARNING: Recording over 15 mins. Please save soon.");
+                 recTimer.style.textShadow = "0 0 10px #fff"; 
+            } else {
+                 recTimer.style.textShadow = "0 0 5px #000";
+            }
         }
 
         function startRecording() {
@@ -459,17 +474,38 @@
         }
         
         function saveVideoFile() {
-            const blob = new Blob(chunks, {type: mediaRecorder.mimeType}); chunks=[];
+            const blob = new Blob(chunks, {type: mediaRecorder.mimeType}); 
+            chunks=[];
             const ext = mediaRecorder.mimeType.includes("mp4") ? "mp4" : "webm";
+            
+            const dateStr = new Date().toISOString().split('T')[0];
+            const safeHome = gameData.homeName.replace(/[^a-z0-9]/gi, '_');
+            const safeGuest = gameData.guestName.replace(/[^a-z0-9]/gi, '_');
+            const label = document.getElementById('game-label').value.replace(/[^a-z0-9]/gi, '');
+            const labelStr = label ? label + "_" : "";
+
+            // FILENAME: 2023-10-24_VAR_BULLS_vs_LAKERS_Q1.mp4
+            const filename = `${dateStr}_${labelStr}${safeHome}_vs_${safeGuest}_Q${gameData.period}.${ext}`;
+            
             const a = document.createElement('a');
-            // Filename: Game_Q1_Timestamp.mp4
-            a.download = `Game_Q${gameData.period}_${Date.now()}.${ext}`;
+            a.download = filename;
             a.href = URL.createObjectURL(blob);
             document.body.appendChild(a); a.click(); setTimeout(()=>document.body.removeChild(a), 100);
-            log("Video saved!");
+            log("Video saved: " + filename);
         }
 
-        // --- DRAWING ---
+        // --- DRAWING & AUTO-FIT TEXT ---
+        function drawFitText(ctx, text, x, y, maxWidth, initialSize) {
+            ctx.font = `bold ${initialSize}px 'Segoe UI'`;
+            let width = ctx.measureText(text).width;
+            if (width > maxWidth) {
+                // Shrink!
+                let newSize = initialSize * (maxWidth / width);
+                ctx.font = `bold ${newSize}px 'Segoe UI'`;
+            }
+            ctx.fillText(text, x, y);
+        }
+
         function drawLoop() {
             // Draw Video
             if(zoomMode==="DIGITAL" && currentZoom>1) {
@@ -494,22 +530,26 @@
 
             const colW = sbW/3, cY = sbY+(sbH/2);
             
-            // HOME (Custom Color)
+            // HOME AREA
             ctx.fillStyle = gameData.homeColor || "#0056b3"; 
             ctx.beginPath(); ctx.roundRect(sbX+10, sbY+10, (colW*0.4), sbH-20, 5); ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI'`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; 
-            ctx.fillText(gameData.homeName, sbX+(colW*0.5), cY);
+            
+            // SMART FIT HOME NAME
+            ctx.fillStyle = "#fff"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; 
+            drawFitText(ctx, gameData.homeName, sbX+(colW*0.5), cY, (colW*0.45), H*0.035);
             
             if(homeFlash>0) { ctx.fillStyle="#ff0"; homeFlash--; } else ctx.fillStyle="#fff";
             ctx.font = `bold ${H*0.07}px 'Segoe UI'`; ctx.textAlign="center";
             ctx.fillText(gameData.homeScore, sbX+10+(colW*0.2), cY+3);
 
-            // GUEST (Custom Color)
+            // GUEST AREA
             const gStart = sbX+(colW*2);
             ctx.fillStyle = gameData.guestColor || "#b30000";
             ctx.beginPath(); ctx.roundRect(gStart+(colW*0.6)-10, sbY+10, (colW*0.4), sbH-20, 5); ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.font = `bold ${H*0.035}px 'Segoe UI'`; ctx.textAlign="right";
-            ctx.fillText(gameData.guestName, gStart+(colW*0.5), cY);
+            
+            // SMART FIT GUEST NAME
+            ctx.fillStyle = "#fff"; ctx.textAlign="right";
+            drawFitText(ctx, gameData.guestName, gStart+(colW*0.5), cY, (colW*0.45), H*0.035);
 
             if(guestFlash>0) { ctx.fillStyle="#ff0"; guestFlash--; } else ctx.fillStyle="#fff";
             ctx.font = `bold ${H*0.07}px 'Segoe UI'`; ctx.textAlign="center";
@@ -564,11 +604,11 @@
         function nextPeriod() {
             if(recState === "RECORDING") {
                 if(!confirm(`You are still recording Period ${gameData.period}. Stop and Save it now?`)) return;
-                stopRecording(); // This will trigger the save logic
+                stopRecording(); 
             }
             gameData.period++; 
             if(gameData.period>4) gameData.period=1; 
-            gameData.timeLeft = 600; // Reset clock for new quarter
+            gameData.timeLeft = 600; 
             saveData(); updateClockUI();
         }
         function toggleTimer() {
