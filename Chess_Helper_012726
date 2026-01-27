@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Chess Scenario Builder — TIU</title>
+  <style>
+    :root {
+      --bg-color: #ffffff;
+      --board-border: #333;
+      --light-sq: #f0d9b5; 
+      --dark-sq: #b58863;
+      --accent: #2b6cb0;
+      --highlight: rgba(255, 255, 0, 0.5);
+      --move-dot: rgba(0, 0, 0, 0.3);
+      
+      /* New Colors for Best Move Visualization */
+      --hint-source: rgba(255, 235, 59, 0.7); /* Yellow for Start */
+      --hint-target: rgba(76, 175, 80, 0.7);  /* Green for End */
+    }
+
+    * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      margin: 0; padding: 10px;
+      background: #f4f4f4; color: #111;
+      overscroll-behavior: none;
+    }
+
+    .app {
+      display: flex; flex-direction: column; gap: 16px;
+      max-width: 600px; margin: 0 auto; padding-bottom: 40px;
+    }
+
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+    h1 { font-size: 20px; margin: 0; font-weight: 700; color: #222; }
+
+    .panel {
+      background: #fff; border-radius: 8px; padding: 12px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #ddd;
+    }
+
+    .board-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; position: relative; }
+
+    /* --- BOARD STYLING --- */
+    .board {
+      width: 100%;
+      max-width: 90vw;
+      /* Force square aspect ratio */
+      height: 90vw; 
+      max-height: 500px; max-width: 500px;
+      
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      
+      border: 3px solid #333;
+      user-select: none;
+      background: #eee;
+      position: relative;
+    }
+
+    /* Desktop constraint override */
+    @media (min-width: 555px) {
+      .board { height: 500px; }
+    }
+
+    .square {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: clamp(24px, 8vw, 42px);
+      position: relative; cursor: pointer;
+    }
+
+    .sq-light { background: var(--light-sq); }
+    .sq-dark { background: var(--dark-sq); }
+
+    /* --- HINT STYLES (NEW) --- */
+    .hint-source {
+      background-color: var(--hint-source) !important;
+      box-shadow: inset 0 0 0 2px #fbc02d;
+    }
+
+    .hint-target {
+      background-color: var(--hint-target) !important;
+      box-shadow: inset 0 0 0 2px #2e7d32;
+    }
+
+    /* Add a target icon to the destination square */
+    .hint-target::after {
+      content: '🎯';
+      position: absolute;
+      font-size: clamp(16px, 4vw, 24px);
+      z-index: 5;
+      opacity: 0.8;
+      pointer-events: none;
+    }
+
+    .piece {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1; pointer-events: none; z-index: 2;
+    }
+
+    /* --- BRANDING --- */
+    .brand-watermark {
+      position: absolute; bottom: 5px; right: 5px;
+      font-size: 10px; font-weight: 900; color: rgba(0,0,0,0.15);
+      pointer-events: none; z-index: 1; font-family: monospace;
+    }
+
+    /* --- UI ELEMENTS --- */
+    .selected { background: var(--highlight) !important; }
+    
+    .legal-dot {
+      position: absolute; width: 25%; height: 25%;
+      background: var(--move-dot); border-radius: 50%; pointer-events: none;
+    }
+    .legal-capture::before {
+      content: ''; position: absolute; width: 80%; height: 80%;
+      border: 5px solid rgba(0,0,0,0.3); border-radius: 50%;
+    }
+
+    .btn {
+      background: #fff; border: 1px solid #ccc; padding: 8px 12px;
+      border-radius: 6px; font-size: 14px; cursor: pointer; color: #333; font-weight: 600;
+    }
+    .btn:active { background: #eee; }
+    .btn.primary { background: var(--accent); color: #fff; border: none; }
+    .btn-group { display: flex; gap: 8px; }
+
+    textarea { width: 100%; height: 60px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; }
+    
+    .palette { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 10px; }
+    .cell {
+      aspect-ratio: 1; background: #f9f9f9; border: 1px solid #ccc;
+      border-radius: 4px; display: flex; align-items: center; justify-content: center;
+      font-size: 24px; cursor: pointer;
+    }
+    .cell.active { background: #dceefc; border-color: var(--accent); }
+    .remove-cell { color: red; font-weight: bold; }
+
+    .collapsible-header { padding: 10px 0; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; }
+    .collapsible-content { display: none; padding-top: 10px; }
+    .collapsible-content.show { display: block; }
+    
+    .error-msg {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(255,200,200,0.9); padding: 20px; text-align: center;
+      border: 1px solid red; border-radius: 8px; color: red; width: 80%; z-index: 10;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>Chess Builder</h1>
+    <div class="btn-group">
+      <button class="btn" onclick="flipBoard()">Flip</button>
+      <button class="btn" onclick="resetBoard()">Clear</button>
+      <button class="btn primary" onclick="startPos()">Start</button>
+    </div>
+  </header>
+
+  <main class="panel board-wrap">
+    <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
+      <span>Turn: <strong id="turnText">White</strong></span>
+      <button class="btn" onclick="undo()">Undo</button>
+    </div>
+    
+    <div id="board" class="board">
+       </div>
+  </main>
+
+  <aside class="panel">
+    <div onclick="toggle(this)" class="collapsible-header">
+      <span>Piece Palette</span> <span>▼</span>
+    </div>
+    <div class="collapsible-content show">
+      <div id="palette" class="palette"></div>
+      <p style="font-size:12px; color:#666; margin-top:5px;">Select a piece above, then tap a square to place it.</p>
+    </div>
+    
+    <div style="border-top:1px solid #eee; margin:10px 0;"></div>
+
+    <div onclick="toggle(this)" class="collapsible-header">
+      <span>Analysis & FEN</span> <span>▼</span>
+    </div>
+    <div class="collapsible-content">
+      <textarea id="fen" placeholder="FEN String"></textarea>
+      <div class="btn-group" style="margin-top:5px;">
+        <button class="btn" onclick="loadFen()">Load FEN</button>
+        <button class="btn primary" onclick="findBestMove()">Find Best Move</button>
+      </div>
+      <div id="engineOut" style="margin-top:10px; font-family:monospace; background:#f0f7ff; padding:8px; border-radius:4px; font-size:13px;">...</div>
+    </div>
+  </aside>
+</div>
+
+<script>
+  // This runs instantly so the board is NEVER blank
+  (function drawEmptyBoard() {
+    const boardEl = document.getElementById('board');
+    let html = '';
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const squareColor = (r + c) % 2 === 0 ? 'sq-light' : 'sq-dark';
+        const squareName = String.fromCharCode(97 + c) + (8 - r);
+        html += `<div class="square ${squareColor}" data-square="${squareName}" id="sq-${squareName}"></div>`;
+      }
+    }
+    // Add TIU Brand
+    html += '<div class="brand-watermark">TIU</div>';
+    boardEl.innerHTML = html;
+  })();
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script>
+  let chess = null;
+  let selectedSquare = null;
+  let selectedPiece = null;
+
+  // Wait for window load to check if library loaded
+  window.onload = function() {
+    if (typeof Chess === 'undefined') {
+      const b = document.getElementById('board');
+      b.innerHTML += `<div class="error-msg"><strong>Error:</strong><br>Chess Engine failed to load.<br>Check internet connection.</div>`;
+      renderPalette();
+    } else {
+      chess = new Chess();
+      init();
+    }
+  };
+
+  function init() {
+    renderPieces(); // Only renders pieces, grid is already there
+    renderPalette();
+    updateStatus();
+    
+    // Attach click listeners now that logic is ready
+    document.querySelectorAll('.square').forEach(sq => {
+      sq.onclick = () => handleSquareClick(sq.dataset.square);
+    });
+  }
+
+  function renderPieces() {
+    // Clear previous pieces
+    document.querySelectorAll('.piece').forEach(e => e.remove());
+    document.querySelectorAll('.legal-dot').forEach(e => e.remove());
+    document.querySelectorAll('.legal-capture').forEach(e => e.remove());
+    
+    // Clear selection ONLY (keep hints for a moment, let click handler clear hints)
+    document.querySelectorAll('.square').forEach(e => e.classList.remove('selected'));
+
+    const board = chess.board();
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const piece = board[r][c];
+        const squareName = String.fromCharCode(97 + c) + (8 - r);
+        const sqDiv = document.getElementById(`sq-${squareName}`);
+        
+        if (piece && sqDiv) {
+          const pDiv = document.createElement('div');
+          pDiv.className = 'piece';
+          pDiv.innerText = getPieceSymbol(piece);
+          sqDiv.appendChild(pDiv);
+        }
+        if (selectedSquare === squareName && sqDiv) {
+          sqDiv.classList.add('selected');
+        }
+      }
+    }
+  }
+
+  function renderPalette() {
+    const pieces = ['wK','wQ','wR','wB','wN','wP','bK','bQ','bR','bB','bN','bP'];
+    const paletteEl = document.getElementById('palette');
+    paletteEl.innerHTML = '';
+    pieces.forEach(p => {
+      const type = p[1].toLowerCase();
+      const color = p[0];
+      const el = document.createElement('div');
+      el.className = 'cell';
+      el.innerText = getPieceSymbol({type, color});
+      el.onclick = () => selectPalettePiece(p, el);
+      if(selectedPiece === p) el.classList.add('active');
+      paletteEl.appendChild(el);
+    });
+    const del = document.createElement('div');
+    del.className = 'cell remove-cell';
+    del.innerText = '✕';
+    del.onclick = () => selectPalettePiece('remove', del);
+    if(selectedPiece === 'remove') del.classList.add('active');
+    paletteEl.appendChild(del);
+  }
+
+  function clearHints() {
+    document.querySelectorAll('.hint-source, .hint-target').forEach(el => {
+      el.classList.remove('hint-source', 'hint-target');
+    });
+  }
+
+  function handleSquareClick(sq) {
+    if (!chess) return; 
+    
+    // Anytime the user interacts, we clear the "Best Move" hints
+    clearHints();
+
+    if (selectedPiece) {
+      if (selectedPiece === 'remove') {
+        chess.remove(sq);
+      } else {
+        const color = selectedPiece[0];
+        const type = selectedPiece[1].toLowerCase();
+        chess.remove(sq);
+        chess.put({ type, color }, sq);
+      }
+      renderPieces();
+      updateStatus();
+      return;
+    }
+    if (selectedSquare) {
+      const move = chess.move({ from: selectedSquare, to: sq, promotion: 'q' });
+      if (move) {
+        selectedSquare = null;
+        renderPieces();
+        updateStatus();
+        return;
+      }
+    }
+    const piece = chess.get(sq);
+    if (piece) {
+      selectedSquare = sq;
+      renderPieces();
+      const moves = chess.moves({ square: sq, verbose: true });
+      moves.forEach(m => {
+        const target = document.getElementById(`sq-${m.to}`);
+        if (target) {
+          const dot = document.createElement('div');
+          dot.className = m.captured ? 'legal-capture' : 'legal-dot';
+          target.appendChild(dot);
+        }
+      });
+    } else {
+      selectedSquare = null;
+      renderPieces();
+    }
+  }
+
+  function selectPalettePiece(code, el) {
+    clearHints();
+    if (selectedPiece === code) selectedPiece = null;
+    else { selectedPiece = code; selectedSquare = null; }
+    renderPalette(); renderPieces();
+  }
+
+  function getPieceSymbol(p) {
+    const symbols = {
+      wK:'♔', wQ:'♕', wR:'♖', wB:'♗', wN:'♘', wP:'♙',
+      bK:'♚', bQ:'♛', bR:'♜', bB:'♝', bN:'♞', bP:'♟'
+    };
+    const key = (p.color === 'w' ? 'w' : 'b') + p.type.toUpperCase();
+    return symbols[key];
+  }
+
+  function updateStatus() {
+    if(!chess) return;
+    document.getElementById('turnText').innerText = chess.turn() === 'w' ? 'White' : 'Black';
+    document.getElementById('fen').value = chess.fen();
+  }
+
+  function startPos() { if(chess) { clearHints(); chess.reset(); renderPieces(); updateStatus(); } }
+  function resetBoard() { if(chess) { clearHints(); chess.clear(); renderPieces(); updateStatus(); } }
+  function undo() { if(chess) { clearHints(); chess.undo(); renderPieces(); updateStatus(); } }
+  function loadFen() { 
+    if(!chess) return;
+    clearHints();
+    const val = document.getElementById('fen').value; 
+    if(chess.load(val)) { renderPieces(); updateStatus(); } 
+    else alert('Invalid FEN');
+  }
+  function toggle(el) { el.nextElementSibling.classList.toggle('show'); }
+  
+  function flipBoard() {
+    const b = document.getElementById('board');
+    const isRotated = b.style.transform === 'rotate(180deg)';
+    b.style.transform = isRotated ? '' : 'rotate(180deg)';
+    document.querySelectorAll('.piece').forEach(p => {
+       p.style.transform = isRotated ? '' : 'rotate(180deg)';
+    });
+    const brand = document.querySelector('.brand-watermark');
+    if(brand) brand.style.transform = isRotated ? '' : 'rotate(180deg)';
+  }
+  
+  function findBestMove() {
+     if(!chess) return;
+     // 1. Clear old hints
+     clearHints();
+
+     // 2. Get moves with Details (verbose: true gives us 'from' and 'to')
+     const moves = chess.moves({ verbose: true });
+     
+     if(moves.length === 0) { 
+        document.getElementById('engineOut').innerText = "Game Over"; 
+        return; 
+     }
+     
+     // 3. Pick a move (Random for this demo)
+     const move = moves[Math.floor(Math.random() * moves.length)];
+     
+     // 4. Apply Visual Highlights
+     const sourceSq = document.getElementById('sq-' + move.from);
+     const targetSq = document.getElementById('sq-' + move.to);
+     
+     if (sourceSq) sourceSq.classList.add('hint-source');
+     if (targetSq) targetSq.classList.add('hint-target');
+
+     // 5. Update text to be human readable
+     document.getElementById('engineOut').innerText = `Suggested: Move from ${move.from} to ${move.to}`;
+  }
+</script>
+</body>
+</html>
