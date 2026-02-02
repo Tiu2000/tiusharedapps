@@ -24,21 +24,41 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
         }
+
+        /* --- Fullscreen Button --- */
+        .fullscreen-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 1.2rem;
+            transition: background 0.2s;
+        }
+        .fullscreen-btn:hover { background: #555; }
 
         /* --- Scoreboard Header --- */
         .scoreboard {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            max-width: 1000px;
+            align-items: flex-start;
+            width: 95%;
+            max-width: 1600px;
             background: #000;
             border: 4px solid #444;
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
             box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            box-sizing: border-box;
         }
 
         .team-score-box {
@@ -46,9 +66,8 @@
             width: 30%;
         }
 
-        /* NEW: Editable Input Styling */
         .team-name-input {
-            font-size: 1.5rem;
+            font-size: 2vw;
             font-weight: bold;
             text-transform: uppercase;
             margin-bottom: 10px;
@@ -57,24 +76,20 @@
             border-bottom: 2px solid transparent;
             text-align: center;
             width: 100%;
+            color: inherit;
             font-family: inherit;
             cursor: pointer;
             transition: border-color 0.3s;
         }
         
-        .team-name-input:hover {
-            border-bottom: 2px solid #333;
-        }
+        .team-name-input:hover { border-bottom: 2px solid #333; }
+        .team-name-input:focus { outline: none; border-bottom: 2px solid #fff; cursor: text; }
 
-        .team-name-input:focus {
-            outline: none;
-            border-bottom: 2px solid #fff;
-            cursor: text;
-        }
+        @media (max-width: 1200px) { .team-name-input { font-size: 1.5rem; } }
 
         .score-display {
             font-family: 'Courier New', Courier, monospace;
-            font-size: 5rem;
+            font-size: 6rem;
             background: #222;
             color: var(--accent);
             padding: 10px;
@@ -82,26 +97,112 @@
             text-shadow: 0 0 10px var(--accent);
             cursor: pointer;
             user-select: none;
+            line-height: 1;
         }
 
         .game-info {
             text-align: center;
-            width: 30%;
-        }
-
-        .down-indicator {
-            font-size: 2rem;
-            color: var(--highlight);
-            margin: 10px 0;
+            width: 35%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .possession-arrow {
             font-size: 3rem;
             color: #fff;
             transition: all 0.3s;
+            line-height: 1;
+            margin: 5px 0;
         }
 
-        /* --- Controls & Field --- */
+        /* --- Down Indicator Controls --- */
+        .down-container {
+            margin: 10px 0;
+            background: #222;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .down-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-down {
+            width: 35px;
+            height: 35px;
+            padding: 0;
+            font-size: 1.1rem;
+            background: #333;
+            color: #777;
+            border: 2px solid #444;
+            border-radius: 50%; /* Circle buttons */
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-down:hover { background: #444; }
+
+        .btn-down.active {
+            background: var(--highlight);
+            color: #000;
+            border-color: #fff;
+            box-shadow: 0 0 10px var(--highlight);
+            transform: scale(1.1);
+        }
+
+        /* --- Blitz Timer Styles --- */
+        .blitz-box {
+            background: #222;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            margin-top: 10px;
+            width: 90%;
+            max-width: 300px;
+        }
+
+        .blitz-display {
+            font-family: 'Courier New', monospace;
+            font-size: 3rem;
+            color: var(--accent);
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .blitz-controls {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 5px;
+            align-items: center;
+        }
+
+        .btn-blitz {
+            background: #e67e22;
+            color: white;
+            font-size: 0.9rem;
+            padding: 5px 10px;
+        }
+        
+        .blitz-input {
+            width: 50px;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        /* --- General Controls & Field --- */
         .controls {
             display: flex;
             gap: 10px;
@@ -122,10 +223,12 @@
 
         button:active { transform: scale(0.95); }
 
-        .btn-play { background-color: #27ae60; color: white; font-size: 1.2rem; padding: 15px 30px; }
+        .btn-play { background-color: #27ae60; color: white; font-size: 1.2rem; padding: 15px 40px; }
         .btn-reset { background-color: #c0392b; color: white; }
-        .btn-td { background-color: var(--highlight); color: #000; }
         .btn-setup { background-color: #7f8c8d; color: white; }
+        
+        .btn-sub { background-color: #444; color: #aaa; padding: 5px 15px; font-size: 0.8rem; }
+        .btn-sub:hover { background-color: #666; color: white; }
 
         .input-group {
             display: flex;
@@ -142,41 +245,44 @@
         .field-display {
             display: flex;
             justify-content: space-between;
-            width: 100%;
-            max-width: 1000px;
-            min-height: 150px;
+            width: 95%;
+            max-width: 1600px;
+            min-height: 200px;
             background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect fill="green" width="100" height="100"/><rect y="10" width="100" height="5" fill="rgba(255,255,255,0.3)"/></svg>');
             border: 2px solid white;
             border-radius: 5px;
             margin-bottom: 20px;
-            padding: 10px;
+            padding: 20px;
+            box-sizing: border-box;
             position: relative;
             overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
         }
 
         .field-side {
             width: 48%;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 15px;
             align-items: center;
         }
 
         .player-card {
             background: white;
             color: #333;
-            padding: 8px 15px;
+            padding: 10px 20px;
             border-radius: 20px;
             font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            font-size: 1.2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
             animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            width: 80%;
+            width: 90%;
             text-align: center;
             position: relative;
         }
 
         .player-card.double-duty {
-            border: 3px solid var(--highlight);
+            border: 4px solid var(--highlight);
             background: #fff9c4;
         }
         
@@ -187,17 +293,19 @@
             right: -10px;
             background: var(--highlight);
             color: black;
-            font-size: 0.6rem;
-            padding: 2px 5px;
+            font-size: 0.7rem;
+            padding: 2px 8px;
             border-radius: 3px;
             transform: rotate(10deg);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
         .field-header {
-            background: rgba(0,0,0,0.7);
-            padding: 5px 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 20px;
             border-radius: 5px;
             margin-bottom: 10px;
+            font-size: 1.2rem;
         }
 
         /* --- Roster Management Section --- */
@@ -205,11 +313,12 @@
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
             gap: 20px;
-            width: 100%;
-            max-width: 1200px;
+            width: 95%;
+            max-width: 1600px;
             margin-top: 30px;
             border-top: 2px solid #555;
             padding-top: 20px;
+            box-sizing: border-box;
         }
 
         .roster-col {
@@ -222,6 +331,8 @@
 
         .roster-list {
             min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
             background: #1a1a1a;
             border: 2px dashed #555;
             padding: 10px;
@@ -231,12 +342,13 @@
 
         .bulk-input {
             width: 100%;
-            height: 100px;
+            height: 80px;
             background: #333;
             color: white;
             border: 1px solid #555;
             margin-bottom: 10px;
             font-family: monospace;
+            box-sizing: border-box;
         }
 
         .draggable-name {
@@ -254,10 +366,25 @@
         .draggable-name.team-a { border-left: 5px solid var(--team-a-color); }
         .draggable-name.team-b { border-left: 5px solid var(--team-b-color); }
 
-        .round-badge {
-            font-size: 0.8rem;
-            color: #aaa;
-            margin-left: 10px;
+        /* --- Custom Sound Section --- */
+        .custom-sound-footer {
+            margin-top: 50px;
+            margin-bottom: 50px;
+            padding: 20px;
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 10px;
+            width: 95%;
+            max-width: 800px;
+            text-align: center;
+        }
+
+        .custom-sound-footer input[type="file"] {
+            margin: 10px 0;
+            padding: 10px;
+            background: #333;
+            color: white;
+            border-radius: 5px;
         }
 
         /* --- Animations --- */
@@ -271,35 +398,69 @@
             50% { transform: scale(1.3); color: #fff; }
             100% { transform: scale(1); }
         }
+        
+        @keyframes flashRed {
+            0% { background-color: #222; }
+            50% { background-color: #500; }
+            100% { background-color: #222; }
+        }
 
         .bump { animation: scoreBump 0.3s ease-out; }
+        .flash { animation: flashRed 0.5s ease-out; }
     </style>
 </head>
 <body>
 
+    <button class="fullscreen-btn" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶ Fullscreen</button>
+
     <div class="scoreboard">
         <div class="team-score-box">
             <input type="text" id="nameA" class="team-name-input" style="color: var(--team-a-color)" value="Team A" oninput="updateTeamNames()">
-            
             <div id="scoreA" class="score-display" onclick="addScore('A')">00</div>
-            <button onclick="addScore('A', 6)" style="margin-top:5px; font-size:0.8rem;">+6 TD</button>
-            <button onclick="addScore('A', 1)" style="margin-top:5px; font-size:0.8rem;">+1 XT</button>
+            
+            <div style="display:flex; justify-content:center; gap:5px; flex-wrap:wrap; margin-top:10px;">
+                <button onclick="addScore('A', 6)" style="font-size:0.8rem;">+6 TD</button>
+                <button onclick="addScore('A', 1)" style="font-size:0.8rem;">+1 XT</button>
+                <button class="btn-sub" onclick="addScore('A', -1)">-1</button>
+            </div>
         </div>
 
         <div class="game-info">
-            <div>POSSESSION</div>
+            <div style="font-size: 0.9rem; font-weight:bold; letter-spacing:1px;">POSSESSION</div>
             <div id="possessionArrow" class="possession-arrow">◄</div>
-            <div class="down-indicator">DOWN: <span id="currentDown">1</span> / 4</div>
-            <button onclick="togglePossession()" class="btn-setup">Change Possession</button>
-            <div style="margin-top:10px; font-size: 0.8rem; color: #888;">(Change resets downs)</div>
+            
+            <div class="down-container">
+                <div style="font-size: 0.8rem; font-weight:bold; color: #aaa; margin-bottom: 5px;">DOWN</div>
+                <div class="down-buttons">
+                    <button class="btn-down active" id="downBtn1" onclick="setDown(1)">1</button>
+                    <button class="btn-down" id="downBtn2" onclick="setDown(2)">2</button>
+                    <button class="btn-down" id="downBtn3" onclick="setDown(3)">3</button>
+                    <button class="btn-down" id="downBtn4" onclick="setDown(4)">4</button>
+                </div>
+            </div>
+
+            <button onclick="togglePossession()" class="btn-setup" style="padding: 5px 15px; font-size: 0.8rem;">Change Poss.</button>
+            
+            <div class="blitz-box" id="blitzBox">
+                <div style="font-size: 0.8rem; color:#aaa; margin-bottom:5px;">BLITZ TIMER</div>
+                <div id="blitzDisplay" class="blitz-display">7.0</div>
+                <div class="blitz-controls">
+                    <button class="btn-blitz" onclick="startBlitz()">START</button>
+                    <button class="btn-blitz" style="background:#7f8c8d;" onclick="resetBlitz()">RESET</button>
+                    <input type="number" id="blitzDuration" class="blitz-input" value="7" onchange="resetBlitz()">
+                </div>
+            </div>
         </div>
 
         <div class="team-score-box">
             <input type="text" id="nameB" class="team-name-input" style="color: var(--team-b-color)" value="Team B" oninput="updateTeamNames()">
-            
             <div id="scoreB" class="score-display" onclick="addScore('B')">00</div>
-            <button onclick="addScore('B', 6)" style="margin-top:5px; font-size:0.8rem;">+6 TD</button>
-            <button onclick="addScore('B', 1)" style="margin-top:5px; font-size:0.8rem;">+1 XT</button>
+            
+            <div style="display:flex; justify-content:center; gap:5px; flex-wrap:wrap; margin-top:10px;">
+                <button onclick="addScore('B', 6)" style="font-size:0.8rem;">+6 TD</button>
+                <button onclick="addScore('B', 1)" style="font-size:0.8rem;">+1 XT</button>
+                <button class="btn-sub" onclick="addScore('B', -1)">-1</button>
+            </div>
         </div>
     </div>
 
@@ -315,11 +476,9 @@
 
     <h3 style="margin-bottom: 5px;">CURRENT PLAYERS ON FIELD <span id="roundIndicator" style="font-size:0.8rem; color:#888;">(Round 1)</span></h3>
     <div class="field-display">
-        <div class="field-side" id="fieldA">
-            </div>
+        <div class="field-side" id="fieldA"></div>
         <div style="border-left: 2px dashed rgba(255,255,255,0.5);"></div>
-        <div class="field-side" id="fieldB">
-            </div>
+        <div class="field-side" id="fieldB"></div>
     </div>
 
     <h2>ROSTER MANAGEMENT</h2>
@@ -346,84 +505,187 @@
         </div>
     </div>
 
+    <div class="custom-sound-footer">
+        <h3>📢 Custom Buzzer Sound</h3>
+        <p style="color:#aaa; font-size:0.9rem;">Upload an MP3 or WAV file (like an Air Horn) to replace the default buzzer/blitz alarm.</p>
+        <input type="file" id="customSoundInput" accept="audio/*">
+        <br>
+        <button class="btn-setup" onclick="testCustomSound()">Test Sound</button>
+        <button class="btn-reset" onclick="clearCustomSound()" style="font-size: 0.9rem;">Clear Custom Sound</button>
+    </div>
+
     <script>
+        // --- Fullscreen Logic ---
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
         // --- Game State ---
         let gameState = {
             down: 1,
-            possession: 'A', // 'A' or 'B'
+            possession: 'A', 
             scoreA: 0,
             scoreB: 0,
             round: 1
         };
 
-        // Roster Data Structure
-        let rosters = {
-            pool: [],
-            A: [],
-            B: []
-        };
+        let rosters = { pool: [], A: [], B: [] };
 
-        // --- Audio Context for Sounds ---
+        // --- Blitz Timer Variables ---
+        let blitzInterval = null;
+        let blitzTimeRemaining = 7.0;
+        
+        // --- Custom Audio Variable ---
+        let customSoundUrl = null;
+
+        // --- Audio Context ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Handle File Upload
+        document.getElementById('customSoundInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if(file){
+                customSoundUrl = URL.createObjectURL(file);
+            }
+        });
+
+        function testCustomSound() {
+            if(customSoundUrl) {
+                const audio = new Audio(customSoundUrl);
+                audio.play().catch(e => alert("Error playing file. Try a different MP3/WAV."));
+            } else {
+                playSound('buzzer'); // Play default if no custom sound
+            }
+        }
+
+        function clearCustomSound() {
+            customSoundUrl = null;
+            document.getElementById('customSoundInput').value = "";
+            alert("Reset to default buzzer.");
+        }
 
         function playSound(type) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            // Check for Custom Sound Override for Buzzer/Blitz
+            if ((type === 'buzzer' || type === 'blitzAlarm') && customSoundUrl) {
+                const audio = new Audio(customSoundUrl);
+                audio.play();
+                return; // Exit function, do not play synth
+            }
+
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
             gain.connect(audioCtx.destination);
 
+            const now = audioCtx.currentTime;
+
             if (type === 'whistle') {
                 osc.type = 'triangle';
-                osc.frequency.setValueAtTime(2000, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
-                osc.frequency.linearRampToValueAtTime(2500, audioCtx.currentTime + 0.2);
-                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                osc.frequency.setValueAtTime(2000, now);
+                osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
+                osc.frequency.linearRampToValueAtTime(2500, now + 0.2);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
                 osc.start();
-                osc.stop(audioCtx.currentTime + 0.5);
+                osc.stop(now + 0.5);
             } else if (type === 'score') {
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-                osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.1);
-                osc.frequency.linearRampToValueAtTime(1000, audioCtx.currentTime + 0.3);
-                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.linearRampToValueAtTime(600, now + 0.1);
+                osc.frequency.linearRampToValueAtTime(1000, now + 0.3);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.linearRampToValueAtTime(0, now + 1);
                 osc.start();
-                osc.stop(audioCtx.currentTime + 1);
+                osc.stop(now + 1);
             } else if (type === 'buzzer') {
                 osc.type = 'sawtooth';
                 osc.frequency.value = 150;
-                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
                 osc.start();
-                osc.stop(audioCtx.currentTime + 0.8);
+                osc.stop(now + 0.8);
+            } else if (type === 'tick') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.start();
+                osc.stop(now + 0.05);
+            } else if (type === 'blitzAlarm') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.linearRampToValueAtTime(1200, now + 0.1);
+                osc.frequency.linearRampToValueAtTime(800, now + 0.2);
+                osc.frequency.linearRampToValueAtTime(1200, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                osc.start();
+                osc.stop(now + 0.5);
             }
+        }
+
+        // --- Blitz Timer Logic ---
+        function startBlitz() {
+            if (blitzInterval) return; 
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            let display = document.getElementById('blitzDisplay');
+            let box = document.getElementById('blitzBox');
+            
+            blitzInterval = setInterval(() => {
+                blitzTimeRemaining -= 0.1;
+                blitzTimeRemaining = Math.round(blitzTimeRemaining * 10) / 10;
+                display.innerText = blitzTimeRemaining.toFixed(1);
+
+                if (blitzTimeRemaining <= 3 && blitzTimeRemaining > 0 && blitzTimeRemaining % 1 === 0) {
+                    playSound('tick');
+                }
+
+                if (blitzTimeRemaining <= 0) {
+                    clearInterval(blitzInterval);
+                    blitzInterval = null;
+                    display.innerText = "0.0";
+                    playSound('blitzAlarm'); 
+                    
+                    box.classList.add('flash');
+                    setTimeout(() => box.classList.remove('flash'), 500);
+                }
+            }, 100);
+        }
+
+        function resetBlitz() {
+            if (blitzInterval) {
+                clearInterval(blitzInterval);
+                blitzInterval = null;
+            }
+            let val = document.getElementById('blitzDuration').value;
+            blitzTimeRemaining = parseFloat(val);
+            document.getElementById('blitzDisplay').innerText = blitzTimeRemaining.toFixed(1);
         }
 
         // --- UI Updates ---
         function updateTeamNames() {
             const nameA = document.getElementById('nameA').value;
             const nameB = document.getElementById('nameB').value;
-            
-            // Update Roster Headers
             document.getElementById('headerA').innerText = (nameA || "Team A") + " Roster";
             document.getElementById('headerB').innerText = (nameB || "Team B") + " Roster";
         }
 
-        // --- Roster Management Functions ---
-
+        // --- Roster Logic ---
         function processBulkInput(target) {
             let inputId = target === 'pool' ? 'bulkPool' : (target === 'A' ? 'bulkA' : 'bulkB');
             let text = document.getElementById(inputId).value;
             if (!text.trim()) return;
-
             let names = text.split(/\n|,/).map(n => n.trim()).filter(n => n.length > 0);
-            
-            names.forEach(name => {
-                rosters[target].push({ name: name, hasPlayed: false });
-            });
-
+            names.forEach(name => { rosters[target].push({ name: name, hasPlayed: false }); });
             document.getElementById(inputId).value = '';
             renderRosters();
         }
@@ -433,72 +695,52 @@
                 let container = key === 'pool' ? document.getElementById('poolList') : 
                                 (key === 'A' ? document.getElementById('rosterA') : document.getElementById('rosterB'));
                 container.innerHTML = '';
-                
                 rosters[key].forEach((player, index) => {
                     let div = document.createElement('div');
                     div.className = `draggable-name ${key === 'A' ? 'team-a' : (key === 'B' ? 'team-b' : '')}`;
                     div.draggable = true;
                     div.id = `${key}-${index}`;
                     div.innerHTML = `${player.name} ${player.hasPlayed ? '<span style="font-size:10px">✔</span>' : ''}`;
-                    
                     div.addEventListener('dragstart', (e) => {
                         e.dataTransfer.setData("text/plain", JSON.stringify({ source: key, index: index }));
                     });
-
                     container.appendChild(div);
                 });
             });
         }
 
-        // --- Drag and Drop Logic ---
-
-        function allowDrop(ev) {
-            ev.preventDefault();
-        }
-
+        function allowDrop(ev) { ev.preventDefault(); }
         function drop(ev) {
             ev.preventDefault();
             let targetContainer = ev.target.closest('.roster-list');
             if (!targetContainer) return;
-            
             let targetKey = targetContainer.getAttribute('data-target');
             let data = JSON.parse(ev.dataTransfer.getData("text/plain"));
-
             let player = rosters[data.source].splice(data.index, 1)[0];
             player.hasPlayed = false; 
             rosters[targetKey].push(player);
-
             renderRosters();
         }
 
         function randomlyAssignTeams() {
             rosters.A.forEach(p => rosters.pool.push(p));
             rosters.B.forEach(p => rosters.pool.push(p));
-            rosters.A = [];
-            rosters.B = [];
-
+            rosters.A = []; rosters.B = [];
             rosters.pool.sort(() => Math.random() - 0.5);
-
             while (rosters.pool.length > 0) {
                 rosters.A.push(rosters.pool.pop());
-                if (rosters.pool.length > 0) {
-                    rosters.B.push(rosters.pool.pop());
-                }
+                if (rosters.pool.length > 0) rosters.B.push(rosters.pool.pop());
             }
             renderRosters();
         }
 
-        // --- Game Play Logic ---
-
+        // --- Game Play ---
         function getPlayersForPlay(teamKey, count) {
             let roster = rosters[teamKey];
             if (roster.length === 0) return [];
-
             let unplayed = roster.filter(p => !p.hasPlayed);
             unplayed.sort(() => Math.random() - 0.5);
-
             let selected = [];
-
             if (unplayed.length >= count) {
                 selected = unplayed.slice(0, count);
             } else {
@@ -510,21 +752,17 @@
                 doubleDutyPlayers.forEach(p => p.isDoubleDuty = true);
                 selected = selected.concat(doubleDutyPlayers);
             }
-
             return selected;
         }
 
         function callNextPlay() {
             let count = parseInt(document.getElementById('playersPerSide').value);
+            if (rosters.A.length === 0 || rosters.B.length === 0) { alert("Add players to both teams first!"); return; }
             
-            if (rosters.A.length === 0 || rosters.B.length === 0) {
-                alert("Add players to both teams first!");
-                return;
-            }
+            resetBlitz();
 
             let unplayedA = rosters.A.filter(p => !p.hasPlayed).length;
             let unplayedB = rosters.B.filter(p => !p.hasPlayed).length;
-
             if (unplayedA === 0 && unplayedB === 0) {
                 gameState.round++;
                 document.getElementById('roundIndicator').innerText = `(Round ${gameState.round})`;
@@ -564,13 +802,11 @@
         function updateFieldDisplay(elementId, players, color, teamName) {
             let container = document.getElementById(elementId);
             container.innerHTML = '';
-            
             let header = document.createElement('div');
             header.className = 'field-header';
             header.style.borderLeft = `5px solid ${color}`;
             header.innerHTML = `Field: ${players.length} Players (${teamName})`;
             container.appendChild(header);
-
             players.forEach(p => {
                 let card = document.createElement('div');
                 card.className = 'player-card';
@@ -580,54 +816,59 @@
             });
         }
 
-        // --- Scoreboard Logic ---
+        // --- UPDATED DOWN LOGIC ---
+        function setDown(n) {
+            gameState.down = n;
+            updateScoreboard();
+        }
 
         function updateScoreboard() {
-            document.getElementById('currentDown').innerText = gameState.down;
-            
+            // Update Arrows
             let arrow = document.getElementById('possessionArrow');
             if (gameState.possession === 'A') {
-                arrow.innerText = '◄';
-                arrow.style.color = 'var(--team-a-color)';
+                arrow.innerText = '◄'; arrow.style.color = 'var(--team-a-color)';
             } else {
-                arrow.innerText = '►';
-                arrow.style.color = 'var(--team-b-color)';
+                arrow.innerText = '►'; arrow.style.color = 'var(--team-b-color)';
             }
 
+            // Update Scores
             let sA = document.getElementById('scoreA');
             let sB = document.getElementById('scoreB');
-            
             sA.innerText = gameState.scoreA.toString().padStart(2, '0');
             sB.innerText = gameState.scoreB.toString().padStart(2, '0');
+
+            // Update Down Buttons
+            for(let i=1; i<=4; i++) {
+                let btn = document.getElementById('downBtn' + i);
+                if(gameState.down === i) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            }
         }
 
         function addScore(team, amount) {
             if(!amount) amount = 0;
             if (amount > 0) playSound('score');
-
+            
             if (team === 'A') {
                 gameState.scoreA += amount;
                 let el = document.getElementById('scoreA');
-                el.classList.remove('bump');
-                void el.offsetWidth;
-                el.classList.add('bump');
+                el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
             } else {
                 gameState.scoreB += amount;
                 let el = document.getElementById('scoreB');
-                el.classList.remove('bump');
-                void el.offsetWidth;
-                el.classList.add('bump');
+                el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
             }
-
-            if(amount === 6) {
-                gameState.down = 1;
-            }
+            if(amount === 6) gameState.down = 1;
             updateScoreboard();
         }
 
         function togglePossession() {
             gameState.possession = gameState.possession === 'A' ? 'B' : 'A';
             gameState.down = 1;
+            resetBlitz(); 
             playSound('buzzer');
             updateScoreboard();
         }
@@ -637,7 +878,6 @@
             updateScoreboard();
         }
 
-        // Init
         updateScoreboard();
     </script>
 </body>
