@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Class Flag Football - P2P</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e74c3c;
+            --highlight: #f1c40f;
+            --team-a-color: #3498db;
+            --team-b-color: #e67e22;
+            --bg: #1a1a1a;
+            --text: #ecf0f1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        /* --- P2P Connection Bar --- */
+        .connection-bar {
+            width: 100%;
+            background: #333;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #555;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .connection-status {
+            font-weight: bold;
+            color: #ff5555; /* Default Disconnected */
+        }
+        .connected .connection-status { color: #55ff55; }
+
+        .link-box {
+            background: #000;
+            padding: 5px 10px;
+            font-family: monospace;
+            border: 1px solid #555;
+            user-select: all;
+        }
+
+        /* --- Fullscreen Button --- */
+        .fullscreen-btn {
+            position: fixed;
+            top: 60px; /* Moved down slightly below connection bar */
+            right: 20px;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 1.2rem;
+        }
+        .fullscreen-btn:hover { background: #555; }
+
+        /* --- Scoreboard Header --- */
+        .scoreboard {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 95%;
+            max-width: 1600px;
+            background: #000;
+            border: 4px solid #444;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            box-sizing: border-box;
+        }
+
+        .team-score-box {
+            text-align: center;
+            width: 30%;
+        }
+
+        .team-name-input {
+            font-size: 2vw;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            text-align: center;
+            width: 100%;
+            color: inherit;
+            font-family: inherit;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        
+        .team-name-input:focus { outline: none; border-bottom: 2px solid #fff; cursor: text; }
+
+        .score-display {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 6rem;
+            background: #222;
+            color: var(--accent);
+            padding: 10px;
+            border-radius: 5px;
+            text-shadow: 0 0 10px var(--accent);
+            cursor: pointer;
+            user-select: none;
+            line-height: 1;
+        }
+
+        .game-info {
+            text-align: center;
+            width: 35%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .possession-arrow {
+            font-size: 3rem;
+            color: #fff;
+            transition: all 0.3s;
+            line-height: 1;
+            margin: 5px 0;
+        }
+
+        /* --- Down Indicator Controls --- */
+        .down-container {
+            margin: 10px 0;
+            background: #222;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .down-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-down {
+            width: 35px;
+            height: 35px;
+            padding: 0;
+            font-size: 1.1rem;
+            background: #333;
+            color: #777;
+            border: 2px solid #444;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-down.active {
+            background: var(--highlight);
+            color: #000;
+            border-color: #fff;
+            box-shadow: 0 0 10px var(--highlight);
+            transform: scale(1.1);
+        }
+
+        /* --- Blitz Timer --- */
+        .blitz-box {
+            background: #222;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            margin-top: 10px;
+            width: 90%;
+            max-width: 300px;
+        }
+
+        .blitz-display {
+            font-family: 'Courier New', monospace;
+            font-size: 3rem;
+            color: var(--accent);
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .blitz-controls {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 5px;
+            align-items: center;
+        }
+
+        .btn-blitz { background: #e67e22; color: white; font-size: 0.9rem; padding: 5px 10px; }
+        .blitz-input { width: 50px; background: #333; color: white; border: 1px solid #555; text-align: center; font-size: 1rem; }
+
+        /* --- General Controls --- */
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:active { transform: scale(0.95); }
+
+        .btn-play { background-color: #27ae60; color: white; font-size: 1.2rem; padding: 15px 40px; }
+        .btn-reset { background-color: #c0392b; color: white; }
+        .btn-setup { background-color: #7f8c8d; color: white; }
+        .btn-sub { background-color: #444; color: #aaa; padding: 5px 15px; font-size: 0.8rem; }
+        .btn-sub:hover { background-color: #666; color: white; }
+
+        /* --- Active Field Display --- */
+        .field-display {
+            display: flex;
+            justify-content: space-between;
+            width: 95%;
+            max-width: 1600px;
+            min-height: 200px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect fill="green" width="100" height="100"/><rect y="10" width="100" height="5" fill="rgba(255,255,255,0.3)"/></svg>');
+            border: 2px solid white;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            padding: 20px;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .field-side {
+            width: 48%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .player-card {
+            background: white;
+            color: #333;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+            width: 90%;
+            text-align: center;
+            position: relative;
+        }
+
+        .card-sub-btn {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            background: #eee;
+            color: #333;
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .player-card.double-duty { border: 4px solid var(--highlight); background: #fff9c4; }
+        
+        .field-header {
+            background: rgba(0,0,0,0.8);
+            padding: 8px 20px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        /* --- Roster Management --- */
+        .roster-manager {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            width: 95%;
+            max-width: 1600px;
+            margin-top: 30px;
+            border-top: 2px solid #555;
+            padding-top: 20px;
+            box-sizing: border-box;
+        }
+
+        .roster-col {
+            background: #2c2c2c;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .roster-list {
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #1a1a1a;
+            border: 2px dashed #555;
+            padding: 10px;
+            border-radius: 5px;
+            flex-grow: 1;
+        }
+
+        .bulk-input { width: 100%; height: 80px; background: #333; color: white; border: 1px solid #555; margin-bottom: 10px; box-sizing: border-box; }
+        
+        .draggable-name { background: #555; margin: 5px 0; padding: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .draggable-name.team-a { border-left: 5px solid var(--team-a-color); }
+        .draggable-name.team-b { border-left: 5px solid var(--team-b-color); }
+
+        .delete-roster-btn { color: #ff5555; cursor: pointer; padding: 0 5px; }
+
+        /* --- Footer/Sound --- */
+        .custom-sound-footer {
+            margin-top: 50px;
+            margin-bottom: 50px;
+            padding: 20px;
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 10px;
+            width: 95%;
+            max-width: 800px;
+            text-align: center;
+        }
+
+        /* --- DISPLAY MODE MODIFICATIONS --- */
+        /* If body has class 'display-mode', hide controls */
+        body.display-mode .controls, 
+        body.display-mode .roster-manager, 
+        body.display-mode .custom-sound-footer,
+        body.display-mode .blitz-controls,
+        body.display-mode .btn-sub,
+        body.display-mode .btn-setup,
+        body.display-mode .card-sub-btn,
+        body.display-mode .connection-bar button {
+            display: none !important;
+        }
+        
+        body.display-mode .team-name-input { pointer-events: none; border-bottom: none; }
+        body.display-mode .score-display { cursor: default; }
+        body.display-mode .btn-down { cursor: default; pointer-events: none; }
+        
+        /* Highlight Display Mode header */
+        body.display-mode .connection-bar { background: #000; border-bottom: 1px solid #333; }
+
+        @keyframes scoreBump { 0% { transform: scale(1); } 50% { transform: scale(1.3); color: #fff; } 100% { transform: scale(1); } }
+        @keyframes flashRed { 0% { background-color: #222; } 50% { background-color: #500; } 100% { background-color: #222; } }
+        .bump { animation: scoreBump 0.3s ease-out; }
+        .flash { animation: flashRed 0.5s ease-out; }
+    </style>
+</head>
+<body id="body">
+
+    <div class="connection-bar" id="connectionBar">
+        <div id="statusText" class="connection-status">Connecting...</div>
+        <div id="hostControls" style="display:none; align-items:center; gap:10px;">
+            <span>Display URL:</span>
+            <div id="shareLink" class="link-box">Generating...</div>
+            <button onclick="copyLink()">Copy</button>
+        </div>
+    </div>
+
+    <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+
+    <div class="scoreboard">
+        <div class="team-score-box">
+            <input type="text" id="nameA" class="team-name-input" style="color: var(--team-a-color)" value="Team A" oninput="broadcastUpdate()">
+            <div id="scoreA" class="score-display" onclick="addScore('A')">00</div>
+            
+            <div style="display:flex; justify-content:center; gap:5px; flex-wrap:wrap; margin-top:10px;">
+                <button onclick="addScore('A', 6)" style="font-size:0.8rem;">+6 TD</button>
+                <button onclick="addScore('A', 1)" style="font-size:0.8rem;">+1 XT</button>
+                <button class="btn-sub" onclick="addScore('A', -1)">-1</button>
+            </div>
+        </div>
+
+        <div class="game-info">
+            <div style="font-size: 0.9rem; font-weight:bold; letter-spacing:1px;">POSSESSION</div>
+            <div id="possessionArrow" class="possession-arrow">◄</div>
+            
+            <div class="down-container">
+                <div style="font-size: 0.8rem; font-weight:bold; color: #aaa; margin-bottom: 5px;">DOWN</div>
+                <div class="down-buttons">
+                    <button class="btn-down active" id="downBtn1" onclick="setDown(1)">1</button>
+                    <button class="btn-down" id="downBtn2" onclick="setDown(2)">2</button>
+                    <button class="btn-down" id="downBtn3" onclick="setDown(3)">3</button>
+                    <button class="btn-down" id="downBtn4" onclick="setDown(4)">4</button>
+                </div>
+            </div>
+
+            <button onclick="togglePossession()" class="btn-setup" style="padding: 5px 15px; font-size: 0.8rem;">Change Poss.</button>
+            
+            <div class="blitz-box" id="blitzBox">
+                <div style="font-size: 0.8rem; color:#aaa; margin-bottom:5px;">BLITZ TIMER</div>
+                <div id="blitzDisplay" class="blitz-display">7.0</div>
+                <div class="blitz-controls">
+                    <button class="btn-blitz" onclick="startBlitz()">START</button>
+                    <button class="btn-blitz" style="background:#7f8c8d;" onclick="resetBlitz()">RESET</button>
+                    <input type="number" id="blitzDuration" class="blitz-input" value="7" onchange="resetBlitz()">
+                </div>
+            </div>
+        </div>
+
+        <div class="team-score-box">
+            <input type="text" id="nameB" class="team-name-input" style="color: var(--team-b-color)" value="Team B" oninput="broadcastUpdate()">
+            <div id="scoreB" class="score-display" onclick="addScore('B')">00</div>
+            
+            <div style="display:flex; justify-content:center; gap:5px; flex-wrap:wrap; margin-top:10px;">
+                <button onclick="addScore('B', 6)" style="font-size:0.8rem;">+6 TD</button>
+                <button onclick="addScore('B', 1)" style="font-size:0.8rem;">+1 XT</button>
+                <button class="btn-sub" onclick="addScore('B', -1)">-1</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="input-group">
+            <label>Players on Field:</label>
+            <input type="number" id="playersPerSide" value="5" min="1">
+        </div>
+        <button class="btn-play" onclick="callNextPlay()">CALL NEXT PLAY (Random)</button>
+        <button class="btn-reset" onclick="resetDowns()">Reset Downs</button>
+        <button class="btn-setup" onclick="randomlyAssignTeams()">Randomly Assign Teams</button>
+    </div>
+
+    <h3 style="margin-bottom: 5px;">CURRENT PLAYERS ON FIELD <span id="roundIndicator" style="font-size:0.8rem; color:#888;">(Round 1)</span></h3>
+    <div class="field-display">
+        <div class="field-side" id="fieldA"></div>
+        <div style="border-left: 2px dashed rgba(255,255,255,0.5);"></div>
+        <div class="field-side" id="fieldB"></div>
+    </div>
+
+    <h2>ROSTER MANAGEMENT</h2>
+    <div class="roster-manager">
+        <div class="roster-col">
+            <h3>Team Picking Pool</h3>
+            <textarea id="bulkPool" class="bulk-input" placeholder="Paste list of names here..."></textarea>
+            <button onclick="processBulkInput('pool')">Add to Pool</button>
+            <div id="poolList" class="roster-list" ondrop="drop(event)" ondragover="allowDrop(event)" data-target="pool"></div>
+        </div>
+        <div class="roster-col" style="border-top: 3px solid var(--team-a-color);">
+            <h3 id="headerA">Team A Roster</h3>
+            <textarea id="bulkA" class="bulk-input" placeholder="Paste Team A names..."></textarea>
+            <button onclick="processBulkInput('A')">Add to Team A</button>
+            <div id="rosterA" class="roster-list" ondrop="drop(event)" ondragover="allowDrop(event)" data-target="A"></div>
+        </div>
+        <div class="roster-col" style="border-top: 3px solid var(--team-b-color);">
+            <h3 id="headerB">Team B Roster</h3>
+            <textarea id="bulkB" class="bulk-input" placeholder="Paste Team B names..."></textarea>
+            <button onclick="processBulkInput('B')">Add to Team B</button>
+            <div id="rosterB" class="roster-list" ondrop="drop(event)" ondragover="allowDrop(event)" data-target="B"></div>
+        </div>
+    </div>
+
+    <div class="custom-sound-footer">
+        <h3>📢 Custom Buzzer Sound</h3>
+        <p style="color:#aaa; font-size:0.9rem;">Upload an MP3/WAV file. Note: For P2P, custom sounds must be uploaded on the DEVICE PLAYING THE SOUND.</p>
+        <input type="file" id="customSoundInput" accept="audio/*">
+        <br>
+        <button class="btn-setup" onclick="testCustomSound()">Test Sound</button>
+        <button class="btn-reset" onclick="clearCustomSound()" style="font-size: 0.9rem;">Clear Custom Sound</button>
+    </div>
+
+    <script>
+        // --- PEER TO PEER LOGIC ---
+        let peer;
+        let conn;
+        let isHost = true;
+        
+        // Check URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const hostId = urlParams.get('host');
+
+        if (hostId) {
+            // WE ARE THE DISPLAY (CLIENT)
+            isHost = false;
+            document.body.classList.add('display-mode');
+            document.getElementById('statusText').innerText = "Connecting to Controller...";
+            
+            peer = new Peer(); // Auto ID
+            peer.on('open', (id) => {
+                conn = peer.connect(hostId);
+                conn.on('open', () => {
+                    document.getElementById('statusText').innerText = "CONNECTED TO CONTROLLER";
+                    document.getElementById('connectionBar').classList.add('connected');
+                });
+                conn.on('data', (data) => {
+                    handleIncomingData(data);
+                });
+            });
+
+        } else {
+            // WE ARE THE CONTROLLER (HOST)
+            document.getElementById('hostControls').style.display = 'flex';
+            document.getElementById('statusText').innerText = "Initializing Host...";
+            
+            peer = new Peer(); // Auto ID
+            peer.on('open', (id) => {
+                const link = `${window.location.href.split('?')[0]}?host=${id}`;
+                document.getElementById('shareLink').innerText = link;
+                document.getElementById('statusText').innerText = "CONTROLLER READY";
+                document.getElementById('connectionBar').classList.add('connected');
+            });
+            
+            peer.on('connection', (c) => {
+                conn = c;
+                // Send current state immediately upon connection
+                setTimeout(broadcastUpdate, 500);
+            });
+        }
+
+        function copyLink() {
+            const text = document.getElementById('shareLink').innerText;
+            navigator.clipboard.writeText(text).then(() => alert("Link copied! Open this on your TV/Second Screen."));
+        }
+
+        function broadcastUpdate(soundType = null) {
+            if (!isHost || !conn) return;
+
+            const payload = {
+                type: 'state',
+                state: gameState,
+                names: { A: document.getElementById('nameA').value, B: document.getElementById('nameB').value },
+                fieldA: currentFieldA,
+                fieldB: currentFieldB,
+                blitzTime: blitzTimeRemaining, // Sync current time
+                sound: soundType
+            };
+            conn.send(payload);
+        }
+
+        function handleIncomingData(data) {
+            if (data.type === 'state') {
+                // Update Game State
+                gameState = data.state;
+                
+                // Update Names
+                document.getElementById('nameA').value = data.names.A;
+                document.getElementById('nameB').value = data.names.B;
+                
+                // Update Field
+                currentFieldA = data.fieldA;
+                currentFieldB = data.fieldB;
+                updateFieldDisplay('fieldA', currentFieldA, 'var(--team-a-color)', data.names.A, 'A');
+                updateFieldDisplay('fieldB', currentFieldB, 'var(--team-b-color)', data.names.B, 'B');
+
+                // Update UI Elements
+                updateScoreboardUI(); // Separate UI update from logic
+                
+                // Sync Blitz Time for display
+                if(!blitzInterval) {
+                     document.getElementById('blitzDisplay').innerText = data.blitzTime.toFixed(1);
+                }
+
+                // Play Sound if requested
+                if (data.sound) {
+                    playSound(data.sound);
+                }
+            } else if (data.type === 'blitzAction') {
+                if (data.action === 'start') startBlitz(true);
+                if (data.action === 'reset') resetBlitz(true);
+            }
+        }
+
+        // --- CORE GAME LOGIC ---
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        let gameState = { down: 1, possession: 'A', scoreA: 0, scoreB: 0, round: 1 };
+        let rosters = { pool: [], A: [], B: [] };
+        let currentFieldA = [];
+        let currentFieldB = [];
+        let blitzInterval = null;
+        let blitzTimeRemaining = 7.0;
+        let customSoundUrl = null;
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Audio Handling
+        document.getElementById('customSoundInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if(file) customSoundUrl = URL.createObjectURL(file);
+        });
+
+        function testCustomSound() {
+            if(customSoundUrl) {
+                const audio = new Audio(customSoundUrl);
+                audio.play().catch(e => alert("Error playing file."));
+            } else {
+                playSound('buzzer');
+            }
+        }
+
+        function clearCustomSound() {
+            customSoundUrl = null;
+            document.getElementById('customSoundInput').value = "";
+            alert("Reset to default buzzer.");
+        }
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            if ((type === 'buzzer' || type === 'blitzAlarm') && customSoundUrl) {
+                const audio = new Audio(customSoundUrl);
+                audio.play();
+                return;
+            }
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'whistle') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(2000, now); osc.frequency.linearRampToValueAtTime(2500, now + 0.2); gain.gain.setValueAtTime(0.5, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5); osc.start(); osc.stop(now + 0.5);
+            } else if (type === 'score') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(1000, now + 0.3); gain.gain.setValueAtTime(0.5, now); gain.gain.linearRampToValueAtTime(0, now + 1); osc.start(); osc.stop(now + 1);
+            } else if (type === 'buzzer') {
+                osc.type = 'sawtooth'; osc.frequency.value = 150; gain.gain.setValueAtTime(0.5, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8); osc.start(); osc.stop(now + 0.8);
+            } else if (type === 'tick') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(800, now); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05); osc.start(); osc.stop(now + 0.05);
+            } else if (type === 'blitzAlarm') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(800, now); osc.frequency.linearRampToValueAtTime(1200, now + 0.3); gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.5); osc.start(); osc.stop(now + 0.5);
+            }
+        }
+
+        // Blitz Timer
+        function startBlitz(remoteTrigger = false) {
+            if (blitzInterval) return;
+            
+            if (isHost && !remoteTrigger) {
+                // Broadcast start command to display
+                 if(conn) conn.send({ type: 'blitzAction', action: 'start' });
+            }
+
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            let display = document.getElementById('blitzDisplay');
+            let box = document.getElementById('blitzBox');
+            
+            blitzInterval = setInterval(() => {
+                blitzTimeRemaining -= 0.1;
+                blitzTimeRemaining = Math.round(blitzTimeRemaining * 10) / 10;
+                display.innerText = blitzTimeRemaining.toFixed(1);
+
+                if (blitzTimeRemaining <= 3 && blitzTimeRemaining > 0 && blitzTimeRemaining % 1 === 0) {
+                    playSound('tick');
+                }
+
+                if (blitzTimeRemaining <= 0) {
+                    clearInterval(blitzInterval);
+                    blitzInterval = null;
+                    display.innerText = "0.0";
+                    playSound('blitzAlarm'); 
+                    box.classList.add('flash');
+                    setTimeout(() => box.classList.remove('flash'), 500);
+                }
+            }, 100);
+        }
+
+        function resetBlitz(remoteTrigger = false) {
+            if (blitzInterval) {
+                clearInterval(blitzInterval);
+                blitzInterval = null;
+            }
+            if (isHost && !remoteTrigger) {
+                 if(conn) conn.send({ type: 'blitzAction', action: 'reset' });
+            }
+
+            let val = document.getElementById('blitzDuration').value;
+            blitzTimeRemaining = parseFloat(val);
+            document.getElementById('blitzDisplay').innerText = blitzTimeRemaining.toFixed(1);
+            
+            if(isHost) broadcastUpdate();
+        }
+
+        // Roster Logic
+        function processBulkInput(target) {
+            let inputId = target === 'pool' ? 'bulkPool' : (target === 'A' ? 'bulkA' : 'bulkB');
+            let text = document.getElementById(inputId).value;
+            if (!text.trim()) return;
+            let names = text.split(/\n|,/).map(n => n.trim()).filter(n => n.length > 0);
+            names.forEach(name => { rosters[target].push({ name: name, hasPlayed: false }); });
+            document.getElementById(inputId).value = '';
+            renderRosters();
+        }
+
+        function renderRosters() {
+            if(!isHost) return; // Display doesn't render manage lists
+            ['pool', 'A', 'B'].forEach(key => {
+                let container = key === 'pool' ? document.getElementById('poolList') : 
+                                (key === 'A' ? document.getElementById('rosterA') : document.getElementById('rosterB'));
+                container.innerHTML = '';
+                rosters[key].forEach((player, index) => {
+                    let div = document.createElement('div');
+                    div.className = `draggable-name ${key === 'A' ? 'team-a' : (key === 'B' ? 'team-b' : '')}`;
+                    div.draggable = true;
+                    div.id = `${key}-${index}`;
+                    div.innerHTML = `<span>${player.name} ${player.hasPlayed ? '<span style="font-size:10px">✔</span>' : ''}</span><span class="delete-roster-btn" onclick="removePlayerFromRoster('${key}', ${index})">❌</span>`;
+                    div.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData("text/plain", JSON.stringify({ source: key, index: index }));
+                    });
+                    container.appendChild(div);
+                });
+            });
+        }
+        
+        function removePlayerFromRoster(listKey, index) {
+            if(confirm("Permanently remove from roster?")) {
+                rosters[listKey].splice(index, 1);
+                renderRosters();
+            }
+        }
+
+        function allowDrop(ev) { ev.preventDefault(); }
+        function drop(ev) {
+            ev.preventDefault();
+            let targetContainer = ev.target.closest('.roster-list');
+            if (!targetContainer) return;
+            let targetKey = targetContainer.getAttribute('data-target');
+            let data = JSON.parse(ev.dataTransfer.getData("text/plain"));
+            let player = rosters[data.source].splice(data.index, 1)[0];
+            player.hasPlayed = false; 
+            rosters[targetKey].push(player);
+            renderRosters();
+        }
+
+        function randomlyAssignTeams() {
+            rosters.A.forEach(p => rosters.pool.push(p));
+            rosters.B.forEach(p => rosters.pool.push(p));
+            rosters.A = []; rosters.B = [];
+            rosters.pool.sort(() => Math.random() - 0.5);
+            while (rosters.pool.length > 0) {
+                rosters.A.push(rosters.pool.pop());
+                if (rosters.pool.length > 0) rosters.B.push(rosters.pool.pop());
+            }
+            renderRosters();
+            broadcastUpdate();
+        }
+
+        // Game Play
+        function getPlayersForPlay(teamKey, count) {
+            let roster = rosters[teamKey];
+            if (roster.length === 0) return [];
+            let unplayed = roster.filter(p => !p.hasPlayed);
+            unplayed.sort(() => Math.random() - 0.5);
+            let selected = [];
+            if (unplayed.length >= count) {
+                selected = unplayed.slice(0, count);
+            } else {
+                selected = [...unplayed];
+                let needed = count - selected.length;
+                let played = roster.filter(p => p.hasPlayed);
+                played.sort(() => Math.random() - 0.5);
+                let doubleDutyPlayers = played.slice(0, needed);
+                doubleDutyPlayers.forEach(p => p.isDoubleDuty = true);
+                selected = selected.concat(doubleDutyPlayers);
+            }
+            return selected;
+        }
+
+        function callNextPlay() {
+            if (!isHost) return;
+            let count = parseInt(document.getElementById('playersPerSide').value);
+            if (rosters.A.length === 0 || rosters.B.length === 0) { alert("Add players to both teams first!"); return; }
+            
+            resetBlitz();
+
+            let unplayedA = rosters.A.filter(p => !p.hasPlayed).length;
+            let unplayedB = rosters.B.filter(p => !p.hasPlayed).length;
+            if (unplayedA === 0 && unplayedB === 0) {
+                gameState.round++;
+                document.getElementById('roundIndicator').innerText = `(Round ${gameState.round})`;
+                rosters.A.forEach(p => p.hasPlayed = false);
+                rosters.B.forEach(p => p.hasPlayed = false);
+            }
+
+            rosters.A.forEach(p => delete p.isDoubleDuty);
+            rosters.B.forEach(p => delete p.isDoubleDuty);
+
+            currentFieldA = getPlayersForPlay('A', count);
+            currentFieldB = getPlayersForPlay('B', count);
+
+            currentFieldA.forEach(p => { 
+                let actualPlayer = rosters.A.find(x => x.name === p.name);
+                if(actualPlayer) actualPlayer.hasPlayed = true; 
+            });
+            currentFieldB.forEach(p => { 
+                let actualPlayer = rosters.B.find(x => x.name === p.name);
+                if(actualPlayer) actualPlayer.hasPlayed = true; 
+            });
+
+            updateFieldDisplay('fieldA', currentFieldA, 'var(--team-a-color)', document.getElementById('nameA').value, 'A');
+            updateFieldDisplay('fieldB', currentFieldB, 'var(--team-b-color)', document.getElementById('nameB').value, 'B');
+            renderRosters();
+            
+            gameState.down++;
+            let soundToPlay = 'whistle';
+            if(gameState.down > 4) {
+                togglePossession(true); // pass true to skip internal broadcast
+                soundToPlay = 'buzzer';
+            } 
+            
+            updateScoreboardUI();
+            broadcastUpdate(soundToPlay);
+            if(isHost) playSound(soundToPlay);
+        }
+
+        function updateFieldDisplay(elementId, players, color, teamName, teamKey) {
+            let container = document.getElementById(elementId);
+            container.innerHTML = '';
+            let header = document.createElement('div');
+            header.className = 'field-header';
+            header.style.borderLeft = `5px solid ${color}`;
+            header.innerHTML = `Field: ${players.length} Players (${teamName})`;
+            container.appendChild(header);
+            
+            players.forEach((p, index) => {
+                let card = document.createElement('div');
+                card.className = 'player-card';
+                if(p.isDoubleDuty) card.classList.add('double-duty');
+                
+                card.innerHTML = `${p.name} <button class="card-sub-btn" onclick="substitutePlayer('${teamKey}', ${index})">🔄</button>`;
+                container.appendChild(card);
+            });
+        }
+        
+        function substitutePlayer(teamKey, indexOnField) {
+            if(!isHost) return;
+            let currentField = teamKey === 'A' ? currentFieldA : currentFieldB;
+            let playerOut = currentField[indexOnField];
+            let actualPlayerOut = rosters[teamKey].find(x => x.name === playerOut.name);
+            if(actualPlayerOut) actualPlayerOut.hasPlayed = false;
+
+            let fieldNames = currentField.map(p => p.name);
+            let bench = rosters[teamKey].filter(p => !fieldNames.includes(p.name));
+            
+            if(bench.length === 0) { alert("No replacements available!"); return; }
+
+            bench.sort((a, b) => {
+                if (a.hasPlayed !== b.hasPlayed) return a.hasPlayed ? 1 : -1;
+                return Math.random() - 0.5;
+            });
+
+            let playerIn = bench[0];
+            let actualPlayerIn = rosters[teamKey].find(x => x.name === playerIn.name);
+            if(actualPlayerIn) actualPlayerIn.hasPlayed = true;
+
+            currentField[indexOnField] = playerIn;
+            updateFieldDisplay(teamKey === 'A' ? 'fieldA' : 'fieldB', currentField, teamKey === 'A' ? 'var(--team-a-color)' : 'var(--team-b-color)', teamKey === 'A' ? document.getElementById('nameA').value : document.getElementById('nameB').value, teamKey);
+            renderRosters();
+            broadcastUpdate();
+        }
+
+        function setDown(n) {
+            if(!isHost) return;
+            gameState.down = n;
+            updateScoreboardUI();
+            broadcastUpdate();
+        }
+
+        function updateScoreboardUI() {
+            let arrow = document.getElementById('possessionArrow');
+            if (gameState.possession === 'A') {
+                arrow.innerText = '◄'; arrow.style.color = 'var(--team-a-color)';
+            } else {
+                arrow.innerText = '►'; arrow.style.color = 'var(--team-b-color)';
+            }
+
+            let sA = document.getElementById('scoreA');
+            let sB = document.getElementById('scoreB');
+            sA.innerText = gameState.scoreA.toString().padStart(2, '0');
+            sB.innerText = gameState.scoreB.toString().padStart(2, '0');
+
+            for(let i=1; i<=4; i++) {
+                let btn = document.getElementById('downBtn' + i);
+                if(gameState.down === i) btn.classList.add('active'); else btn.classList.remove('active');
+            }
+        }
+
+        function addScore(team, amount) {
+            if(!isHost) return;
+            if(!amount) amount = 0;
+            
+            if (team === 'A') {
+                gameState.scoreA += amount;
+                let el = document.getElementById('scoreA');
+                el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+            } else {
+                gameState.scoreB += amount;
+                let el = document.getElementById('scoreB');
+                el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+            }
+            if(amount === 6) gameState.down = 1;
+            updateScoreboardUI();
+            
+            let sound = amount > 0 ? 'score' : null;
+            if(amount > 0) playSound(sound);
+            broadcastUpdate(sound);
+        }
+
+        function togglePossession(skipBroadcast = false) {
+            if(!isHost && !skipBroadcast) return;
+            
+            gameState.possession = gameState.possession === 'A' ? 'B' : 'A';
+            gameState.down = 1;
+            resetBlitz(); 
+            updateScoreboardUI();
+            
+            if(!skipBroadcast) {
+                playSound('buzzer');
+                broadcastUpdate('buzzer');
+            }
+        }
+
+        function resetDowns() {
+            if(!isHost) return;
+            gameState.down = 1;
+            updateScoreboardUI();
+            broadcastUpdate();
+        }
+
+        updateScoreboardUI();
+    </script>
+</body>
+</html>
