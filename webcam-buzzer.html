@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Buzzer: Permanent Cards</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+
+    <style>
+        :root {
+            --neon: #00e5ff;
+            --lock: #ff2a2a;
+            --bg: #1a1a1d;
+            --panel: #2d2d35;
+            --text: #ffffff;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- LAYOUT UTILS --- */
+        .screen { display: none; width: 100%; max-width: 1100px; padding: 20px; box-sizing: border-box; }
+        .active { display: block; animation: fadein 0.5s; }
+        @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+        h1, h2 { text-transform: uppercase; letter-spacing: 1px; color: var(--neon); }
+        
+        /* --- INPUTS & BUTTONS --- */
+        .setup-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;
+            margin-bottom: 20px;
+        }
+        .team-input-group {
+            background: var(--panel); padding: 10px; border-radius: 8px; border-left: 4px solid var(--neon);
+            display: flex; align-items: center;
+        }
+        .team-label { font-weight: bold; margin-right: 10px; color: #888; width: 30px;}
+        
+        input[type="text"] {
+            background: #444; border: none; color: white; padding: 8px; border-radius: 4px; flex: 1;
+        }
+
+        button {
+            padding: 12px 24px; font-size: 1rem; border: none; border-radius: 4px; cursor: pointer;
+            background: var(--neon); color: #000; font-weight: bold; margin: 5px;
+        }
+        button:hover { filter: brightness(1.1); }
+        button.secondary { background: #555; color: white; }
+        button.danger { background: var(--lock); color: white; }
+        button.success { background: #00c853; color: white; }
+
+        /* --- PRINTABLE CARDS --- */
+        .print-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
+        .card-container {
+            border: 4px solid #000; 
+            padding: 10px; 
+            width: 150px; 
+            height: 200px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: white; color: black;
+            break-inside: avoid; /* Prevents card from being cut in half by page break */
+        }
+        .card-big-num { font-size: 4rem; font-weight: bold; line-height: 1; margin: 0; }
+        .card-sub { font-size: 0.8rem; text-transform: uppercase; margin-top: 10px; font-weight: bold; }
+        
+        /* The QR div needs to force images */
+        .qr-output img { display: block; }
+
+        /* --- GAME HUD --- */
+        .hud { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; }
+        
+        .cam-wrapper {
+            position: relative; border: 4px solid #333; border-radius: 8px; overflow: hidden;
+            width: 100%; max-width: 640px; background: black;
+        }
+        video { width: 100%; display: block; transform: scaleX(-1); }
+        
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+        }
+        #overlay.visible { opacity: 1; pointer-events: all; }
+        
+        #winner-text { font-size: 3.5rem; color: var(--neon); font-weight: bold; text-align: center; line-height: 1.1; }
+
+        .scoreboard { flex: 1; min-width: 250px; background: var(--panel); padding: 15px; border-radius: 8px; }
+        .score-row {
+            display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #444; font-size: 1.1rem;
+        }
+        
+        .q-bar {
+            background: var(--panel); padding: 20px; border-radius: 8px; border: 1px solid var(--neon);
+            min-height: 60px; font-size: 1.4rem; display: flex; flex-direction: column; justify-content: center;
+        }
+
+        /* --- PRINT FIXES --- */
+        @media print {
+            /* Hide everything by default */
+            body > * { display: none !important; }
+            
+            /* Show only the print screen and its children */
+            #screen-print, #screen-print * { display: flex !important; visibility: visible !important; }
+            
+            /* Position it correctly */
+            #screen-print { 
+                position: absolute; left: 0; top: 0; width: 100%; 
+                background: white; color: black; display: block !important;
+            }
+            
+            /* Specific resets for the grid */
+            .print-grid { display: flex !important; flex-wrap: wrap !important; gap: 20px; }
+            .card-container { border: 4px solid black !important; page-break-inside: avoid; }
+            
+            /* Hide the buttons on the print page */
+            button { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="screen-setup" class="screen active">
+        <h1 style="text-align:center">Setup Permanent Teams</h1>
+        <p style="text-align:center; color:#ccc;">Assign names to the cards you are using. Leave blank if not using that card.</p>
+        
+        <div class="setup-grid">
+            <div class="team-input-group"><span class="team-label">1</span><input type="text" id="name-T1" placeholder="Team 1 Name"></div>
+            <div class="team-input-group"><span class="team-label">2</span><input type="text" id="name-T2" placeholder="Team 2 Name"></div>
+            <div class="team-input-group"><span class="team-label">3</span><input type="text" id="name-T3" placeholder="Team 3 Name"></div>
+            <div class="team-input-group"><span class="team-label">4</span><input type="text" id="name-T4" placeholder="Team 4 Name"></div>
+            <div class="team-input-group"><span class="team-label">5</span><input type="text" id="name-T5" placeholder="Team 5 Name"></div>
+            <div class="team-input-group"><span class="team-label">6</span><input type="text" id="name-T6" placeholder="Team 6 Name"></div>
+            <div class="team-input-group"><span class="team-label">7</span><input type="text" id="name-T7" placeholder="Team 7 Name"></div>
+            <div class="team-input-group"><span class="team-label">8</span><input type="text" id="name-T8" placeholder="Team 8 Name"></div>
+        </div>
+
+        <div style="text-align:center; margin-top:20px;">
+            <h3>Optional: Load Questions</h3>
+            <input type="text" id="csv-url" placeholder="Paste Google Sheets CSV Link here" style="width:50%; padding:10px;">
+            <br><br>
+            <button class="success" onclick="startGame()">Start Game</button>
+            <button class="secondary" onclick="showPrintScreen()">Print Master Cards</button>
+        </div>
+    </div>
+
+    <div id="screen-print" class="screen">
+        <div style="width:100%; text-align:center; margin-bottom: 20px;">
+            <h2 style="color:black">Master Card Set</h2>
+            <p style="color:black">Print these once. Laminate them. Reuse them forever.</p>
+            <button onclick="window.print()">Print Now</button>
+            <button class="secondary" onclick="location.reload()">Back to Setup</button>
+        </div>
+        <div class="print-grid" id="card-area"></div>
+    </div>
+
+    <div id="screen-game" class="screen">
+        <div class="q-bar">
+            <div style="font-size:0.9rem; color:#888; margin-bottom:5px;">
+                QUESTION <span id="q-idx">0</span>
+            </div>
+            <div id="q-text">Waiting for game start...</div>
+        </div>
+
+        <div class="hud">
+            <div class="cam-wrapper">
+                <video id="video" playsinline></video>
+                <canvas id="canvas" hidden></canvas>
+                
+                <div id="overlay">
+                    <div style="font-size:1.2rem; color:white; margin-bottom:10px;">BUZZER LOCKED!</div>
+                    <div id="winner-text">TEAM NAME</div>
+                    <div style="margin-top:30px; display:flex; gap:10px;">
+                        <button class="success" onclick="handlePoint(true)">Correct (+1)</button>
+                        <button class="danger" onclick="handlePoint(false)">Wrong (Resume)</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="scoreboard">
+                <h3 style="margin-top:0; border-bottom:2px solid var(--neon); padding-bottom:10px;">Standings</h3>
+                <div id="score-list"></div>
+                <div style="margin-top:20px; text-align:center;">
+                    <button class="secondary" onclick="nextQuestion()" style="width:100%">Next Question</button>
+                    <button class="secondary" onclick="resetBuzzer()" style="width:100%; margin-top:10px; opacity:0.7; font-size:0.8rem;">Manual Unlock</button>
+                </div>
+            </div>
+        </div>
+        <p style="text-align:center; color:#666; font-size:0.8rem;">Spacebar = Unlock | N = Next Question</p>
+    </div>
+
+    <script>
+        // --- AUDIO ENGINE ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+            
+            if (type === 'lock') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(110, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
+            } else if (type === 'ding') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.linearRampToValueAtTime(1200, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
+                osc.start(now); osc.stop(now + 1.0);
+            }
+        }
+
+        // --- SETUP LOGIC ---
+        function showPrintScreen() {
+            document.querySelector('.active').classList.remove('active');
+            document.getElementById('screen-print').classList.add('active');
+            
+            const area = document.getElementById('card-area');
+            area.innerHTML = '';
+            
+            for(let i=1; i<=8; i++) {
+                const code = "T" + i;
+                const card = document.createElement('div');
+                card.className = 'card-container';
+                
+                const qrDiv = document.createElement('div');
+                qrDiv.className = 'qr-output';
+                
+                // Generate QR
+                new QRCode(qrDiv, { text: code, width: 120, height: 120 });
+                
+                card.innerHTML = `<div class="card-big-num">${i}</div>`;
+                card.appendChild(qrDiv);
+                card.innerHTML += `<div class="card-sub">Player Card ${i}</div>`;
+                area.appendChild(card);
+            }
+
+            // CRITICAL FIX: Convert Canvas to Image for Printing
+            // We wait 100ms for the library to draw the canvas, then we swap it for an IMG
+            setTimeout(() => {
+                const canvases = document.querySelectorAll('.qr-output canvas');
+                canvases.forEach(canvas => {
+                    const img = document.createElement('img');
+                    img.src = canvas.toDataURL("image/png");
+                    img.style.width = "120px";
+                    img.style.height = "120px";
+                    canvas.parentNode.replaceChild(img, canvas);
+                });
+            }, 100);
+        }
+
+        // --- GAME LOGIC ---
+        let activeTeams = {}; 
+        let questions = [];
+        let qIndex = -1;
+        let isLocked = false;
+        let currentWinnerID = null;
+
+        function startGame() {
+            activeTeams = {};
+            let hasTeams = false;
+            for(let i=1; i<=8; i++) {
+                const id = "T" + i;
+                const nameInput = document.getElementById('name-' + id).value.trim();
+                if(nameInput) {
+                    activeTeams[id] = { name: nameInput, score: 0 };
+                    hasTeams = true;
+                }
+            }
+            if(!hasTeams) { alert("Enter at least one team name."); return; }
+
+            const csvUrl = document.getElementById('csv-url').value;
+            if(csvUrl) {
+                Papa.parse(csvUrl, {
+                    download: true, header: true,
+                    complete: (res) => { questions = res.data; nextQuestion(); }
+                });
+            }
+
+            document.querySelector('.active').classList.remove('active');
+            document.getElementById('screen-game').classList.add('active');
+            updateScoreboard();
+            startCamera();
+        }
+
+        function updateScoreboard() {
+            const list = document.getElementById('score-list');
+            list.innerHTML = '';
+            const sorted = Object.values(activeTeams).sort((a,b) => b.score - a.score);
+            sorted.forEach(t => {
+                const div = document.createElement('div');
+                div.className = 'score-row';
+                div.innerHTML = `<span>${t.name}</span><strong>${t.score}</strong>`;
+                list.appendChild(div);
+            });
+        }
+
+        function handlePoint(isCorrect) {
+            if(isCorrect && currentWinnerID) {
+                activeTeams[currentWinnerID].score++;
+                playTone('ding');
+                updateScoreboard();
+                nextQuestion();
+            } else {
+                resetBuzzer(); 
+            }
+        }
+
+        function nextQuestion() {
+            resetBuzzer();
+            if(questions.length > 0) {
+                qIndex = (qIndex + 1) % questions.length;
+                const q = questions[qIndex];
+                const text = q.Question || q.question || "Question " + (qIndex+1);
+                document.getElementById('q-text').innerText = text;
+                document.getElementById('q-idx').innerText = qIndex + 1;
+            } else {
+                document.getElementById('q-text').innerText = "Manual Question Mode";
+            }
+        }
+
+        function resetBuzzer() {
+            isLocked = false;
+            currentWinnerID = null;
+            document.getElementById('overlay').classList.remove('visible');
+        }
+
+        async function startCamera() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = stream;
+                video.play();
+                const scan = () => {
+                    if (video.readyState === video.HAVE_ENOUGH_DATA && !isLocked) {
+                        canvas.height = video.videoHeight;
+                        canvas.width = video.videoWidth;
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+                        if (code && activeTeams[code.data]) {
+                            triggerBuzz(code.data);
+                        }
+                    }
+                    requestAnimationFrame(scan);
+                };
+                requestAnimationFrame(scan);
+            } catch(e) { alert("Camera error: " + e.message); }
+        }
+
+        function triggerBuzz(id) {
+            isLocked = true;
+            currentWinnerID = id;
+            playTone('lock');
+            document.getElementById('winner-text').innerText = activeTeams[id].name;
+            document.getElementById('overlay').classList.add('visible');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if(e.code === 'Space') resetBuzzer();
+            if(e.code === 'KeyN') nextQuestion();
+        });
+    </script>
+</body>
+</html>
