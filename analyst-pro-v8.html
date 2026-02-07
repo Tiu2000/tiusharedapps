@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TIU Analyst Suite PRO - v8.0 (Persistent)</title>
+    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+    <style>
+        :root {
+            --primary-color: #1a1a1a;
+            --accent-color: #fdd835;
+            --highlight-color: rgba(253, 216, 53, 0.4);
+            --text-color: #ffffff;
+            --panel-bg: #2d2d2d;
+            --btn-bg: #444;
+            --danger-color: #d32f2f;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding-bottom: 50px;
+            overscroll-behavior: none;
+        }
+
+        /* --- HEADER & CASTING --- */
+        header {
+            width: 100%;
+            padding: 10px 0;
+            background-color: var(--panel-bg);
+            text-align: center;
+            border-bottom: 2px solid #444;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        h1 { margin: 0; font-size: 1.2rem; letter-spacing: 1px; white-space: nowrap; }
+
+        /* Google Cast Button Styling */
+        google-cast-launcher {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            --connected-color: var(--accent-color);
+            --disconnected-color: #888;
+        }
+        google-cast-launcher:hover { --disconnected-color: white; }
+
+        /* --- STAGE --- */
+        #stage-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            background: #000;
+            padding: 10px 0;
+        }
+
+        #stage-container {
+            position: relative;
+            width: 95%; 
+            max-width: 1600px; 
+            aspect-ratio: 16 / 9; 
+            background: #000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            overflow: hidden;
+            border: 2px solid #444;
+            outline: none; 
+        }
+
+        #player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+        #focus-catcher {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 85%;
+            z-index: 5;
+            cursor: pointer;
+            background: rgba(0,0,0,0);
+        }
+
+        #drawing-canvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+            cursor: crosshair;
+            pointer-events: none; 
+            touch-action: none;
+            transition: opacity 0.5s ease; /* For smooth fading */
+        }
+        
+        /* Class to handle fading out annotations */
+        .canvas-fade-out { opacity: 0; }
+
+        .watermark {
+            position: absolute; bottom: 2%; right: 2%;
+            font-size: clamp(1.5rem, 5vw, 4rem);
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.15);
+            z-index: 6;
+            pointer-events: none;
+            user-select: none;
+            font-family: 'Arial Black', sans-serif;
+        }
+
+        /* --- CONTROLS PANEL --- */
+        .controls-panel {
+            width: 95%;
+            max-width: 1600px;
+            background-color: var(--panel-bg);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1.5fr 1fr; 
+            gap: 15px;
+            box-sizing: border-box;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-right: 1px solid #444;
+            padding-right: 15px;
+        }
+        .control-group:last-child { border-right: none; padding-left: 10px; padding-right: 0;}
+
+        .group-label { font-size: 0.75rem; text-transform: uppercase; color: #888; font-weight: bold; margin-bottom: 5px; }
+
+        button, .link-btn {
+            background-color: var(--btn-bg);
+            color: white;
+            border: 1px solid #555;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+            text-decoration: none;
+        }
+        button:hover { background-color: #555; }
+        button:active { transform: translateY(1px); }
+        
+        button.active { background-color: var(--accent-color); color: black; border-color: var(--accent-color); }
+        button.danger { background-color: var(--danger-color); border-color: #b71c1c;}
+        button.secondary { background-color: transparent; border: 1px solid #666; }
+        button.action { background-color: #2e7d32; border-color: #1b5e20; }
+
+        input[type="text"] {
+            padding: 8px; border-radius: 4px; border: 1px solid #555;
+            background: #222; color: white; flex-grow: 1;
+        }
+        
+        input[type="range"] { accent-color: var(--accent-color); }
+
+        .tools-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 5px;}
+        
+        .color-btn {
+            width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff;
+            cursor: pointer; flex-shrink: 0; transition: transform 0.2s;
+        }
+        .color-btn.selected { transform: scale(1.3); box-shadow: 0 0 8px rgba(255,255,255,0.5); }
+
+        #mode-indicator {
+            padding: 5px 12px; border-radius: 4px; font-weight: bold;
+            font-size: 0.9rem; background: #444;
+        }
+        .mode-viewing { background: #2196f3; }
+        .mode-drawing { background: var(--accent-color); color: black; }
+
+        .annotation-list {
+            list-style: none; padding: 0; margin: 0;
+            display: flex; flex-direction: column; gap: 6px;
+            max-height: 200px; overflow-y: auto;
+        }
+        .annotation-item {
+            background: #333; border: 1px solid #444; padding: 8px;
+            border-radius: 4px; display: flex; justify-content: space-between;
+            align-items: center; cursor: pointer; transition: background 0.2s;
+        }
+        .annotation-item:hover { background: #444; border-color: #666; }
+        .annotation-time {
+            font-family: monospace; background: #222; padding: 2px 6px;
+            border-radius: 3px; margin-right: 8px; color: var(--accent-color); font-size: 0.8rem;
+        }
+        
+        #save-status { font-size: 0.75rem; color: #888; margin-top: 5px; text-align: right; font-style: italic; }
+
+        @media (max-width: 900px) {
+            .controls-panel { grid-template-columns: 1fr; gap: 20px; }
+            .control-group { border-right: none; border-bottom: 1px solid #444; padding-bottom: 15px; padding-left: 0; padding-right: 0;}
+            .control-group:last-child { border-bottom: none; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>TIU ANALYST PRO</h1>
+    <google-cast-launcher></google-cast-launcher>
+    
+    <div id="mode-indicator" class="mode-viewing">VIEWING</div>
+    <button onclick="toggleFullscreen()" class="secondary" style="margin-left:auto; font-size: 0.8rem;">
+        Fullscreen (F)
+    </button>
+</header>
+
+<div id="stage-wrapper">
+    <div id="stage-container" tabindex="0"> 
+        <div id="player"></div>
+        <div id="focus-catcher" onclick="onShieldClick()"></div>
+        <canvas id="drawing-canvas"></canvas>
+        <div class="watermark">TIU</div>
+    </div>
+</div>
+
+<div class="controls-panel">
+    
+    <div class="control-group">
+        <div class="group-label">Source & Playback</div>
+        
+        <div class="tools-row">
+            <input type="text" id="yt-input" placeholder="YouTube Link...">
+            <button onclick="loadVideo()">Load</button>
+        </div>
+
+        <div class="tools-row" style="justify-content: space-between;">
+            <button onclick="frameStep(-1)">&#9664; Frame</button>
+            <button onclick="togglePlay()" style="flex-grow: 2;">Play / Pause</button>
+            <button onclick="frameStep(1)">Frame &#9654;</button>
+        </div>
+
+        <div class="tools-row">
+            <span style="font-size:0.8rem; color:#aaa;">Speed:</span>
+            <button onclick="setSpeed(0.25)" class="secondary">0.25x</button>
+            <button onclick="setSpeed(0.5)" class="secondary">0.5x</button>
+            <button onclick="setSpeed(1.0)" class="secondary">1.0x</button>
+        </div>
+        
+        <div style="margin-top:auto; background: #222; padding: 10px; border-radius: 5px; border: 1px solid #333;">
+             <div class="group-label">Annotation Persistence</div>
+             <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem;">
+                 <label for="auto-clear-range">Auto-Clear Delay:</label>
+                 <span id="auto-clear-display" style="color: var(--accent-color);">Manual</span>
+             </div>
+             <input type="range" id="auto-clear-range" min="0" max="5" step="0.5" value="0" style="width: 100%; margin-top: 5px;" oninput="updateAutoClearLabel(this.value)">
+             <p style="font-size: 0.7rem; color: #666; margin: 3px 0 0 0;">
+                 0 = Manual Clear (C). 1-5s = Fades after Play.
+             </p>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <div class="group-label">Telestrator Tools</div>
+        
+        <div class="tools-row">
+            <button id="draw-mode-btn" onclick="toggleDrawMode()" style="flex-grow:2;">Enable Drawing</button>
+            <button onclick="undoLast()"><span class="icon">&#8630;</span> Undo</button>
+            <button class="danger" onclick="clearCanvas()" title="Key: C"><span class="icon">&#10005;</span> Clear</button>
+        </div>
+
+        <div class="tools-row" style="background:#222; padding:5px; border-radius:4px; justify-content: space-between;">
+            <div style="display:flex; gap:5px;">
+                <button class="tool-btn active" id="tool-pen" onclick="setTool('pen')">Pen</button>
+                <button class="tool-btn" id="tool-highlighter" onclick="setTool('highlighter')">Highlighter</button>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <button class="shape-btn active" id="shape-free" onclick="setShape('free')">&#x2710;</button>
+                <button class="shape-btn" id="shape-arrow" onclick="setShape('arrow')">&#8594;</button>
+                <button class="shape-btn" id="shape-circle" onclick="setShape('circle')">&#9711;</button>
+            </div>
+        </div>
+
+        <div class="tools-row" style="margin-top: 10px;">
+            <div class="color-btn selected" style="background: #fdd835;" onclick="setColor('#fdd835', this)"></div>
+            <div class="color-btn" style="background: #ff0000;" onclick="setColor('#ff0000', this)"></div>
+            <div class="color-btn" style="background: #ffffff;" onclick="setColor('#ffffff', this)"></div>
+            <div class="color-btn" style="background: #000000;" onclick="setColor('#000000', this)"></div>
+            <div class="color-btn" style="background: #00e5ff;" onclick="setColor('#00e5ff', this)"></div> 
+            
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.8rem; color:#aaa;">Size</span>
+                <input type="range" id="pen-size" min="2" max="20" value="4" style="width: 80px;">
+            </div>
+        </div>
+        
+        <button onclick="saveDrawing()" class="secondary" style="margin-top: 10px; width: 100%;">
+            <span class="icon">&#128190;</span> Download Screenshot
+        </button>
+    </div>
+
+    <div class="control-group">
+        <div class="group-label">Saved Plays & System</div>
+        <button onclick="saveSnapshot()" style="background-color: #2196f3; border-color: #1976d2; margin-bottom: 10px;">
+            <span class="icon">&#43;</span> Save Current Frame
+        </button>
+        
+        <ul id="annotation-list" class="annotation-list">
+            <li class="annotation-item" style="justify-content:center; color:#666; cursor:default;">No saved plays.</li>
+        </ul>
+
+        <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #444;">
+             <div class="tools-row">
+                 <button onclick="exportPlaybook()" class="action" style="flex:1;">Export</button>
+                 <button onclick="document.getElementById('import-file').click()" class="action" style="flex:1;">Import</button>
+                 <input type="file" id="import-file" accept=".json" style="display:none" onchange="importPlaybook(this)">
+             </div>
+             
+             <div class="tools-row" style="margin-top: 10px;">
+                <button onclick="hardReset()" class="danger" style="width:100%; font-size: 0.7rem;">
+                    &#9888; FACTORY RESET APP
+                </button>
+             </div>
+             <div id="save-status">Auto-save ready.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- STATE VARIABLES ---
+    let player;
+    let isDrawingMode = false;
+    let isDrawing = false;
+    let annotations = []; 
+    let currentTool = 'pen'; 
+    let currentShape = 'free'; 
+    let currentColor = '#fdd835';
+    let autoClearDuration = 0; // 0 = manual, >0 = seconds
+    let clearTimer = null;
+    
+    // History
+    let drawHistory = [];
+    let historyStep = -1;
+
+    // DOM Elements
+    const canvas = document.getElementById('drawing-canvas');
+    const ctx = canvas.getContext('2d');
+    const stage = document.getElementById('stage-container');
+    const drawBtn = document.getElementById('draw-mode-btn');
+    const modeIndicator = document.getElementById('mode-indicator');
+    const shield = document.getElementById('focus-catcher'); 
+    const saveStatusEl = document.getElementById('save-status');
+    const autoClearDisplay = document.getElementById('auto-clear-display');
+
+    // --- INITIALIZATION ---
+    function resizeCanvas() {
+        // Save current content
+        let savedData = null;
+        if (canvas.width > 0 && canvas.height > 0) {
+            savedData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        }
+        canvas.width = stage.clientWidth;
+        canvas.height = stage.clientHeight;
+        
+        if (savedData) ctx.putImageData(savedData, 0, 0);
+        else if (localStorage.getItem('tiu_active_canvas')) {
+            // Restore persistent canvas if it exists and canvas was empty
+            const img = new Image();
+            img.onload = () => ctx.drawImage(img, 0, 0);
+            img.src = localStorage.getItem('tiu_active_canvas');
+        }
+
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+    }
+    window.addEventListener('resize', resizeCanvas);
+    
+    // --- PERSISTENCE: LOAD ---
+    window.onload = function() {
+        resizeCanvas();
+        const savedData = localStorage.getItem('tiu_analyst_data');
+        if (savedData) {
+            try {
+                const data = JSON.parse(savedData);
+                window.lastVideoId = data.videoId;
+                if(data.plays) annotations = data.plays;
+                renderAnnotations();
+                saveStatusEl.innerText = "Restored previous session.";
+                if(data.videoId) document.getElementById('yt-input').value = "https://youtu.be/" + data.videoId;
+            } catch(e) { console.error("Data Load Error", e); }
+        }
+    };
+
+    // --- PERSISTENCE: SAVE ---
+    function performAutoSave() {
+        // 1. Save general data
+        const videoData = player ? player.getVideoData() : null;
+        const data = {
+            videoId: videoData ? videoData.video_id : window.lastVideoId,
+            plays: annotations,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('tiu_analyst_data', JSON.stringify(data));
+        
+        // 2. Save Active Canvas (The drawing on screen)
+        // We only save this when the user finishes a stroke to avoid lag
+        localStorage.setItem('tiu_active_canvas', canvas.toDataURL());
+        
+        saveStatusEl.innerText = "Saved " + new Date().toLocaleTimeString();
+    }
+    
+    function hardReset() {
+        if(confirm("Are you sure? This will delete all saved plays, settings, and drawings.")) {
+            localStorage.removeItem('tiu_analyst_data');
+            localStorage.removeItem('tiu_active_canvas');
+            location.reload();
+        }
+    }
+
+    // --- YOUTUBE API ---
+    var tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    function onYouTubeIframeAPIReady() {
+        const vidToLoad = window.lastVideoId || 'tVoqA-LKGb4';
+        player = new YT.Player('player', {
+            height: '100%', width: '100%', videoId: vidToLoad, 
+            playerVars: { 'playsinline': 1, 'rel': 0, 'controls': 1 },
+            events: { 
+                'onReady': onPlayerReady, 
+                'onStateChange': onPlayerStateChange,
+                'onError': (e) => console.log("YT Error", e)
+            }
+        });
+    }
+    function onPlayerReady(event) { resizeCanvas(); }
+    
+    // --- SMART CLEAR / FADE LOGIC ---
+    function updateAutoClearLabel(val) {
+        autoClearDuration = parseFloat(val);
+        if(val == 0) autoClearDisplay.innerText = "Manual";
+        else autoClearDisplay.innerText = val + " sec";
+    }
+
+    function onPlayerStateChange(event) {
+        // 1 = Playing
+        if (event.data === 1) { 
+            if (autoClearDuration > 0) {
+                // If set to auto-clear, wait X seconds then fade
+                if(clearTimer) clearTimeout(clearTimer);
+                clearTimer = setTimeout(() => {
+                    canvas.classList.add('canvas-fade-out'); // Trigger CSS Fade
+                    setTimeout(() => {
+                        clearCanvas(true); // Clear data
+                        canvas.classList.remove('canvas-fade-out'); // Reset CSS
+                    }, 500); // Wait for CSS transition to finish
+                }, autoClearDuration * 1000);
+            } else {
+                // If Manual (0), do nothing. Drawings stay on screen while video plays.
+            }
+        } else {
+            // If Paused/Buffering, cancel any pending clear
+            if(clearTimer) clearTimeout(clearTimer);
+            canvas.classList.remove('canvas-fade-out');
+        }
+    }
+
+    function loadVideo(optionalId) {
+        let id = optionalId;
+        if (!id) {
+            const input = document.getElementById('yt-input').value;
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+            const match = input.match(regExp);
+            id = (match && match[2].length === 11) ? match[2] : null;
+        }
+        
+        if (player && id) {
+            player.loadVideoById(id);
+            if(!optionalId) { 
+                annotations = []; 
+                renderAnnotations();
+                clearCanvas();
+                performAutoSave();
+            }
+        } else { alert("Invalid YouTube ID."); }
+    }
+
+    // --- CONTROLS ---
+    function onShieldClick() { stage.focus(); togglePlay(); }
+    
+    function togglePlay() { 
+        if(!player) return;
+        player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); 
+    }
+    function setSpeed(rate) { if(player) player.setPlaybackRate(rate); }
+    
+    function frameStep(dir) {
+        if(!player) return;
+        player.pauseVideo();
+        player.seekTo(player.getCurrentTime() + (dir * 0.04), true);
+    }
+    
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            stage.requestFullscreen().catch(err => console.log(err));
+        } else {
+            document.exitFullscreen();
+        }
+    }
+    document.addEventListener('fullscreenchange', () => {
+        resizeCanvas();
+        if (document.fullscreenElement) setTimeout(() => stage.focus(), 100);
+    });
+
+    // --- ANNOTATIONS SYSTEM ---
+    function formatTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function saveSnapshot() {
+        if (!player) return;
+        const name = prompt("Name this play:", "Play " + (annotations.length + 1));
+        if (name === null) return; 
+
+        annotations.push({
+            id: Date.now(),
+            time: player.getCurrentTime(),
+            image: canvas.toDataURL(),
+            name: name
+        });
+        annotations.sort((a, b) => a.time - b.time);
+        renderAnnotations();
+        performAutoSave();
+    }
+
+    function loadAnnotation(id) {
+        const note = annotations.find(a => a.id === id);
+        if (!note) return;
+        player.seekTo(note.time, true);
+        player.pauseVideo();
+        const img = new Image();
+        img.onload = function() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            saveHistory();
+            performAutoSave(); // Save this as the active persistent state
+        };
+        img.src = note.image;
+    }
+
+    function deleteAnnotation(id, event) {
+        event.stopPropagation();
+        if(confirm("Delete play?")) {
+            annotations = annotations.filter(a => a.id !== id);
+            renderAnnotations();
+            performAutoSave();
+        }
+    }
+
+    function renderAnnotations() {
+        const list = document.getElementById('annotation-list');
+        list.innerHTML = "";
+        if (annotations.length === 0) {
+            list.innerHTML = `<li class="annotation-item" style="justify-content:center; color:#666;">No saved plays.</li>`;
+            return;
+        }
+        annotations.forEach(note => {
+            const li = document.createElement('li');
+            li.className = 'annotation-item';
+            li.onclick = () => loadAnnotation(note.id);
+            li.innerHTML = `
+                <div style="display:flex; align-items:center;">
+                    <span class="annotation-time">${formatTime(note.time)}</span>
+                    <span class="annotation-name">${note.name}</span>
+                </div>
+                <button class="delete-btn" onclick="deleteAnnotation(${note.id}, event)" style="background:none;border:none;color:#888;">&#10005;</button>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    // --- EXPORT / IMPORT ---
+    function exportPlaybook() {
+        if (!player) return;
+        const dataStr = JSON.stringify({
+            videoId: player.getVideoData().video_id,
+            plays: annotations
+        });
+        const link = document.createElement('a');
+        link.href = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        link.download = 'playbook.json';
+        link.click();
+    }
+
+    function importPlaybook(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                loadVideo(data.videoId);
+                annotations = data.plays;
+                renderAnnotations();
+                performAutoSave();
+            } catch (err) { alert("Error loading file."); }
+        };
+        reader.readAsText(file);
+    }
+
+    // --- DRAWING ---
+    function toggleDrawMode() {
+        isDrawingMode = !isDrawingMode;
+        if (isDrawingMode) {
+            canvas.style.pointerEvents = 'auto';
+            shield.style.pointerEvents = 'none'; 
+            drawBtn.classList.add('active');
+            drawBtn.innerText = "Disable Drawing";
+            modeIndicator.className = "mode-drawing";
+            modeIndicator.innerText = "DRAWING";
+        } else {
+            canvas.style.pointerEvents = 'none'; 
+            shield.style.pointerEvents = 'auto';
+            drawBtn.classList.remove('active');
+            drawBtn.innerText = "Enable Drawing";
+            modeIndicator.className = "mode-viewing";
+            modeIndicator.innerText = "VIEWING";
+        }
+    }
+
+    function setColor(color, btn) {
+        currentColor = color;
+        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+    }
+    function setTool(tool) {
+        currentTool = tool;
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`tool-${tool}`).classList.add('active');
+    }
+    function setShape(shape) {
+        currentShape = shape;
+        document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`shape-${shape}`).classList.add('active');
+    }
+
+    function clearCanvas(skipSave) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawHistory = [];
+        historyStep = -1;
+        if(!skipSave) {
+            localStorage.removeItem('tiu_active_canvas'); // Clear persistent storage too
+        }
+    }
+
+    function undoLast() {
+        if (historyStep > 0) {
+            historyStep--;
+            ctx.putImageData(drawHistory[historyStep], 0, 0);
+            performAutoSave(); // Update persistent storage on undo
+        } else if (historyStep === 0) {
+            clearCanvas();
+        }
+    }
+
+    function saveHistory() {
+        historyStep++;
+        if (historyStep < drawHistory.length) drawHistory.length = historyStep;
+        drawHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        if(drawHistory.length > 20) { drawHistory.shift(); historyStep--; }
+    }
+
+    // Draw Logic
+    let startX, startY, lastX, lastY, snapshot;
+
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function startDraw(e) {
+        if (!isDrawingMode) return;
+        if(e.type === 'touchstart') e.preventDefault();
+        isDrawing = true;
+        const pos = getPos(e);
+        startX = lastX = pos.x; 
+        startY = lastY = pos.y;
+        saveHistory(); 
+        snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+    }
+
+    function moveDraw(e) {
+        if (!isDrawing) return;
+        if(e.type === 'touchmove') e.preventDefault();
+        const pos = getPos(e);
+        const size = document.getElementById('pen-size').value;
+        
+        ctx.strokeStyle = currentColor;
+        if(currentTool === 'highlighter') {
+            ctx.globalAlpha = 0.3; ctx.lineWidth = size * 4; ctx.lineCap = 'butt';  
+        } else {
+            ctx.globalAlpha = 1.0; ctx.lineWidth = size; ctx.lineCap = 'round';
+        }
+
+        if (currentShape === 'free') {
+            ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(pos.x, pos.y); ctx.stroke();
+            lastX = pos.x; lastY = pos.y;
+        } else {
+            ctx.putImageData(snapshot, 0, 0);
+            ctx.beginPath();
+            if (currentShape === 'arrow') drawArrow(ctx, startX, startY, pos.x, pos.y, size);
+            else if (currentShape === 'circle') drawCircle(ctx, startX, startY, pos.x, pos.y);
+            ctx.stroke();
+        }
+    }
+
+    function endDraw() {
+        if (!isDrawing) return;
+        isDrawing = false;
+        ctx.closePath();
+        performAutoSave(); // Save the drawing to persistence immediately
+    }
+
+    // Geometry Helpers
+    function drawArrow(ctx, x1, y1, x2, y2, w) {
+        const aw = currentTool === 'highlighter' ? w * 4 : w;
+        const head = aw * 3; 
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+        ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 6), y2 - head * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 6), y2 - head * Math.sin(angle + Math.PI / 6));
+    }
+    function drawCircle(ctx, x1, y1, x2, y2) {
+        const r = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        ctx.arc(x1, y1, r, 0, 2 * Math.PI);
+    }
+    
+    function saveDrawing() {
+        const link = document.createElement('a');
+        link.download = 'tiu-analysis.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', moveDraw);
+    canvas.addEventListener('mouseup', endDraw);
+    canvas.addEventListener('mouseout', endDraw);
+    canvas.addEventListener('touchstart', startDraw, {passive: false});
+    canvas.addEventListener('touchmove', moveDraw, {passive: false});
+    canvas.addEventListener('touchend', endDraw);
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if(e.target.tagName === 'INPUT') return;
+        if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+        switch(e.key.toLowerCase()) {
+            case ' ': togglePlay(); break;
+            case 'f': toggleFullscreen(); break;
+            case 'c': clearCanvas(); break;
+            case 'z': if(e.ctrlKey || e.metaKey) undoLast(); break;
+            case 'arrowleft': frameStep(-1); break;
+            case 'arrowright': frameStep(1); break;
+        }
+    });
+
+    // Initialize Cast Context
+    window['__onGCastApiAvailable'] = function(isAvailable) {
+        if (isAvailable) {
+            cast.framework.CastContext.getInstance().setOptions({
+                receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+                autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+            });
+        }
+    };
+</script>
+</body>
+</html>
