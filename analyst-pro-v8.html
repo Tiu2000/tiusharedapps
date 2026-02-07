@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Analyst Suite PRO - v8.1 (Shortcuts)</title>
+    <title>TIU Analyst Suite PRO - v8.2 (RW/FF)</title>
     <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <style>
         :root {
@@ -197,12 +197,6 @@
         
         #save-status { font-size: 0.75rem; color: #888; margin-top: 5px; text-align: right; font-style: italic; }
 
-        /* Keyboard Shortcut Modal */
-        .shortcut-hint {
-            display: inline-block; padding: 2px 5px; background: #444; 
-            border-radius: 3px; font-family: monospace; font-size: 0.7rem; color: #ccc;
-        }
-
         @media (max-width: 900px) {
             .controls-panel { grid-template-columns: 1fr; gap: 20px; }
             .control-group { border-right: none; border-bottom: 1px solid #444; padding-bottom: 15px; padding-left: 0; padding-right: 0;}
@@ -243,8 +237,13 @@
         </div>
 
         <div class="tools-row" style="justify-content: space-between;">
+             <button onclick="skipTime(-5)" title="Key: J" style="flex:1;">&#9194; -5s</button>
+             <button onclick="skipTime(5)" title="Key: L" style="flex:1;">+5s &#9193;</button>
+        </div>
+
+        <div class="tools-row" style="justify-content: space-between;">
             <button onclick="frameStep(-1)" title="Key: < or ArrowLeft">&#9664; Frame</button>
-            <button onclick="togglePlay()" style="flex-grow: 2;" title="Key: Space">Play / Pause</button>
+            <button onclick="togglePlay()" style="flex-grow: 2;" title="Key: Space / K">Play / Pause</button>
             <button onclick="frameStep(1)" title="Key: > or ArrowRight">Frame &#9654;</button>
         </div>
 
@@ -514,6 +513,13 @@
         }
     }
     
+    // --- NEW SKIP FUNCTION ---
+    function skipTime(seconds) {
+        if(!player) return;
+        const currentTime = player.getCurrentTime();
+        player.seekTo(currentTime + seconds, true);
+    }
+    
     function frameStep(dir) {
         if(!player) return;
         player.pauseVideo();
@@ -535,9 +541,11 @@
     function toggleShortcuts() {
         alert(
             "KEYBOARD SHORTCUTS:\n\n" +
-            "Space: Play/Pause\n" +
+            "Space / K: Play/Pause\n" +
             "Left / Right Arrow: Frame Step\n" +
-            "< (comma) / > (period): Frame Step\n" +
+            "J: Rewind 5s\n" +
+            "L: Forward 5s\n" +
+            "< / >: Frame Step\n" +
             "+ / - : Adjust Speed\n" +
             "C / Backspace: Clear Drawings\n" +
             "Z: Undo\n" +
@@ -802,7 +810,7 @@
         const key = e.key.toLowerCase();
 
         // Standard
-        if (key === ' ') togglePlay();
+        if (key === ' ' || key === 'k') togglePlay();
         if (key === 'f') toggleFullscreen();
         if (key === 'c') clearCanvas();
         if (key === 'z' && (e.ctrlKey || e.metaKey)) undoLast();
@@ -815,6 +823,10 @@
         if (key === ',' || key === '<') frameStep(-1);
         if (key === '.' || key === '>') frameStep(1);
         if (key === 'home') player.seekTo(0);
+        
+        // Skip
+        if (key === 'j') skipTime(-5);
+        if (key === 'l') skipTime(5);
         
         // Speed
         if (key === '+' || key === '=') adjustSpeed(1);
