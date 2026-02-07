@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Analyst Suite PRO - v8.0 (Persistent)</title>
+    <title>TIU Analyst Suite PRO - v8.1 (Shortcuts)</title>
     <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <style>
         :root {
@@ -197,6 +197,12 @@
         
         #save-status { font-size: 0.75rem; color: #888; margin-top: 5px; text-align: right; font-style: italic; }
 
+        /* Keyboard Shortcut Modal */
+        .shortcut-hint {
+            display: inline-block; padding: 2px 5px; background: #444; 
+            border-radius: 3px; font-family: monospace; font-size: 0.7rem; color: #ccc;
+        }
+
         @media (max-width: 900px) {
             .controls-panel { grid-template-columns: 1fr; gap: 20px; }
             .control-group { border-right: none; border-bottom: 1px solid #444; padding-bottom: 15px; padding-left: 0; padding-right: 0;}
@@ -214,6 +220,7 @@
     <button onclick="toggleFullscreen()" class="secondary" style="margin-left:auto; font-size: 0.8rem;">
         Fullscreen (F)
     </button>
+    <button onclick="toggleShortcuts()" class="secondary" style="font-size: 0.8rem;">?</button>
 </header>
 
 <div id="stage-wrapper">
@@ -236,13 +243,13 @@
         </div>
 
         <div class="tools-row" style="justify-content: space-between;">
-            <button onclick="frameStep(-1)">&#9664; Frame</button>
-            <button onclick="togglePlay()" style="flex-grow: 2;">Play / Pause</button>
-            <button onclick="frameStep(1)">Frame &#9654;</button>
+            <button onclick="frameStep(-1)" title="Key: < or ArrowLeft">&#9664; Frame</button>
+            <button onclick="togglePlay()" style="flex-grow: 2;" title="Key: Space">Play / Pause</button>
+            <button onclick="frameStep(1)" title="Key: > or ArrowRight">Frame &#9654;</button>
         </div>
 
         <div class="tools-row">
-            <span style="font-size:0.8rem; color:#aaa;">Speed:</span>
+            <span style="font-size:0.8rem; color:#aaa;">Speed (+/-):</span>
             <button onclick="setSpeed(0.25)" class="secondary">0.25x</button>
             <button onclick="setSpeed(0.5)" class="secondary">0.5x</button>
             <button onclick="setSpeed(1.0)" class="secondary">1.0x</button>
@@ -266,8 +273,8 @@
         
         <div class="tools-row">
             <button id="draw-mode-btn" onclick="toggleDrawMode()" style="flex-grow:2;">Enable Drawing</button>
-            <button onclick="undoLast()"><span class="icon">&#8630;</span> Undo</button>
-            <button class="danger" onclick="clearCanvas()" title="Key: C"><span class="icon">&#10005;</span> Clear</button>
+            <button onclick="undoLast()" title="Key: Ctrl+Z"><span class="icon">&#8630;</span> Undo</button>
+            <button class="danger" onclick="clearCanvas()" title="Key: C or Backspace"><span class="icon">&#10005;</span> Clear</button>
         </div>
 
         <div class="tools-row" style="background:#222; padding:5px; border-radius:4px; justify-content: space-between;">
@@ -394,7 +401,6 @@
 
     // --- PERSISTENCE: SAVE ---
     function performAutoSave() {
-        // 1. Save general data
         const videoData = player ? player.getVideoData() : null;
         const data = {
             videoId: videoData ? videoData.video_id : window.lastVideoId,
@@ -403,8 +409,7 @@
         };
         localStorage.setItem('tiu_analyst_data', JSON.stringify(data));
         
-        // 2. Save Active Canvas (The drawing on screen)
-        // We only save this when the user finishes a stroke to avoid lag
+        // Save Active Canvas
         localStorage.setItem('tiu_active_canvas', canvas.toDataURL());
         
         saveStatusEl.innerText = "Saved " + new Date().toLocaleTimeString();
@@ -446,23 +451,18 @@
     }
 
     function onPlayerStateChange(event) {
-        // 1 = Playing
         if (event.data === 1) { 
             if (autoClearDuration > 0) {
-                // If set to auto-clear, wait X seconds then fade
                 if(clearTimer) clearTimeout(clearTimer);
                 clearTimer = setTimeout(() => {
-                    canvas.classList.add('canvas-fade-out'); // Trigger CSS Fade
+                    canvas.classList.add('canvas-fade-out'); 
                     setTimeout(() => {
-                        clearCanvas(true); // Clear data
-                        canvas.classList.remove('canvas-fade-out'); // Reset CSS
-                    }, 500); // Wait for CSS transition to finish
+                        clearCanvas(true); 
+                        canvas.classList.remove('canvas-fade-out'); 
+                    }, 500); 
                 }, autoClearDuration * 1000);
-            } else {
-                // If Manual (0), do nothing. Drawings stay on screen while video plays.
             }
         } else {
-            // If Paused/Buffering, cancel any pending clear
             if(clearTimer) clearTimeout(clearTimer);
             canvas.classList.remove('canvas-fade-out');
         }
@@ -495,7 +495,24 @@
         if(!player) return;
         player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); 
     }
-    function setSpeed(rate) { if(player) player.setPlaybackRate(rate); }
+    
+    function setSpeed(rate) { 
+        if(player) player.setPlaybackRate(rate); 
+    }
+    
+    function adjustSpeed(delta) {
+        if(!player) return;
+        let rates = player.getAvailablePlaybackRates();
+        let current = player.getPlaybackRate();
+        // find closest index
+        let idx = rates.findIndex(r => r === current);
+        if(idx === -1) idx = rates.indexOf(1); // default
+        
+        let newIdx = idx + delta;
+        if(newIdx >= 0 && newIdx < rates.length) {
+            setSpeed(rates[newIdx]);
+        }
+    }
     
     function frameStep(dir) {
         if(!player) return;
@@ -514,6 +531,21 @@
         resizeCanvas();
         if (document.fullscreenElement) setTimeout(() => stage.focus(), 100);
     });
+    
+    function toggleShortcuts() {
+        alert(
+            "KEYBOARD SHORTCUTS:\n\n" +
+            "Space: Play/Pause\n" +
+            "Left / Right Arrow: Frame Step\n" +
+            "< (comma) / > (period): Frame Step\n" +
+            "+ / - : Adjust Speed\n" +
+            "C / Backspace: Clear Drawings\n" +
+            "Z: Undo\n" +
+            "F: Fullscreen\n" +
+            "M: Mute Toggle\n" +
+            "Home: Restart Video"
+        );
+    }
 
     // --- ANNOTATIONS SYSTEM ---
     function formatTime(seconds) {
@@ -548,7 +580,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             saveHistory();
-            performAutoSave(); // Save this as the active persistent state
+            performAutoSave(); 
         };
         img.src = note.image;
     }
@@ -662,7 +694,7 @@
         if (historyStep > 0) {
             historyStep--;
             ctx.putImageData(drawHistory[historyStep], 0, 0);
-            performAutoSave(); // Update persistent storage on undo
+            performAutoSave(); 
         } else if (historyStep === 0) {
             clearCanvas();
         }
@@ -727,7 +759,7 @@
         if (!isDrawing) return;
         isDrawing = false;
         ctx.closePath();
-        performAutoSave(); // Save the drawing to persistence immediately
+        performAutoSave(); // Save immediately
     }
 
     // Geometry Helpers
@@ -760,17 +792,39 @@
     canvas.addEventListener('touchmove', moveDraw, {passive: false});
     canvas.addEventListener('touchend', endDraw);
     
-    // Keyboard shortcuts
+    // KEYBOARD SHORTCUTS
     document.addEventListener('keydown', (e) => {
-        if(e.target.tagName === 'INPUT') return;
+        if(e.target.tagName === 'INPUT') return; // Ignore if typing in text box
+        
+        // Prevent default scrolling for common keys
         if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
-        switch(e.key.toLowerCase()) {
-            case ' ': togglePlay(); break;
-            case 'f': toggleFullscreen(); break;
-            case 'c': clearCanvas(); break;
-            case 'z': if(e.ctrlKey || e.metaKey) undoLast(); break;
-            case 'arrowleft': frameStep(-1); break;
-            case 'arrowright': frameStep(1); break;
+        
+        const key = e.key.toLowerCase();
+
+        // Standard
+        if (key === ' ') togglePlay();
+        if (key === 'f') toggleFullscreen();
+        if (key === 'c') clearCanvas();
+        if (key === 'z' && (e.ctrlKey || e.metaKey)) undoLast();
+        if (key === 'm') { if(player.isMuted()) player.unMute(); else player.mute(); }
+        if (key === 'backspace' || key === 'delete') clearCanvas();
+
+        // Navigation
+        if (key === 'arrowleft') frameStep(-1);
+        if (key === 'arrowright') frameStep(1);
+        if (key === ',' || key === '<') frameStep(-1);
+        if (key === '.' || key === '>') frameStep(1);
+        if (key === 'home') player.seekTo(0);
+        
+        // Speed
+        if (key === '+' || key === '=') adjustSpeed(1);
+        if (key === '-' || key === '_') adjustSpeed(-1);
+        
+        // Seek % (0-9)
+        if (key >= '0' && key <= '9') {
+            const duration = player.getDuration();
+            const fraction = parseInt(key) / 10;
+            player.seekTo(duration * fraction);
         }
     });
 
