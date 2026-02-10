@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Analyst Suite PRO - v8.3 (Bulletproof)</title>
+    <title>TIU Analyst Suite PRO - v8.4 (Safe-Mode)</title>
     <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <style>
         :root {
@@ -326,7 +326,7 @@
                     &#9888; FACTORY RESET APP
                 </button>
              </div>
-             <div id="save-status">Auto-save ready.</div>
+             <div id="save-status">Loading session...</div>
         </div>
     </div>
 </div>
@@ -340,9 +340,10 @@
     let currentTool = 'pen'; 
     let currentShape = 'free'; 
     let currentColor = '#fdd835';
-    let autoClearDuration = 0; // 0 = manual, >0 = seconds
+    let autoClearDuration = 0; 
     let clearTimer = null;
-    let restoreTime = null; // Used to seek video after load
+    let restoreTime = null; 
+    let isSessionLoaded = false; // SAFETY LOCK
     
     // History
     let drawHistory = [];
@@ -373,13 +374,12 @@
             img.onload = () => ctx.drawImage(img, 0, 0);
             img.src = localStorage.getItem('tiu_active_canvas');
         }
-
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
     }
     window.addEventListener('resize', resizeCanvas);
     
-    // --- PERSISTENCE: LOAD ---
+    // --- PERSISTENCE: LOAD (Safety Gated) ---
     window.onload = function() {
         resizeCanvas();
         const savedData = localStorage.getItem('tiu_analyst_data');
@@ -389,10 +389,8 @@
                 window.lastVideoId = data.videoId;
                 if(data.plays) annotations = data.plays;
                 
-                // RESTORE TIME
                 if(data.lastTime) restoreTime = data.lastTime;
                 
-                // RESTORE TOOLS
                 if(data.toolState) {
                     const ts = data.toolState;
                     setTool(ts.tool || 'pen');
@@ -407,14 +405,19 @@
                 }
 
                 renderAnnotations();
-                saveStatusEl.innerText = "Restored previous session.";
+                saveStatusEl.innerText = "Session Restored.";
                 if(data.videoId) document.getElementById('yt-input').value = "https://youtu.be/" + data.videoId;
             } catch(e) { console.error("Data Load Error", e); }
         }
+        isSessionLoaded = true; // UNLOCK SAVING
     };
 
     // --- PERSISTENCE: SAVE ---
     function performAutoSave() {
+        // SAFETY LOCK: Don't save if we haven't finished loading old data yet.
+        // This prevents overwriting good data with empty arrays on slow loads.
+        if (!isSessionLoaded) return; 
+
         const videoData = player && player.getVideoData ? player.getVideoData() : null;
         
         const toolState = {
@@ -439,10 +442,7 @@
         saveStatusEl.innerText = "Saved " + new Date().toLocaleTimeString();
     }
     
-    // Auto-save loop (Every 5 seconds)
     setInterval(performAutoSave, 5000);
-    
-    // Save on Close/Refresh
     window.addEventListener('beforeunload', () => { performAutoSave(); });
 
     function hardReset() {
@@ -453,11 +453,7 @@
         }
     }
     
-    function saveToolState() {
-        // Debounce save for slider inputs if needed, or just let the 5s timer catch it.
-        // We will let the interval catch it, or update manually on tool click.
-        performAutoSave();
-    }
+    function saveToolState() { performAutoSave(); }
 
     // --- YOUTUBE API ---
     var tag = document.createElement('script');
@@ -480,10 +476,8 @@
     
     function onPlayerReady(event) { 
         resizeCanvas();
-        // Resume video position if we have a saved time
         if (restoreTime && restoreTime > 0) {
             player.seekTo(restoreTime);
-            console.log("Restored video time:", restoreTime);
         }
     }
     
@@ -509,7 +503,7 @@
         } else {
             if(clearTimer) clearTimeout(clearTimer);
             canvas.classList.remove('canvas-fade-out');
-            performAutoSave(); // Save whenever paused
+            performAutoSave();
         }
     }
 
@@ -523,12 +517,22 @@
         }
         
         if (player && id) {
+            // Check if user is loading a NEW video or just reloading the current one
+            // If it's the same video, we don't want to wipe the annotations
+            const currentVid = window.lastVideoId;
+            const isNewVideo = (id !== currentVid);
+
             player.loadVideoById(id);
+            
             if(!optionalId) { 
-                annotations = []; 
+                if (isNewVideo) {
+                    annotations = []; 
+                    restoreTime = 0; 
+                    window.lastVideoId = id;
+                    clearCanvas();
+                }
+                // If it's the same video, we KEEP annotations and canvas
                 renderAnnotations();
-                clearCanvas();
-                restoreTime = 0; // Reset resume time for new video
                 performAutoSave();
             }
         } else { alert("Invalid YouTube ID."); }
