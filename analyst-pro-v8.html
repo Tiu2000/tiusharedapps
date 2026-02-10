@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Analyst Suite PRO - v8.2 (RW/FF)</title>
+    <title>TIU Analyst Suite PRO - v8.3 (Bulletproof)</title>
     <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <style>
         :root {
@@ -46,7 +46,6 @@
 
         h1 { margin: 0; font-size: 1.2rem; letter-spacing: 1px; white-space: nowrap; }
 
-        /* Google Cast Button Styling */
         google-cast-launcher {
             width: 24px;
             height: 24px;
@@ -94,10 +93,9 @@
             cursor: crosshair;
             pointer-events: none; 
             touch-action: none;
-            transition: opacity 0.5s ease; /* For smooth fading */
+            transition: opacity 0.5s ease; 
         }
         
-        /* Class to handle fading out annotations */
         .canvas-fade-out { opacity: 0; }
 
         .watermark {
@@ -289,15 +287,15 @@
         </div>
 
         <div class="tools-row" style="margin-top: 10px;">
-            <div class="color-btn selected" style="background: #fdd835;" onclick="setColor('#fdd835', this)"></div>
-            <div class="color-btn" style="background: #ff0000;" onclick="setColor('#ff0000', this)"></div>
-            <div class="color-btn" style="background: #ffffff;" onclick="setColor('#ffffff', this)"></div>
-            <div class="color-btn" style="background: #000000;" onclick="setColor('#000000', this)"></div>
-            <div class="color-btn" style="background: #00e5ff;" onclick="setColor('#00e5ff', this)"></div> 
+            <div class="color-btn selected" id="color-btn-0" style="background: #fdd835;" onclick="setColor('#fdd835', this)"></div>
+            <div class="color-btn" id="color-btn-1" style="background: #ff0000;" onclick="setColor('#ff0000', this)"></div>
+            <div class="color-btn" id="color-btn-2" style="background: #ffffff;" onclick="setColor('#ffffff', this)"></div>
+            <div class="color-btn" id="color-btn-3" style="background: #000000;" onclick="setColor('#000000', this)"></div>
+            <div class="color-btn" id="color-btn-4" style="background: #00e5ff;" onclick="setColor('#00e5ff', this)"></div> 
             
             <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 0.8rem; color:#aaa;">Size</span>
-                <input type="range" id="pen-size" min="2" max="20" value="4" style="width: 80px;">
+                <input type="range" id="pen-size" min="2" max="20" value="4" style="width: 80px;" oninput="saveToolState()">
             </div>
         </div>
         
@@ -344,6 +342,7 @@
     let currentColor = '#fdd835';
     let autoClearDuration = 0; // 0 = manual, >0 = seconds
     let clearTimer = null;
+    let restoreTime = null; // Used to seek video after load
     
     // History
     let drawHistory = [];
@@ -361,7 +360,6 @@
 
     // --- INITIALIZATION ---
     function resizeCanvas() {
-        // Save current content
         let savedData = null;
         if (canvas.width > 0 && canvas.height > 0) {
             savedData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -371,7 +369,6 @@
         
         if (savedData) ctx.putImageData(savedData, 0, 0);
         else if (localStorage.getItem('tiu_active_canvas')) {
-            // Restore persistent canvas if it exists and canvas was empty
             const img = new Image();
             img.onload = () => ctx.drawImage(img, 0, 0);
             img.src = localStorage.getItem('tiu_active_canvas');
@@ -391,6 +388,24 @@
                 const data = JSON.parse(savedData);
                 window.lastVideoId = data.videoId;
                 if(data.plays) annotations = data.plays;
+                
+                // RESTORE TIME
+                if(data.lastTime) restoreTime = data.lastTime;
+                
+                // RESTORE TOOLS
+                if(data.toolState) {
+                    const ts = data.toolState;
+                    setTool(ts.tool || 'pen');
+                    setShape(ts.shape || 'free');
+                    if(ts.color) {
+                         const matchBtn = Array.from(document.querySelectorAll('.color-btn')).find(b => 
+                            b.onclick.toString().includes(ts.color)
+                         );
+                         if(matchBtn) setColor(ts.color, matchBtn);
+                    }
+                    if(ts.size) document.getElementById('pen-size').value = ts.size;
+                }
+
                 renderAnnotations();
                 saveStatusEl.innerText = "Restored previous session.";
                 if(data.videoId) document.getElementById('yt-input').value = "https://youtu.be/" + data.videoId;
@@ -400,10 +415,20 @@
 
     // --- PERSISTENCE: SAVE ---
     function performAutoSave() {
-        const videoData = player ? player.getVideoData() : null;
+        const videoData = player && player.getVideoData ? player.getVideoData() : null;
+        
+        const toolState = {
+            tool: currentTool,
+            shape: currentShape,
+            color: currentColor,
+            size: document.getElementById('pen-size').value
+        };
+
         const data = {
             videoId: videoData ? videoData.video_id : window.lastVideoId,
             plays: annotations,
+            lastTime: player && player.getCurrentTime ? player.getCurrentTime() : 0,
+            toolState: toolState,
             timestamp: Date.now()
         };
         localStorage.setItem('tiu_analyst_data', JSON.stringify(data));
@@ -414,12 +439,24 @@
         saveStatusEl.innerText = "Saved " + new Date().toLocaleTimeString();
     }
     
+    // Auto-save loop (Every 5 seconds)
+    setInterval(performAutoSave, 5000);
+    
+    // Save on Close/Refresh
+    window.addEventListener('beforeunload', () => { performAutoSave(); });
+
     function hardReset() {
         if(confirm("Are you sure? This will delete all saved plays, settings, and drawings.")) {
             localStorage.removeItem('tiu_analyst_data');
             localStorage.removeItem('tiu_active_canvas');
             location.reload();
         }
+    }
+    
+    function saveToolState() {
+        // Debounce save for slider inputs if needed, or just let the 5s timer catch it.
+        // We will let the interval catch it, or update manually on tool click.
+        performAutoSave();
     }
 
     // --- YOUTUBE API ---
@@ -440,7 +477,15 @@
             }
         });
     }
-    function onPlayerReady(event) { resizeCanvas(); }
+    
+    function onPlayerReady(event) { 
+        resizeCanvas();
+        // Resume video position if we have a saved time
+        if (restoreTime && restoreTime > 0) {
+            player.seekTo(restoreTime);
+            console.log("Restored video time:", restoreTime);
+        }
+    }
     
     // --- SMART CLEAR / FADE LOGIC ---
     function updateAutoClearLabel(val) {
@@ -450,7 +495,7 @@
     }
 
     function onPlayerStateChange(event) {
-        if (event.data === 1) { 
+        if (event.data === 1) { // Playing
             if (autoClearDuration > 0) {
                 if(clearTimer) clearTimeout(clearTimer);
                 clearTimer = setTimeout(() => {
@@ -464,6 +509,7 @@
         } else {
             if(clearTimer) clearTimeout(clearTimer);
             canvas.classList.remove('canvas-fade-out');
+            performAutoSave(); // Save whenever paused
         }
     }
 
@@ -482,6 +528,7 @@
                 annotations = []; 
                 renderAnnotations();
                 clearCanvas();
+                restoreTime = 0; // Reset resume time for new video
                 performAutoSave();
             }
         } else { alert("Invalid YouTube ID."); }
@@ -503,9 +550,8 @@
         if(!player) return;
         let rates = player.getAvailablePlaybackRates();
         let current = player.getPlaybackRate();
-        // find closest index
         let idx = rates.findIndex(r => r === current);
-        if(idx === -1) idx = rates.indexOf(1); // default
+        if(idx === -1) idx = rates.indexOf(1); 
         
         let newIdx = idx + delta;
         if(newIdx >= 0 && newIdx < rates.length) {
@@ -513,11 +559,11 @@
         }
     }
     
-    // --- NEW SKIP FUNCTION ---
     function skipTime(seconds) {
         if(!player) return;
         const currentTime = player.getCurrentTime();
         player.seekTo(currentTime + seconds, true);
+        performAutoSave();
     }
     
     function frameStep(dir) {
@@ -677,16 +723,19 @@
         currentColor = color;
         document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
+        saveToolState();
     }
     function setTool(tool) {
         currentTool = tool;
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(`tool-${tool}`).classList.add('active');
+        saveToolState();
     }
     function setShape(shape) {
         currentShape = shape;
         document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(`shape-${shape}`).classList.add('active');
+        saveToolState();
     }
 
     function clearCanvas(skipSave) {
@@ -694,7 +743,8 @@
         drawHistory = [];
         historyStep = -1;
         if(!skipSave) {
-            localStorage.removeItem('tiu_active_canvas'); // Clear persistent storage too
+            localStorage.removeItem('tiu_active_canvas'); 
+            performAutoSave();
         }
     }
 
