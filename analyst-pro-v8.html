@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Analyst Suite PRO - v8.8 (HUD)</title>
+    <title>TIU Analyst Suite PRO - v9.0 (Stable HUD)</title>
     <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <style>
         :root {
@@ -14,7 +14,7 @@
             --btn-bg: #444;
             --danger-color: #d32f2f;
             --loop-color: #ff5252;
-            --hud-bg: rgba(0, 0, 0, 0.75);
+            --hud-bg: rgba(0, 0, 0, 0.85);
         }
 
         body {
@@ -89,7 +89,7 @@
         #player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto;}
 
         #focus-catcher {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; /* Cover full height for HUD interaction */
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 5; cursor: pointer; background: rgba(0,0,0,0);
         }
 
@@ -120,24 +120,37 @@
             pointer-events: none;
         }
 
-        /* --- HUD (HEADS UP DISPLAY) --- */
+        /* --- DRAGGABLE HUD --- */
         #hud-panel {
             position: absolute;
-            bottom: 20px;
+            bottom: 30px; /* Default pos */
             left: 50%;
-            transform: translateX(-50%);
+            transform: translateX(-50%); /* Default center */
             background-color: var(--hud-bg);
             backdrop-filter: blur(5px);
-            padding: 8px 15px;
+            padding: 10px 15px;
             border-radius: 30px;
             display: flex;
             gap: 10px;
-            z-index: 100; /* Above everything */
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: opacity 0.3s;
-            opacity: 0.6; /* Semi-transparent default */
+            z-index: 100;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            cursor: grab; /* Indicates draggable */
+            transition: opacity 0.2s;
+            /* No transition on left/top to prevent drag lag */
         }
-        #hud-panel:hover { opacity: 1.0; }
+        #hud-panel:active { cursor: grabbing; }
+
+        /* Grip handle visual */
+        #hud-panel::before {
+            content: '⋮';
+            color: #666;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            margin-right: 5px;
+            pointer-events: none;
+        }
 
         .hud-btn {
             background: transparent; border: 1px solid rgba(255,255,255,0.3);
@@ -257,7 +270,7 @@
             <div class="watermark">TIU</div>
         </div>
         
-        <div id="hud-panel">
+        <div id="hud-panel" title="Drag to move">
             <button class="hud-btn" id="hud-a" onclick="setLoopA()" title="Set Loop A">[A]</button>
             <button class="hud-btn" id="hud-b" onclick="setLoopB()" title="Set Loop B">[B]</button>
             <button class="hud-btn" id="hud-clear" onclick="clearLoop()" title="Clear Loop">&#10005;</button>
@@ -299,13 +312,6 @@
             <button class="std-btn" onclick="setLoopB()" id="btn-loop-b" style="font-size: 0.75rem;" title="Key: ]">Set B</button>
             <button class="std-btn" onclick="clearLoop()" id="btn-loop-clear" class="secondary" style="font-size: 0.75rem;" title="Key: \">Clear</button>
         </div>
-
-        <div class="tools-row" style="margin-top: 5px;">
-            <span style="font-size:0.8rem; color:#aaa;">Speed:</span>
-            <button class="std-btn" onclick="setSpeed(0.25)" class="secondary">0.25x</button>
-            <button class="std-btn" onclick="setSpeed(0.5)" class="secondary">0.5x</button>
-            <button class="std-btn" onclick="setSpeed(1.0)" class="secondary">1.0x</button>
-        </div>
     </div>
 
     <div class="control-group">
@@ -315,9 +321,18 @@
             <button class="std-btn" id="draw-mode-btn" onclick="toggleDrawMode()" style="flex-grow:2;">Enable Drawing</button>
             <button class="std-btn" id="zoom-mode-btn" onclick="toggleZoomMode()" style="flex-grow:1;" title="Enable Zoom/Pan">&#128269; Zoom</button>
         </div>
+        
         <div class="tools-row">
              <button class="std-btn" onclick="undoLast()"><span class="icon">&#8630;</span> Undo</button>
              <button class="std-btn danger" onclick="clearCanvas()" title="Key: C or Backspace"><span class="icon">&#10005;</span> Clear</button>
+        </div>
+
+        <div style="background: #222; padding: 8px; border-radius: 4px; margin-bottom: 5px;">
+             <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #aaa; margin-bottom: 3px;">
+                 <label>Auto-Clear Drawing:</label>
+                 <span id="auto-clear-display" style="color: var(--accent-color);">Manual</span>
+             </div>
+             <input type="range" id="auto-clear-range" min="0" max="5" step="0.5" value="0" style="width: 100%;" oninput="updateAutoClearLabel(this.value)">
         </div>
 
         <div class="tools-row" style="background:#222; padding:5px; border-radius:4px; justify-content: space-between;">
@@ -372,14 +387,7 @@
                     &#9888; FACTORY RESET APP
                 </button>
              </div>
-             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
-                 <span id="save-status">Loading session...</span>
-                 <div style="font-size: 0.7rem; color: #666;">
-                    Auto-Clear: 
-                    <input type="range" id="auto-clear-range" min="0" max="5" step="0.5" value="0" style="width: 50px; vertical-align: middle;" oninput="updateAutoClearLabel(this.value)">
-                    <span id="auto-clear-display">Manual</span>
-                 </div>
-             </div>
+             <div id="save-status">Loading session...</div>
         </div>
     </div>
 </div>
@@ -431,49 +439,119 @@
     const saveStatusEl = document.getElementById('save-status');
     const autoClearDisplay = document.getElementById('auto-clear-display');
     const loopIndicator = document.getElementById('loop-indicator');
+    const hudPanel = document.getElementById('hud-panel');
+    const stageContainer = document.getElementById('stage-container');
     
-    // Control Buttons (Main Panel)
     const btnLoopA = document.getElementById('btn-loop-a');
     const btnLoopB = document.getElementById('btn-loop-b');
-    
-    // HUD Buttons
     const hudA = document.getElementById('hud-a');
     const hudB = document.getElementById('hud-b');
     const hudDraw = document.getElementById('hud-draw');
     
-    // STOP EVENTS ON HUD
-    document.getElementById('hud-panel').addEventListener('mousedown', (e) => e.stopPropagation());
-    document.getElementById('hud-panel').addEventListener('touchstart', (e) => e.stopPropagation());
+    // --- DRAGGABLE HUD LOGIC (Refined) ---
+    hudPanel.addEventListener('mousedown', startDragHUD);
+    hudPanel.addEventListener('touchstart', startDragHUD, {passive: false});
+
+    function startDragHUD(e) {
+        if(e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+        e.preventDefault();
+
+        // Use stage as boundary context
+        const containerRect = stageContainer.getBoundingClientRect();
+        const hudRect = hudPanel.getBoundingClientRect();
+        
+        let clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        let clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+        
+        // Calculate offset from top-left of HUD
+        let offsetX = clientX - hudRect.left;
+        let offsetY = clientY - hudRect.top;
+
+        // Reset transform centering, switch to exact positioning relative to container
+        hudPanel.style.transform = 'none';
+        hudPanel.style.bottom = 'auto'; 
+        
+        // Initial set based on current visual position
+        // This stops the "jump" when drag starts
+        let currentLeft = hudRect.left - containerRect.left;
+        let currentTop = hudRect.top - containerRect.top;
+        
+        hudPanel.style.left = currentLeft + 'px';
+        hudPanel.style.top = currentTop + 'px';
+
+        function onMove(e) {
+            e.preventDefault();
+            let cx = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            let cy = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            
+            // Calculate new position relative to container
+            let newLeft = cx - containerRect.left - offsetX;
+            let newTop = cy - containerRect.top - offsetY;
+            
+            // Boundary checks
+            const maxW = containerRect.width - hudRect.width;
+            const maxH = containerRect.height - hudRect.height;
+            
+            newLeft = Math.max(0, Math.min(newLeft, maxW));
+            newTop = Math.max(0, Math.min(newTop, maxH));
+
+            hudPanel.style.left = newLeft + 'px';
+            hudPanel.style.top = newTop + 'px';
+        }
+
+        function onEnd() {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onEnd);
+            document.removeEventListener('touchmove', onMove);
+            document.removeEventListener('touchend', onEnd);
+            saveHUDPos(); // Save position
+        }
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onEnd);
+        document.addEventListener('touchmove', onMove, {passive: false});
+        document.addEventListener('touchend', onEnd);
+    }
+    
+    function saveHUDPos() {
+        const pos = { left: hudPanel.style.left, top: hudPanel.style.top };
+        localStorage.setItem('tiu_hud_pos', JSON.stringify(pos));
+    }
+    
+    function restoreHUDPos() {
+        const saved = localStorage.getItem('tiu_hud_pos');
+        if(saved) {
+            try {
+                const pos = JSON.parse(saved);
+                hudPanel.style.transform = 'none';
+                hudPanel.style.bottom = 'auto';
+                hudPanel.style.left = pos.left;
+                hudPanel.style.top = pos.top;
+            } catch(e) {}
+        }
+    }
 
     // --- LOOP LOGIC ---
     function setLoopA() {
         if(!player) return;
         loopStart = player.getCurrentTime();
-        loopEnd = null; // Reset end
+        loopEnd = null; 
         isLooping = false;
         loopIndicator.style.display = 'none';
-        
-        // Update both Main Panel and HUD
         btnLoopA.classList.add('loop-active');
         btnLoopB.classList.remove('loop-active');
         hudA.classList.add('loop-active');
         hudB.classList.remove('loop-active');
-        
         stopLoopCheck();
     }
 
     function setLoopB() {
         if(!player || loopStart === null) return;
         loopEnd = player.getCurrentTime();
-        if(loopEnd <= loopStart) {
-            alert("End time must be after Start time.");
-            return;
-        }
+        if(loopEnd <= loopStart) { alert("End time must be after Start time."); return; }
         isLooping = true;
-        
         btnLoopB.classList.add('loop-active');
         hudB.classList.add('loop-active');
-        
         loopIndicator.style.display = 'block';
         player.seekTo(loopStart, true);
         player.playVideo();
@@ -485,12 +563,10 @@
         loopEnd = null;
         isLooping = false;
         loopIndicator.style.display = 'none';
-        
         btnLoopA.classList.remove('loop-active');
         btnLoopB.classList.remove('loop-active');
         hudA.classList.remove('loop-active');
         hudB.classList.remove('loop-active');
-        
         stopLoopCheck();
     }
 
@@ -501,12 +577,10 @@
             if(player.getCurrentTime() >= loopEnd) {
                 player.seekTo(loopStart, true);
             }
-        }, 100); // Check every 100ms
+        }, 100); 
     }
 
-    function stopLoopCheck() {
-        if(loopCheckInterval) clearInterval(loopCheckInterval);
-    }
+    function stopLoopCheck() { if(loopCheckInterval) clearInterval(loopCheckInterval); }
 
     // --- ZOOM LOGIC ---
     function updateTransform() {
@@ -543,13 +617,14 @@
         if (!isZoomMode) return;
         e.preventDefault();
         const delta = e.deltaY * -0.001;
-        const newScale = Math.min(Math.max(1, scale + delta), 5);
-        scale = newScale;
+        scale = Math.min(Math.max(1, scale + delta), 5);
         updateTransform();
     });
 
     stage.addEventListener('mousedown', (e) => {
         if (!isZoomMode) return;
+        if(e.target.closest('#hud-panel')) return;
+        
         isPanning = true;
         stage.style.cursor = 'grabbing';
         startPanX = e.clientX - panX;
@@ -601,6 +676,8 @@
     // --- PERSISTENCE: LOAD ---
     window.onload = function() {
         resizeCanvas();
+        restoreHUDPos(); // NEW: Restore HUD location
+        
         const savedData = localStorage.getItem('tiu_analyst_data');
         if (savedData) {
             try {
@@ -658,6 +735,7 @@
         if(confirm("Are you sure? This will delete all saved plays, settings, and drawings.")) {
             localStorage.removeItem('tiu_analyst_data');
             localStorage.removeItem('tiu_active_canvas');
+            localStorage.removeItem('tiu_hud_pos');
             location.reload();
         }
     }
@@ -894,7 +972,7 @@
             canvas.style.pointerEvents = 'auto';
             shield.style.pointerEvents = 'none'; 
             drawBtn.classList.add('active');
-            hudDraw.classList.add('active'); // Update HUD
+            hudDraw.classList.add('active');
             drawBtn.innerText = "Disable Drawing";
             modeIndicator.className = "mode-drawing";
             modeIndicator.innerText = "DRAWING";
@@ -902,7 +980,7 @@
             canvas.style.pointerEvents = 'none'; 
             shield.style.pointerEvents = 'auto';
             drawBtn.classList.remove('active');
-            hudDraw.classList.remove('active'); // Update HUD
+            hudDraw.classList.remove('active');
             drawBtn.innerText = "Enable Drawing";
             modeIndicator.className = "mode-viewing";
             modeIndicator.innerText = "VIEWING";
