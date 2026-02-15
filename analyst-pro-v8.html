@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Analyst Suite PRO - v8.4 (Safe-Mode)</title>
+    <title>TIU Analyst Suite PRO - v8.6 (Zoom & Pan)</title>
     <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <style>
         :root {
             --primary-color: #1a1a1a;
             --accent-color: #fdd835;
-            --highlight-color: rgba(253, 216, 53, 0.4);
             --text-color: #ffffff;
             --panel-bg: #2d2d2d;
             --btn-bg: #444;
@@ -29,7 +28,7 @@
             overscroll-behavior: none;
         }
 
-        /* --- HEADER & CASTING --- */
+        /* --- HEADER --- */
         header {
             width: 100%;
             padding: 10px 0;
@@ -41,17 +40,17 @@
             align-items: center;
             gap: 20px;
             flex-wrap: wrap;
-            position: relative;
         }
 
         h1 { margin: 0; font-size: 1.2rem; letter-spacing: 1px; white-space: nowrap; }
+        .badge-4k { 
+            background: #000; color: var(--accent-color); border: 1px solid var(--accent-color);
+            padding: 2px 6px; font-size: 0.7rem; font-weight: 900; border-radius: 3px;
+        }
 
         google-cast-launcher {
-            width: 24px;
-            height: 24px;
-            cursor: pointer;
-            --connected-color: var(--accent-color);
-            --disconnected-color: #888;
+            width: 24px; height: 24px; cursor: pointer;
+            --connected-color: var(--accent-color); --disconnected-color: #888;
         }
         google-cast-launcher:hover { --disconnected-color: white; }
 
@@ -62,6 +61,7 @@
             justify-content: center;
             background: #000;
             padding: 10px 0;
+            overflow: hidden; /* Important for zoom cropping */
         }
 
         #stage-container {
@@ -74,25 +74,29 @@
             overflow: hidden;
             border: 2px solid #444;
             outline: none; 
+            transform-origin: 0 0; /* Default pivot */
+            /* Transition for smooth zoom reset, but we handle pan manually for speed */
+            transition: transform 0.1s ease-out; 
         }
 
-        #player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        /* The "Zoom Container" wraps content that scales */
+        .zoom-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            transform-origin: 0 0;
+            pointer-events: none; /* Let clicks pass unless handling pan */
+        }
+
+        #player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto;}
 
         #focus-catcher {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 85%;
-            z-index: 5;
-            cursor: pointer;
-            background: rgba(0,0,0,0);
+            position: absolute; top: 0; left: 0; width: 100%; height: 85%;
+            z-index: 5; cursor: pointer; background: rgba(0,0,0,0);
         }
 
         #drawing-canvas {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 10;
-            cursor: crosshair;
-            pointer-events: none; 
-            touch-action: none;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; cursor: crosshair;
+            pointer-events: none; touch-action: none;
             transition: opacity 0.5s ease; 
         }
         
@@ -103,49 +107,34 @@
             font-size: clamp(1.5rem, 5vw, 4rem);
             font-weight: 900;
             color: rgba(255, 255, 255, 0.15);
-            z-index: 6;
-            pointer-events: none;
-            user-select: none;
+            z-index: 6; pointer-events: none; user-select: none;
             font-family: 'Arial Black', sans-serif;
         }
 
         /* --- CONTROLS PANEL --- */
         .controls-panel {
-            width: 95%;
-            max-width: 1600px;
+            width: 95%; max-width: 1600px;
             background-color: var(--panel-bg);
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            display: grid;
-            grid-template-columns: 1fr 1.5fr 1fr; 
-            gap: 15px;
-            box-sizing: border-box;
+            padding: 15px; border-radius: 8px; margin-top: 15px;
+            display: grid; grid-template-columns: 1fr 1.5fr 1fr; 
+            gap: 15px; box-sizing: border-box;
         }
 
         .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            border-right: 1px solid #444;
-            padding-right: 15px;
+            display: flex; flex-direction: column; gap: 8px;
+            border-right: 1px solid #444; padding-right: 15px;
         }
         .control-group:last-child { border-right: none; padding-left: 10px; padding-right: 0;}
 
         .group-label { font-size: 0.75rem; text-transform: uppercase; color: #888; font-weight: bold; margin-bottom: 5px; }
 
-        button, .link-btn {
-            background-color: var(--btn-bg);
-            color: white;
-            border: 1px solid #555;
-            padding: 8px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.85rem;
+        button {
+            background-color: var(--btn-bg); color: white;
+            border: 1px solid #555; padding: 8px 12px;
+            border-radius: 4px; cursor: pointer;
+            font-weight: 600; font-size: 0.85rem;
             transition: all 0.2s;
             display: flex; align-items: center; justify-content: center; gap: 5px;
-            text-decoration: none;
         }
         button:hover { background-color: #555; }
         button:active { transform: translateY(1px); }
@@ -176,6 +165,7 @@
         }
         .mode-viewing { background: #2196f3; }
         .mode-drawing { background: var(--accent-color); color: black; }
+        .mode-zooming { background: #9c27b0; color: white; }
 
         .annotation-list {
             list-style: none; padding: 0; margin: 0;
@@ -206,6 +196,7 @@
 
 <header>
     <h1>TIU ANALYST PRO</h1>
+    <span class="badge-4k">4K ENGINE</span>
     <google-cast-launcher></google-cast-launcher>
     
     <div id="mode-indicator" class="mode-viewing">VIEWING</div>
@@ -217,10 +208,12 @@
 
 <div id="stage-wrapper">
     <div id="stage-container" tabindex="0"> 
-        <div id="player"></div>
-        <div id="focus-catcher" onclick="onShieldClick()"></div>
-        <canvas id="drawing-canvas"></canvas>
-        <div class="watermark">TIU</div>
+        <div id="zoom-layer" class="zoom-layer">
+            <div id="player"></div>
+            <div id="focus-catcher" onclick="onShieldClick()"></div>
+            <canvas id="drawing-canvas"></canvas>
+            <div class="watermark">TIU</div>
+        </div>
     </div>
 </div>
 
@@ -241,12 +234,12 @@
 
         <div class="tools-row" style="justify-content: space-between;">
             <button onclick="frameStep(-1)" title="Key: < or ArrowLeft">&#9664; Frame</button>
-            <button onclick="togglePlay()" style="flex-grow: 2;" title="Key: Space / K">Play / Pause</button>
+            <button onclick="togglePlay()" style="flex-grow: 2;">Play / Pause</button>
             <button onclick="frameStep(1)" title="Key: > or ArrowRight">Frame &#9654;</button>
         </div>
 
         <div class="tools-row">
-            <span style="font-size:0.8rem; color:#aaa;">Speed (+/-):</span>
+            <span style="font-size:0.8rem; color:#aaa;">Speed:</span>
             <button onclick="setSpeed(0.25)" class="secondary">0.25x</button>
             <button onclick="setSpeed(0.5)" class="secondary">0.5x</button>
             <button onclick="setSpeed(1.0)" class="secondary">1.0x</button>
@@ -259,9 +252,6 @@
                  <span id="auto-clear-display" style="color: var(--accent-color);">Manual</span>
              </div>
              <input type="range" id="auto-clear-range" min="0" max="5" step="0.5" value="0" style="width: 100%; margin-top: 5px;" oninput="updateAutoClearLabel(this.value)">
-             <p style="font-size: 0.7rem; color: #666; margin: 3px 0 0 0;">
-                 0 = Manual Clear (C). 1-5s = Fades after Play.
-             </p>
         </div>
     </div>
 
@@ -270,8 +260,11 @@
         
         <div class="tools-row">
             <button id="draw-mode-btn" onclick="toggleDrawMode()" style="flex-grow:2;">Enable Drawing</button>
-            <button onclick="undoLast()" title="Key: Ctrl+Z"><span class="icon">&#8630;</span> Undo</button>
-            <button class="danger" onclick="clearCanvas()" title="Key: C or Backspace"><span class="icon">&#10005;</span> Clear</button>
+            <button id="zoom-mode-btn" onclick="toggleZoomMode()" style="flex-grow:1;" title="Enable Zoom/Pan (Scroll to zoom, Drag to pan)">&#128269; Zoom</button>
+        </div>
+        <div class="tools-row">
+             <button onclick="undoLast()"><span class="icon">&#8630;</span> Undo</button>
+             <button class="danger" onclick="clearCanvas()" title="Key: C or Backspace"><span class="icon">&#10005;</span> Clear</button>
         </div>
 
         <div class="tools-row" style="background:#222; padding:5px; border-radius:4px; justify-content: space-between;">
@@ -300,7 +293,7 @@
         </div>
         
         <button onclick="saveDrawing()" class="secondary" style="margin-top: 10px; width: 100%;">
-            <span class="icon">&#128190;</span> Download Screenshot
+            <span class="icon">&#128190;</span> Download Screenshot (High-Res)
         </button>
     </div>
 
@@ -335,7 +328,17 @@
     // --- STATE VARIABLES ---
     let player;
     let isDrawingMode = false;
+    let isZoomMode = false;
     let isDrawing = false;
+    let isPanning = false; // Zoom pan state
+    
+    // Zoom/Pan Vars
+    let scale = 1;
+    let panX = 0; 
+    let panY = 0;
+    let startPanX = 0;
+    let startPanY = 0;
+
     let annotations = []; 
     let currentTool = 'pen'; 
     let currentShape = 'free'; 
@@ -343,7 +346,8 @@
     let autoClearDuration = 0; 
     let clearTimer = null;
     let restoreTime = null; 
-    let isSessionLoaded = false; // SAFETY LOCK
+    let isSessionLoaded = false;
+    let dpr = 1; 
     
     // History
     let drawHistory = [];
@@ -353,11 +357,93 @@
     const canvas = document.getElementById('drawing-canvas');
     const ctx = canvas.getContext('2d');
     const stage = document.getElementById('stage-container');
+    const zoomLayer = document.getElementById('zoom-layer');
     const drawBtn = document.getElementById('draw-mode-btn');
+    const zoomBtn = document.getElementById('zoom-mode-btn');
     const modeIndicator = document.getElementById('mode-indicator');
     const shield = document.getElementById('focus-catcher'); 
     const saveStatusEl = document.getElementById('save-status');
     const autoClearDisplay = document.getElementById('auto-clear-display');
+
+    // --- ZOOM LOGIC ---
+    function updateTransform() {
+        // Clamping logic to keep view somewhat bounded
+        // Limit Zoom
+        if (scale < 1) scale = 1;
+        if (scale > 5) scale = 5;
+
+        // Apply to CSS Layer
+        zoomLayer.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+    }
+
+    function toggleZoomMode() {
+        isZoomMode = !isZoomMode;
+        if(isZoomMode) {
+            // Disable drawing mode if active to avoid conflict
+            if(isDrawingMode) toggleDrawMode(); 
+            
+            zoomBtn.classList.add('active');
+            stage.style.cursor = 'grab';
+            modeIndicator.innerText = "ZOOM / PAN";
+            modeIndicator.className = "mode-zooming";
+            
+            // Allow pointer events on stage for panning
+            shield.style.pointerEvents = 'auto'; 
+            canvas.style.pointerEvents = 'none';
+        } else {
+            zoomBtn.classList.remove('active');
+            stage.style.cursor = 'default';
+            // Reset to Viewing or Drawing state
+            if (isDrawingMode) {
+                toggleDrawMode(); // Re-enable drawing visuals
+            } else {
+                modeIndicator.innerText = "VIEWING";
+                modeIndicator.className = "mode-viewing";
+            }
+            
+            // Reset View
+            scale = 1; panX = 0; panY = 0;
+            updateTransform();
+        }
+    }
+
+    // Scroll Wheel Zoom
+    stage.addEventListener('wheel', (e) => {
+        if (!isZoomMode) return;
+        e.preventDefault();
+        const delta = e.deltaY * -0.001;
+        const newScale = Math.min(Math.max(1, scale + delta), 5);
+        
+        // Simple zoom-towards-center logic
+        // (Improving this to zoom-to-mouse would require more complex offset calcs)
+        scale = newScale;
+        updateTransform();
+    });
+
+    // Panning Logic
+    stage.addEventListener('mousedown', (e) => {
+        if (!isZoomMode) return;
+        isPanning = true;
+        stage.style.cursor = 'grabbing';
+        startPanX = e.clientX - panX;
+        startPanY = e.clientY - panY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isPanning) return;
+        e.preventDefault();
+        panX = e.clientX - startPanX;
+        panY = e.clientY - startPanY;
+        updateTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+        if(isPanning) {
+            isPanning = false;
+            stage.style.cursor = 'grab';
+        }
+    });
+
 
     // --- INITIALIZATION ---
     function resizeCanvas() {
@@ -365,21 +451,33 @@
         if (canvas.width > 0 && canvas.height > 0) {
             savedData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         }
-        canvas.width = stage.clientWidth;
-        canvas.height = stage.clientHeight;
-        
-        if (savedData) ctx.putImageData(savedData, 0, 0);
-        else if (localStorage.getItem('tiu_active_canvas')) {
+
+        dpr = Math.max(window.devicePixelRatio || 1, 2); 
+
+        canvas.width = stage.clientWidth * dpr;
+        canvas.height = stage.clientHeight * dpr;
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        if (savedData) {
+            ctx.putImageData(savedData, 0, 0);
+        } else if (localStorage.getItem('tiu_active_canvas')) {
             const img = new Image();
-            img.onload = () => ctx.drawImage(img, 0, 0);
+            img.onload = () => {
+                ctx.setTransform(1, 0, 0, 1, 0, 0); 
+                ctx.drawImage(img, 0, 0);
+                ctx.scale(dpr, dpr);
+            };
             img.src = localStorage.getItem('tiu_active_canvas');
         }
+
+        ctx.scale(dpr, dpr);
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
     }
     window.addEventListener('resize', resizeCanvas);
     
-    // --- PERSISTENCE: LOAD (Safety Gated) ---
+    // --- PERSISTENCE: LOAD ---
     window.onload = function() {
         resizeCanvas();
         const savedData = localStorage.getItem('tiu_analyst_data');
@@ -388,7 +486,6 @@
                 const data = JSON.parse(savedData);
                 window.lastVideoId = data.videoId;
                 if(data.plays) annotations = data.plays;
-                
                 if(data.lastTime) restoreTime = data.lastTime;
                 
                 if(data.toolState) {
@@ -409,13 +506,11 @@
                 if(data.videoId) document.getElementById('yt-input').value = "https://youtu.be/" + data.videoId;
             } catch(e) { console.error("Data Load Error", e); }
         }
-        isSessionLoaded = true; // UNLOCK SAVING
+        isSessionLoaded = true; 
     };
 
     // --- PERSISTENCE: SAVE ---
     function performAutoSave() {
-        // SAFETY LOCK: Don't save if we haven't finished loading old data yet.
-        // This prevents overwriting good data with empty arrays on slow loads.
         if (!isSessionLoaded) return; 
 
         const videoData = player && player.getVideoData ? player.getVideoData() : null;
@@ -436,7 +531,7 @@
         };
         localStorage.setItem('tiu_analyst_data', JSON.stringify(data));
         
-        // Save Active Canvas
+        // Save Active Canvas (High Res Data URL)
         localStorage.setItem('tiu_active_canvas', canvas.toDataURL());
         
         saveStatusEl.innerText = "Saved " + new Date().toLocaleTimeString();
@@ -465,7 +560,13 @@
         const vidToLoad = window.lastVideoId || 'tVoqA-LKGb4';
         player = new YT.Player('player', {
             height: '100%', width: '100%', videoId: vidToLoad, 
-            playerVars: { 'playsinline': 1, 'rel': 0, 'controls': 1 },
+            playerVars: { 
+                'playsinline': 1, 
+                'rel': 0, 
+                'controls': 1,
+                'vq': 'hd2160',
+                'suggestedQuality': 'highres' 
+            },
             events: { 
                 'onReady': onPlayerReady, 
                 'onStateChange': onPlayerStateChange,
@@ -475,13 +576,13 @@
     }
     
     function onPlayerReady(event) { 
+        event.target.setPlaybackQuality('highres');
         resizeCanvas();
         if (restoreTime && restoreTime > 0) {
             player.seekTo(restoreTime);
         }
     }
     
-    // --- SMART CLEAR / FADE LOGIC ---
     function updateAutoClearLabel(val) {
         autoClearDuration = parseFloat(val);
         if(val == 0) autoClearDisplay.innerText = "Manual";
@@ -517,12 +618,11 @@
         }
         
         if (player && id) {
-            // Check if user is loading a NEW video or just reloading the current one
-            // If it's the same video, we don't want to wipe the annotations
             const currentVid = window.lastVideoId;
             const isNewVideo = (id !== currentVid);
 
             player.loadVideoById(id);
+            player.setPlaybackQuality('highres');
             
             if(!optionalId) { 
                 if (isNewVideo) {
@@ -531,7 +631,6 @@
                     window.lastVideoId = id;
                     clearCanvas();
                 }
-                // If it's the same video, we KEEP annotations and canvas
                 renderAnnotations();
                 performAutoSave();
             }
@@ -548,19 +647,6 @@
     
     function setSpeed(rate) { 
         if(player) player.setPlaybackRate(rate); 
-    }
-    
-    function adjustSpeed(delta) {
-        if(!player) return;
-        let rates = player.getAvailablePlaybackRates();
-        let current = player.getPlaybackRate();
-        let idx = rates.findIndex(r => r === current);
-        if(idx === -1) idx = rates.indexOf(1); 
-        
-        let newIdx = idx + delta;
-        if(newIdx >= 0 && newIdx < rates.length) {
-            setSpeed(rates[newIdx]);
-        }
     }
     
     function skipTime(seconds) {
@@ -584,25 +670,12 @@
         }
     }
     document.addEventListener('fullscreenchange', () => {
-        resizeCanvas();
+        setTimeout(resizeCanvas, 200); 
         if (document.fullscreenElement) setTimeout(() => stage.focus(), 100);
     });
     
     function toggleShortcuts() {
-        alert(
-            "KEYBOARD SHORTCUTS:\n\n" +
-            "Space / K: Play/Pause\n" +
-            "Left / Right Arrow: Frame Step\n" +
-            "J: Rewind 5s\n" +
-            "L: Forward 5s\n" +
-            "< / >: Frame Step\n" +
-            "+ / - : Adjust Speed\n" +
-            "C / Backspace: Clear Drawings\n" +
-            "Z: Undo\n" +
-            "F: Fullscreen\n" +
-            "M: Mute Toggle\n" +
-            "Home: Restart Video"
-        );
+        alert("Space/K: Play/Pause\nJ/L: -5s/+5s\nLeft/Right: Frame\nC: Clear");
     }
 
     // --- ANNOTATIONS SYSTEM ---
@@ -620,7 +693,7 @@
         annotations.push({
             id: Date.now(),
             time: player.getCurrentTime(),
-            image: canvas.toDataURL(),
+            image: canvas.toDataURL(), 
             name: name
         });
         annotations.sort((a, b) => a.time - b.time);
@@ -635,8 +708,10 @@
         player.pauseVideo();
         const img = new Image();
         img.onload = function() {
+            ctx.setTransform(1, 0, 0, 1, 0, 0); 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            ctx.scale(dpr, dpr);
             saveHistory();
             performAutoSave(); 
         };
@@ -707,6 +782,9 @@
     function toggleDrawMode() {
         isDrawingMode = !isDrawingMode;
         if (isDrawingMode) {
+            // Disable zoom if activating drawing
+            if(isZoomMode) toggleZoomMode();
+            
             canvas.style.pointerEvents = 'auto';
             shield.style.pointerEvents = 'none'; 
             drawBtn.classList.add('active');
@@ -743,7 +821,11 @@
     }
 
     function clearCanvas(skipSave) {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        
         drawHistory = [];
         historyStep = -1;
         if(!skipSave) {
@@ -755,7 +837,10 @@
     function undoLast() {
         if (historyStep > 0) {
             historyStep--;
+            ctx.save();
+            ctx.setTransform(1,0,0,1,0,0);
             ctx.putImageData(drawHistory[historyStep], 0, 0);
+            ctx.restore();
             performAutoSave(); 
         } else if (historyStep === 0) {
             clearCanvas();
@@ -774,9 +859,20 @@
 
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
+        // Since the canvas is scaled in CSS via Zoom, we need to normalize the coordinates
+        // The rect accounts for the zoom scale visually.
+        
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: clientX - rect.left, y: clientY - rect.top };
+        
+        // This calculates the position relative to the element (0,0 is top left of visual canvas)
+        let x = clientX - rect.left;
+        let y = clientY - rect.top;
+
+        // However, the internal coordinate system is fixed (unzoomed).
+        // If we zoom in 2x, the rect is 2x bigger, so x/y are 2x bigger.
+        // We must divide by the Zoom Scale to match internal coords.
+        return { x: x / scale, y: y / scale };
     }
 
     function startDraw(e) {
@@ -787,7 +883,9 @@
         startX = lastX = pos.x; 
         startY = lastY = pos.y;
         saveHistory(); 
+        
         snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
+        
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
     }
@@ -809,7 +907,11 @@
             ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(pos.x, pos.y); ctx.stroke();
             lastX = pos.x; lastY = pos.y;
         } else {
+            ctx.save();
+            ctx.setTransform(1,0,0,1,0,0);
             ctx.putImageData(snapshot, 0, 0);
+            ctx.restore(); 
+            
             ctx.beginPath();
             if (currentShape === 'arrow') drawArrow(ctx, startX, startY, pos.x, pos.y, size);
             else if (currentShape === 'circle') drawCircle(ctx, startX, startY, pos.x, pos.y);
@@ -821,7 +923,7 @@
         if (!isDrawing) return;
         isDrawing = false;
         ctx.closePath();
-        performAutoSave(); // Save immediately
+        performAutoSave(); 
     }
 
     // Geometry Helpers
@@ -841,7 +943,7 @@
     
     function saveDrawing() {
         const link = document.createElement('a');
-        link.download = 'tiu-analysis.png';
+        link.download = 'tiu-analysis-highres.png';
         link.href = canvas.toDataURL();
         link.click();
     }
@@ -856,45 +958,20 @@
     
     // KEYBOARD SHORTCUTS
     document.addEventListener('keydown', (e) => {
-        if(e.target.tagName === 'INPUT') return; // Ignore if typing in text box
-        
-        // Prevent default scrolling for common keys
+        if(e.target.tagName === 'INPUT') return; 
         if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
         
         const key = e.key.toLowerCase();
-
-        // Standard
         if (key === ' ' || key === 'k') togglePlay();
         if (key === 'f') toggleFullscreen();
-        if (key === 'c') clearCanvas();
+        if (key === 'c' || key === 'backspace') clearCanvas();
         if (key === 'z' && (e.ctrlKey || e.metaKey)) undoLast();
-        if (key === 'm') { if(player.isMuted()) player.unMute(); else player.mute(); }
-        if (key === 'backspace' || key === 'delete') clearCanvas();
-
-        // Navigation
         if (key === 'arrowleft') frameStep(-1);
         if (key === 'arrowright') frameStep(1);
-        if (key === ',' || key === '<') frameStep(-1);
-        if (key === '.' || key === '>') frameStep(1);
-        if (key === 'home') player.seekTo(0);
-        
-        // Skip
         if (key === 'j') skipTime(-5);
         if (key === 'l') skipTime(5);
-        
-        // Speed
-        if (key === '+' || key === '=') adjustSpeed(1);
-        if (key === '-' || key === '_') adjustSpeed(-1);
-        
-        // Seek % (0-9)
-        if (key >= '0' && key <= '9') {
-            const duration = player.getDuration();
-            const fraction = parseInt(key) / 10;
-            player.seekTo(duration * fraction);
-        }
     });
 
-    // Initialize Cast Context
     window['__onGCastApiAvailable'] = function(isAvailable) {
         if (isAvailable) {
             cast.framework.CastContext.getInstance().setOptions({
