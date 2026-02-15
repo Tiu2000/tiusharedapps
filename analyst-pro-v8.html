@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TIU Analyst Suite PRO - v8.6 (Zoom & Pan)</title>
+    <title>TIU Analyst Suite PRO - v8.8 (HUD)</title>
     <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <style>
         :root {
@@ -13,6 +13,8 @@
             --panel-bg: #2d2d2d;
             --btn-bg: #444;
             --danger-color: #d32f2f;
+            --loop-color: #ff5252;
+            --hud-bg: rgba(0, 0, 0, 0.75);
         }
 
         body {
@@ -61,7 +63,7 @@
             justify-content: center;
             background: #000;
             padding: 10px 0;
-            overflow: hidden; /* Important for zoom cropping */
+            overflow: hidden; 
         }
 
         #stage-container {
@@ -74,22 +76,20 @@
             overflow: hidden;
             border: 2px solid #444;
             outline: none; 
-            transform-origin: 0 0; /* Default pivot */
-            /* Transition for smooth zoom reset, but we handle pan manually for speed */
+            transform-origin: 0 0; 
             transition: transform 0.1s ease-out; 
         }
 
-        /* The "Zoom Container" wraps content that scales */
         .zoom-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             transform-origin: 0 0;
-            pointer-events: none; /* Let clicks pass unless handling pan */
+            pointer-events: none; 
         }
 
         #player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto;}
 
         #focus-catcher {
-            position: absolute; top: 0; left: 0; width: 100%; height: 85%;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; /* Cover full height for HUD interaction */
             z-index: 5; cursor: pointer; background: rgba(0,0,0,0);
         }
 
@@ -110,6 +110,47 @@
             z-index: 6; pointer-events: none; user-select: none;
             font-family: 'Arial Black', sans-serif;
         }
+        
+        #loop-indicator {
+            position: absolute; top: 10px; right: 10px;
+            background: var(--loop-color); color: white;
+            padding: 5px 10px; border-radius: 4px; font-weight: bold;
+            font-size: 0.8rem; z-index: 20; display: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+
+        /* --- HUD (HEADS UP DISPLAY) --- */
+        #hud-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--hud-bg);
+            backdrop-filter: blur(5px);
+            padding: 8px 15px;
+            border-radius: 30px;
+            display: flex;
+            gap: 10px;
+            z-index: 100; /* Above everything */
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: opacity 0.3s;
+            opacity: 0.6; /* Semi-transparent default */
+        }
+        #hud-panel:hover { opacity: 1.0; }
+
+        .hud-btn {
+            background: transparent; border: 1px solid rgba(255,255,255,0.3);
+            color: white; width: 36px; height: 36px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 0.8rem; padding: 0;
+            transition: all 0.2s;
+        }
+        .hud-btn:hover { background: rgba(255,255,255,0.2); border-color: white; transform: scale(1.1); }
+        .hud-btn.active { background: var(--accent-color); color: black; border-color: var(--accent-color); }
+        .hud-btn.loop-active { background: var(--loop-color); border-color: #ff8a80; }
+        .hud-sep { width: 1px; background: rgba(255,255,255,0.2); margin: 0 5px; }
+
 
         /* --- CONTROLS PANEL --- */
         .controls-panel {
@@ -128,7 +169,7 @@
 
         .group-label { font-size: 0.75rem; text-transform: uppercase; color: #888; font-weight: bold; margin-bottom: 5px; }
 
-        button {
+        button.std-btn, .link-btn {
             background-color: var(--btn-bg); color: white;
             border: 1px solid #555; padding: 8px 12px;
             border-radius: 4px; cursor: pointer;
@@ -136,13 +177,14 @@
             transition: all 0.2s;
             display: flex; align-items: center; justify-content: center; gap: 5px;
         }
-        button:hover { background-color: #555; }
-        button:active { transform: translateY(1px); }
+        button.std-btn:hover { background-color: #555; }
+        button.std-btn:active { transform: translateY(1px); }
         
-        button.active { background-color: var(--accent-color); color: black; border-color: var(--accent-color); }
-        button.danger { background-color: var(--danger-color); border-color: #b71c1c;}
-        button.secondary { background-color: transparent; border: 1px solid #666; }
-        button.action { background-color: #2e7d32; border-color: #1b5e20; }
+        button.std-btn.active { background-color: var(--accent-color); color: black; border-color: var(--accent-color); }
+        button.std-btn.loop-active { background-color: var(--loop-color); border-color: #b71c1c; }
+        button.std-btn.danger { background-color: var(--danger-color); border-color: #b71c1c;}
+        button.std-btn.secondary { background-color: transparent; border: 1px solid #666; }
+        button.std-btn.action { background-color: #2e7d32; border-color: #1b5e20; }
 
         input[type="text"] {
             padding: 8px; border-radius: 4px; border: 1px solid #555;
@@ -200,10 +242,10 @@
     <google-cast-launcher></google-cast-launcher>
     
     <div id="mode-indicator" class="mode-viewing">VIEWING</div>
-    <button onclick="toggleFullscreen()" class="secondary" style="margin-left:auto; font-size: 0.8rem;">
+    <button onclick="toggleFullscreen()" class="std-btn secondary" style="margin-left:auto; font-size: 0.8rem;">
         Fullscreen (F)
     </button>
-    <button onclick="toggleShortcuts()" class="secondary" style="font-size: 0.8rem;">?</button>
+    <button onclick="toggleShortcuts()" class="std-btn secondary" style="font-size: 0.8rem;">?</button>
 </header>
 
 <div id="stage-wrapper">
@@ -214,6 +256,19 @@
             <canvas id="drawing-canvas"></canvas>
             <div class="watermark">TIU</div>
         </div>
+        
+        <div id="hud-panel">
+            <button class="hud-btn" id="hud-a" onclick="setLoopA()" title="Set Loop A">[A]</button>
+            <button class="hud-btn" id="hud-b" onclick="setLoopB()" title="Set Loop B">[B]</button>
+            <button class="hud-btn" id="hud-clear" onclick="clearLoop()" title="Clear Loop">&#10005;</button>
+            
+            <div class="hud-sep"></div>
+            
+            <button class="hud-btn" id="hud-draw" onclick="toggleDrawMode()" title="Toggle Pen">&#x270E;</button>
+            <button class="hud-btn" style="color: #ef5350;" onclick="clearCanvas()" title="Clear Drawings">&#x232B;</button>
+        </div>
+
+        <div id="loop-indicator">LOOP ACTIVE &#10227;</div>
     </div>
 </div>
 
@@ -224,34 +279,32 @@
         
         <div class="tools-row">
             <input type="text" id="yt-input" placeholder="YouTube Link...">
-            <button onclick="loadVideo()">Load</button>
+            <button class="std-btn" onclick="loadVideo()">Load</button>
         </div>
 
         <div class="tools-row" style="justify-content: space-between;">
-             <button onclick="skipTime(-5)" title="Key: J" style="flex:1;">&#9194; -5s</button>
-             <button onclick="skipTime(5)" title="Key: L" style="flex:1;">+5s &#9193;</button>
+             <button class="std-btn" onclick="skipTime(-5)" title="Key: J" style="flex:1;">&#9194; -5s</button>
+             <button class="std-btn" onclick="skipTime(5)" title="Key: L" style="flex:1;">+5s &#9193;</button>
         </div>
 
         <div class="tools-row" style="justify-content: space-between;">
-            <button onclick="frameStep(-1)" title="Key: < or ArrowLeft">&#9664; Frame</button>
-            <button onclick="togglePlay()" style="flex-grow: 2;">Play / Pause</button>
-            <button onclick="frameStep(1)" title="Key: > or ArrowRight">Frame &#9654;</button>
+            <button class="std-btn" onclick="frameStep(-1)" title="Key: < or ArrowLeft">&#9664; Frame</button>
+            <button class="std-btn" onclick="togglePlay()" style="flex-grow: 2;">Play / Pause</button>
+            <button class="std-btn" onclick="frameStep(1)" title="Key: > or ArrowRight">Frame &#9654;</button>
         </div>
 
-        <div class="tools-row">
+        <div class="tools-row" style="border-top: 1px solid #444; padding-top: 8px; margin-top: 8px;">
+            <span style="font-size: 0.8rem; color:#aaa; margin-right: 5px;">A-B Loop:</span>
+            <button class="std-btn" onclick="setLoopA()" id="btn-loop-a" style="font-size: 0.75rem;" title="Key: [">Set A</button>
+            <button class="std-btn" onclick="setLoopB()" id="btn-loop-b" style="font-size: 0.75rem;" title="Key: ]">Set B</button>
+            <button class="std-btn" onclick="clearLoop()" id="btn-loop-clear" class="secondary" style="font-size: 0.75rem;" title="Key: \">Clear</button>
+        </div>
+
+        <div class="tools-row" style="margin-top: 5px;">
             <span style="font-size:0.8rem; color:#aaa;">Speed:</span>
-            <button onclick="setSpeed(0.25)" class="secondary">0.25x</button>
-            <button onclick="setSpeed(0.5)" class="secondary">0.5x</button>
-            <button onclick="setSpeed(1.0)" class="secondary">1.0x</button>
-        </div>
-        
-        <div style="margin-top:auto; background: #222; padding: 10px; border-radius: 5px; border: 1px solid #333;">
-             <div class="group-label">Annotation Persistence</div>
-             <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem;">
-                 <label for="auto-clear-range">Auto-Clear Delay:</label>
-                 <span id="auto-clear-display" style="color: var(--accent-color);">Manual</span>
-             </div>
-             <input type="range" id="auto-clear-range" min="0" max="5" step="0.5" value="0" style="width: 100%; margin-top: 5px;" oninput="updateAutoClearLabel(this.value)">
+            <button class="std-btn" onclick="setSpeed(0.25)" class="secondary">0.25x</button>
+            <button class="std-btn" onclick="setSpeed(0.5)" class="secondary">0.5x</button>
+            <button class="std-btn" onclick="setSpeed(1.0)" class="secondary">1.0x</button>
         </div>
     </div>
 
@@ -259,23 +312,23 @@
         <div class="group-label">Telestrator Tools</div>
         
         <div class="tools-row">
-            <button id="draw-mode-btn" onclick="toggleDrawMode()" style="flex-grow:2;">Enable Drawing</button>
-            <button id="zoom-mode-btn" onclick="toggleZoomMode()" style="flex-grow:1;" title="Enable Zoom/Pan (Scroll to zoom, Drag to pan)">&#128269; Zoom</button>
+            <button class="std-btn" id="draw-mode-btn" onclick="toggleDrawMode()" style="flex-grow:2;">Enable Drawing</button>
+            <button class="std-btn" id="zoom-mode-btn" onclick="toggleZoomMode()" style="flex-grow:1;" title="Enable Zoom/Pan">&#128269; Zoom</button>
         </div>
         <div class="tools-row">
-             <button onclick="undoLast()"><span class="icon">&#8630;</span> Undo</button>
-             <button class="danger" onclick="clearCanvas()" title="Key: C or Backspace"><span class="icon">&#10005;</span> Clear</button>
+             <button class="std-btn" onclick="undoLast()"><span class="icon">&#8630;</span> Undo</button>
+             <button class="std-btn danger" onclick="clearCanvas()" title="Key: C or Backspace"><span class="icon">&#10005;</span> Clear</button>
         </div>
 
         <div class="tools-row" style="background:#222; padding:5px; border-radius:4px; justify-content: space-between;">
             <div style="display:flex; gap:5px;">
-                <button class="tool-btn active" id="tool-pen" onclick="setTool('pen')">Pen</button>
-                <button class="tool-btn" id="tool-highlighter" onclick="setTool('highlighter')">Highlighter</button>
+                <button class="std-btn tool-btn active" id="tool-pen" onclick="setTool('pen')">Pen</button>
+                <button class="std-btn tool-btn" id="tool-highlighter" onclick="setTool('highlighter')">Highlighter</button>
             </div>
             <div style="display:flex; gap:5px;">
-                <button class="shape-btn active" id="shape-free" onclick="setShape('free')">&#x2710;</button>
-                <button class="shape-btn" id="shape-arrow" onclick="setShape('arrow')">&#8594;</button>
-                <button class="shape-btn" id="shape-circle" onclick="setShape('circle')">&#9711;</button>
+                <button class="std-btn shape-btn active" id="shape-free" onclick="setShape('free')">&#x2710;</button>
+                <button class="std-btn shape-btn" id="shape-arrow" onclick="setShape('arrow')">&#8594;</button>
+                <button class="std-btn shape-btn" id="shape-circle" onclick="setShape('circle')">&#9711;</button>
             </div>
         </div>
 
@@ -292,14 +345,14 @@
             </div>
         </div>
         
-        <button onclick="saveDrawing()" class="secondary" style="margin-top: 10px; width: 100%;">
+        <button class="std-btn secondary" onclick="saveDrawing()" style="margin-top: 10px; width: 100%;">
             <span class="icon">&#128190;</span> Download Screenshot (High-Res)
         </button>
     </div>
 
     <div class="control-group">
         <div class="group-label">Saved Plays & System</div>
-        <button onclick="saveSnapshot()" style="background-color: #2196f3; border-color: #1976d2; margin-bottom: 10px;">
+        <button class="std-btn" onclick="saveSnapshot()" style="background-color: #2196f3; border-color: #1976d2; margin-bottom: 10px;">
             <span class="icon">&#43;</span> Save Current Frame
         </button>
         
@@ -309,17 +362,24 @@
 
         <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #444;">
              <div class="tools-row">
-                 <button onclick="exportPlaybook()" class="action" style="flex:1;">Export</button>
-                 <button onclick="document.getElementById('import-file').click()" class="action" style="flex:1;">Import</button>
+                 <button class="std-btn action" onclick="exportPlaybook()" style="flex:1;">Export</button>
+                 <button class="std-btn action" onclick="document.getElementById('import-file').click()" style="flex:1;">Import</button>
                  <input type="file" id="import-file" accept=".json" style="display:none" onchange="importPlaybook(this)">
              </div>
              
              <div class="tools-row" style="margin-top: 10px;">
-                <button onclick="hardReset()" class="danger" style="width:100%; font-size: 0.7rem;">
+                <button class="std-btn danger" onclick="hardReset()" style="width:100%; font-size: 0.7rem;">
                     &#9888; FACTORY RESET APP
                 </button>
              </div>
-             <div id="save-status">Loading session...</div>
+             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                 <span id="save-status">Loading session...</span>
+                 <div style="font-size: 0.7rem; color: #666;">
+                    Auto-Clear: 
+                    <input type="range" id="auto-clear-range" min="0" max="5" step="0.5" value="0" style="width: 50px; vertical-align: middle;" oninput="updateAutoClearLabel(this.value)">
+                    <span id="auto-clear-display">Manual</span>
+                 </div>
+             </div>
         </div>
     </div>
 </div>
@@ -330,7 +390,7 @@
     let isDrawingMode = false;
     let isZoomMode = false;
     let isDrawing = false;
-    let isPanning = false; // Zoom pan state
+    let isPanning = false;
     
     // Zoom/Pan Vars
     let scale = 1;
@@ -338,6 +398,12 @@
     let panY = 0;
     let startPanX = 0;
     let startPanY = 0;
+
+    // Loop Vars
+    let loopStart = null;
+    let loopEnd = null;
+    let isLooping = false;
+    let loopCheckInterval = null;
 
     let annotations = []; 
     let currentTool = 'pen'; 
@@ -364,63 +430,124 @@
     const shield = document.getElementById('focus-catcher'); 
     const saveStatusEl = document.getElementById('save-status');
     const autoClearDisplay = document.getElementById('auto-clear-display');
+    const loopIndicator = document.getElementById('loop-indicator');
+    
+    // Control Buttons (Main Panel)
+    const btnLoopA = document.getElementById('btn-loop-a');
+    const btnLoopB = document.getElementById('btn-loop-b');
+    
+    // HUD Buttons
+    const hudA = document.getElementById('hud-a');
+    const hudB = document.getElementById('hud-b');
+    const hudDraw = document.getElementById('hud-draw');
+    
+    // STOP EVENTS ON HUD
+    document.getElementById('hud-panel').addEventListener('mousedown', (e) => e.stopPropagation());
+    document.getElementById('hud-panel').addEventListener('touchstart', (e) => e.stopPropagation());
+
+    // --- LOOP LOGIC ---
+    function setLoopA() {
+        if(!player) return;
+        loopStart = player.getCurrentTime();
+        loopEnd = null; // Reset end
+        isLooping = false;
+        loopIndicator.style.display = 'none';
+        
+        // Update both Main Panel and HUD
+        btnLoopA.classList.add('loop-active');
+        btnLoopB.classList.remove('loop-active');
+        hudA.classList.add('loop-active');
+        hudB.classList.remove('loop-active');
+        
+        stopLoopCheck();
+    }
+
+    function setLoopB() {
+        if(!player || loopStart === null) return;
+        loopEnd = player.getCurrentTime();
+        if(loopEnd <= loopStart) {
+            alert("End time must be after Start time.");
+            return;
+        }
+        isLooping = true;
+        
+        btnLoopB.classList.add('loop-active');
+        hudB.classList.add('loop-active');
+        
+        loopIndicator.style.display = 'block';
+        player.seekTo(loopStart, true);
+        player.playVideo();
+        startLoopCheck();
+    }
+
+    function clearLoop() {
+        loopStart = null;
+        loopEnd = null;
+        isLooping = false;
+        loopIndicator.style.display = 'none';
+        
+        btnLoopA.classList.remove('loop-active');
+        btnLoopB.classList.remove('loop-active');
+        hudA.classList.remove('loop-active');
+        hudB.classList.remove('loop-active');
+        
+        stopLoopCheck();
+    }
+
+    function startLoopCheck() {
+        stopLoopCheck();
+        loopCheckInterval = setInterval(() => {
+            if(!player || !isLooping || loopEnd === null) return;
+            if(player.getCurrentTime() >= loopEnd) {
+                player.seekTo(loopStart, true);
+            }
+        }, 100); // Check every 100ms
+    }
+
+    function stopLoopCheck() {
+        if(loopCheckInterval) clearInterval(loopCheckInterval);
+    }
 
     // --- ZOOM LOGIC ---
     function updateTransform() {
-        // Clamping logic to keep view somewhat bounded
-        // Limit Zoom
         if (scale < 1) scale = 1;
         if (scale > 5) scale = 5;
-
-        // Apply to CSS Layer
         zoomLayer.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
     }
 
     function toggleZoomMode() {
         isZoomMode = !isZoomMode;
         if(isZoomMode) {
-            // Disable drawing mode if active to avoid conflict
             if(isDrawingMode) toggleDrawMode(); 
-            
             zoomBtn.classList.add('active');
             stage.style.cursor = 'grab';
             modeIndicator.innerText = "ZOOM / PAN";
             modeIndicator.className = "mode-zooming";
-            
-            // Allow pointer events on stage for panning
             shield.style.pointerEvents = 'auto'; 
             canvas.style.pointerEvents = 'none';
         } else {
             zoomBtn.classList.remove('active');
             stage.style.cursor = 'default';
-            // Reset to Viewing or Drawing state
             if (isDrawingMode) {
-                toggleDrawMode(); // Re-enable drawing visuals
+                toggleDrawMode(); 
             } else {
                 modeIndicator.innerText = "VIEWING";
                 modeIndicator.className = "mode-viewing";
             }
-            
-            // Reset View
             scale = 1; panX = 0; panY = 0;
             updateTransform();
         }
     }
 
-    // Scroll Wheel Zoom
     stage.addEventListener('wheel', (e) => {
         if (!isZoomMode) return;
         e.preventDefault();
         const delta = e.deltaY * -0.001;
         const newScale = Math.min(Math.max(1, scale + delta), 5);
-        
-        // Simple zoom-towards-center logic
-        // (Improving this to zoom-to-mouse would require more complex offset calcs)
         scale = newScale;
         updateTransform();
     });
 
-    // Panning Logic
     stage.addEventListener('mousedown', (e) => {
         if (!isZoomMode) return;
         isPanning = true;
@@ -444,21 +571,16 @@
         }
     });
 
-
     // --- INITIALIZATION ---
     function resizeCanvas() {
         let savedData = null;
         if (canvas.width > 0 && canvas.height > 0) {
             savedData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         }
-
         dpr = Math.max(window.devicePixelRatio || 1, 2); 
-
         canvas.width = stage.clientWidth * dpr;
         canvas.height = stage.clientHeight * dpr;
-
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-
         if (savedData) {
             ctx.putImageData(savedData, 0, 0);
         } else if (localStorage.getItem('tiu_active_canvas')) {
@@ -470,7 +592,6 @@
             };
             img.src = localStorage.getItem('tiu_active_canvas');
         }
-
         ctx.scale(dpr, dpr);
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
@@ -500,7 +621,6 @@
                     }
                     if(ts.size) document.getElementById('pen-size').value = ts.size;
                 }
-
                 renderAnnotations();
                 saveStatusEl.innerText = "Session Restored.";
                 if(data.videoId) document.getElementById('yt-input').value = "https://youtu.be/" + data.videoId;
@@ -512,16 +632,13 @@
     // --- PERSISTENCE: SAVE ---
     function performAutoSave() {
         if (!isSessionLoaded) return; 
-
         const videoData = player && player.getVideoData ? player.getVideoData() : null;
-        
         const toolState = {
             tool: currentTool,
             shape: currentShape,
             color: currentColor,
             size: document.getElementById('pen-size').value
         };
-
         const data = {
             videoId: videoData ? videoData.video_id : window.lastVideoId,
             plays: annotations,
@@ -530,10 +647,7 @@
             timestamp: Date.now()
         };
         localStorage.setItem('tiu_analyst_data', JSON.stringify(data));
-        
-        // Save Active Canvas (High Res Data URL)
         localStorage.setItem('tiu_active_canvas', canvas.toDataURL());
-        
         saveStatusEl.innerText = "Saved " + new Date().toLocaleTimeString();
     }
     
@@ -561,11 +675,8 @@
         player = new YT.Player('player', {
             height: '100%', width: '100%', videoId: vidToLoad, 
             playerVars: { 
-                'playsinline': 1, 
-                'rel': 0, 
-                'controls': 1,
-                'vq': 'hd2160',
-                'suggestedQuality': 'highres' 
+                'playsinline': 1, 'rel': 0, 'controls': 1,
+                'vq': 'hd2160', 'suggestedQuality': 'highres' 
             },
             events: { 
                 'onReady': onPlayerReady, 
@@ -601,10 +712,12 @@
                     }, 500); 
                 }, autoClearDuration * 1000);
             }
+            if(isLooping) startLoopCheck();
         } else {
             if(clearTimer) clearTimeout(clearTimer);
             canvas.classList.remove('canvas-fade-out');
             performAutoSave();
+            stopLoopCheck();
         }
     }
 
@@ -616,20 +729,16 @@
             const match = input.match(regExp);
             id = (match && match[2].length === 11) ? match[2] : null;
         }
-        
         if (player && id) {
             const currentVid = window.lastVideoId;
             const isNewVideo = (id !== currentVid);
-
             player.loadVideoById(id);
             player.setPlaybackQuality('highres');
-            
             if(!optionalId) { 
                 if (isNewVideo) {
-                    annotations = []; 
-                    restoreTime = 0; 
-                    window.lastVideoId = id;
+                    annotations = []; restoreTime = 0; window.lastVideoId = id;
                     clearCanvas();
+                    clearLoop(); // Clear loops on new video
                 }
                 renderAnnotations();
                 performAutoSave();
@@ -675,7 +784,7 @@
     });
     
     function toggleShortcuts() {
-        alert("Space/K: Play/Pause\nJ/L: -5s/+5s\nLeft/Right: Frame\nC: Clear");
+        alert("Space/K: Play/Pause\nJ/L: -5s/+5s\nLeft/Right: Frame\nC: Clear Drawing\n[: Set Loop A\n]: Set Loop B\n\\: Clear Loop");
     }
 
     // --- ANNOTATIONS SYSTEM ---
@@ -689,7 +798,6 @@
         if (!player) return;
         const name = prompt("Name this play:", "Play " + (annotations.length + 1));
         if (name === null) return; 
-
         annotations.push({
             id: Date.now(),
             time: player.getCurrentTime(),
@@ -743,7 +851,7 @@
                     <span class="annotation-time">${formatTime(note.time)}</span>
                     <span class="annotation-name">${note.name}</span>
                 </div>
-                <button class="delete-btn" onclick="deleteAnnotation(${note.id}, event)" style="background:none;border:none;color:#888;">&#10005;</button>
+                <button class="std-btn" onclick="deleteAnnotation(${note.id}, event)" style="background:none;border:none;color:#888;">&#10005;</button>
             `;
             list.appendChild(li);
         });
@@ -782,12 +890,11 @@
     function toggleDrawMode() {
         isDrawingMode = !isDrawingMode;
         if (isDrawingMode) {
-            // Disable zoom if activating drawing
             if(isZoomMode) toggleZoomMode();
-            
             canvas.style.pointerEvents = 'auto';
             shield.style.pointerEvents = 'none'; 
             drawBtn.classList.add('active');
+            hudDraw.classList.add('active'); // Update HUD
             drawBtn.innerText = "Disable Drawing";
             modeIndicator.className = "mode-drawing";
             modeIndicator.innerText = "DRAWING";
@@ -795,6 +902,7 @@
             canvas.style.pointerEvents = 'none'; 
             shield.style.pointerEvents = 'auto';
             drawBtn.classList.remove('active');
+            hudDraw.classList.remove('active'); // Update HUD
             drawBtn.innerText = "Enable Drawing";
             modeIndicator.className = "mode-viewing";
             modeIndicator.innerText = "VIEWING";
@@ -825,7 +933,6 @@
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.restore();
-        
         drawHistory = [];
         historyStep = -1;
         if(!skipSave) {
@@ -854,24 +961,14 @@
         if(drawHistory.length > 20) { drawHistory.shift(); historyStep--; }
     }
 
-    // Draw Logic
     let startX, startY, lastX, lastY, snapshot;
 
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
-        // Since the canvas is scaled in CSS via Zoom, we need to normalize the coordinates
-        // The rect accounts for the zoom scale visually.
-        
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        
-        // This calculates the position relative to the element (0,0 is top left of visual canvas)
         let x = clientX - rect.left;
         let y = clientY - rect.top;
-
-        // However, the internal coordinate system is fixed (unzoomed).
-        // If we zoom in 2x, the rect is 2x bigger, so x/y are 2x bigger.
-        // We must divide by the Zoom Scale to match internal coords.
         return { x: x / scale, y: y / scale };
     }
 
@@ -883,9 +980,7 @@
         startX = lastX = pos.x; 
         startY = lastY = pos.y;
         saveHistory(); 
-        
         snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
-        
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
     }
@@ -895,7 +990,6 @@
         if(e.type === 'touchmove') e.preventDefault();
         const pos = getPos(e);
         const size = document.getElementById('pen-size').value;
-        
         ctx.strokeStyle = currentColor;
         if(currentTool === 'highlighter') {
             ctx.globalAlpha = 0.3; ctx.lineWidth = size * 4; ctx.lineCap = 'butt';  
@@ -911,7 +1005,6 @@
             ctx.setTransform(1,0,0,1,0,0);
             ctx.putImageData(snapshot, 0, 0);
             ctx.restore(); 
-            
             ctx.beginPath();
             if (currentShape === 'arrow') drawArrow(ctx, startX, startY, pos.x, pos.y, size);
             else if (currentShape === 'circle') drawCircle(ctx, startX, startY, pos.x, pos.y);
@@ -926,7 +1019,6 @@
         performAutoSave(); 
     }
 
-    // Geometry Helpers
     function drawArrow(ctx, x1, y1, x2, y2, w) {
         const aw = currentTool === 'highlighter' ? w * 4 : w;
         const head = aw * 3; 
@@ -956,7 +1048,6 @@
     canvas.addEventListener('touchmove', moveDraw, {passive: false});
     canvas.addEventListener('touchend', endDraw);
     
-    // KEYBOARD SHORTCUTS
     document.addEventListener('keydown', (e) => {
         if(e.target.tagName === 'INPUT') return; 
         if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
@@ -970,6 +1061,9 @@
         if (key === 'arrowright') frameStep(1);
         if (key === 'j') skipTime(-5);
         if (key === 'l') skipTime(5);
+        if (key === '[') setLoopA();
+        if (key === ']') setLoopB();
+        if (key === '\\') clearLoop();
     });
 
     window['__onGCastApiAvailable'] = function(isAvailable) {
