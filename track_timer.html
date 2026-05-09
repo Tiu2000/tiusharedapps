@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track & Field Sprint Timer - Persistent Memory</title>
+<style>
+  body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+    text-align: center; 
+    background-color: #f4f4f9; 
+    padding: 20px; 
+  }
+  .stopwatch { 
+    background: white; 
+    padding: 30px; 
+    border-radius: 15px; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+    max-width: 450px; 
+    margin: 0 auto; 
+  }
+  .display { 
+    font-size: 4rem; 
+    font-variant-numeric: tabular-nums; 
+    font-weight: bold; 
+    margin-bottom: 20px; 
+    color: #222; 
+  }
+  .main-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .main-controls button { 
+    font-size: 1.2rem; 
+    padding: 15px 20px; 
+    border: none; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    color: white; 
+    font-weight: bold;
+    flex: 1;
+    touch-action: manipulation;
+  }
+  .start { background-color: #28a745; }
+  .stop { background-color: #dc3545; }
+  .reset { background-color: #6c757d; }
+  
+  .instruction-area {
+    margin-bottom: 15px;
+  }
+  .edit-toggle {
+    background-color: #ffc107;
+    color: #222;
+    font-size: 1rem;
+    font-weight: bold;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  .edit-toggle.active {
+    background-color: #fd7e14;
+    color: white;
+  }
+
+  .jersey-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  
+  .jersey-grid button {
+    background-color: #007bff;
+    color: white;
+    font-size: 1.3rem;
+    font-weight: bold;
+    padding: 15px 0;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: all 0.1s;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .jersey-grid button:active {
+    transform: scale(0.95);
+  }
+
+  .jersey-grid.editing button {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 2px dashed #ffe8a1;
+  }
+
+  .laps-container {
+    margin-top: 20px;
+    border-top: 2px solid #eee;
+    padding-top: 15px;
+  }
+  .laps { 
+    text-align: left; 
+    max-height: 250px; 
+    overflow-y: auto; 
+    list-style-type: none; 
+    padding: 0; 
+    margin: 0;
+  }
+  .laps li { 
+    padding: 12px 10px; 
+    border-bottom: 1px solid #eee; 
+    font-size: 1.2rem; 
+    display: flex; 
+    justify-content: space-between; 
+    color: #444;
+  }
+  .laps li span:first-child {
+    font-weight: bold;
+    color: #007bff;
+  }
+  .laps li span:last-child {
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+
+<div class="stopwatch">
+  <div class="display" id="display">00:00.00</div>
+  
+  <div class="main-controls">
+    <button class="start" onclick="start()">Start</button>
+    <button class="stop" onclick="stop()">Stop</button>
+    <button class="reset" onclick="reset()">Reset</button>
+  </div>
+  
+  <div class="instruction-area">
+    <button class="edit-toggle" id="editToggleBtn" onclick="toggleEditMode()">✏️ Enable Editing Numbers</button>
+  </div>
+  
+  <div class="jersey-grid" id="jerseyGrid">
+    <button onclick="handleJerseyClick(this)">1</button>
+    <button onclick="handleJerseyClick(this)">2</button>
+    <button onclick="handleJerseyClick(this)">3</button>
+    <button onclick="handleJerseyClick(this)">4</button>
+    <button onclick="handleJerseyClick(this)">5</button>
+    <button onclick="handleJerseyClick(this)">6</button>
+    <button onclick="handleJerseyClick(this)">7</button>
+    <button onclick="handleJerseyClick(this)">8</button>
+    <button onclick="handleJerseyClick(this)">9</button>
+    <button onclick="handleJerseyClick(this)">10</button>
+    <button onclick="handleJerseyClick(this)">11</button>
+    <button onclick="handleJerseyClick(this)">12</button>
+  </div>
+  
+  <div class="laps-container">
+    <ul class="laps" id="laps"></ul>
+  </div>
+</div>
+
+<script>
+  let startTime, updatedTime, difference = 0, tInterval;
+  let running = false;
+  let isEditing = false;
+
+  const display = document.getElementById('display');
+  const lapsContainer = document.getElementById('laps');
+  const editToggleBtn = document.getElementById('editToggleBtn');
+  const jerseyGrid = document.getElementById('jerseyGrid');
+
+  // Load state when the page opens
+  window.onload = loadState;
+
+  function saveState() {
+    const jerseys = Array.from(jerseyGrid.children).map(btn => btn.innerText);
+    const state = {
+      startTime: startTime,
+      difference: difference,
+      running: running,
+      lapsHTML: lapsContainer.innerHTML,
+      jerseys: jerseys
+    };
+    localStorage.setItem('trackTimerState', JSON.stringify(state));
+  }
+
+  function loadState() {
+    const saved = localStorage.getItem('trackTimerState');
+    if (saved) {
+      const state = JSON.parse(saved);
+      
+      // Restore Jerseys
+      if (state.jerseys) {
+        Array.from(jerseyGrid.children).forEach((btn, idx) => {
+          btn.innerText = state.jerseys[idx];
+        });
+      }
+
+      // Restore Laps
+      if (state.lapsHTML) {
+        lapsContainer.innerHTML = state.lapsHTML;
+      }
+
+      // Restore Timer State
+      running = state.running;
+      difference = state.difference || 0;
+      startTime = state.startTime;
+
+      if (running) {
+        // Resume interval seamlessly 
+        tInterval = setInterval(getShowTime, 10);
+      } else if (difference > 0) {
+        // Show paused time
+        formatAndDisplayTime(difference);
+      }
+    }
+  }
+
+  function start() {
+    if (!running) {
+      startTime = new Date().getTime() - difference;
+      tInterval = setInterval(getShowTime, 10);
+      running = true;
+      if (isEditing) toggleEditMode(); 
+      saveState();
+    }
+  }
+
+  function stop() {
+    if (running) {
+      clearInterval(tInterval);
+      running = false;
+      saveState();
+    }
+  }
+
+  function reset() {
+    if (confirm("Are you sure you want to clear the timer and all laps?")) {
+      clearInterval(tInterval);
+      running = false;
+      difference = 0;
+      display.innerHTML = "00:00.00";
+      lapsContainer.innerHTML = "";
+      saveState();
+    }
+  }
+
+  function toggleEditMode() {
+    isEditing = !isEditing;
+    if (isEditing) {
+      editToggleBtn.classList.add('active');
+      editToggleBtn.innerHTML = "✅ Done Editing (Click a button to change it)";
+      jerseyGrid.classList.add('editing');
+    } else {
+      editToggleBtn.classList.remove('active');
+      editToggleBtn.innerHTML = "✏️ Enable Editing Numbers";
+      jerseyGrid.classList.remove('editing');
+    }
+  }
+
+  function handleJerseyClick(buttonElement) {
+    if (isEditing) {
+      let currentVal = buttonElement.innerText;
+      let newVal = prompt("Enter new jersey number or name:", currentVal);
+      
+      if (newVal !== null && newVal.trim() !== "") {
+        buttonElement.innerText = newVal.trim();
+        saveState();
+      }
+    } else {
+      if (running) {
+        const li = document.createElement('li');
+        li.innerHTML = `<span>#${buttonElement.innerText}</span> <span>${display.innerHTML}</span>`;
+        lapsContainer.prepend(li);
+        saveState();
+      }
+    }
+  }
+
+  function getShowTime() {
+    updatedTime = new Date().getTime();
+    difference = updatedTime - startTime;
+    formatAndDisplayTime(difference);
+    // Note: We don't saveState() here because running it every 10 milliseconds would lag the phone.
+    // The state is safely calculated from 'startTime' if a crash occurs.
+  }
+
+  function formatAndDisplayTime(timeDiff) {
+    let minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+    let seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+    let hundredths = Math.floor((timeDiff % 1000) / 10); 
+
+    minutes = (minutes < 10) ? "0" + minutes : minutes;
+    seconds = (seconds < 10) ? "0" + seconds : seconds;
+    hundredths = (hundredths < 10) ? "0" + hundredths : hundredths;
+
+    display.innerHTML = minutes + ":" + seconds + "." + hundredths;
+  }
+</script>
+</body>
+</html>
