@@ -3,22 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Track & Field Sprint Timer - Persistent Memory</title>
+<title>Track & Field Sprint Timer - TIU Edition</title>
 <style>
   body { 
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
     text-align: center; 
     background-color: #f4f4f9; 
     padding: 20px; 
+    position: relative;
+    min-height: 100vh;
+    margin: 0;
   }
+  
+  /* Subtle TIU Watermark */
+  body::before {
+    content: "TIU";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    font-size: 15vw;
+    color: rgba(0, 0, 0, 0.03); /* Extremely subtle opacity */
+    z-index: -1;
+    pointer-events: none; /* Prevents the watermark from blocking clicks */
+    font-weight: 900;
+    letter-spacing: 0.1em;
+  }
+
   .stopwatch { 
-    background: white; 
+    background: rgba(255, 255, 255, 0.95); /* Slight transparency so watermark peeks through */
     padding: 30px; 
     border-radius: 15px; 
     box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
     max-width: 450px; 
     margin: 0 auto; 
+    position: relative;
   }
+  
   .display { 
     font-size: 4rem; 
     font-variant-numeric: tabular-nums; 
@@ -26,6 +47,7 @@
     margin-bottom: 20px; 
     color: #222; 
   }
+  
   .main-controls {
     display: flex;
     justify-content: center;
@@ -47,9 +69,7 @@
   .stop { background-color: #dc3545; }
   .reset { background-color: #6c757d; }
   
-  .instruction-area {
-    margin-bottom: 15px;
-  }
+  .instruction-area { margin-bottom: 15px; }
   .edit-toggle {
     background-color: #ffc107;
     color: #222;
@@ -62,9 +82,19 @@
     width: 100%;
     margin-bottom: 10px;
   }
-  .edit-toggle.active {
-    background-color: #fd7e14;
+  .edit-toggle.active { background-color: #fd7e14; color: white; }
+
+  .print-btn {
+    background-color: #17a2b8;
     color: white;
+    font-size: 1rem;
+    font-weight: bold;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 20px;
   }
 
   .jersey-grid {
@@ -89,21 +119,25 @@
     text-overflow: ellipsis;
   }
 
-  .jersey-grid button:active {
-    transform: scale(0.95);
-  }
-
-  .jersey-grid.editing button {
-    background-color: #fff3cd;
-    color: #856404;
-    border: 2px dashed #ffe8a1;
-  }
+  .jersey-grid button:active { transform: scale(0.95); }
+  .jersey-grid.editing button { background-color: #fff3cd; color: #856404; border: 2px dashed #ffe8a1; }
 
   .laps-container {
     margin-top: 20px;
     border-top: 2px solid #eee;
     padding-top: 15px;
   }
+  
+  /* Report Title (Hidden by default, shown on print) */
+  .report-title {
+    display: none;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #333;
+    text-align: center;
+  }
+
   .laps { 
     text-align: left; 
     max-height: 250px; 
@@ -120,19 +154,46 @@
     justify-content: space-between; 
     color: #444;
   }
-  .laps li span:first-child {
-    font-weight: bold;
-    color: #007bff;
-  }
-  .laps li span:last-child {
-    font-weight: bold;
-    font-variant-numeric: tabular-nums;
+  .laps li span:first-child { font-weight: bold; color: #007bff; }
+  .laps li span:last-child { font-weight: bold; font-variant-numeric: tabular-nums; }
+
+  /* --- PRINT STYLES --- */
+  @media print {
+    body { 
+      background-color: white; 
+    }
+    body::before {
+      color: rgba(0, 0, 0, 0.06); /* Slightly darker watermark for paper printers */
+    }
+    .stopwatch { 
+      box-shadow: none; 
+      max-width: 100%; 
+      padding: 0;
+    }
+    /* Hide the controls when printing */
+    .main-controls, .instruction-area, .jersey-grid, .print-btn { 
+      display: none !important; 
+    }
+    /* Expand the lap list so it doesn't scroll on paper */
+    .laps { 
+      max-height: none; 
+      overflow: visible; 
+    }
+    /* Show the report title */
+    .report-title {
+      display: block;
+    }
+    /* Remove borders to save ink */
+    .laps-container { border-top: none; }
+    .laps li { border-bottom: 1px solid #ccc; }
   }
 </style>
 </head>
 <body>
 
 <div class="stopwatch">
+  
+  <div class="report-title">Sprint Results</div>
   <div class="display" id="display">00:00.00</div>
   
   <div class="main-controls">
@@ -142,6 +203,7 @@
   </div>
   
   <div class="instruction-area">
+    <button class="print-btn" onclick="printPDF()">🖨️ Print / Save as PDF</button>
     <button class="edit-toggle" id="editToggleBtn" onclick="toggleEditMode()">✏️ Enable Editing Numbers</button>
   </div>
   
@@ -175,7 +237,6 @@
   const editToggleBtn = document.getElementById('editToggleBtn');
   const jerseyGrid = document.getElementById('jerseyGrid');
 
-  // Load state when the page opens
   window.onload = loadState;
 
   function saveState() {
@@ -194,29 +255,18 @@
     const saved = localStorage.getItem('trackTimerState');
     if (saved) {
       const state = JSON.parse(saved);
-      
-      // Restore Jerseys
       if (state.jerseys) {
-        Array.from(jerseyGrid.children).forEach((btn, idx) => {
-          btn.innerText = state.jerseys[idx];
-        });
+        Array.from(jerseyGrid.children).forEach((btn, idx) => { btn.innerText = state.jerseys[idx]; });
       }
+      if (state.lapsHTML) { lapsContainer.innerHTML = state.lapsHTML; }
 
-      // Restore Laps
-      if (state.lapsHTML) {
-        lapsContainer.innerHTML = state.lapsHTML;
-      }
-
-      // Restore Timer State
       running = state.running;
       difference = state.difference || 0;
       startTime = state.startTime;
 
       if (running) {
-        // Resume interval seamlessly 
         tInterval = setInterval(getShowTime, 10);
       } else if (difference > 0) {
-        // Show paused time
         formatAndDisplayTime(difference);
       }
     }
@@ -268,7 +318,6 @@
     if (isEditing) {
       let currentVal = buttonElement.innerText;
       let newVal = prompt("Enter new jersey number or name:", currentVal);
-      
       if (newVal !== null && newVal.trim() !== "") {
         buttonElement.innerText = newVal.trim();
         saveState();
@@ -287,8 +336,6 @@
     updatedTime = new Date().getTime();
     difference = updatedTime - startTime;
     formatAndDisplayTime(difference);
-    // Note: We don't saveState() here because running it every 10 milliseconds would lag the phone.
-    // The state is safely calculated from 'startTime' if a crash occurs.
   }
 
   function formatAndDisplayTime(timeDiff) {
@@ -301,6 +348,11 @@
     hundredths = (hundredths < 10) ? "0" + hundredths : hundredths;
 
     display.innerHTML = minutes + ":" + seconds + "." + hundredths;
+  }
+
+  // PDF / Print Function
+  function printPDF() {
+    window.print();
   }
 </script>
 </body>
