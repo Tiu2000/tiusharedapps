@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sick Leave Payout Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: bold;
+        }
+        input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #1a252f;
+        }
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f4f8;
+            border-left: 5px solid #3498db;
+            border-radius: 4px;
+            display: none;
+        }
+        .result-box p {
+            margin: 5px 0;
+            color: #333;
+        }
+        .final-payout {
+            font-size: 20px;
+            font-weight: bold;
+            color: #27ae60;
+        }
+        .warning {
+            font-size: 12px;
+            color: #e74c3c;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Sick Leave Payout Calculator</h2>
+    <p style="text-align: center; font-size: 14px; color: #777;">Passaic School District</p>
+    
+    <div class="form-group">
+        <label for="sickDays">Accumulated Sick Leave Days:</label>
+        <input type="number" id="sickDays" min="0" placeholder="e.g., 120" required>
+    </div>
+
+    <div class="form-group">
+        <label for="hireDate">Hire Date:</label>
+        <select id="hireDate">
+            <option value="prior">Prior to June 8, 2007 (Max $16,250)</option>
+            <option value="after">After June 8, 2007 (Max $15,000)</option>
+        </select>
+    </div>
+
+    <button onclick="calculatePayout()">Calculate Payout</button>
+
+    <div class="result-box" id="resultBox">
+        <p><strong>Breakdown:</strong></p>
+        <p id="tier1Text"></p>
+        <p id="tier2Text"></p>
+        <p id="tier3Text"></p>
+        <hr>
+        <p>Calculated Total: <span id="calculatedTotal"></span></p>
+        <p class="final-payout">Final Payout: <span id="finalPayout"></span></p>
+        <p class="warning" id="capWarning"></p>
+    </div>
+</div>
+
+<script>
+    function calculatePayout() {
+        // Get Inputs
+        let days = parseInt(document.getElementById('sickDays').value);
+        let hireDate = document.getElementById('hireDate').value;
+        
+        // Validate Input
+        if (isNaN(days) || days < 0) {
+            alert("Please enter a valid number of sick days.");
+            return;
+        }
+
+        // Tier variables
+        let tier1Days = 0, tier2Days = 0, tier3Days = 0;
+        let tier1Amount = 0, tier2Amount = 0, tier3Amount = 0;
+
+        // Calculate days in each tier
+        let remainingDays = days;
+
+        // Tier 3: 151+ days ($100/day)
+        if (remainingDays > 150) {
+            tier3Days = remainingDays - 150;
+            tier3Amount = tier3Days * 100;
+            remainingDays = 150;
+        }
+
+        // Tier 2: 101 to 150 days ($75/day)
+        if (remainingDays > 100) {
+            tier2Days = remainingDays - 100;
+            tier2Amount = tier2Days * 75;
+            remainingDays = 100;
+        }
+
+        // Tier 1: 1 to 100 days ($50/day)
+        if (remainingDays > 0) {
+            tier1Days = remainingDays;
+            tier1Amount = tier1Days * 50;
+        }
+
+        let calculatedTotal = tier1Amount + tier2Amount + tier3Amount;
+
+        // Determine Cap based on hire date
+        let maxCap = (hireDate === 'prior') ? 16250.00 : 15000.00;
+        
+        // Apply Cap
+        let finalPayout = Math.min(calculatedTotal, maxCap);
+
+        // Update UI
+        document.getElementById('tier1Text').innerText = `Days 1-100 (${tier1Days} days): $${tier1Amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        document.getElementById('tier2Text').innerText = `Days 101-150 (${tier2Days} days): $${tier2Amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        document.getElementById('tier3Text').innerText = `Days 151+ (${tier3Days} days): $${tier3Amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        
+        document.getElementById('calculatedTotal').innerText = `$${calculatedTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        document.getElementById('finalPayout').innerText = `$${finalPayout.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+
+        // Show warning if capped
+        let warningEl = document.getElementById('capWarning');
+        if (calculatedTotal > maxCap) {
+            warningEl.innerText = `*Your total exceeded the maximum cap of $${maxCap.toLocaleString('en-US', {minimumFractionDigits: 2})} based on your hire date. The payout has been adjusted.`;
+        } else {
+            warningEl.innerText = "";
+        }
+
+        // Display results
+        document.getElementById('resultBox').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
