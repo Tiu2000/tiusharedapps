@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NJ TPAF Pension Calculator</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --bg-color: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Subtle Watermark - Moved to Bottom Left */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            font-size: 5rem;
+            color: rgba(0, 0, 0, 0.05);
+            z-index: -1;
+            pointer-events: none;
+            user-select: none;
+            font-weight: 900;
+            letter-spacing: 5px;
+            white-space: nowrap;
+        }
+
+        .calculator-container {
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 500px;
+            z-index: 1;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--primary-color);
+            text-align: center;
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+
+        button {
+            width: 100%;
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 1rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .results {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background-color: #e8f4f8;
+            border-radius: 5px;
+            border-left: 4px solid var(--secondary-color);
+            display: none;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 1.05rem;
+        }
+
+        .result-row.total {
+            font-weight: bold;
+            font-size: 1.25rem;
+            color: var(--primary-color);
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #ccc;
+        }
+
+        .note {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <div class="calculator-container">
+        <h2>NJ TPAF Pension Estimator</h2>
+        
+        <div class="form-group">
+            <label for="tier">TPAF Tier</label>
+            <select id="tier" onchange="updateFASLabel()">
+                <option value="1">Tier 1 (Enrolled before 7/1/07)</option>
+                <option value="2">Tier 2 (Enrolled 7/1/07 - 11/1/08)</option>
+                <option value="3">Tier 3 (Enrolled 11/2/08 - 5/21/10)</option>
+                <option value="4">Tier 4 (Enrolled 5/22/10 - 6/28/11)</option>
+                <option value="5">Tier 5 (Enrolled after 6/28/11)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="age">Age at Retirement</label>
+            <input type="number" id="age" placeholder="e.g., 58" min="40" max="80" required>
+        </div>
+
+        <div class="form-group">
+            <label for="yos">Total Years of Service</label>
+            <input type="number" id="yos" placeholder="e.g., 25" min="1" max="60" required>
+        </div>
+
+        <div class="form-group">
+            <label id="fas-label" for="fas">Final Average Salary (Highest 3 Years)</label>
+            <input type="number" id="fas" placeholder="e.g., 85000" min="10000" required>
+        </div>
+
+        <button onclick="calculatePension()">Calculate Estimate</button>
+
+        <div class="results" id="results">
+            <div class="result-row">
+                <span>Base Annual Allowance:</span>
+                <span id="res-base">$0.00</span>
+            </div>
+            <div class="result-row" style="color: #c0392b;">
+                <span>Early Retirement Penalty:</span>
+                <span id="res-penalty">-$0.00</span>
+            </div>
+            <div class="result-row total">
+                <span>Final Annual Pension:</span>
+                <span id="res-annual">$0.00</span>
+            </div>
+            <div class="result-row">
+                <span>Final Monthly Check:</span>
+                <span id="res-monthly" style="font-weight: bold;">$0.00</span>
+            </div>
+            <p class="note" id="penalty-note"></p>
+        </div>
+    </div>
+
+    <script>
+        // Update the label based on Tier (Tiers 1-3 use highest 3 years, Tiers 4-5 use highest 5 years)
+        function updateFASLabel() {
+            const tier = parseInt(document.getElementById('tier').value);
+            const label = document.getElementById('fas-label');
+            if (tier <= 3) {
+                label.innerText = "Final Average Salary (Highest 3 Years)";
+            } else {
+                label.innerText = "Final Average Salary (Highest 5 Years)";
+            }
+        }
+
+        // Format numbers as currency
+        function formatCurrency(num) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
+        }
+
+        function calculatePension() {
+            const tier = parseInt(document.getElementById('tier').value);
+            const age = parseFloat(document.getElementById('age').value);
+            const yos = parseFloat(document.getElementById('yos').value);
+            const fas = parseFloat(document.getElementById('fas').value);
+
+            if (!age || !yos || !fas) {
+                alert("Please fill in all fields.");
+                return;
+            }
+
+            // 1. Determine Divisor
+            const divisor = (tier <= 3) ? 55 : 60;
+            
+            // 2. Calculate Base Allowance
+            const baseAnnual = (yos / divisor) * fas;
+
+            // 3. Determine Early Retirement Reductions
+            let reductionPct = 0;
+            let note = "";
+            let penaltyApplies = false;
+
+            const reqYears = (tier === 5) ? 30 : 25;
+
+            // Early Retirement is only eligible if they meet the required years (25 or 30).
+            if (yos >= reqYears) {
+                if (tier === 1) {
+                    if (age < 55) {
+                        reductionPct = (55 - age) * 0.03; 
+                        penaltyApplies = true;
+                    }
+                } else if (tier === 2) {
+                    if (age < 60 && age >= 55) {
+                        reductionPct = (60 - age) * 0.01; 
+                        penaltyApplies = true;
+                    } else if (age < 55) {
+                        reductionPct = (5 * 0.01) + ((55 - age) * 0.03); 
+                        penaltyApplies = true;
+                    }
+                } else if (tier === 3 || tier === 4) {
+                    if (age < 62 && age >= 55) {
+                        reductionPct = (62 - age) * 0.01; 
+                        penaltyApplies = true;
+                    } else if (age < 55) {
+                        reductionPct = (7 * 0.01) + ((55 - age) * 0.03); 
+                        penaltyApplies = true;
+                    }
+                } else if (tier === 5) {
+                    if (age < 65) {
+                        reductionPct = (65 - age) * 0.03; 
+                        penaltyApplies = true;
+                    }
+                }
+            } else {
+                note = "Note: Standard early retirement usually requires at least " + reqYears + " years of service.";
+            }
+
+            // Cap reduction at 100% just in case
+            reductionPct = Math.min(reductionPct, 1);
+
+            const penaltyAmount = baseAnnual * reductionPct;
+            const finalAnnual = baseAnnual - penaltyAmount;
+            const finalMonthly = finalAnnual / 12;
+
+            // 4. Update UI
+            document.getElementById('res-base').innerText = formatCurrency(baseAnnual);
+            document.getElementById('res-penalty').innerText = "-" + formatCurrency(penaltyAmount);
+            document.getElementById('res-annual').innerText = formatCurrency(finalAnnual);
+            document.getElementById('res-monthly').innerText = formatCurrency(finalMonthly);
+            
+            let penaltyMsg = document.getElementById('penalty-note');
+            if (penaltyApplies) {
+                penaltyMsg.innerText = "A penalty of " + (reductionPct * 100).toFixed(1) + "% was applied for retiring early.";
+            } else {
+                penaltyMsg.innerText = note || "No early retirement penalties applied.";
+            }
+
+            document.getElementById('results').style.display = 'block';
+        }
+
+        // Initialize label on load
+        window.onload = updateFASLabel;
+    </script>
+</body>
+</html>
