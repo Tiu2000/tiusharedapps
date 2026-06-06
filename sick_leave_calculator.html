@@ -13,6 +13,7 @@
             align-items: center;
             height: 100vh;
             margin: 0;
+            position: relative; /* Needed for the watermark */
         }
         .container {
             background-color: white;
@@ -21,6 +22,7 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             max-width: 400px;
             width: 100%;
+            z-index: 1; /* Keeps calculator above the watermark */
         }
         h2 {
             text-align: center;
@@ -80,9 +82,25 @@
             color: #e74c3c;
             font-style: italic;
         }
+        
+        /* Watermark CSS */
+        .watermark {
+            position: fixed;
+            bottom: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: rgba(0, 0, 0, 0.08); /* Very low opacity for subtlety */
+            pointer-events: none; /* Prevents it from blocking clicks */
+            user-select: none; /* Prevents highlighting the text */
+            z-index: 0;
+            letter-spacing: 2px;
+        }
     </style>
 </head>
 <body>
+
+<div class="watermark">Tiu</div>
 
 <div class="container">
     <h2>Sick Leave Payout Calculator</h2>
