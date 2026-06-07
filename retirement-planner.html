@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NJ Teacher Retirement Planner</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #27ae60;
+            --danger-color: #c0392b;
+            --bg-color: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Subtle Watermark - Bottom Left */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            font-size: 5rem;
+            color: rgba(0, 0, 0, 0.05);
+            z-index: -1;
+            pointer-events: none;
+            user-select: none;
+            font-weight: 900;
+            letter-spacing: 5px;
+            white-space: nowrap;
+        }
+
+        .calculator-container {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 650px;
+            z-index: 1;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--primary-color);
+            text-align: center;
+            border-bottom: 3px solid var(--secondary-color);
+            padding-bottom: 15px;
+        }
+
+        .section-title {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 0.9rem;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 5px rgba(39, 174, 96, 0.3);
+        }
+
+        button {
+            width: 100%;
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 1.2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 1.5rem;
+        }
+
+        button:hover {
+            background-color: #219653;
+        }
+
+        .results {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            display: none;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.8rem;
+            font-size: 1.1rem;
+            border-bottom: 1px dashed #ccc;
+            padding-bottom: 5px;
+        }
+
+        .result-row:last-child {
+            border-bottom: none;
+        }
+
+        .result-row.total {
+            font-weight: bold;
+            font-size: 1.3rem;
+            border-bottom: none;
+            padding-top: 10px;
+        }
+
+        .surplus { color: var(--secondary-color); }
+        .shortfall { color: var(--danger-color); }
+
+        .decision-box {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            border-radius: 8px;
+            background-color: #eafaf1;
+            border-left: 5px solid var(--secondary-color);
+        }
+
+        .decision-box.warning {
+            background-color: #fdedec;
+            border-left: 5px solid var(--danger-color);
+        }
+
+        .decision-title {
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+
+        .projection {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: #e8f4f8;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="watermark">TIU</div>
+
+    <div class="calculator-container">
+        <h2>Retirement Gap Analyzer</h2>
+        
+        <div class="section-title">1. Pension Details</div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="tier">TPAF Tier</label>
+                <select id="tier">
+                    <option value="1">Tier 1 (Before 7/1/07)</option>
+                    <option value="2">Tier 2 (7/1/07 - 11/1/08)</option>
+                    <option value="3">Tier 3 (11/2/08 - 5/21/10)</option>
+                    <option value="4">Tier 4 (5/22/10 - 6/28/11)</option>
+                    <option value="5">Tier 5 (After 6/28/11)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="age">Target Retirement Age</label>
+                <input type="number" id="age" placeholder="e.g., 58" required>
+            </div>
+            <div class="form-group">
+                <label for="yos">Years of Service</label>
+                <input type="number" id="yos" placeholder="e.g., 25" required>
+            </div>
+            <div class="form-group">
+                <label for="fas">Final Avg Salary ($)</label>
+                <input type="number" id="fas" placeholder="e.g., 90000" required>
+            </div>
+        </div>
+
+        <div class="section-title">2. Cost of Living</div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="expenses">Est. Monthly Expenses ($)</label>
+                <input type="number" id="expenses" placeholder="e.g., 5000" required>
+            </div>
+            <div class="form-group">
+                <label for="other-income">Other Monthly Income ($)<br><small>(Spouse, SS, Investments)</small></label>
+                <input type="number" id="other-income" value="0" required>
+            </div>
+        </div>
+
+        <button onclick="analyzeRetirement()">Analyze My Retirement</button>
+
+        <div class="results" id="results">
+            <div class="result-row">
+                <span>Net Monthly Pension (After Penalties):</span>
+                <span id="res-pension">$0.00</span>
+            </div>
+            <div class="result-row">
+                <span>Other Monthly Income:</span>
+                <span id="res-other">$0.00</span>
+            </div>
+            <div class="result-row">
+                <span>Total Monthly Income:</span>
+                <span id="res-total-income" style="font-weight:bold;">$0.00</span>
+            </div>
+            <div class="result-row">
+                <span>Target Monthly Expenses:</span>
+                <span id="res-expenses">-$0.00</span>
+            </div>
+            <div class="result-row total" id="gap-row">
+                <span>Monthly Cashflow:</span>
+                <span id="res-gap">$0.00</span>
+            </div>
+
+            <div id="decision-matrix" class="decision-box">
+                <div class="decision-title" id="decision-title">Analysis</div>
+                <div id="decision-text"></div>
+            </div>
+
+            <div class="projection" id="projection-box">
+                <strong>💡 Scenario: What if you delay retirement by 2 years?</strong><br>
+                Working to age <span id="proj-age"></span> with <span id="proj-yos"></span> years of service (assuming 4% total salary growth) would increase your monthly pension check to <strong><span id="proj-pension"></span></strong>.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function formatCurrency(num) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
+        }
+
+        // Helper function to calculate pension logic to reuse for both current and projected scenarios
+        function calculateMonthlyPension(tier, age, yos, fas) {
+            const divisor = (tier <= 3) ? 55 : 60;
+            const baseAnnual = (yos / divisor) * fas;
+            let reductionPct = 0;
+            const reqYears = (tier === 5) ? 30 : 25;
+
+            if (yos >= reqYears) {
+                if (tier === 1 && age < 55) {
+                    reductionPct = (55 - age) * 0.03;
+                } else if (tier === 2) {
+                    if (age < 60 && age >= 55) reductionPct = (60 - age) * 0.01;
+                    else if (age < 55) reductionPct = (5 * 0.01) + ((55 - age) * 0.03);
+                } else if (tier === 3 || tier === 4) {
+                    if (age < 62 && age >= 55) reductionPct = (62 - age) * 0.01;
+                    else if (age < 55) reductionPct = (7 * 0.01) + ((55 - age) * 0.03);
+                } else if (tier === 5 && age < 65) {
+                    reductionPct = (65 - age) * 0.03;
+                }
+            }
+            
+            reductionPct = Math.min(reductionPct, 1);
+            return (baseAnnual - (baseAnnual * reductionPct)) / 12;
+        }
+
+        function analyzeRetirement() {
+            const tier = parseInt(document.getElementById('tier').value);
+            const age = parseFloat(document.getElementById('age').value);
+            const yos = parseFloat(document.getElementById('yos').value);
+            const fas = parseFloat(document.getElementById('fas').value);
+            const expenses = parseFloat(document.getElementById('expenses').value);
+            const otherIncome = parseFloat(document.getElementById('other-income').value) || 0;
+
+            if (!age || !yos || !fas || !expenses) {
+                alert("Please fill in all required fields (Age, Service, Salary, and Expenses).");
+                return;
+            }
+
+            // Current Scenario Math
+            const monthlyPension = calculateMonthlyPension(tier, age, yos, fas);
+            const totalIncome = monthlyPension + otherIncome;
+            const gap = totalIncome - expenses;
+
+            // Delayed Scenario Math (+2 years, 4% salary growth)
+            const projAge = age + 2;
+            const projYos = yos + 2;
+            const projFas = fas * 1.04; 
+            const projPension = calculateMonthlyPension(tier, projAge, projYos, projFas);
+
+            // Update Basic UI
+            document.getElementById('res-pension').innerText = formatCurrency(monthlyPension);
+            document.getElementById('res-other').innerText = formatCurrency(otherIncome);
+            document.getElementById('res-total-income').innerText = formatCurrency(totalIncome);
+            document.getElementById('res-expenses').innerText = "-" + formatCurrency(expenses);
+            
+            const gapElement = document.getElementById('res-gap');
+            gapElement.innerText = formatCurrency(gap);
+            
+            const decisionBox = document.getElementById('decision-matrix');
+            const decisionTitle = document.getElementById('decision-title');
+            const decisionText = document.getElementById('decision-text');
+
+            if (gap >= 0) {
+                // Surplus
+                gapElement.className = "surplus";
+                decisionBox.className = "decision-box";
+                decisionTitle.innerText = "✅ You Are Fully Funded";
+                decisionText.innerHTML = "Your estimated income covers your target expenses with a monthly surplus of <strong>" + formatCurrency(gap) + "</strong>. You do not strictly <em>need</em> to take a post-retirement job or delay retirement, though you can choose to work for extra spending money or social engagement.";
+            } else {
+                // Shortfall
+                gapElement.className = "shortfall";
+                decisionBox.className = "decision-box warning";
+                decisionTitle.innerText = "⚠️ Income Shortfall Detected";
+                
+                // Calculate if delaying 2 years fixes it
+                const newTotalIncome = projPension + otherIncome;
+                const newGap = newTotalIncome - expenses;
+                
+                let advice = "You have a monthly shortfall of <strong>" + formatCurrency(Math.abs(gap)) + "</strong>. To retire at this age comfortably, you will need to take a part-time job or rely on savings to cover the difference.";
+                
+                if (newGap >= 0) {
+                    advice += "<br><br><strong>Good News:</strong> If you delay retirement by just 2 years, your increased pension check will wipe out this shortfall entirely without needing a second career.";
+                }
+
+                decisionText.innerHTML = advice;
+            }
+
+            // Update Projection UI
+            document.getElementById('proj-age').innerText = projAge;
+            document.getElementById('proj-yos').innerText = projYos;
+            document.getElementById('proj-pension').innerText = formatCurrency(projPension);
+
+            document.getElementById('results').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
