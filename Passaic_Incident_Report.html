@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Report - Public Schools of Passaic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Strict single page print configurations */
+        @media print {
+            @page {
+                size: letter portrait;
+                margin: 0.3in; /* Optimized margin boundary to maximize single-page area */
+            }
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                background-color: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .no-print { display: none !important; }
+            .print-wrapper {
+                box-shadow: none !important;
+                border: 1px solid black !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                page-break-inside: avoid;
+            }
+            input, textarea { outline: none !important; box-shadow: none !important; }
+        }
+        
+        /* Form layout configurations */
+        .form-container { font-family: Arial, sans-serif; font-size: 12px; color: black; background: white; }
+        .black-header { background-color: black; color: white; font-weight: bold; padding: 2px 6px; font-size: 11.5px; }
+        .row-border { border-bottom: 1px solid black; }
+        .input-line { border-bottom: 1px solid black; background: transparent; padding: 1px 4px; }
+        .input-line:focus { outline: none; border-bottom: 2px solid #2563eb; }
+        
+        textarea { resize: none; border: none; background: transparent; width: 100%; overflow: hidden; }
+        textarea:focus { outline: none; background-color: #f8fafc; }
+        
+        input[type="checkbox"] { width: 13px; height: 13px; border: 1px solid black; cursor: pointer; accent-color: black; }
+        
+        /* Signature Layout */
+        .sig-container { position: relative; height: 28px; flex-1; min-width: 150px; }
+        .sig-canvas { width: 100%; height: 100%; cursor: crosshair; }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 sm:p-6">
+
+    <div class="no-print max-w-4xl mx-auto mb-4 bg-white p-3 rounded shadow flex justify-between items-center border border-gray-300">
+        <p class="text-sm text-gray-600 font-bold">Passaic Incident Form (Strict 1-Page Fit)</p>
+        <div class="flex gap-2">
+            <button onclick="window.location.reload()" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold rounded">Clear Form</button>
+            <button onclick="window.print()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded shadow">Print / Save PDF</button>
+        </div>
+    </div>
+
+    <div class="print-wrapper max-w-4xl mx-auto border border-black form-container shadow-md">
+        
+        <div class="grid grid-cols-3 items-end py-1.5 px-2">
+            <div class="text-center col-span-1">
+                <div class="font-bold underline text-[10.5px]">PRINCIPAL OR ADMINISTRATOR</div>
+                <div class="text-[9.5px] leading-tight mt-0.5">
+                    Please make and retain one copy of this report<br>
+                    for your files and forward the original to the<br>
+                    Secretary/Business Administrator.
+                </div>
+            </div>
+            <div class="font-bold text-[14px] tracking-wide text-center col-span-1 pb-0.5 whitespace-nowrap">
+                PUBLIC SCHOOLS OF PASSAIC
+            </div>
+            <div class="col-span-1"></div>
+        </div>
+
+        <div class="black-header text-center uppercase tracking-tight text-[12px] py-0.5">
+            Incident Report - Student or Visitor
+        </div>
+
+        <div class="flex items-center px-2.5 py-0.5 row-border font-bold">
+            <div class="w-28">CHECK ONE:</div>
+            <div class="flex items-center gap-2 mr-6"><input type="checkbox"> <span>Student</span></div>
+            <div class="flex items-center gap-2 mr-10"><input type="checkbox"> <span>Visitor</span></div>
+            <div class="mr-2">Name or School#:</div>
+            <input type="text" class="input-line flex-1 font-normal" value="School No. 1">
+        </div>
+
+        <div class="flex items-center px-2.5 py-0.5 row-border font-bold">
+            <div class="w-60">Does the student have School Insurance?</div>
+            <div class="flex items-center gap-2 mr-4"><input type="checkbox"> <span>YES</span></div>
+            <div class="flex items-center gap-2 mr-10"><input type="checkbox"> <span>NO</span></div>
+            <div class="mr-2">Is Insurance school Time or 24hrs.</div>
+            <input type="text" class="input-line flex-1 font-normal">
+        </div>
+
+        <div class="flex items-center px-2.5 py-0.5 row-border font-bold">
+            <div class="mr-2">Student's or Visitor's Name:</div>
+            <input type="text" class="input-line flex-1 mr-4 font-normal">
+            <div class="mr-2">Student ID:</div>
+            <input type="text" class="input-line w-24 mr-4 font-normal">
+            <div class="mr-2">Grade/Class or HR#:</div>
+            <input type="text" class="input-line w-28 font-normal">
+        </div>
+
+        <div class="flex items-center px-2.5 py-0.5 row-border font-bold">
+            <div class="mr-2">Address:</div>
+            <input type="text" class="input-line flex-1 font-normal">
+        </div>
+
+        <div class="flex items-center px-2.5 py-0.5 row-border font-bold">
+            <div class="mr-2">Home#:</div>
+            <input type="text" class="input-line w-40 mr-6 font-normal">
+            <div class="mr-2">Date of Accident:</div>
+            <input type="text" class="input-line w-40 mr-6 font-normal">
+            <div class="mr-2">Time:</div>
+            <input type="text" class="input-line flex-1 font-normal">
+        </div>
+
+        <div class="black-header py-0.5">
+            PART 1: To Be Completed By Staff Member Reporting Accident:
+        </div>
+
+        <div class="p-2 row-border">
+            <div class="mb-0.5 font-bold">Check appropriate item:</div>
+            <div class="grid grid-cols-3 gap-x-2 gap-y-0.5 pl-2 font-bold">
+                <div class="space-y-0.5">
+                    <label class="flex items-center gap-2"><input type="checkbox" checked> <span>Physical Education</span></label>
+                    <label class="flex items-center gap-2"><input type="checkbox"> <span>Classroom Or Hall</span></label>
+                    <label class="flex items-center gap-2"><input type="checkbox"> <span>Playground</span></label>
+                </div>
+                <div class="space-y-0.5">
+                    <label class="flex items-center gap-2"><input type="checkbox"> <span>To and From School</span></label>
+                    <label class="flex items-center gap-2"><input type="checkbox"> <span>Non-School Activity (24-HR Plan)</span></label>
+                    <label class="flex items-center gap-2"><input type="checkbox"> <span>Co-curricular Activity (on Premises)</span></label>
+                </div>
+                <div class="space-y-0.5 flex flex-col justify-between">
+                    <label class="flex items-center gap-2"><input type="checkbox"> <span>Field Trip</span></label>
+                    <label class="flex items-center gap-2"><input type="checkbox"> <span>Co-curricular Activity (Off Premises)</span></label>
+                    <div class="flex items-center gap-1">
+                        <input type="checkbox"> <span class="whitespace-nowrap">Other - Describe:</span>
+                        <input type="text" class="input-line flex-1 min-w-[40px] font-normal py-0">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center px-2.5 py-0.5 row-border font-bold">
+            <div class="w-28">Activity Was:</div>
+            <div class="flex items-center gap-2 mr-10"><input type="checkbox" checked> <span>School Schedule, Sponsored and Supervised</span></div>
+            <div class="flex items-center gap-2"><input type="checkbox"> <span>Non-School Connected</span></div>
+        </div>
+
+        <div class="px-2.5 py-1 row-border">
+            <div class="font-bold">DESCRIPTION OF INCIDENT: Exactly what took place? What activity was involved? Give names of witnesses, ect.</div>
+            <div class="text-[9.5px] text-gray-700 mb-0.5">(To be completed by teacher or other staff person in charge of staff member who witnessed of first heard about the incident.)</div>
+            
+            <div class="relative w-full" style="background: repeating-linear-gradient(to bottom, transparent, transparent 21px, #000000 22px); line-height: 22px; height: 88px;">
+                <textarea class="absolute inset-0 w-full h-full text-[13px] pt-0.5" spellcheck="false"></textarea>
+            </div>
+        </div>
+
+        <div class="flex items-center px-2.5 py-0.5 row-border font-bold">
+            <div class="mr-2">Date:</div>
+            <input type="text" class="input-line w-36 mr-6 font-normal">
+            <div class="mr-2 whitespace-nowrap">Signature of person reporting incident:</div>
+            
+            <div class="sig-container flex-1 border-b border-black">
+                <canvas class="sig-canvas"></canvas>
+                <button type="button" onclick="clearCanvas(this)" class="no-print absolute right-1 top-0.5 text-[9px] bg-gray-200 px-1 rounded hover:bg-gray-300 font-normal">Clear</button>
+            </div>
+        </div>
+
+        <div class="black-header py-0.5">
+            PART 2: To Be Completed By School Nurse
+        </div>
+
+        <div class="px-2.5 py-1 row-border flex flex-col">
+            <div class="font-bold flex items-end">
+                <span class="mr-2">Describe Nature of Injury/ Medical Treatment:</span>
+                <input type="text" class="input-line flex-1 font-normal">
+            </div>
+            <div class="w-full h-[44px] mt-0.5" style="background: repeating-linear-gradient(to bottom, transparent, transparent 21px, #000000 22px);">
+                <textarea class="w-full h-full text-[13px]" spellcheck="false" style="line-height: 22px;"></textarea>
+            </div>
+        </div>
+
+        <div class="px-2.5 py-1 row-border flex flex-col">
+            <div class="font-bold flex items-end">
+                <span class="mr-2">Principal's Comments:</span>
+                <input type="text" class="input-line flex-1 font-normal">
+            </div>
+            <div class="w-full h-[44px] mt-0.5" style="background: repeating-linear-gradient(to bottom, transparent, transparent 21px, #000000 22px);">
+                <textarea class="w-full h-full text-[13px]" spellcheck="false" style="line-height: 22px;"></textarea>
+            </div>
+        </div>
+
+        <div class="flex items-center px-2.5 py-0.5 row-border font-bold">
+            <div class="mr-2">Date:</div>
+            <input type="text" class="input-line w-36 mr-6 font-normal">
+            <div class="mr-2 whitespace-nowrap">Signature of person reporting incident:</div>
+            
+            <div class="sig-container flex-1 border-b border-black">
+                <canvas class="sig-canvas"></canvas>
+                <button type="button" onclick="clearCanvas(this)" class="no-print absolute right-1 top-0.5 text-[9px] bg-gray-200 px-1 rounded hover:bg-gray-300 font-normal">Clear</button>
+            </div>
+        </div>
+
+        <div class="black-header py-0.5">
+            PART 3: Analysis of Incident
+        </div>
+
+        <div class="px-2.5 py-1 flex flex-col">
+            <div class="font-bold uppercase text-[9px] leading-tight mb-1">
+                TO BE COMPLETED BY NURSE - based on information available from administration, teacher, ect. - Why did it happen? Unsafe act on part of student? Horseplay? Unsafe or deficient condition on premises - in equipment, in materials supplied? Student altercation?
+            </div>
+             <div class="w-full h-[22px]" style="background: repeating-linear-gradient(to bottom, transparent, transparent 21px, #000000 22px); height: 22px;">
+                <textarea class="w-full h-full text-[13px]" spellcheck="false" style="line-height: 22px;"></textarea>
+            </div>
+        </div>
+
+        <div class="flex items-center px-2.5 py-0.5 font-bold pt-1 border-t border-black mt-1">
+            <div class="mr-2">Date:</div>
+            <input type="text" class="input-line w-36 mr-6 font-normal">
+            <div class="mr-2 whitespace-nowrap">Signature of School Nurse:</div>
+            
+            <div class="sig-container flex-1 border-b border-black">
+                <canvas class="sig-canvas"></canvas>
+                <button type="button" onclick="clearCanvas(this)" class="no-print absolute right-1 top-0.5 text-[9px] bg-gray-200 px-1 rounded hover:bg-gray-300 font-normal">Clear</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.querySelectorAll('.sig-canvas').forEach(canvas => {
+            const ctx = canvas.getContext('2d');
+            let isDrawing = false;
+
+            function resizeCanvas() {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 1.5;
+                ctx.lineCap = 'round';
+            }
+            
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            canvas.addEventListener('mousedown', (e) => {
+                isDrawing = true;
+                ctx.beginPath();
+                ctx.moveTo(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isDrawing) return;
+                ctx.lineTo(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
+                ctx.stroke();
+            });
+
+            window.addEventListener('mouseup', () => isDrawing = false);
+
+            canvas.addEventListener('touchstart', (e) => {
+                isDrawing = true;
+                const touch = e.touches[0];
+                ctx.beginPath();
+                ctx.moveTo(touch.clientX - canvas.getBoundingClientRect().left, touch.clientY - canvas.getBoundingClientRect().top);
+                e.preventDefault();
+            });
+
+            canvas.addEventListener('touchmove', (e) => {
+                if (!isDrawing) return;
+                const touch = e.touches[0];
+                ctx.lineTo(touch.clientX - canvas.getBoundingClientRect().left, touch.clientY - canvas.getBoundingClientRect().top);
+                ctx.stroke();
+                e.preventDefault();
+            });
+
+            canvas.addEventListener('touchend', () => isDrawing = false);
+        });
+
+        function clearCanvas(button) {
+            const canvas = button.previousElementSibling;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    </script>
+</body>
+</html>
