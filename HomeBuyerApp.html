@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Home Affordability & Search Hub (2026 Data)</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #16a34a;
+            --warning: #ca8a04;
+            --danger: #dc2626;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        header h1 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .market-ticker {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            margin-top: 10px;
+            border-top: 1px solid #334155;
+            padding-top: 10px;
+        }
+
+        .ticker-item strong {
+            color: #38bdf8;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 25px;
+        }
+
+        @media (min-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .full-width {
+                grid-column: span 2;
+            }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            margin-bottom: 18px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border);
+            color: #0f172a;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-prefix {
+            position: absolute;
+            left: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+            color: var(--text-main);
+            background-color: #fff;
+        }
+
+        input.has-prefix {
+            padding-left: 28px;
+        }
+
+        .tax-helper-btn {
+            font-size: 0.8rem;
+            background: none;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 4px;
+            display: inline-block;
+        }
+
+        /* Results / Output styling */
+        .payment-breakdown {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .breakdown-row.total {
+            font-size: 1.4rem;
+            font-weight: 700;
+            border-bottom: none;
+            border-top: 2px solid var(--border);
+            padding-top: 12px;
+            color: var(--primary);
+        }
+
+        .verdict-box {
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-top: 15px;
+        }
+
+        .verdict-safe { background-color: #dcfce7; color: var(--success); }
+        .verdict-warning { background-color: #fef9c3; color: var(--warning); }
+        .verdict-danger { background-color: #fee2e2; color: var(--danger); }
+
+        /* Real Estate Search Utility */
+        .search-container {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .search-container input, .search-container select {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .search-links-output {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .search-card-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .search-card-link:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .info-note {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Smart Homebuyer Affordability & Search Hub</h1>
+        <div class="market-ticker">
+            <span class="ticker-item">Average 30-Yr Fixed Rate: <strong>6.47%</strong></span>
+            <span class="ticker-item">Avg Closing Costs: <strong>2% - 5%</strong></span>
+            <span class="ticker-item">National Avg Property Tax: <strong>0.90%</strong></span>
+            <span class="ticker-item">Target Housing DTI Cap: <strong>28% / 36%</strong></span>
+        </div>
+    </header>
+
+    <div class="grid">
+        <!-- INPUTS COLUMN -->
+        <div class="card">
+            <h2>1. Financial & Income Profile</h2>
+            <div class="form-group">
+                <label for="jointIncome">Household Joint Annual Gross Income</label>
+                <div class="input-wrapper">
+                    <span class="input-prefix">$</span>
+                    <input type="number" id="jointIncome" class="has-prefix" value="120000" oninput="calculateMortgage()">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="monthlyDebt">Other Monthly Debts <span style="font-weight:normal; color:var(--text-muted);">(Car, Student Loans, Cards)</span></label>
+                <div class="input-wrapper">
+                    <span class="input-prefix">$</span>
+                    <input type="number" id="monthlyDebt" class="has-prefix" value="4000" oninput="calculateMortgage()">
+                </div>
+            </div>
+
+            <h2>2. Property Expense Profile</h2>
+            <div class="form-group">
+                <label for="homePrice">Target House Purchase Price</label>
+                <div class="input-wrapper">
+                    <span class="input-prefix">$</span>
+                    <input type="number" id="homePrice" class="has-prefix" value="450000" oninput="calculateMortgage()">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="downPayment">Down Payment Amount</label>
+                <div class="input-wrapper">
+                    <span class="input-prefix">$</span>
+                    <input type="number" id="downPayment" class="has-prefix" value="90000" oninput="calculateMortgage()">
+                </div>
+                <div id="downPercentLabel" style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;"></div>
+            </div>
+            <div class="form-group">
+                <label for="interestRate">Interest Rate (Annual %)</label>
+                <input type="number" id="interestRate" step="0.01" value="6.47" oninput="calculateMortgage()">
+            </div>
+            <div class="form-group">
+                <label for="taxRate">Annual Property Tax Rate (%)</label>
+                <input type="number" id="taxRate" step="0.01" value="1.1" oninput="calculateMortgage()">
+                <button type="button" class="tax-helper-btn" onclick="setSampleTax()">Click to see real sample state averages</button>
+            </div>
+            <div class="form-group">
+                <label for="closingCostRate">Estimated Closing Costs & Fees (%)</label>
+                <input type="number" id="closingCostRate" step="0.1" value="3.0" oninput="calculateMortgage()">
+            </div>
+            <div class="form-group">
+                <label for="insurance">Annual Homeowners Insurance</label>
+                <div class="input-wrapper">
+                    <span class="input-prefix">$</span>
+                    <input type="number" id="insurance" class="has-prefix" value="1500" oninput="calculateMortgage()">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="hoa">Monthly HOA Fees (If applicable)</label>
+                <div class="input-wrapper">
+                    <span class="input-prefix">$</span>
+                    <input type="number" id="hoa" class="has-prefix" value="0" oninput="calculateMortgage()">
+                </div>
+            </div>
+        </div>
+
+        <!-- OUTPUTS COLUMN -->
+        <div style="display: flex; flex-direction: column; gap: 25px;">
+            <div class="card">
+                <h2>3. Cost & Payment Analysis</h2>
+                <div class="payment-breakdown">
+                    <div class="breakdown-row">
+                        <span>Total Loan Amount Needed:</span>
+                        <span id="outLoanAmount" style="font-weight: 600;">$0</span>
+                    </div>
+                    <div class="breakdown-row">
+                        <span>Estimated Closing Costs Out-of-Pocket:</span>
+                        <span id="outClosingCosts" style="font-weight: 600;">$0</span>
+                    </div>
+                    <div class="breakdown-row" style="margin-bottom: 10px; color: var(--text-muted);">
+                        <span>Total Cash Needed at Settlement:</span>
+                        <span id="outTotalCash" style="font-weight: 600;">$0</span>
+                    </div>
+                    
+                    <div class="breakdown-row">
+                        <span>Principal & Interest Payment:</span>
+                        <span id="outPrincipalInterest">$0</span>
+                    </div>
+                    <div class="breakdown-row">
+                        <span>Property Taxes (Monthly Escrow):</span>
+                        <span id="outMonthlyTax">$0</span>
+                    </div>
+                    <div class="breakdown-row">
+                        <span>Home Insurance (Monthly Escrow):</span>
+                        <span id="outMonthlyInsurance">$0</span>
+                    </div>
+                    <div class="breakdown-row">
+                        <span>Private Mortgage Insurance (PMI):</span>
+                        <span id="outPMI">$0</span>
+                    </div>
+                    <div class="breakdown-row">
+                        <span>HOA Dues:</span>
+                        <span id="outMonthlyHOA">$0</span>
+                    </div>
+                    <div class="breakdown-row total">
+                        <span>Total Monthly Payment:</span>
+                        <span id="outTotalMonthly">$0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>4. Affordability Verification</h2>
+                <div class="payment-breakdown">
+                    <div class="breakdown-row">
+                        <span>Your Monthly Gross Income:</span>
+                        <span id="outMonthlyGross" style="font-weight: 600;">$0</span>
+                    </div>
+                    <div class="breakdown-row">
+                        <span>Front-End DTI (Housing Costs Only):</span>
+                        <span id="outFrontDTI" style="font-weight: 600;">0%</span>
+                    </div>
+                    <div class="breakdown-row">
+                        <span>Back-End DTI (Housing + Existing Debts):</span>
+                        <span id="outBackDTI" style="font-weight: 600;">0%</span>
+                    </div>
+                </div>
+                <div id="verdictBox" class="verdict-box">
+                    Awaiting Calculation...
+                </div>
+                <p class="info-note">
+                    * Standard banking limits advise a Front-End DTI below 28% and a Back-End DTI below 36% for standard conventional qualifications.
+                </p>
+            </div>
+        </div>
+
+        <!-- SEARCH UTILITY (FULL WIDTH) -->
+        <div class="card full-width">
+            <h2>5. Targeted Real Estate Search Navigator</h2>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">
+                Since direct real-time MLS scraping requires a server-side API integration, use this portal to generate perfectly targeted deep-search filters directly on top real-estate engines based on your target town or ZIP.
+            </p>
+            <div class="search-container">
+                <input type="text" id="searchLocation" placeholder="Enter Town, State, or ZIP (e.g., Nutley, NJ)">
+                <select id="searchType">
+                    <option value="all">Standard Public Listings (All Homes)</option>
+                    <option value="foreclosure">Foreclosed / Bank-Owned Properties</option>
+                    <option value="shortsale">Short Sale Properties Only</option>
+                </select>
+                <button class="btn" onclick="generateSearchLinks()">Generate Deep Search Links</button>
+            </div>
+
+            <div id="linksOutput" class="search-links-output" style="display:none;">
+                <!-- Links dynamically populated here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function calculateMortgage() {
+        // Inputs
+        const grossIncome = parseFloat(document.getElementById('jointIncome').value) || 0;
+        const monthlyDebt = parseFloat(document.getElementById('monthlyDebt') .value) || 0;
+        const price = parseFloat(document.getElementById('homePrice').value) || 0;
+        const downPayment = parseFloat(document.getElementById('downPayment').value) || 0;
+        const interestRate = parseFloat(document.getElementById('interestRate').value) || 0;
+        const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
+        const closingCostRate = parseFloat(document.getElementById('closingCostRate').value) || 0;
+        const annualInsurance = parseFloat(document.getElementById('insurance').value) || 0;
+        const hoa = parseFloat(document.getElementById('hoa').value) || 0;
+
+        // Calculate Down Payment Percentage
+        const downPercent = price > 0 ? (downPayment / price) * 100 : 0;
+        document.getElementById('downPercentLabel').innerText = `Down Payment Equals: ${downPercent.toFixed(1)}% of sales price`;
+
+        // Loan Calculations
+        const loanAmount = Math.max(0, price - downPayment);
+        const closingCosts = price * (closingCostRate / 100);
+        const totalCashNeeded = downPayment + closingCosts;
+
+        // Monthly Principal & Interest Formula
+        let monthlyPI = 0;
+        if (loanAmount > 0 && interestRate > 0) {
+            const monthlyRate = (interestRate / 100) / 12;
+            const totalPayments = 30 * 12; // Baseline 30-year term
+            monthlyPI = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, totalPayments)) / (Math.pow(1 + monthlyRate, totalPayments) - 1);
+        }
+
+        // Monthly Taxes & Insurance
+        const monthlyTax = (price * (taxRate / 100)) / 12;
+        const monthlyInsurance = annualInsurance / 12;
+
+        // PMI Calculation (Applies if down payment is less than 20%)
+        let monthlyPMI = 0;
+        if (downPercent < 20 && loanAmount > 0) {
+            // Average standard PMI rate baseline around 0.75% annually of standard loan values
+            monthlyPMI = (loanAmount * 0.0075) / 12;
+        }
+
+        // Total Monthly Cost
+        const totalMonthlyPayment = monthlyPI + monthlyTax + monthlyInsurance + monthlyPMI + hoa;
+
+        // Affordability metrics
+        const monthlyGross = grossIncome / 12;
+        const frontDTI = monthlyGross > 0 ? (totalMonthlyPayment / monthlyGross) * 100 : 0;
+        const backDTI = monthlyGross > 0 ? ((totalMonthlyPayment + monthlyDebt) / monthlyGross) * 100 : 0;
+
+        // Display results safely
+        document.getElementById('outLoanAmount').innerText = formatCurrency(loanAmount);
+        document.getElementById('outClosingCosts').innerText = formatCurrency(closingCosts);
+        document.getElementById('outTotalCash').innerText = formatCurrency(totalCashNeeded);
+        document.getElementById('outPrincipalInterest').innerText = formatCurrency(monthlyPI);
+        document.getElementById('outMonthlyTax').innerText = formatCurrency(monthlyTax);
+        document.getElementById('outMonthlyInsurance').innerText = formatCurrency(monthlyInsurance);
+        document.getElementById('outPMI').innerText = formatCurrency(monthlyPMI);
+        document.getElementById('outMonthlyHOA').innerText = formatCurrency(hoa);
+        document.getElementById('outTotalMonthly').innerText = formatCurrency(totalMonthlyPayment);
+
+        document.getElementById('outMonthlyGross').innerText = formatCurrency(monthlyGross);
+        document.getElementById('outFrontDTI').innerText = frontDTI.toFixed(1) + '%';
+        document.getElementById('outBackDTI').innerText = backDTI.toFixed(1) + '%';
+
+        // Update Affordability Verdict Status Box
+        const verdict = document.getElementById('verdictBox');
+        if (grossIncome === 0 || price === 0) {
+            verdict.className = "verdict-box";
+            verdict.innerText = "Please provide real income and price inputs.";
+        } else if (frontDTI <= 28 && backDTI <= 36) {
+            verdict.className = "verdict-box verdict-safe";
+            verdict.innerText = "Comfortably Affordable: Strong DTI Framework Match.";
+        } else if (frontDTI <= 36 && backDTI <= 45) {
+            verdict.className = "verdict-box verdict-warning";
+            verdict.innerText = "Stretching Budget bounds: Approaching lender limitations.";
+        } else {
+            verdict.className = "verdict-box verdict-danger";
+            verdict.innerText = "Aggressive Risk Exposure: DTI ratios exceed standard conventional parameters.";
+        }
+    }
+
+    function formatCurrency(val) {
+        return '$' + val.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    }
+
+    function setSampleTax() {
+        alert("Real-World Effective State Tax Guide Examples:\n\n- New Jersey: 2.11% (Highest)\n- Illinois: 1.92%\n- Texas: 1.31%\n- Florida: 0.75%\n- California: 0.71%\n- Hawaii: 0.27% (Lowest)\n\nAdjust your form field with appropriate town rates!");
+    }
+
+    function generateSearchLinks() {
+        const rawLocation = document.getElementById('searchLocation').value.trim();
+        const searchType = document.getElementById('searchType').value;
+        const outputDiv = document.getElementById('linksOutput');
+
+        if (!rawLocation) {
+            alert("Please input a town name or ZIP code to launch parameters.");
+            return;
+        }
+
+        const encodedLoc = encodeURIComponent(rawLocation);
+        outputDiv.innerHTML = '';
+        outputDiv.style.display = 'grid';
+
+        let links = [];
+
+        if (searchType === 'all') {
+            links = [
+                { name: `Zillow Listings: ${rawLocation}`, url: `https://www.zillow.com/homes/${encodedLoc}_rb/` },
+                { name: `Realtor.com Listings`, url: `https://www.realtor.com/realestateandhomes-search/${encodedLoc}` },
+                { name: `Redfin Map View`, url: `https://www.redfin.com/search?location=${encodedLoc}` }
+            ];
+        } else if (searchType === 'foreclosure') {
+            links = [
+                { name: `Foreclosure.com Options`, url: `https://www.foreclosure.com/listing/search?q=${encodedLoc}` },
+                { name: `Realtor.com Foreclosures`, url: `https://www.realtor.com/realestateandhomes-search/${encodedLoc}/show-foreclosure` },
+                { name: `Zillow Foreclosure Portal`, url: `https://www.zillow.com/homes/${encodedLoc}_rb/foreclosure_lt/` }
+            ];
+        } else if (searchType === 'shortsale') {
+            links = [
+                { name: `Realtor.com Short Sales`, url: `https://www.realtor.com/realestateandhomes-search/${encodedLoc}/show-short-sale` },
+                { name: `ZipRealty Pre-Filtered Search`, url: `https://www.ziprealty.com/search/address?searchString=${encodedLoc}` },
+                { name: `Google Targeted Search Indexes`, url: `https://www.google.com/search?q=short+sale+homes+for+sale+in+${encodedLoc}` }
+            ];
+        }
+
+        links.forEach(link => {
+            const a = document.createElement('a');
+            a.href = link.url;
+            a.target = "_blank";
+            a.className = "search-card-link";
+            a.innerText = link.name;
+            outputDiv.appendChild(a);
+        });
+    }
+
+    // Run calculations automatically at first launch
+    calculateMortgage();
+</script>
+
+</body>
+</html>
