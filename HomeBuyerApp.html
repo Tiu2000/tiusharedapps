@@ -97,6 +97,8 @@
             padding-bottom: 8px;
             border-bottom: 2px solid var(--border);
             color: #0f172a;
+            display: flex;
+            align-items: center;
         }
 
         .form-group {
@@ -159,6 +161,7 @@
         .breakdown-row {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             padding: 6px 0;
             border-bottom: 1px dashed var(--border);
         }
@@ -172,18 +175,101 @@
             color: var(--primary);
         }
 
+        .verdict-container {
+            position: relative;
+            margin-top: 15px;
+        }
+
         .verdict-box {
             padding: 16px;
             border-radius: 8px;
             text-align: center;
             font-weight: 700;
             font-size: 1.1rem;
-            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
         }
 
-        .verdict-safe { background-color: #dcfce7; color: var(--success); }
-        .verdict-warning { background-color: #fef9c3; color: var(--warning); }
-        .verdict-danger { background-color: #fee2e2; color: var(--danger); }
+        .verdict-safe { background-color: #dcfce7; color: var(--success); border: 1px solid #bbf7d0; }
+        .verdict-warning { background-color: #fef9c3; color: var(--warning); border: 1px solid #fef08a; }
+        .verdict-danger { background-color: #fee2e2; color: var(--danger); border: 1px solid #fecaca; }
+
+        /* --- TOOLTIP STYLES --- */
+        .tooltip-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            background-color: var(--primary);
+            color: white;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: help;
+            margin-left: 8px;
+            position: relative;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            width: 320px;
+            background-color: #1e293b;
+            color: #f8fafc;
+            text-align: left;
+            border-radius: 8px;
+            padding: 15px;
+            position: absolute;
+            z-index: 10;
+            bottom: 130%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.85rem;
+            font-weight: normal;
+            line-height: 1.5;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+            pointer-events: none;
+        }
+
+        .tooltip-text strong {
+            color: #38bdf8;
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.9rem;
+        }
+
+        .tooltip-text ul {
+            margin-left: 18px;
+            margin-top: 6px;
+        }
+
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -8px;
+            border-width: 8px;
+            border-style: solid;
+            border-color: #1e293b transparent transparent transparent;
+        }
+
+        .tooltip-icon:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .verdict-box .tooltip-icon {
+            background-color: rgba(0,0,0,0.2);
+            color: inherit;
+        }
+        .verdict-box .tooltip-icon:hover .tooltip-text {
+            color: #f8fafc; /* Ensures tooltip text stays readable regardless of box color */
+        }
 
         /* Real Estate Search Utility */
         .search-container {
@@ -246,6 +332,7 @@
             font-size: 0.8rem;
             color: var(--text-muted);
             margin-top: 10px;
+            text-align: center;
         }
     </style>
 </head>
@@ -263,7 +350,6 @@
     </header>
 
     <div class="grid">
-        <!-- INPUTS COLUMN -->
         <div class="card">
             <h2>1. Financial & Income Profile</h2>
             <div class="form-group">
@@ -277,7 +363,7 @@
                 <label for="monthlyDebt">Other Monthly Debts <span style="font-weight:normal; color:var(--text-muted);">(Car, Student Loans, Cards)</span></label>
                 <div class="input-wrapper">
                     <span class="input-prefix">$</span>
-                    <input type="number" id="monthlyDebt" class="has-prefix" value="4000" oninput="calculateMortgage()">
+                    <input type="number" id="monthlyDebt" class="has-prefix" value="1000" oninput="calculateMortgage()">
                 </div>
             </div>
 
@@ -326,7 +412,6 @@
             </div>
         </div>
 
-        <!-- OUTPUTS COLUMN -->
         <div style="display: flex; flex-direction: column; gap: 25px;">
             <div class="card">
                 <h2>3. Cost & Payment Analysis</h2>
@@ -372,35 +457,82 @@
             </div>
 
             <div class="card">
-                <h2>4. Affordability Verification</h2>
+                <h2>
+                    4. Affordability Verification
+                </h2>
                 <div class="payment-breakdown">
                     <div class="breakdown-row">
-                        <span>Your Monthly Gross Income:</span>
+                        <span>
+                            Your Monthly Gross Income
+                            <span class="tooltip-icon">?
+                                <span class="tooltip-text">
+                                    <strong>Gross vs Net Pay</strong>
+                                    Lenders calculate affordability using your Gross Income (earnings <em>before</em> taxes and deductions), not your take-home pay, to create a verifiable baseline across all applicants.
+                                </span>
+                            </span>
+                        </span>
                         <span id="outMonthlyGross" style="font-weight: 600;">$0</span>
                     </div>
                     <div class="breakdown-row">
-                        <span>Front-End DTI (Housing Costs Only):</span>
+                        <span>
+                            Front-End DTI (Housing Costs)
+                            <span class="tooltip-icon">?
+                                <span class="tooltip-text">
+                                    <strong>The "28" Rule</strong>
+                                    Measures how much gross income goes strictly to the new house. Lenders mandate this shouldn't exceed 28%. Includes:<br>
+                                    <ul>
+                                        <li>Principal & Interest</li>
+                                        <li>Property Taxes & Insurance</li>
+                                        <li>HOA Fees & PMI</li>
+                                    </ul>
+                                </span>
+                            </span>
+                        </span>
                         <span id="outFrontDTI" style="font-weight: 600;">0%</span>
                     </div>
                     <div class="breakdown-row">
-                        <span>Back-End DTI (Housing + Existing Debts):</span>
+                        <span>
+                            Back-End DTI (Housing + Debt)
+                            <span class="tooltip-icon">?
+                                <span class="tooltip-text">
+                                    <strong>The "36" Rule</strong>
+                                    Measures total financial obligations. Lenders prefer this under 36%. Includes the new housing payment PLUS recurring debts like:<br>
+                                    <ul>
+                                        <li>Auto loans & leases</li>
+                                        <li>Student loans</li>
+                                        <li>Minimum credit card payments</li>
+                                    </ul>
+                                    <em>Note: Living expenses like food/gas are excluded.</em>
+                                </span>
+                            </span>
+                        </span>
                         <span id="outBackDTI" style="font-weight: 600;">0%</span>
                     </div>
                 </div>
-                <div id="verdictBox" class="verdict-box">
-                    Awaiting Calculation...
+                
+                <div class="verdict-container">
+                    <div id="verdictBox" class="verdict-box">
+                        <span id="verdictText">Awaiting Calculation...</span>
+                        <span class="tooltip-icon">?
+                            <span class="tooltip-text" style="bottom: 150%;">
+                                <strong>How to Read the Verdict</strong>
+                                <ul>
+                                    <li><strong style="color:#4ade80;">Safe:</strong> Below 28/36 limit. Prime conventional loan candidate.</li>
+                                    <li><strong style="color:#facc15;">Warning:</strong> Pushing high 30s/40s. Risk of feeling "house poor" with little leftover cash.</li>
+                                    <li><strong style="color:#f87171;">Danger:</strong> Over 45-50%. High statistical risk of default; extreme likelihood of application denial.</li>
+                                </ul>
+                            </span>
+                        </span>
+                    </div>
                 </div>
-                <p class="info-note">
-                    * Standard banking limits advise a Front-End DTI below 28% and a Back-End DTI below 36% for standard conventional qualifications.
-                </p>
+                <p class="info-note">Hover over the <strong>?</strong> icons for a deep dive into underwriter math.</p>
             </div>
         </div>
 
-        <!-- SEARCH UTILITY (FULL WIDTH) -->
         <div class="card full-width">
             <h2>5. Targeted Real Estate Search Navigator</h2>
             <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">
-                Since direct real-time MLS scraping requires a server-side API integration, use this portal to generate perfectly targeted deep-search filters directly on top real-estate engines based on your target town or ZIP.
+                Generate perfectly targeted deep-search filters directly on top real-estate engines based on your target town or ZIP.
             </p>
             <div class="search-container">
                 <input type="text" id="searchLocation" placeholder="Enter Town, State, or ZIP (e.g., Nutley, NJ)">
@@ -413,8 +545,7 @@
             </div>
 
             <div id="linksOutput" class="search-links-output" style="display:none;">
-                <!-- Links dynamically populated here -->
-            </div>
+                </div>
         </div>
     </div>
 </div>
@@ -456,7 +587,6 @@
         // PMI Calculation (Applies if down payment is less than 20%)
         let monthlyPMI = 0;
         if (downPercent < 20 && loanAmount > 0) {
-            // Average standard PMI rate baseline around 0.75% annually of standard loan values
             monthlyPMI = (loanAmount * 0.0075) / 12;
         }
 
@@ -484,19 +614,21 @@
         document.getElementById('outBackDTI').innerText = backDTI.toFixed(1) + '%';
 
         // Update Affordability Verdict Status Box
-        const verdict = document.getElementById('verdictBox');
+        const verdictBox = document.getElementById('verdictBox');
+        const verdictText = document.getElementById('verdictText');
+        
         if (grossIncome === 0 || price === 0) {
-            verdict.className = "verdict-box";
-            verdict.innerText = "Please provide real income and price inputs.";
+            verdictBox.className = "verdict-box";
+            verdictText.innerText = "Please provide real income and price inputs.";
         } else if (frontDTI <= 28 && backDTI <= 36) {
-            verdict.className = "verdict-box verdict-safe";
-            verdict.innerText = "Comfortably Affordable: Strong DTI Framework Match.";
+            verdictBox.className = "verdict-box verdict-safe";
+            verdictText.innerText = "Comfortably Affordable: Strong DTI Framework Match.";
         } else if (frontDTI <= 36 && backDTI <= 45) {
-            verdict.className = "verdict-box verdict-warning";
-            verdict.innerText = "Stretching Budget bounds: Approaching lender limitations.";
+            verdictBox.className = "verdict-box verdict-warning";
+            verdictText.innerText = "Stretching Budget: Approaching lender limitations.";
         } else {
-            verdict.className = "verdict-box verdict-danger";
-            verdict.innerText = "Aggressive Risk Exposure: DTI ratios exceed standard conventional parameters.";
+            verdictBox.className = "verdict-box verdict-danger";
+            verdictText.innerText = "Aggressive Risk Exposure: High loan denial likelihood.";
         }
     }
 
