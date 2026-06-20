@@ -460,7 +460,14 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Other Monthly Debts <span style="font-weight:normal; color:var(--text-muted);">(Car, Loans, Cards)</span></label>
+                    <label style="display: flex; align-items: center;">Other Monthly Debts 
+                        <span class="tooltip-icon">?
+                            <span class="tooltip-text" style="width: 260px; left: 50%; transform: translateX(-15%);">
+                                <strong>Include:</strong> Car loans, student loans, minimum credit card payments, and personal loans.<br><br>
+                                <strong>Exclude:</strong> Your current rent, utilities, groceries, and insurance. Lenders only look at surviving debt!
+                            </span>
+                        </span>
+                    </label>
                     <div class="input-wrapper">
                         <span class="input-prefix">$</span>
                         <input type="number" id="monthlyDebt" class="has-prefix" oninput="calculateAndSave()">
