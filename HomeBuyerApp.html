@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Comprehensive Home Affordability & Search Hub (2026 Data)</title>
-    <!-- Include Chart.js for the Amortization Graph -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -33,19 +32,38 @@
             color: var(--text-main);
             line-height: 1.5;
             padding: 20px;
+            position: relative; 
+        }
+
+        /* --- WATERMARK STYLES --- */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Repeating SVG pattern with "TIU" text */
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIj48dGV4dCB4PSIzMCIgeT0iNzAiIGZvbnQtZmFtaWx5PSJTZWdvZSBVSSwg Tahoma, Geneva, Verdana, sans-serifIiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9InJnYmEoMCwwLDAsMC4wNCkiIHRyYW5zZm9ybT0icm90YXRlKC00NSA3NSA3NSkiPlRJVTwvdGV4dD48L3N2Zz4=');
+            background-repeat: repeat;
+            pointer-events: none; /* Crucial: clicks pass through to app */
+            z-index: 10000; 
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
+            position: relative;
+            z-index: 1; 
         }
 
-        /* Toolbar */
         .toolbar {
             display: flex;
             justify-content: flex-end;
             gap: 10px;
             margin-bottom: 15px;
+            position: relative;
+            z-index: 2; 
         }
 
         .toolbar button {
@@ -66,9 +84,7 @@
             border-color: #cbd5e1;
         }
 
-        .toolbar button.reset-btn {
-            color: var(--danger);
-        }
+        .toolbar button.reset-btn { color: var(--danger); }
 
         header {
             text-align: center;
@@ -97,9 +113,7 @@
             padding-top: 10px;
         }
 
-        .ticker-item strong {
-            color: #38bdf8;
-        }
+        .ticker-item strong { color: #38bdf8; }
 
         .grid {
             display: grid;
@@ -108,12 +122,8 @@
         }
 
         @media (min-width: 850px) {
-            .grid {
-                grid-template-columns: 1fr 1fr;
-            }
-            .full-width {
-                grid-column: span 2;
-            }
+            .grid { grid-template-columns: 1fr 1fr; }
+            .full-width { grid-column: span 2; }
         }
 
         .card {
@@ -122,6 +132,8 @@
             border-radius: 12px;
             padding: 24px;
             box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            position: relative;
+            z-index: 1;
         }
 
         .card h2 {
@@ -136,6 +148,8 @@
 
         .form-group {
             margin-bottom: 16px;
+            position: relative;
+            z-index: 2; 
         }
 
         label {
@@ -175,9 +189,7 @@
             box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
 
-        input.has-prefix {
-            padding-left: 28px;
-        }
+        input.has-prefix { padding-left: 28px; }
 
         .section-divider {
             margin: 25px 0 15px 0;
@@ -187,7 +199,6 @@
             padding-bottom: 5px;
         }
 
-        /* Results / Output styling */
         .payment-breakdown {
             display: flex;
             flex-direction: column;
@@ -212,7 +223,6 @@
             color: var(--primary);
         }
 
-        /* Expandable Accordion for Closing Costs */
         details.closing-costs-details {
             background: #f8fafc;
             border: 1px solid var(--border);
@@ -220,6 +230,8 @@
             padding: 10px 15px;
             margin-bottom: 15px;
             font-size: 0.9rem;
+            position: relative;
+            z-index: 2; 
         }
         
         details.closing-costs-details summary {
@@ -280,7 +292,6 @@
         .verdict-warning { background-color: #fef9c3; color: var(--warning); border: 1px solid #fef08a; }
         .verdict-danger { background-color: #fee2e2; color: var(--danger); border: 1px solid #fecaca; }
 
-        /* Rent vs Buy Box */
         .rent-vs-buy-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -305,7 +316,6 @@
             color: #0f172a;
         }
 
-        /* --- TOOLTIP STYLES --- */
         .tooltip-icon {
             display: inline-flex;
             align-items: center;
@@ -320,6 +330,7 @@
             cursor: help;
             margin-left: 8px;
             position: relative;
+            z-index: 2; 
         }
 
         .tooltip-text {
@@ -331,7 +342,7 @@
             border-radius: 8px;
             padding: 15px;
             position: absolute;
-            z-index: 10;
+            z-index: 10001; 
             bottom: 130%;
             left: 50%;
             transform: translateX(-50%);
@@ -349,12 +360,13 @@
             opacity: 1;
         }
 
-        /* Real Estate Search Utility */
         .search-container {
             display: flex;
             gap: 12px;
             flex-wrap: wrap;
             margin-bottom: 15px;
+            position: relative;
+            z-index: 2; 
         }
 
         .search-container input, .search-container select {
@@ -373,15 +385,15 @@
             transition: background 0.2s;
         }
 
-        .btn:hover {
-            background-color: var(--primary-hover);
-        }
+        .btn:hover { background-color: var(--primary-hover); }
 
         .search-links-output {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 12px;
             margin-top: 15px;
+            position: relative;
+            z-index: 2; 
         }
 
         .search-card-link {
@@ -406,7 +418,6 @@
             transform: translateY(-2px);
         }
 
-        /* Print Media Styles */
         @media print {
             body { background-color: white; padding: 0; }
             .toolbar, .search-card-link, .btn, .search-container, .tooltip-icon, .tax-helper-btn { display: none !important; }
@@ -438,7 +449,6 @@
     </header>
 
     <div class="grid">
-        <!-- INPUTS COLUMN -->
         <div>
             <div class="card" style="margin-bottom: 25px;">
                 <h2>1. Financial & Income Profile</h2>
@@ -513,7 +523,6 @@
             </div>
         </div>
 
-        <!-- OUTPUTS COLUMN -->
         <div style="display: flex; flex-direction: column; gap: 25px;">
             
             <div class="card">
@@ -539,7 +548,6 @@
                         <span id="outLoanAmount" style="font-weight: 600;">$0</span>
                     </div>
                     
-                    <!-- Itemized Closing Costs Accordion -->
                     <details class="closing-costs-details">
                         <summary>Estimated Closing Costs: <span id="outClosingCosts" style="font-weight: 600; float:right;">$0</span></summary>
                         <div class="itemized-list">
@@ -562,7 +570,6 @@
                     </div>
                 </div>
 
-                <!-- Amortization Chart -->
                 <div style="margin-top: 20px; height: 200px; width: 100%;">
                     <canvas id="amortizationChart"></canvas>
                 </div>
@@ -613,7 +620,6 @@
             </div>
         </div>
 
-        <!-- SEARCH UTILITY (FULL WIDTH) -->
         <div class="card full-width print-hide">
             <h2>7. Targeted Real Estate Search Navigator</h2>
             <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">
@@ -762,7 +768,6 @@
         }
 
         // 5-Year Rent vs Buy Outlook
-        // Rent Cost (assuming 3% annual increase)
         let totalRent5Yrs = 0;
         let runningRent = currentRent;
         for(let yr = 1; yr <= 5; yr++) {
@@ -770,11 +775,8 @@
             runningRent *= 1.03; 
         }
 
-        // Buy Cost & Equity (Amortization loop for 60 months)
         let balance = loanAmount;
         let principalPaid5Yrs = 0;
-        
-        // Arrays for the chart
         const chartYears = [];
         const chartBalances = [];
         const chartPrincipal = [];
@@ -788,7 +790,6 @@
                 cumPrincipal += principalForMonth;
                 if(m <= 60) principalPaid5Yrs += principalForMonth;
             }
-            // Save yearly data for chart
             if (m % 12 === 0 || m === 360) {
                 chartYears.push(`Yr ${m/12}`);
                 chartBalances.push(balance > 0 ? balance : 0);
@@ -797,10 +798,9 @@
         }
 
         const totalBuyPayments5Yrs = totalMonthlyPayment * 60;
-        const estimatedHomeValue5Yrs = homePrice * Math.pow(1.03, 5); // 3% annual appreciation
+        const estimatedHomeValue5Yrs = homePrice * Math.pow(1.03, 5); 
         const totalAppreciation = estimatedHomeValue5Yrs - homePrice;
         
-        // Net Cost = Total Out of Pocket - Equity Gained - Appreciation
         const netBuyCost = totalBuyPayments5Yrs - principalPaid5Yrs - totalAppreciation;
 
         document.getElementById('rvbRentTotal').innerText = formatCurrency(totalRent5Yrs);
@@ -813,11 +813,9 @@
             buyTotalEl.style.color = "var(--danger)";
         }
 
-        // Update Chart
         updateChart(chartYears, chartBalances, chartPrincipal);
     }
 
-    // Chart.js Updater
     function updateChart(labels, balances, principal) {
         const ctx = document.getElementById('amortizationChart').getContext('2d');
         if(chartInstance) { chartInstance.destroy(); }
@@ -860,9 +858,7 @@
                     }
                 },
                 scales: {
-                    y: {
-                        ticks: { callback: function(value) { return '$' + (value/1000) + 'k'; }, font: {size: 10} }
-                    },
+                    y: { ticks: { callback: function(value) { return '$' + (value/1000) + 'k'; }, font: {size: 10} } },
                     x: { ticks: { maxTicksLimit: 6, font: {size: 10} } }
                 }
             }
