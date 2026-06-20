@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Comprehensive Home Affordability & Search Hub (2026 Data)</title>
+    <!-- Include Chart.js for the Amortization Graph -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --primary: #4f46e5;
@@ -16,6 +18,7 @@
             --success: #16a34a;
             --warning: #ca8a04;
             --danger: #dc2626;
+            --highlight: #ecfeff;
         }
 
         * {
@@ -35,6 +38,36 @@
         .container {
             max-width: 1200px;
             margin: 0 auto;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .toolbar button {
+            background-color: #fff;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+            transition: all 0.2s;
+        }
+
+        .toolbar button:hover {
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .toolbar button.reset-btn {
+            color: var(--danger);
         }
 
         header {
@@ -74,7 +107,7 @@
             gap: 25px;
         }
 
-        @media (min-width: 768px) {
+        @media (min-width: 850px) {
             .grid {
                 grid-template-columns: 1fr 1fr;
             }
@@ -133,21 +166,25 @@
             font-size: 1rem;
             color: var(--text-main);
             background-color: #fff;
+            transition: border-color 0.2s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
 
         input.has-prefix {
             padding-left: 28px;
         }
 
-        .tax-helper-btn {
-            font-size: 0.8rem;
-            background: none;
-            border: none;
+        .section-divider {
+            margin: 25px 0 15px 0;
+            font-size: 1.1rem;
             color: var(--primary);
-            cursor: pointer;
-            text-decoration: underline;
-            margin-top: 4px;
-            display: inline-block;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 5px;
         }
 
         /* Results / Output styling */
@@ -175,9 +212,55 @@
             color: var(--primary);
         }
 
-        .verdict-container {
-            position: relative;
-            margin-top: 15px;
+        /* Expandable Accordion for Closing Costs */
+        details.closing-costs-details {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+        
+        details.closing-costs-details summary {
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--primary);
+            outline: none;
+        }
+        
+        .itemized-list {
+            margin-top: 10px;
+            padding-left: 10px;
+            border-left: 2px solid var(--primary);
+        }
+        
+        .itemized-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            color: var(--text-muted);
+        }
+
+        .highlight-box {
+            background-color: var(--highlight);
+            border: 1px solid #cffafe;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .highlight-box h3 {
+            color: #0891b2;
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .highlight-box .big-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #164e63;
         }
 
         .verdict-box {
@@ -190,11 +273,37 @@
             justify-content: center;
             align-items: center;
             gap: 8px;
+            margin-top: 15px;
         }
 
         .verdict-safe { background-color: #dcfce7; color: var(--success); border: 1px solid #bbf7d0; }
         .verdict-warning { background-color: #fef9c3; color: var(--warning); border: 1px solid #fef08a; }
         .verdict-danger { background-color: #fee2e2; color: var(--danger); border: 1px solid #fecaca; }
+
+        /* Rent vs Buy Box */
+        .rent-vs-buy-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .rvb-card {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .rvb-card h4 {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .rvb-card .rvb-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
 
         /* --- TOOLTIP STYLES --- */
         .tooltip-icon {
@@ -215,7 +324,7 @@
 
         .tooltip-text {
             visibility: hidden;
-            width: 320px;
+            width: 300px;
             background-color: #1e293b;
             color: #f8fafc;
             text-align: left;
@@ -234,41 +343,10 @@
             box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
             pointer-events: none;
         }
-
-        .tooltip-text strong {
-            color: #38bdf8;
-            display: block;
-            margin-bottom: 4px;
-            font-size: 0.9rem;
-        }
-
-        .tooltip-text ul {
-            margin-left: 18px;
-            margin-top: 6px;
-        }
-
-        .tooltip-text::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -8px;
-            border-width: 8px;
-            border-style: solid;
-            border-color: #1e293b transparent transparent transparent;
-        }
-
+        
         .tooltip-icon:hover .tooltip-text {
             visibility: visible;
             opacity: 1;
-        }
-
-        .verdict-box .tooltip-icon {
-            background-color: rgba(0,0,0,0.2);
-            color: inherit;
-        }
-        .verdict-box .tooltip-icon:hover .tooltip-text {
-            color: #f8fafc; /* Ensures tooltip text stays readable regardless of box color */
         }
 
         /* Real Estate Search Utility */
@@ -328,17 +406,27 @@
             transform: translateY(-2px);
         }
 
-        .info-note {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            margin-top: 10px;
-            text-align: center;
+        /* Print Media Styles */
+        @media print {
+            body { background-color: white; padding: 0; }
+            .toolbar, .search-card-link, .btn, .search-container, .tooltip-icon, .tax-helper-btn { display: none !important; }
+            .container { max-width: 100%; margin: 0; }
+            .card { box-shadow: none; border: 1px solid #000; break-inside: avoid; margin-bottom: 20px; }
+            header { background: #1e293b; color: white !important; box-shadow: none; }
+            .grid { display: block; }
+            details.closing-costs-details summary::marker { content: ""; }
+            details.closing-costs-details { border: none; padding: 0; }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <div class="toolbar">
+        <button onclick="window.print()">🖨️ Print / Save as PDF</button>
+        <button class="reset-btn" onclick="resetData()">↺ Reset All Data</button>
+    </div>
+
     <header>
         <h1>Smart Homebuyer Affordability & Search Hub</h1>
         <div class="market-ticker">
@@ -350,187 +438,184 @@
     </header>
 
     <div class="grid">
-        <div class="card">
-            <h2>1. Financial & Income Profile</h2>
-            <div class="form-group">
-                <label for="jointIncome">Household Joint Annual Gross Income</label>
-                <div class="input-wrapper">
-                    <span class="input-prefix">$</span>
-                    <input type="number" id="jointIncome" class="has-prefix" value="120000" oninput="calculateMortgage()">
+        <!-- INPUTS COLUMN -->
+        <div>
+            <div class="card" style="margin-bottom: 25px;">
+                <h2>1. Financial & Income Profile</h2>
+                <div class="form-group">
+                    <label>Household Joint Annual Gross Income</label>
+                    <div class="input-wrapper">
+                        <span class="input-prefix">$</span>
+                        <input type="number" id="jointIncome" class="has-prefix" oninput="calculateAndSave()">
+                    </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label for="monthlyDebt">Other Monthly Debts <span style="font-weight:normal; color:var(--text-muted);">(Car, Student Loans, Cards)</span></label>
-                <div class="input-wrapper">
-                    <span class="input-prefix">$</span>
-                    <input type="number" id="monthlyDebt" class="has-prefix" value="1000" oninput="calculateMortgage()">
+                <div class="form-group">
+                    <label>Other Monthly Debts <span style="font-weight:normal; color:var(--text-muted);">(Car, Loans, Cards)</span></label>
+                    <div class="input-wrapper">
+                        <span class="input-prefix">$</span>
+                        <input type="number" id="monthlyDebt" class="has-prefix" oninput="calculateAndSave()">
+                    </div>
+                </div>
+
+                <h3 class="section-divider">Rent vs. Buy Setup</h3>
+                <div class="form-group">
+                    <label>Your Current Monthly Rent</label>
+                    <div class="input-wrapper">
+                        <span class="input-prefix">$</span>
+                        <input type="number" id="currentRent" class="has-prefix" value="2500" oninput="calculateAndSave()">
+                    </div>
                 </div>
             </div>
 
-            <h2>2. Property Expense Profile</h2>
-            <div class="form-group">
-                <label for="homePrice">Target House Purchase Price</label>
-                <div class="input-wrapper">
-                    <span class="input-prefix">$</span>
-                    <input type="number" id="homePrice" class="has-prefix" value="450000" oninput="calculateMortgage()">
+            <div class="card">
+                <h2>2. Property Expense Profile</h2>
+                <div class="form-group">
+                    <label>Target House Purchase Price</label>
+                    <div class="input-wrapper">
+                        <span class="input-prefix">$</span>
+                        <input type="number" id="homePrice" class="has-prefix" oninput="calculateAndSave()">
+                    </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label for="downPayment">Down Payment Amount</label>
-                <div class="input-wrapper">
-                    <span class="input-prefix">$</span>
-                    <input type="number" id="downPayment" class="has-prefix" value="90000" oninput="calculateMortgage()">
+                <div class="form-group">
+                    <label>Down Payment Amount</label>
+                    <div class="input-wrapper">
+                        <span class="input-prefix">$</span>
+                        <input type="number" id="downPayment" class="has-prefix" oninput="calculateAndSave()">
+                    </div>
+                    <div id="downPercentLabel" style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;"></div>
                 </div>
-                <div id="downPercentLabel" style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;"></div>
-            </div>
-            <div class="form-group">
-                <label for="interestRate">Interest Rate (Annual %)</label>
-                <input type="number" id="interestRate" step="0.01" value="6.47" oninput="calculateMortgage()">
-            </div>
-            <div class="form-group">
-                <label for="taxRate">Annual Property Tax Rate (%)</label>
-                <input type="number" id="taxRate" step="0.01" value="1.1" oninput="calculateMortgage()">
-                <button type="button" class="tax-helper-btn" onclick="setSampleTax()">Click to see real sample state averages</button>
-            </div>
-            <div class="form-group">
-                <label for="closingCostRate">Estimated Closing Costs & Fees (%)</label>
-                <input type="number" id="closingCostRate" step="0.1" value="3.0" oninput="calculateMortgage()">
-            </div>
-            <div class="form-group">
-                <label for="insurance">Annual Homeowners Insurance</label>
-                <div class="input-wrapper">
-                    <span class="input-prefix">$</span>
-                    <input type="number" id="insurance" class="has-prefix" value="1500" oninput="calculateMortgage()">
+                <div class="form-group">
+                    <label>Interest Rate (Annual %)</label>
+                    <input type="number" id="interestRate" step="0.01" oninput="calculateAndSave()">
                 </div>
-            </div>
-            <div class="form-group">
-                <label for="hoa">Monthly HOA Fees (If applicable)</label>
-                <div class="input-wrapper">
-                    <span class="input-prefix">$</span>
-                    <input type="number" id="hoa" class="has-prefix" value="0" oninput="calculateMortgage()">
+                <div class="form-group">
+                    <label>Annual Property Tax Rate (%)</label>
+                    <input type="number" id="taxRate" step="0.01" oninput="calculateAndSave()">
+                </div>
+                <div class="form-group">
+                    <label>Estimated Closing Costs & Fees (%)</label>
+                    <input type="number" id="closingCostRate" step="0.1" oninput="calculateAndSave()">
+                </div>
+                <div class="form-group">
+                    <label>Annual Homeowners Insurance</label>
+                    <div class="input-wrapper">
+                        <span class="input-prefix">$</span>
+                        <input type="number" id="insurance" class="has-prefix" oninput="calculateAndSave()">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Monthly HOA Fees (If applicable)</label>
+                    <div class="input-wrapper">
+                        <span class="input-prefix">$</span>
+                        <input type="number" id="hoa" class="has-prefix" oninput="calculateAndSave()">
+                    </div>
                 </div>
             </div>
         </div>
 
+        <!-- OUTPUTS COLUMN -->
         <div style="display: flex; flex-direction: column; gap: 25px;">
+            
             <div class="card">
-                <h2>3. Cost & Payment Analysis</h2>
+                <h2>3. Maximum Purchasing Power</h2>
+                <div class="highlight-box">
+                    <h3>"How Much House Can I Afford?"
+                        <span class="tooltip-icon" style="background:#0891b2;">?
+                            <span class="tooltip-text">
+                                Reverse-engineers your absolute maximum purchase price based on lender limits, finding the highest loan you qualify for minus fixed expenses.
+                            </span>
+                        </span>
+                    </h3>
+                    <div id="maxHomePrice" class="big-number">$0</div>
+                    <p style="font-size: 0.85rem; color: #0f766e; margin-top: 5px;">Based strictly on banking DTI caps & your down payment.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>4. Target Cost & Amortization</h2>
                 <div class="payment-breakdown">
                     <div class="breakdown-row">
                         <span>Total Loan Amount Needed:</span>
                         <span id="outLoanAmount" style="font-weight: 600;">$0</span>
                     </div>
-                    <div class="breakdown-row">
-                        <span>Estimated Closing Costs Out-of-Pocket:</span>
-                        <span id="outClosingCosts" style="font-weight: 600;">$0</span>
-                    </div>
+                    
+                    <!-- Itemized Closing Costs Accordion -->
+                    <details class="closing-costs-details">
+                        <summary>Estimated Closing Costs: <span id="outClosingCosts" style="font-weight: 600; float:right;">$0</span></summary>
+                        <div class="itemized-list">
+                            <div class="itemized-row"><span>Origination / Underwriting (30%)</span><span id="ccOrigination">$0</span></div>
+                            <div class="itemized-row"><span>Title & Escrow Services (25%)</span><span id="ccTitle">$0</span></div>
+                            <div class="itemized-row"><span>Pre-paid Taxes & Ins. (20%)</span><span id="ccPrepaids">$0</span></div>
+                            <div class="itemized-row"><span>Appraisal & Inspections (15%)</span><span id="ccAppraisal">$0</span></div>
+                            <div class="itemized-row"><span>Recording & Govt Fees (10%)</span><span id="ccRecording">$0</span></div>
+                        </div>
+                    </details>
+
                     <div class="breakdown-row" style="margin-bottom: 10px; color: var(--text-muted);">
                         <span>Total Cash Needed at Settlement:</span>
-                        <span id="outTotalCash" style="font-weight: 600;">$0</span>
+                        <span id="outTotalCash" style="font-weight: 600; color:var(--text-main);"></span>
                     </div>
                     
-                    <div class="breakdown-row">
-                        <span>Principal & Interest Payment:</span>
-                        <span id="outPrincipalInterest">$0</span>
-                    </div>
-                    <div class="breakdown-row">
-                        <span>Property Taxes (Monthly Escrow):</span>
-                        <span id="outMonthlyTax">$0</span>
-                    </div>
-                    <div class="breakdown-row">
-                        <span>Home Insurance (Monthly Escrow):</span>
-                        <span id="outMonthlyInsurance">$0</span>
-                    </div>
-                    <div class="breakdown-row">
-                        <span>Private Mortgage Insurance (PMI):</span>
-                        <span id="outPMI">$0</span>
-                    </div>
-                    <div class="breakdown-row">
-                        <span>HOA Dues:</span>
-                        <span id="outMonthlyHOA">$0</span>
-                    </div>
                     <div class="breakdown-row total">
                         <span>Total Monthly Payment:</span>
                         <span id="outTotalMonthly">$0</span>
                     </div>
                 </div>
+
+                <!-- Amortization Chart -->
+                <div style="margin-top: 20px; height: 200px; width: 100%;">
+                    <canvas id="amortizationChart"></canvas>
+                </div>
             </div>
 
             <div class="card">
-                <h2>
-                    4. Affordability Verification
-                </h2>
+                <h2>5. Affordability Verification</h2>
                 <div class="payment-breakdown">
                     <div class="breakdown-row">
-                        <span>
-                            Your Monthly Gross Income
-                            <span class="tooltip-icon">?
-                                <span class="tooltip-text">
-                                    <strong>Gross vs Net Pay</strong>
-                                    Lenders calculate affordability using your Gross Income (earnings <em>before</em> taxes and deductions), not your take-home pay, to create a verifiable baseline across all applicants.
-                                </span>
-                            </span>
-                        </span>
+                        <span>Monthly Gross Income</span>
                         <span id="outMonthlyGross" style="font-weight: 600;">$0</span>
                     </div>
                     <div class="breakdown-row">
-                        <span>
-                            Front-End DTI (Housing Costs)
-                            <span class="tooltip-icon">?
-                                <span class="tooltip-text">
-                                    <strong>The "28" Rule</strong>
-                                    Measures how much gross income goes strictly to the new house. Lenders mandate this shouldn't exceed 28%. Includes:<br>
-                                    <ul>
-                                        <li>Principal & Interest</li>
-                                        <li>Property Taxes & Insurance</li>
-                                        <li>HOA Fees & PMI</li>
-                                    </ul>
-                                </span>
-                            </span>
-                        </span>
+                        <span>Front-End DTI (Housing Costs)</span>
                         <span id="outFrontDTI" style="font-weight: 600;">0%</span>
                     </div>
                     <div class="breakdown-row">
-                        <span>
-                            Back-End DTI (Housing + Debt)
-                            <span class="tooltip-icon">?
-                                <span class="tooltip-text">
-                                    <strong>The "36" Rule</strong>
-                                    Measures total financial obligations. Lenders prefer this under 36%. Includes the new housing payment PLUS recurring debts like:<br>
-                                    <ul>
-                                        <li>Auto loans & leases</li>
-                                        <li>Student loans</li>
-                                        <li>Minimum credit card payments</li>
-                                    </ul>
-                                    <em>Note: Living expenses like food/gas are excluded.</em>
-                                </span>
-                            </span>
-                        </span>
+                        <span>Back-End DTI (Housing + Debt)</span>
                         <span id="outBackDTI" style="font-weight: 600;">0%</span>
                     </div>
                 </div>
                 
-                <div class="verdict-container">
-                    <div id="verdictBox" class="verdict-box">
-                        <span id="verdictText">Awaiting Calculation...</span>
-                        <span class="tooltip-icon">?
-                            <span class="tooltip-text" style="bottom: 150%;">
-                                <strong>How to Read the Verdict</strong>
-                                <ul>
-                                    <li><strong style="color:#4ade80;">Safe:</strong> Below 28/36 limit. Prime conventional loan candidate.</li>
-                                    <li><strong style="color:#facc15;">Warning:</strong> Pushing high 30s/40s. Risk of feeling "house poor" with little leftover cash.</li>
-                                    <li><strong style="color:#f87171;">Danger:</strong> Over 45-50%. High statistical risk of default; extreme likelihood of application denial.</li>
-                                </ul>
-                            </span>
+                <div id="verdictBox" class="verdict-box">
+                    <span id="verdictText">Awaiting Calculation...</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>6. 5-Year Rent vs. Buy Outlook
+                    <span class="tooltip-icon">?
+                        <span class="tooltip-text" style="bottom: 100%; left: -50px;">
+                            Assumes a conservative 3% annual rent increase and a 3% annual home value appreciation. It pits total "sunk" rent against your home ownership costs minus equity built and appreciation gained.
                         </span>
+                    </span>
+                </h2>
+                <div class="rent-vs-buy-grid">
+                    <div class="rvb-card">
+                        <h4>Total Rent Paid (5 Yrs)</h4>
+                        <div id="rvbRentTotal" class="rvb-value text-danger">$0</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">100% Sunk Cost</div>
+                    </div>
+                    <div class="rvb-card">
+                        <h4>Net Buy Cost (5 Yrs)</h4>
+                        <div id="rvbBuyTotal" class="rvb-value">$0</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Payments minus Equity & Appreciation</div>
                     </div>
                 </div>
-                <p class="info-note">Hover over the <strong>?</strong> icons for a deep dive into underwriter math.</p>
             </div>
         </div>
 
-        <div class="card full-width">
-            <h2>5. Targeted Real Estate Search Navigator</h2>
+        <!-- SEARCH UTILITY (FULL WIDTH) -->
+        <div class="card full-width print-hide">
+            <h2>7. Targeted Real Estate Search Navigator</h2>
             <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">
                 Generate perfectly targeted deep-search filters directly on top real-estate engines based on your target town or ZIP.
             </p>
@@ -541,103 +626,251 @@
                     <option value="foreclosure">Foreclosed / Bank-Owned Properties</option>
                     <option value="shortsale">Short Sale Properties Only</option>
                 </select>
-                <button class="btn" onclick="generateSearchLinks()">Generate Deep Search Links</button>
+                <button class="btn" onclick="generateSearchLinks()">Generate Search Links</button>
             </div>
-
-            <div id="linksOutput" class="search-links-output" style="display:none;">
-                </div>
+            <div id="linksOutput" class="search-links-output" style="display:none;"></div>
         </div>
     </div>
 </div>
 
 <script>
-    function calculateMortgage() {
-        // Inputs
-        const grossIncome = parseFloat(document.getElementById('jointIncome').value) || 0;
-        const monthlyDebt = parseFloat(document.getElementById('monthlyDebt') .value) || 0;
-        const price = parseFloat(document.getElementById('homePrice').value) || 0;
-        const downPayment = parseFloat(document.getElementById('downPayment').value) || 0;
-        const interestRate = parseFloat(document.getElementById('interestRate').value) || 0;
-        const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
-        const closingCostRate = parseFloat(document.getElementById('closingCostRate').value) || 0;
-        const annualInsurance = parseFloat(document.getElementById('insurance').value) || 0;
-        const hoa = parseFloat(document.getElementById('hoa').value) || 0;
+    // Default Values
+    const defaults = {
+        jointIncome: 120000,
+        monthlyDebt: 1000,
+        currentRent: 2500,
+        homePrice: 450000,
+        downPayment: 90000,
+        interestRate: 6.47,
+        taxRate: 1.1,
+        closingCostRate: 3.0,
+        insurance: 1500,
+        hoa: 0
+    };
 
-        // Calculate Down Payment Percentage
-        const downPercent = price > 0 ? (downPayment / price) * 100 : 0;
-        document.getElementById('downPercentLabel').innerText = `Down Payment Equals: ${downPercent.toFixed(1)}% of sales price`;
+    let chartInstance = null;
 
-        // Loan Calculations
-        const loanAmount = Math.max(0, price - downPayment);
-        const closingCosts = price * (closingCostRate / 100);
+    // Load from Local Storage on init
+    function loadData() {
+        Object.keys(defaults).forEach(key => {
+            const saved = localStorage.getItem(`homeApp_${key}`);
+            document.getElementById(key).value = saved !== null ? saved : defaults[key];
+        });
+        calculateAndSave();
+    }
+
+    // Reset Data
+    function resetData() {
+        if(confirm("Are you sure you want to clear all data and reset to defaults?")) {
+            Object.keys(defaults).forEach(key => {
+                localStorage.removeItem(`homeApp_${key}`);
+                document.getElementById(key).value = defaults[key];
+            });
+            document.getElementById('searchLocation').value = '';
+            document.getElementById('linksOutput').style.display = 'none';
+            calculateAndSave();
+        }
+    }
+
+    // Main Calculation & Save Function
+    function calculateAndSave() {
+        // 1. Gather & Save Inputs
+        const inputs = {};
+        Object.keys(defaults).forEach(key => {
+            const el = document.getElementById(key);
+            let val = parseFloat(el.value);
+            if(isNaN(val)) val = 0;
+            inputs[key] = val;
+            localStorage.setItem(`homeApp_${key}`, el.value); // Save raw value
+        });
+
+        const { jointIncome, monthlyDebt, currentRent, homePrice, downPayment, interestRate, taxRate, closingCostRate, insurance, hoa } = inputs;
+
+        // Shared / Base Metrics
+        const monthlyGross = jointIncome / 12;
+        const downPercent = homePrice > 0 ? (downPayment / homePrice) * 100 : 0;
+        document.getElementById('downPercentLabel').innerText = `Down Payment Equals: ${downPercent.toFixed(1)}% of price`;
+
+        // Maximum Limit Calculation
+        let maxAffordablePrice = 0;
+        if (monthlyGross > 0 && interestRate > 0) {
+            const maxFrontEnd = monthlyGross * 0.28;
+            const maxBackEnd = (monthlyGross * 0.36) - monthlyDebt;
+            const maxAllowedHousingPayment = Math.min(maxFrontEnd, maxBackEnd);
+
+            if (maxAllowedHousingPayment > 0) {
+                const monthlyRate = (interestRate / 100) / 12;
+                const M = (monthlyRate * Math.pow(1 + monthlyRate, 360)) / (Math.pow(1 + monthlyRate, 360) - 1);
+                const monthlyInsuranceRate = insurance / 12;
+                const monthlyTaxDec = (taxRate / 100) / 12;
+                const availableForPI_Tax = maxAllowedHousingPayment - hoa - monthlyInsuranceRate;
+                
+                if (availableForPI_Tax > 0) {
+                    maxAffordablePrice = (availableForPI_Tax + (downPayment * M)) / (M + monthlyTaxDec);
+                }
+            }
+        }
+        document.getElementById('maxHomePrice').innerText = maxAffordablePrice > 0 ? formatCurrency(maxAffordablePrice) : "$0";
+
+        // Target Home Cost Analysis
+        const loanAmount = Math.max(0, homePrice - downPayment);
+        const closingCosts = homePrice * (closingCostRate / 100);
         const totalCashNeeded = downPayment + closingCosts;
 
-        // Monthly Principal & Interest Formula
+        // Populate Itemized Closing Costs
+        document.getElementById('outClosingCosts').innerText = formatCurrency(closingCosts);
+        document.getElementById('ccOrigination').innerText = formatCurrency(closingCosts * 0.30);
+        document.getElementById('ccTitle').innerText = formatCurrency(closingCosts * 0.25);
+        document.getElementById('ccPrepaids').innerText = formatCurrency(closingCosts * 0.20);
+        document.getElementById('ccAppraisal').innerText = formatCurrency(closingCosts * 0.15);
+        document.getElementById('ccRecording').innerText = formatCurrency(closingCosts * 0.10);
+
         let monthlyPI = 0;
+        let monthlyRate = 0;
         if (loanAmount > 0 && interestRate > 0) {
-            const monthlyRate = (interestRate / 100) / 12;
-            const totalPayments = 30 * 12; // Baseline 30-year term
-            monthlyPI = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, totalPayments)) / (Math.pow(1 + monthlyRate, totalPayments) - 1);
+            monthlyRate = (interestRate / 100) / 12;
+            monthlyPI = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, 360)) / (Math.pow(1 + monthlyRate, 360) - 1);
         }
 
-        // Monthly Taxes & Insurance
-        const monthlyTax = (price * (taxRate / 100)) / 12;
-        const monthlyInsurance = annualInsurance / 12;
+        const monthlyTax = (homePrice * (taxRate / 100)) / 12;
+        const monthlyInsurance = insurance / 12;
+        let monthlyPMI = (downPercent < 20 && loanAmount > 0) ? (loanAmount * 0.0075) / 12 : 0;
 
-        // PMI Calculation (Applies if down payment is less than 20%)
-        let monthlyPMI = 0;
-        if (downPercent < 20 && loanAmount > 0) {
-            monthlyPMI = (loanAmount * 0.0075) / 12;
-        }
-
-        // Total Monthly Cost
         const totalMonthlyPayment = monthlyPI + monthlyTax + monthlyInsurance + monthlyPMI + hoa;
-
-        // Affordability metrics
-        const monthlyGross = grossIncome / 12;
         const frontDTI = monthlyGross > 0 ? (totalMonthlyPayment / monthlyGross) * 100 : 0;
         const backDTI = monthlyGross > 0 ? ((totalMonthlyPayment + monthlyDebt) / monthlyGross) * 100 : 0;
 
-        // Display results safely
+        // Display Base Values
         document.getElementById('outLoanAmount').innerText = formatCurrency(loanAmount);
-        document.getElementById('outClosingCosts').innerText = formatCurrency(closingCosts);
         document.getElementById('outTotalCash').innerText = formatCurrency(totalCashNeeded);
-        document.getElementById('outPrincipalInterest').innerText = formatCurrency(monthlyPI);
-        document.getElementById('outMonthlyTax').innerText = formatCurrency(monthlyTax);
-        document.getElementById('outMonthlyInsurance').innerText = formatCurrency(monthlyInsurance);
-        document.getElementById('outPMI').innerText = formatCurrency(monthlyPMI);
-        document.getElementById('outMonthlyHOA').innerText = formatCurrency(hoa);
         document.getElementById('outTotalMonthly').innerText = formatCurrency(totalMonthlyPayment);
-
         document.getElementById('outMonthlyGross').innerText = formatCurrency(monthlyGross);
         document.getElementById('outFrontDTI').innerText = frontDTI.toFixed(1) + '%';
         document.getElementById('outBackDTI').innerText = backDTI.toFixed(1) + '%';
 
-        // Update Affordability Verdict Status Box
+        // Verdict Logic
         const verdictBox = document.getElementById('verdictBox');
         const verdictText = document.getElementById('verdictText');
-        
-        if (grossIncome === 0 || price === 0) {
-            verdictBox.className = "verdict-box";
-            verdictText.innerText = "Please provide real income and price inputs.";
+        if (jointIncome === 0 || homePrice === 0) {
+            verdictBox.className = "verdict-box"; verdictText.innerText = "Provide income and price.";
         } else if (frontDTI <= 28 && backDTI <= 36) {
-            verdictBox.className = "verdict-box verdict-safe";
-            verdictText.innerText = "Comfortably Affordable: Strong DTI Framework Match.";
+            verdictBox.className = "verdict-box verdict-safe"; verdictText.innerText = "Comfortably Affordable.";
         } else if (frontDTI <= 36 && backDTI <= 45) {
-            verdictBox.className = "verdict-box verdict-warning";
-            verdictText.innerText = "Stretching Budget: Approaching lender limitations.";
+            verdictBox.className = "verdict-box verdict-warning"; verdictText.innerText = "Stretching Budget bounds.";
         } else {
-            verdictBox.className = "verdict-box verdict-danger";
-            verdictText.innerText = "Aggressive Risk Exposure: High loan denial likelihood.";
+            verdictBox.className = "verdict-box verdict-danger"; verdictText.innerText = "Aggressive Risk Exposure.";
         }
+
+        // 5-Year Rent vs Buy Outlook
+        // Rent Cost (assuming 3% annual increase)
+        let totalRent5Yrs = 0;
+        let runningRent = currentRent;
+        for(let yr = 1; yr <= 5; yr++) {
+            totalRent5Yrs += (runningRent * 12);
+            runningRent *= 1.03; 
+        }
+
+        // Buy Cost & Equity (Amortization loop for 60 months)
+        let balance = loanAmount;
+        let principalPaid5Yrs = 0;
+        
+        // Arrays for the chart
+        const chartYears = [];
+        const chartBalances = [];
+        const chartPrincipal = [];
+        let cumPrincipal = 0;
+
+        for (let m = 1; m <= 360; m++) {
+            let interestForMonth = balance * monthlyRate;
+            let principalForMonth = monthlyPI - interestForMonth;
+            if(balance > 0) {
+                balance -= principalForMonth;
+                cumPrincipal += principalForMonth;
+                if(m <= 60) principalPaid5Yrs += principalForMonth;
+            }
+            // Save yearly data for chart
+            if (m % 12 === 0 || m === 360) {
+                chartYears.push(`Yr ${m/12}`);
+                chartBalances.push(balance > 0 ? balance : 0);
+                chartPrincipal.push(cumPrincipal);
+            }
+        }
+
+        const totalBuyPayments5Yrs = totalMonthlyPayment * 60;
+        const estimatedHomeValue5Yrs = homePrice * Math.pow(1.03, 5); // 3% annual appreciation
+        const totalAppreciation = estimatedHomeValue5Yrs - homePrice;
+        
+        // Net Cost = Total Out of Pocket - Equity Gained - Appreciation
+        const netBuyCost = totalBuyPayments5Yrs - principalPaid5Yrs - totalAppreciation;
+
+        document.getElementById('rvbRentTotal').innerText = formatCurrency(totalRent5Yrs);
+        const buyTotalEl = document.getElementById('rvbBuyTotal');
+        if (netBuyCost < 0) {
+            buyTotalEl.innerText = formatCurrency(Math.abs(netBuyCost)) + " (Profit)";
+            buyTotalEl.style.color = "var(--success)";
+        } else {
+            buyTotalEl.innerText = formatCurrency(netBuyCost);
+            buyTotalEl.style.color = "var(--danger)";
+        }
+
+        // Update Chart
+        updateChart(chartYears, chartBalances, chartPrincipal);
+    }
+
+    // Chart.js Updater
+    function updateChart(labels, balances, principal) {
+        const ctx = document.getElementById('amortizationChart').getContext('2d');
+        if(chartInstance) { chartInstance.destroy(); }
+        
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Loan Balance',
+                        data: balances,
+                        borderColor: '#dc2626',
+                        backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Principal Built (Equity)',
+                        data: principal,
+                        borderColor: '#16a34a',
+                        backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top', labels: { boxWidth: 12, font: {size: 10} } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + formatCurrency(context.raw);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: { callback: function(value) { return '$' + (value/1000) + 'k'; }, font: {size: 10} }
+                    },
+                    x: { ticks: { maxTicksLimit: 6, font: {size: 10} } }
+                }
+            }
+        });
     }
 
     function formatCurrency(val) {
-        return '$' + val.toLocaleString('en-US', { maximumFractionDigits: 0 });
-    }
-
-    function setSampleTax() {
-        alert("Real-World Effective State Tax Guide Examples:\n\n- New Jersey: 2.11% (Highest)\n- Illinois: 1.92%\n- Texas: 1.31%\n- Florida: 0.75%\n- California: 0.71%\n- Hawaii: 0.27% (Lowest)\n\nAdjust your form field with appropriate town rates!");
+        return '$' + Math.round(val).toLocaleString('en-US');
     }
 
     function generateSearchLinks() {
@@ -645,49 +878,38 @@
         const searchType = document.getElementById('searchType').value;
         const outputDiv = document.getElementById('linksOutput');
 
-        if (!rawLocation) {
-            alert("Please input a town name or ZIP code to launch parameters.");
-            return;
-        }
-
+        if (!rawLocation) return alert("Please input a town name or ZIP code.");
         const encodedLoc = encodeURIComponent(rawLocation);
         outputDiv.innerHTML = '';
         outputDiv.style.display = 'grid';
 
         let links = [];
-
         if (searchType === 'all') {
             links = [
-                { name: `Zillow Listings: ${rawLocation}`, url: `https://www.zillow.com/homes/${encodedLoc}_rb/` },
-                { name: `Realtor.com Listings`, url: `https://www.realtor.com/realestateandhomes-search/${encodedLoc}` },
-                { name: `Redfin Map View`, url: `https://www.redfin.com/search?location=${encodedLoc}` }
+                { name: `Zillow: ${rawLocation}`, url: `https://www.zillow.com/homes/${encodedLoc}_rb/` },
+                { name: `Realtor.com`, url: `https://www.realtor.com/realestateandhomes-search/${encodedLoc}` }
             ];
         } else if (searchType === 'foreclosure') {
             links = [
-                { name: `Foreclosure.com Options`, url: `https://www.foreclosure.com/listing/search?q=${encodedLoc}` },
-                { name: `Realtor.com Foreclosures`, url: `https://www.realtor.com/realestateandhomes-search/${encodedLoc}/show-foreclosure` },
-                { name: `Zillow Foreclosure Portal`, url: `https://www.zillow.com/homes/${encodedLoc}_rb/foreclosure_lt/` }
+                { name: `Foreclosure.com`, url: `https://www.foreclosure.com/listing/search?q=${encodedLoc}` },
+                { name: `Zillow Foreclosures`, url: `https://www.zillow.com/homes/${encodedLoc}_rb/foreclosure_lt/` }
             ];
-        } else if (searchType === 'shortsale') {
+        } else {
             links = [
-                { name: `Realtor.com Short Sales`, url: `https://www.realtor.com/realestateandhomes-search/${encodedLoc}/show-short-sale` },
-                { name: `ZipRealty Pre-Filtered Search`, url: `https://www.ziprealty.com/search/address?searchString=${encodedLoc}` },
-                { name: `Google Targeted Search Indexes`, url: `https://www.google.com/search?q=short+sale+homes+for+sale+in+${encodedLoc}` }
+                { name: `Realtor Short Sales`, url: `https://www.realtor.com/realestateandhomes-search/${encodedLoc}/show-short-sale` },
+                { name: `Google Search`, url: `https://www.google.com/search?q=short+sale+homes+for+sale+in+${encodedLoc}` }
             ];
         }
 
         links.forEach(link => {
             const a = document.createElement('a');
-            a.href = link.url;
-            a.target = "_blank";
-            a.className = "search-card-link";
-            a.innerText = link.name;
+            a.href = link.url; a.target = "_blank"; a.className = "search-card-link"; a.innerText = link.name;
             outputDiv.appendChild(a);
         });
     }
 
-    // Run calculations automatically at first launch
-    calculateMortgage();
+    // Initialize
+    window.onload = loadData;
 </script>
 
 </body>
