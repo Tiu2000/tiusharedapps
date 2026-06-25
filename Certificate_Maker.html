@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School No. 1 Field Day Certificate Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&family=Afacad+Flux:wght@400;600&family=Great+Vibes&family=Sacramento&family=Alex+Brush&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        /* CORE SETUP */
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body {
+            background-color: #f1f5f9;
+            margin: 0;
+            padding: 0;
+            font-family: 'Afacad Flux', sans-serif;
+            color: #1e293b;
+        }
+
+        /* 1. APP LAYOUT (SCREEN ONLY) */
+        @media screen {
+            .app-container {
+                display: flex;
+                height: 100vh;
+                overflow: hidden;
+            }
+
+            /* Sidebar / Control Panel */
+            .sidebar {
+                width: 420px;
+                min-width: 420px;
+                background-color: #ffffff;
+                border-right: 1px solid #cbd5e1;
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+                box-shadow: 4px 0 15px rgba(0,0,0,0.05);
+                z-index: 50;
+            }
+
+            .sidebar-header {
+                padding: 24px;
+                background: linear-gradient(135deg, #dcfd8b 0%, #ffffff 100%);
+                border-bottom: 1px solid #e2e8f0;
+            }
+
+            .sidebar-header h2 {
+                margin: 0;
+                font-family: 'Comfortaa', cursive;
+                font-size: 22px;
+                color: #1e293b;
+            }
+
+            .sidebar-header p {
+                margin: 5px 0 0 0;
+                font-size: 14px;
+                color: #64748b;
+            }
+
+            .sidebar-content {
+                flex-grow: 1;
+                overflow-y: auto;
+                padding: 24px;
+                display: flex;
+                flex-direction: column;
+                gap: 24px;
+            }
+
+            /* Custom form fields styling */
+            .form-group {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .form-group label {
+                font-weight: 600;
+                font-size: 14px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: #475569;
+            }
+
+            .form-group input, .form-group textarea, .form-group select {
+                padding: 10px 12px;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                font-size: 15px;
+                font-family: inherit;
+                outline: none;
+                transition: border-color 0.2s;
+            }
+
+            .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+                border-color: #bc84ee;
+            }
+
+            .signature-type-selectors {
+                display: flex;
+                gap: 8px;
+                margin-top: 4px;
+            }
+
+            .sig-btn {
+                flex: 1;
+                padding: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                background: #f8fafc;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .sig-btn.active {
+                background-color: #bc84ee;
+                color: white;
+                border-color: #bc84ee;
+            }
+
+            .sig-canvas-container {
+                border: 1px dashed #cbd5e1;
+                border-radius: 8px;
+                overflow: hidden;
+                position: relative;
+                height: 100px;
+                background-color: #fafafa;
+                display: none;
+            }
+
+            .sig-canvas {
+                width: 100%;
+                height: 100%;
+                cursor: crosshair;
+            }
+
+            .canvas-actions {
+                position: absolute;
+                bottom: 4px;
+                right: 4px;
+                display: flex;
+                gap: 4px;
+            }
+
+            .canvas-btn {
+                background: rgba(255, 255, 255, 0.9);
+                border: 1px solid #cbd5e1;
+                border-radius: 4px;
+                padding: 2px 6px;
+                font-size: 11px;
+                cursor: pointer;
+            }
+
+            .sidebar-footer {
+                padding: 20px 24px;
+                border-top: 1px solid #e2e8f0;
+                background-color: #f8fafc;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .btn-primary {
+                background-color: #1e293b;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 14px;
+                font-weight: 600;
+                font-size: 16px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                transition: background 0.2s;
+            }
+
+            .btn-primary:hover {
+                background-color: #0f172a;
+            }
+
+            /* Live Preview Area */
+            .preview-area {
+                flex-grow: 1;
+                overflow-y: auto;
+                padding: 40px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 40px;
+                background-color: #e2e8f0;
+            }
+
+            .preview-instructions {
+                background-color: #fffbeb;
+                border: 1px solid #fef3c7;
+                color: #92400e;
+                padding: 16px 24px;
+                border-radius: 8px;
+                max-width: 1056px;
+                width: 100%;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                font-size: 15px;
+            }
+
+            /* Scaling down for display on screen without breaking sizes */
+            .certificate-wrapper {
+                transform: scale(0.85);
+                transform-origin: top center;
+                margin-bottom: -120px; /* offset the scaled overflow spacing */
+            }
+
+            @media(max-width: 1400px) {
+                .certificate-wrapper {
+                    transform: scale(0.7);
+                    margin-bottom: -240px;
+                }
+            }
+        }
+
+        /* 2. CERTIFICATE CANVAS WORK (1056x816 Letter Aspect) */
+        .certificate-container {
+            width: 1056px;
+            height: 816px;
+            background-color: #ffffff;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 60px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+            page-break-after: always;
+            box-sizing: border-box;
+        }
+
+        /* DECORATIVE CORNERS & BORDERS */
+        .border-inner {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            right: 25px;
+            bottom: 25px;
+            border: 4px solid #1e293b;
+            border-radius: 15px;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .corner-shape {
+            position: absolute;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .top-left {
+            top: 0;
+            left: 0;
+            width: 300px;
+            height: 300px;
+            background: #dcfd8b; /* Lime */
+            clip-path: polygon(0 0, 100% 0, 0 100%);
+        }
+
+        .top-right {
+            top: 0;
+            right: 0;
+            width: 250px;
+            height: 250px;
+            background: #ff823a; /* Orange */
+            clip-path: polygon(0 0, 100% 0, 100% 100%);
+        }
+
+        .bottom-left {
+            bottom: 0;
+            left: 0;
+            width: 200px;
+            height: 200px;
+            background: #fdd5bd; /* Peach */
+            clip-path: polygon(0 0, 0 100%, 100% 100%);
+        }
+
+        .bottom-right {
+            bottom: 0;
+            right: 0;
+            width: 350px;
+            height: 350px;
+            background: #bc84ee; /* Purple */
+            clip-path: polygon(100% 0, 0 100%, 100% 100%);
+        }
+
+        /* TYPOGRAPHY */
+        .content {
+            z-index: 2;
+            text-align: center;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .school-name {
+            font-family: 'Afacad Flux', sans-serif;
+            font-size: 24px;
+            font-weight: 600;
+            color: #334155;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-top: 30px;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-family: 'Comfortaa', cursive;
+            font-size: 72px;
+            color: #1e293b;
+            margin: 0;
+            line-height: 1.2;
+            text-shadow: 2px 2px 0px #dcfd8b;
+        }
+
+        .subtitle {
+            font-family: 'Comfortaa', cursive;
+            font-size: 32px;
+            color: #ff823a;
+            margin-top: 5px;
+            margin-bottom: 45px;
+        }
+
+        .presentation-text {
+            font-family: 'Afacad Flux', sans-serif;
+            font-size: 28px;
+            color: #475569;
+            margin-bottom: 10px;
+        }
+
+        .student-name-container {
+            width: 80%;
+            border-bottom: 3px solid #1e293b;
+            margin: 10px 0 30px 0;
+            height: 65px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 5px;
+        }
+
+        .student-name {
+            font-family: 'Comfortaa', cursive;
+            font-size: 40px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .description {
+            font-family: 'Afacad Flux', sans-serif;
+            font-size: 24px;
+            color: #334155;
+            max-width: 750px;
+            line-height: 1.5;
+        }
+
+        /* ICONS & BADGES */
+        .seal {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 120px;
+            background-color: #ff823a;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 50px;
+            border: 5px dashed white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        /* SIGNATURES ROW */
+        .signatures {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0 80px;
+            margin-top: auto;
+            margin-bottom: 40px;
+            z-index: 10;
+        }
+
+        .sig-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 250px;
+            position: relative;
+        }
+
+        .sig-line {
+            width: 100%;
+            border-bottom: 2px solid #1e293b;
+            margin-bottom: 10px;
+            position: relative;
+            height: 60px; /* Space for the interactive/drawn signature above line */
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        .signature-rendered {
+            position: absolute;
+            bottom: 5px;
+            max-height: 55px;
+            max-width: 230px;
+            object-fit: contain;
+        }
+
+        .signature-rendered.text-sig {
+            font-size: 32px;
+            line-height: 1;
+            white-space: nowrap;
+            color: #1e3a8a; /* Soft athletic blue signature ink */
+        }
+
+        .sig-text {
+            font-family: 'Afacad Flux', sans-serif;
+            font-size: 20px;
+            color: #475569;
+            text-align: center;
+        }
+
+        /* PRINT OVERRIDES */
+        @media print {
+            body {
+                background-color: white;
+                margin: 0;
+                padding: 0;
+            }
+            .sidebar, .preview-instructions {
+                display: none !important;
+            }
+            .preview-area {
+                padding: 0 !important;
+                background-color: white !important;
+                display: block !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            .certificate-wrapper {
+                transform: none !important;
+                margin-bottom: 0 !important;
+                height: auto !important;
+            }
+            .certificate-container {
+                box-shadow: none !important;
+                margin: 0 !important;
+                width: 100% !important;
+                height: 100vh !important;
+                page-break-after: always !important;
+            }
+            @page {
+                size: landscape;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Field Day Builder</h2>
+                <p>Bulk print customized certificates</p>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="form-group">
+                    <label for="input-school">School Name</label>
+                    <input type="text" id="input-school" value="School No. 1">
+                </div>
+
+                <div class="form-group">
+                    <label for="input-title">Event Title</label>
+                    <input type="text" id="input-title" value="FIELD DAY 2026">
+                </div>
+
+                <div class="form-group">
+                    <label for="input-subtitle">Subtitle</label>
+                    <input type="text" id="input-subtitle" value="Official Finisher Award">
+                </div>
+
+                <div class="form-group">
+                    <label for="input-description">Achievement Description</label>
+                    <textarea id="input-description" rows="3">For demonstrating excellent effort, incredible teamwork, and outstanding sportsmanship during all of our Field Day events!</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="input-names">Student Names (One per line)</label>
+                    <textarea id="input-names" rows="6" placeholder="Jane Doe&#10;John Smith&#10;Alex Carter&#10;Emily Johnson"></textarea>
+                    <span style="font-size: 12px; color: #64748b;">Leave empty to preview a single blank certificate.</span>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 5px 0;">
+                
+                <div class="form-group" id="sig-section-pe">
+                    <label>PE Teacher Signature Line</label>
+                    <input type="text" id="pe-role" value="P.E. Teacher" placeholder="Role Label">
+                    
+                    <div class="signature-type-selectors">
+                        <button type="button" class="sig-btn active" onclick="setSigMethod('pe', 'type')">Type Cursive</button>
+                        <button type="button" class="sig-btn" onclick="setSigMethod('pe', 'draw')">Draw</button>
+                        <button type="button" class="sig-btn" onclick="setSigMethod('pe', 'upload')">Upload PNG</button>
+                    </div>
+
+                    <div class="form-group sig-type-input-group" id="pe-group-type" style="margin-top: 8px;">
+                        <input type="text" id="pe-typed-val" value="Mr. Tiu" placeholder="Type signature...">
+                        <select id="pe-font-select" style="margin-top: 4px;">
+                            <option value="'Great Vibes', cursive">Elegant Cursive (Great Vibes)</option>
+                            <option value="'Sacramento', cursive">Classic Script (Sacramento)</option>
+                            <option value="'Alex Brush', cursive" selected>Brush Pen (Alex Brush)</option>
+                        </select>
+                    </div>
+
+                    <div class="sig-canvas-container" id="pe-group-draw" style="margin-top: 8px;">
+                        <canvas class="sig-canvas" id="pe-canvas"></canvas>
+                        <div class="canvas-actions">
+                            <button type="button" class="canvas-btn" onclick="clearCanvas('pe')">Clear</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="pe-group-upload" style="display: none; margin-top: 8px;">
+                        <input type="file" id="pe-file-upload" accept="image/*">
+                    </div>
+                </div>
+
+                <div class="form-group" id="sig-section-principal" style="margin-top: 8px;">
+                    <label>Principal Signature Line</label>
+                    <input type="text" id="principal-role" value="Principal" placeholder="Role Label">
+                    
+                    <div class="signature-type-selectors">
+                        <button type="button" class="sig-btn active" onclick="setSigMethod('principal', 'type')">Type Cursive</button>
+                        <button type="button" class="sig-btn" onclick="setSigMethod('principal', 'draw')">Draw</button>
+                        <button type="button" class="sig-btn" onclick="setSigMethod('principal', 'upload')">Upload PNG</button>
+                    </div>
+
+                    <div class="form-group sig-type-input-group" id="principal-group-type" style="margin-top: 8px;">
+                        <input type="text" id="principal-typed-val" value="Dr. Martinez" placeholder="Type signature...">
+                        <select id="principal-font-select" style="margin-top: 4px;">
+                            <option value="'Great Vibes', cursive">Elegant Cursive (Great Vibes)</option>
+                            <option value="'Sacramento', cursive" selected>Classic Script (Sacramento)</option>
+                            <option value="'Alex Brush', cursive">Brush Pen (Alex Brush)</option>
+                        </select>
+                    </div>
+
+                    <div class="sig-canvas-container" id="principal-group-draw" style="margin-top: 8px;">
+                        <canvas class="sig-canvas" id="principal-canvas"></canvas>
+                        <div class="canvas-actions">
+                            <button type="button" class="canvas-btn" onclick="clearCanvas('principal')">Clear</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="principal-group-upload" style="display: none; margin-top: 8px;">
+                        <input type="file" id="principal-file-upload" accept="image/*">
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="btn-primary" onclick="window.print()">
+                    <i class="fa-solid fa-print"></i> Print Entire Stack
+                </button>
+            </div>
+        </div>
+
+        <div class="preview-area" id="print-area">
+            
+            <div class="preview-instructions">
+                <i class="fa-solid fa-info-circle" style="font-size: 20px;"></i>
+                <div>
+                    <strong>Print Tip:</strong> When the Print dialog opens, check your settings: select <strong>Landscape</strong> orientation, and make sure <strong>"Headers and Footers" is unchecked</strong> and <strong>"Background graphics" is checked</strong>.
+                </div>
+            </div>
+
+            <div id="stack-container" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 40px;">
+                </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Track states for signature blocks
+        const signatureState = {
+            pe: {
+                method: 'type', // 'type', 'draw', 'upload'
+                typedText: 'Mr. Tiu',
+                typedFont: "'Alex Brush', cursive",
+                drawnData: null,
+                uploadedData: null
+            },
+            principal: {
+                method: 'type',
+                typedText: 'Dr. Martinez',
+                typedFont: "'Sacramento', cursive",
+                drawnData: null,
+                uploadedData: null
+            }
+        };
+
+        // Canvas element trackings
+        const canvases = {};
+        const ctxs = {};
+        const drawing = {};
+
+        // Run setup when DOM loads
+        window.addEventListener('DOMContentLoaded', () => {
+            initInputs();
+            initCanvases();
+            renderStack();
+        });
+
+        // Initialize state event listeners
+        function initInputs() {
+            const reactiveInputs = [
+                'input-school', 'input-title', 'input-subtitle', 'input-description', 'input-names',
+                'pe-role', 'pe-typed-val', 'pe-font-select',
+                'principal-role', 'principal-typed-val', 'principal-font-select'
+            ];
+
+            reactiveInputs.forEach(id => {
+                document.getElementById(id).addEventListener('input', () => {
+                    // Sync typed states immediately
+                    if (id === 'pe-typed-val') signatureState.pe.typedText = document.getElementById(id).value;
+                    if (id === 'pe-font-select') signatureState.pe.typedFont = document.getElementById(id).value;
+                    if (id === 'principal-typed-val') signatureState.principal.typedText = document.getElementById(id).value;
+                    if (id === 'principal-font-select') signatureState.principal.typedFont = document.getElementById(id).value;
+
+                    renderStack();
+                });
+            });
+
+            // Set up File uploads
+            document.getElementById('pe-file-upload').addEventListener('change', (e) => handleFileUpload(e, 'pe'));
+            document.getElementById('principal-file-upload').addEventListener('change', (e) => handleFileUpload(e, 'principal'));
+        }
+
+        // Initialize Sketch Canvas Drawing
+        function initCanvases() {
+            ['pe', 'principal'].forEach(role => {
+                const canvas = document.getElementById(`${role}-canvas`);
+                canvases[role] = canvas;
+                ctxs[role] = canvas.getContext('2d');
+                drawing[role] = false;
+
+                // Set actual canvas size (high DPI fallback)
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+
+                ctxs[role].strokeStyle = '#1e3a8a'; // ink blue
+                ctxs[role].lineWidth = 3;
+                ctxs[role].lineCap = 'round';
+
+                // Mouse events
+                canvas.addEventListener('mousedown', (e) => startDrawing(e, role));
+                canvas.addEventListener('mousemove', (e) => draw(e, role));
+                window.addEventListener('mouseup', () => stopDrawing(role));
+
+                // Touch events for tablets/mobiles
+                canvas.addEventListener('touchstart', (e) => startDrawing(e, role, true));
+                canvas.addEventListener('touchmove', (e) => draw(e, role, true));
+                window.addEventListener('touchend', () => stopDrawing(role));
+            });
+        }
+
+        // Canvas Action Helpers
+        function startDrawing(e, role, isTouch = false) {
+            drawing[role] = true;
+            ctxs[role].beginPath();
+            const pos = getMousePos(e, canvases[role], isTouch);
+            ctxs[role].moveTo(pos.x, pos.y);
+            e.preventDefault();
+        }
+
+        function draw(e, role, isTouch = false) {
+            if (!drawing[role]) return;
+            const pos = getMousePos(e, canvases[role], isTouch);
+            ctxs[role].lineTo(pos.x, pos.y);
+            ctxs[role].stroke();
+            e.preventDefault();
+        }
+
+        function stopDrawing(role) {
+            if (drawing[role]) {
+                drawing[role] = false;
+                signatureState[role].drawnData = canvases[role].toDataURL();
+                renderStack();
+            }
+        }
+
+        function clearCanvas(role) {
+            ctxs[role].clearRect(0, 0, canvases[role].width, canvases[role].height);
+            signatureState[role].drawnData = null;
+            renderStack();
+        }
+
+        function getMousePos(e, canvas, isTouch) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+            const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        // Signature Upload Handlers
+        function handleFileUpload(e, role) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    signatureState[role].uploadedData = event.target.result;
+                    renderStack();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Method Toggler
+        function setSigMethod(role, method) {
+            signatureState[role].method = method;
+
+            // Update DOM button active states
+            const buttons = document.querySelectorAll(`#sig-section-${role} .sig-btn`);
+            buttons.forEach(btn => btn.classList.remove('active'));
+            
+            const methodIndex = method === 'type' ? 0 : method === 'draw' ? 1 : 2;
+            buttons[methodIndex].classList.add('active');
+
+            // Toggle element container visibility
+            document.getElementById(`${role}-group-type`).style.display = method === 'type' ? 'flex' : 'none';
+            document.getElementById(`${role}-group-draw`).style.display = method === 'draw' ? 'block' : 'none';
+            document.getElementById(`${role}-group-upload`).style.display = method === 'upload' ? 'block' : 'none';
+
+            // Reset canvas coordinates size if shown
+            if (method === 'draw') {
+                setTimeout(() => {
+                    canvases[role].width = canvases[role].offsetWidth;
+                    canvases[role].height = canvases[role].offsetHeight;
+                    ctxs[role].strokeStyle = '#1e3a8a';
+                    ctxs[role].lineWidth = 3;
+                    ctxs[role].lineCap = 'round';
+                    if (signatureState[role].drawnData) {
+                        const img = new Image();
+                        img.onload = () => ctxs[role].drawImage(img, 0, 0);
+                        img.src = signatureState[role].drawnData;
+                    }
+                }, 50);
+            }
+
+            renderStack();
+        }
+
+        // Core Render Generator Loop
+        function renderStack() {
+            const schoolName = document.getElementById('input-school').value;
+            const eventTitle = document.getElementById('input-title').value;
+            const subtitle = document.getElementById('input-subtitle').value;
+            const description = document.getElementById('input-description').value;
+
+            const namesText = document.getElementById('input-names').value.trim();
+            const namesArray = namesText ? namesText.split('\n').filter(name => name.trim() !== '') : [];
+
+            const peRole = document.getElementById('pe-role').value;
+            const principalRole = document.getElementById('principal-role').value;
+
+            // Generate signature visual markup
+            const peSigMarkup = getSignatureMarkup('pe');
+            const principalSigMarkup = getSignatureMarkup('principal');
+
+            const stackContainer = document.getElementById('stack-container');
+            stackContainer.innerHTML = '';
+
+            // Handle Preview State (No input list = Render one with placeholder name)
+            const targetNamesList = namesArray.length > 0 ? namesArray : ['Student Name'];
+
+            targetNamesList.forEach((studentName) => {
+                const certWrapper = document.createElement('div');
+                certWrapper.className = 'certificate-wrapper';
+
+                certWrapper.innerHTML = `
+                    <div class="certificate-container">
+                        <div class="corner-shape top-left"></div>
+                        <div class="corner-shape top-right"></div>
+                        <div class="corner-shape bottom-left"></div>
+                        <div class="corner-shape bottom-right"></div>
+                        <div class="border-inner"></div>
+
+                        <div class="content">
+                            <div class="school-name">${escapeHTML(schoolName)}</div>
+                            <h1>${escapeHTML(eventTitle)}</h1>
+                            <div class="subtitle">${escapeHTML(subtitle)}</div>
+
+                            <div class="presentation-text">This certificate is proudly presented to:</div>
+                            
+                            <div class="student-name-container">
+                                <div class="student-name">${escapeHTML(studentName)}</div>
+                            </div>
+
+                            <div class="description">
+                                ${escapeHTML(description)}
+                            </div>
+
+                            <div class="signatures">
+                                <div class="sig-block">
+                                    <div class="sig-line">
+                                        ${peSigMarkup}
+                                    </div>
+                                    <div class="sig-text">${escapeHTML(peRole)}</div>
+                                </div>
+                                <div class="sig-block">
+                                    <div class="sig-line">
+                                        ${principalSigMarkup}
+                                    </div>
+                                    <div class="sig-text">${escapeHTML(principalRole)}</div>
+                                </div>
+                            </div>
+
+                            <div class="seal">
+                                <i class="fa-solid fa-award"></i>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                stackContainer.appendChild(certWrapper);
+            });
+        }
+
+        // Return the HTML payload for signatures
+        function getSignatureMarkup(role) {
+            const config = signatureState[role];
+            if (config.method === 'type') {
+                if (!config.typedText.trim()) return '';
+                return `<div class="signature-rendered text-sig" style="font-family: ${config.typedFont};">${escapeHTML(config.typedText)}</div>`;
+            } else if (config.method === 'draw') {
+                if (!config.drawnData) return '';
+                return `<img class="signature-rendered" src="${config.drawnData}" alt="Handwritten signature">`;
+            } else if (config.method === 'upload') {
+                if (!config.uploadedData) return '';
+                return `<img class="signature-rendered" src="${config.uploadedData}" alt="Uploaded Signature">`;
+            }
+            return '';
+        }
+
+        // Prevent XSS injections on rendering
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+        }
+    </script>
+</body>
+</html>
