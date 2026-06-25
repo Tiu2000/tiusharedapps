@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Honor Roll Certificate Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Afacad+Flux:wght@400;600;700&family=Great+Vibes&family=Sacramento&family=Alex+Brush&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        /* CORE SETUP */
+        * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        body { background-color: #f1f5f9; margin: 0; padding: 0; font-family: 'Afacad Flux', sans-serif; color: #1e293b; }
+
+        /* APP LAYOUT */
+        @media screen {
+            .app-container { display: flex; height: 100vh; overflow: hidden; }
+            .sidebar { width: 420px; min-width: 420px; background-color: #ffffff; border-right: 1px solid #cbd5e1; display: flex; flex-direction: column; height: 100%; box-shadow: 4px 0 15px rgba(0,0,0,0.05); z-index: 50; }
+            .sidebar-header { padding: 24px; background: linear-gradient(135deg, #ffe4e6 0%, #ffffff 100%); border-bottom: 1px solid #e2e8f0; }
+            .sidebar-header h2 { margin: 0; font-family: 'Fredoka', sans-serif; font-size: 22px; color: #ce2029; }
+            .sidebar-header p { margin: 5px 0 0 0; font-size: 14px; color: #64748b; }
+            .sidebar-content { flex-grow: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+            .form-group { display: flex; flex-direction: column; gap: 8px; }
+            .form-group label { font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: #475569; }
+            .form-group input[type="text"], .form-group textarea, .form-group select { padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-family: inherit; outline: none; transition: border-color 0.2s; }
+            .form-group input[type="text"]:focus, .form-group textarea:focus, .form-group select:focus { border-color: #ce2029; }
+            
+            .tool-selectors { display: flex; gap: 8px; margin-top: 4px; }
+            .tool-btn { flex: 1; padding: 6px; font-size: 12px; font-weight: 600; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; cursor: pointer; transition: all 0.2s; }
+            .tool-btn.active { background-color: #1e40af; color: white; border-color: #1e40af; }
+            
+            .sig-canvas-container { border: 1px dashed #cbd5e1; border-radius: 8px; overflow: hidden; position: relative; height: 100px; background-color: #fafafa; display: none; }
+            .sig-canvas { width: 100%; height: 100%; cursor: crosshair; }
+            .canvas-actions { position: absolute; bottom: 4px; right: 4px; display: flex; gap: 4px; }
+            .canvas-btn { background: rgba(255, 255, 255, 0.9); border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 6px; font-size: 11px; cursor: pointer; }
+
+            .sidebar-footer { padding: 20px 24px; border-top: 1px solid #e2e8f0; background-color: #f8fafc; display: flex; flex-direction: column; gap: 12px; }
+            .btn-primary { background-color: #ce2029; color: white; border: none; border-radius: 8px; padding: 14px; font-weight: 600; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transition: background 0.2s; }
+            .btn-primary:hover { background-color: #a3161c; }
+
+            .preview-area { flex-grow: 1; overflow-y: auto; padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 40px; background-color: #e2e8f0; }
+            .preview-instructions { background-color: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 16px 24px; border-radius: 8px; max-width: 1056px; width: 100%; display: flex; align-items: center; gap: 12px; font-size: 15px; }
+            
+            .certificate-wrapper { transform: scale(0.85); transform-origin: top center; margin-bottom: -120px; }
+            @media(max-width: 1400px) { .certificate-wrapper { transform: scale(0.68); margin-bottom: -260px; } }
+        }
+
+        /* CERTIFICATE CANVAS DESIGN */
+        .certificate-container {
+            width: 1056px;
+            height: 816px;
+            background-color: #ffffff;
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+            page-break-after: always;
+            box-sizing: border-box;
+        }
+
+        .student-name-overlay {
+            position: absolute;
+            top: 42%;
+            left: 15%;
+            width: 70%;
+            text-align: center;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 48px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        /* ALIGNED SIGNATURE OVERLAYS */
+        .sig-block {
+            position: absolute;
+            width: 280px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            bottom: 15.2%; 
+        }
+
+        .sig-block.left { left: 14%; }
+        .sig-block.right { right: 14%; }
+
+        .sig-line-area {
+            height: 60px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            margin-bottom: 2px;
+            z-index: 10;
+        }
+
+        .signature-rendered {
+            max-height: 60px;
+            max-width: 240px;
+            object-fit: contain;
+        }
+
+        .signature-rendered.text-sig {
+            font-size: 38px;
+            line-height: 1;
+            white-space: nowrap;
+            color: #b91c1c; 
+            font-weight: 400;
+        }
+
+        /* PERFECT "DIGITAL ERASER" FLOATING MASK */
+        .sig-text-whiteout {
+            background-color: #ffffff;
+            /* Dual-stage box shadow spreads up and out to wipe clean the old red text completely */
+            box-shadow: 0 -6px 14px 12px #ffffff, 0 4px 10px 8px #ffffff;
+            width: 240px;
+            padding: 8px 0 4px 0;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 5;
+        }
+
+        .sig-text-name {
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 600;
+            font-size: 22px;
+            color: #ce2029;
+            line-height: 1.2;
+        }
+
+        .sig-text-role {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 16px;
+            color: #1e40af;
+            font-weight: 600;
+        }
+
+        .placeholder-text {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            font-size: 24px;
+            color: #94a3b8;
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        /* PRINT CONFIGURATION */
+        @media print {
+            body, html { background-color: white; margin: 0; padding: 0; width: 100%; height: 100%; }
+            .sidebar, .preview-instructions { display: none !important; }
+            .app-container, .preview-area { display: block !important; height: auto !important; overflow: visible !important; padding: 0 !important; background-color: white !important; }
+            
+            /* Overrides the flexbox bug causing blank pages */
+            #stack-container { display: block !important; gap: 0 !important; }
+            
+            .certificate-wrapper { transform: none !important; margin: 0 !important; height: auto !important; page-break-after: always !important; }
+            .certificate-container { box-shadow: none !important; margin: 0 !important; width: 100% !important; height: 100vh !important; }
+            @page { size: landscape; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Honor Roll Builder</h2>
+                <p>Image-Based Template System</p>
+            </div>
+
+            <div class="sidebar-content">
+                
+                <div class="form-group" style="background: #eff6ff; padding: 14px; border: 1px solid #bfdbfe; border-radius: 8px;">
+                    <label style="color: #1e40af;"><i class="fa-solid fa-image"></i> Certificate Background Image</label>
+                    <p style="font-size: 12px; color: #475569; margin: 4px 0 8px 0; line-height: 1.4;">Upload the certificate image here. The application will seamlessly mask the old names.</p>
+                    <input type="file" id="bg-file-upload" accept="image/*" style="width: 100%;">
+                </div>
+
+                <div class="form-group">
+                    <label>Student Recipient Names (One per line)</label>
+                    <textarea id="input-names" rows="5" placeholder="Jane Doe&#10;John Smith"></textarea>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 5px 0;">
+                
+                <div class="form-group" id="sig-section-left">
+                    <label>Left Signature Block</label>
+                    <input type="text" id="left-name" value="Mrs. Sarousi" placeholder="Signee Name" style="margin-bottom: 4px;">
+                    <input type="text" id="left-role" value="Principal" placeholder="Role Label">
+                    
+                    <div class="tool-selectors">
+                        <button type="button" class="tool-btn active" onclick="setSigMethod('left', 'type')">Type</button>
+                        <button type="button" class="tool-btn" onclick="setSigMethod('left', 'draw')">Draw</button>
+                        <button type="button" class="tool-btn" onclick="setSigMethod('left', 'upload')">Upload</button>
+                    </div>
+
+                    <div class="form-group sig-type-input-group" id="left-group-type" style="margin-top: 8px;">
+                        <input type="text" id="left-typed-val" value="" placeholder="Type signature script...">
+                        <select id="left-font-select" style="margin-top: 4px;">
+                            <option value="'Great Vibes', cursive">Elegant Cursive (Great Vibes)</option>
+                            <option value="'Sacramento', cursive" selected>Classic Script (Sacramento)</option>
+                            <option value="'Alex Brush', cursive">Brush Pen (Alex Brush)</option>
+                        </select>
+                    </div>
+
+                    <div class="sig-canvas-container" id="left-group-draw" style="margin-top: 8px;">
+                        <canvas class="sig-canvas" id="left-canvas"></canvas>
+                        <div class="canvas-actions"><button type="button" class="canvas-btn" onclick="clearCanvas('left')">Clear</button></div>
+                    </div>
+
+                    <div class="form-group" id="left-group-upload" style="display: none; margin-top: 8px;">
+                        <input type="file" id="left-file-upload" accept="image/*">
+                    </div>
+                </div>
+
+                <div class="form-group" id="sig-section-right" style="margin-top: 15px;">
+                    <label>Right Signature Block</label>
+                    <input type="text" id="right-name" value="Dr. Sarwary" placeholder="Signee Name" style="margin-bottom: 4px;">
+                    <input type="text" id="right-role" value="Assistant Principal" placeholder="Role Label">
+                    
+                    <div class="tool-selectors">
+                        <button type="button" class="tool-btn active" onclick="setSigMethod('right', 'type')">Type</button>
+                        <button type="button" class="tool-btn" onclick="setSigMethod('right', 'draw')">Draw</button>
+                        <button type="button" class="tool-btn" onclick="setSigMethod('right', 'upload')">Upload</button>
+                    </div>
+
+                    <div class="form-group sig-type-input-group" id="right-group-type" style="margin-top: 8px;">
+                        <input type="text" id="right-typed-val" value="" placeholder="Type signature script...">
+                        <select id="right-font-select" style="margin-top: 4px;">
+                            <option value="'Great Vibes', cursive">Elegant Cursive (Great Vibes)</option>
+                            <option value="'Sacramento', cursive" selected>Classic Script (Sacramento)</option>
+                            <option value="'Alex Brush', cursive">Brush Pen (Alex Brush)</option>
+                        </select>
+                    </div>
+
+                    <div class="sig-canvas-container" id="right-group-draw" style="margin-top: 8px;">
+                        <canvas class="sig-canvas" id="right-canvas"></canvas>
+                        <div class="canvas-actions"><button type="button" class="canvas-btn" onclick="clearCanvas('right')">Clear</button></div>
+                    </div>
+
+                    <div class="form-group" id="right-group-upload" style="display: none; margin-top: 8px;">
+                        <input type="file" id="right-file-upload" accept="image/*">
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="btn-primary" onclick="window.print()">
+                    <i class="fa-solid fa-print"></i> Print Honors Stack
+                </button>
+            </div>
+        </div>
+
+        <div class="preview-area" id="print-area">
+            <div class="preview-instructions">
+                <i class="fa-solid fa-graduation-cap" style="font-size: 22px; color: #1e40af;"></i>
+                <div>
+                    <strong>Print Optimization Rules:</strong> Set orientation layout to <strong>Landscape</strong>. Ensure <strong>"Background graphics"</strong> is checked under More Settings, and <strong>"Headers and Footers" OFF</strong>.
+                </div>
+            </div>
+
+            <div id="stack-container" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 40px;">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        const appState = { bgData: null };
+        const signatureState = {
+            left: { method: 'type', typedText: '', typedFont: "'Sacramento', cursive", drawnData: null, uploadedData: null },
+            right: { method: 'type', typedText: '', typedFont: "'Sacramento', cursive", drawnData: null, uploadedData: null }
+        };
+        const canvases = {}, ctxs = {}, drawing = {};
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initInputs();
+            initCanvases();
+            renderStack();
+        });
+
+        function initInputs() {
+            const reactiveInputs = [
+                'input-names', 'left-name', 'left-role', 'left-typed-val', 'left-font-select',
+                'right-name', 'right-role', 'right-typed-val', 'right-font-select'
+            ];
+
+            reactiveInputs.forEach(id => {
+                document.getElementById(id).addEventListener('input', () => {
+                    if (id === 'left-typed-val') signatureState.left.typedText = document.getElementById(id).value;
+                    if (id === 'left-font-select') signatureState.left.typedFont = document.getElementById(id).value;
+                    if (id === 'right-typed-val') signatureState.right.typedText = document.getElementById(id).value;
+                    if (id === 'right-font-select') signatureState.right.typedFont = document.getElementById(id).value;
+                    renderStack();
+                });
+            });
+
+            document.getElementById('bg-file-upload').addEventListener('change', (e) => handleFileUpload(e, null, 'bg'));
+            document.getElementById('left-file-upload').addEventListener('change', (e) => handleFileUpload(e, 'left', 'signature'));
+            document.getElementById('right-file-upload').addEventListener('change', (e) => handleFileUpload(e, 'right', 'signature'));
+        }
+
+        function initCanvases() {
+            ['left', 'right'].forEach(side => {
+                const canvas = document.getElementById(`${side}-canvas`);
+                canvases[side] = canvas; ctxs[side] = canvas.getContext('2d'); drawing[side] = false;
+                canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+                ctxs[side].strokeStyle = '#1e40af'; ctxs[side].lineWidth = 2.5; ctxs[side].lineCap = 'round';
+                canvas.addEventListener('mousedown', (e) => startDrawing(e, side));
+                canvas.addEventListener('mousemove', (e) => draw(e, side));
+                window.addEventListener('mouseup', () => stopDrawing(side));
+                canvas.addEventListener('touchstart', (e) => startDrawing(e, side, true));
+                canvas.addEventListener('touchmove', (e) => draw(e, side, true));
+                window.addEventListener('touchend', () => stopDrawing(side));
+            });
+        }
+
+        function startDrawing(e, side, isTouch = false) { drawing[side] = true; ctxs[side].beginPath(); const pos = getMousePos(e, canvases[side], isTouch); ctxs[side].moveTo(pos.x, pos.y); e.preventDefault(); }
+        function draw(e, side, isTouch = false) { if (!drawing[side]) return; const pos = getMousePos(e, canvases[side], isTouch); ctxs[side].lineTo(pos.x, pos.y); ctxs[side].stroke(); e.preventDefault(); }
+        function stopDrawing(side) { if (drawing[side]) { drawing[side] = false; signatureState[side].drawnData = canvases[side].toDataURL(); renderStack(); } }
+        function clearCanvas(side) { ctxs[side].clearRect(0, 0, canvases[side].width, canvases[side].height); signatureState[side].drawnData = null; renderStack(); }
+        function getMousePos(e, canvas, isTouch) { const rect = canvas.getBoundingClientRect(); const clientX = isTouch ? e.touches[0].clientX : e.clientX; const clientY = isTouch ? e.touches[0].clientY : e.clientY; return { x: clientX - rect.left, y: clientY - rect.top }; }
+
+        function handleFileUpload(e, side, type) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    if (type === 'signature') signatureState[side].uploadedData = event.target.result;
+                    else if (type === 'bg') appState.bgData = event.target.result;
+                    renderStack();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function setSigMethod(side, method) {
+            signatureState[side].method = method;
+            const buttons = document.querySelectorAll(`#sig-section-${side} .tool-btn`);
+            buttons.forEach(btn => btn.classList.remove('active'));
+            const idx = method === 'type' ? 0 : method === 'draw' ? 1 : 2;
+            buttons[idx].classList.add('active');
+            document.getElementById(`${side}-group-type`).style.display = method === 'type' ? 'flex' : 'none';
+            document.getElementById(`${side}-group-draw`).style.display = method === 'draw' ? 'block' : 'none';
+            document.getElementById(`${side}-group-upload`).style.display = method === 'upload' ? 'block' : 'none';
+
+            if (method === 'draw') {
+                setTimeout(() => {
+                    canvases[side].width = canvases[side].offsetWidth; canvases[side].height = canvases[side].offsetHeight;
+                    ctxs[side].strokeStyle = '#1e40af'; ctxs[side].lineWidth = 2.5; ctxs[side].lineCap = 'round';
+                    if (signatureState[side].drawnData) { const img = new Image(); img.onload = () => ctxs[side].drawImage(img, 0, 0); img.src = signatureState[side].drawnData; }
+                }, 50);
+            }
+            renderStack();
+        }
+
+        function renderStack() {
+            const namesText = document.getElementById('input-names').value.trim();
+            const namesArray = namesText ? namesText.split('\n').filter(n => n.trim() !== '') : [];
+            const leftName = document.getElementById('left-name').value;
+            const leftRole = document.getElementById('left-role').value;
+            const rightName = document.getElementById('right-name').value;
+            const rightRole = document.getElementById('right-role').value;
+
+            const leftSigMarkup = getSignatureMarkup('left');
+            const rightSigMarkup = getSignatureMarkup('right');
+
+            const stackContainer = document.getElementById('stack-container');
+            stackContainer.innerHTML = '';
+            
+            const targetNamesList = namesArray.length > 0 ? namesArray : ['Student Name'];
+            const bgStyle = appState.bgData ? `background-image: url('${appState.bgData}');` : `background-color: #ffffff; border: 2px dashed #cbd5e1;`;
+            const placeholderMarkup = appState.bgData ? '' : `<div class="placeholder-text">Please upload the Certificate Background Image in the sidebar.</div>`;
+
+            targetNamesList.forEach((studentName) => {
+                const certWrapper = document.createElement('div');
+                certWrapper.className = 'certificate-wrapper';
+                certWrapper.innerHTML = `
+                    <div class="certificate-container" style="${bgStyle}">
+                        ${placeholderMarkup}
+                        
+                        ${appState.bgData ? `
+                        <div class="student-name-overlay">${escapeHTML(studentName)}</div>
+                        
+                        <div class="sig-block left">
+                            <div class="sig-line-area">${leftSigMarkup}</div>
+                            <div class="sig-text-whiteout">
+                                <div class="sig-text-name">${escapeHTML(leftName)}</div>
+                                <div class="sig-text-role">${escapeHTML(leftRole)}</div>
+                            </div>
+                        </div>
+
+                        <div class="sig-block right">
+                            <div class="sig-line-area">${rightSigMarkup}</div>
+                            <div class="sig-text-whiteout">
+                                <div class="sig-text-name">${escapeHTML(rightName)}</div>
+                                <div class="sig-text-role">${escapeHTML(rightRole)}</div>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+                stackContainer.appendChild(certWrapper);
+            });
+        }
+
+        function getSignatureMarkup(side) {
+            const config = signatureState[side];
+            if (config.method === 'type') {
+                if (!config.typedText.trim()) return '';
+                return `<div class="signature-rendered text-sig" style="font-family: ${config.typedFont};">${escapeHTML(config.typedText)}</div>`;
+            } else if (config.method === 'draw') {
+                if (!config.drawnData) return '';
+                return `<img class="signature-rendered" src="${config.drawnData}" alt="Drawn signature">`;
+            } else if (config.method === 'upload') {
+                if (!config.uploadedData) return '';
+                return `<img class="signature-rendered" src="${config.uploadedData}" alt="Uploaded graphic">`;
+            }
+            return '';
+        }
+
+        function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
+    </script>
+</body>
+</html>
