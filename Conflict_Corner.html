@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>The Conflict Corner</title>
+<title>The Conflict Corner - Poster Size</title>
 <style>
   @media print {
-    @page { size: landscape; margin: 0; }
+    /* Sets the print size to a standard 24x36 inch poster */
+    @page { size: 24in 36in; margin: 0; } 
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
   body {
@@ -15,19 +16,18 @@
     background-color: #ffffff;
   }
   .page {
-    width: 11in;
-    height: 8.5in;
-    padding: 0.4in;
+    width: 24in;
+    height: 36in;
+    padding: 1in;
     box-sizing: border-box;
-    page-break-after: always;
     display: flex;
     flex-direction: column;
   }
   .border {
-    border: 8px solid #5bbbea;
-    border-radius: 25px;
+    border: 20px solid #5bbbea;
+    border-radius: 60px;
     height: 100%;
-    padding: 30px 40px;
+    padding: 60px 80px;
     box-sizing: border-box;
     background-color: #fafbfc;
     display: flex;
@@ -35,36 +35,39 @@
   }
   h1 {
     color: #f05353;
-    font-size: 48pt;
-    margin-top: 0;
-    margin-bottom: 20px;
+    font-size: 130pt;
+    margin-top: 20px;
+    margin-bottom: 60px;
+    text-align: center;
+    line-height: 1.1;
   }
   .step {
-    font-size: 32pt;
+    font-size: 75pt;
     font-weight: bold;
-    margin: 20px 0;
+    margin: 35px 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
   }
   .emoji {
-    font-size: 55pt;
+    font-size: 110pt;
+  }
+  .emojis-bottom {
+    font-size: 150pt;
+    text-align: center;
+    margin: auto 0;
+    letter-spacing: 40px;
   }
   .footer {
     text-align: center;
     margin-top: auto;
+    margin-bottom: 20px;
   }
   .footer-text {
     color: #f05353;
-    font-size: 40pt;
+    font-size: 90pt;
     font-weight: 900;
     line-height: 1.2;
-  }
-  .emojis-bottom {
-    font-size: 70pt;
-    text-align: center;
-    margin: auto 0;
-    letter-spacing: 20px;
   }
 </style>
 </head>
@@ -75,7 +78,7 @@
     <h1>The Conflict Corner</h1>
     
     <div class="step">
-      <span>1.) Hands Out - Palms Facing Up</span>
+      <span>1.) Hands Out - Palms Up</span>
       <span class="emoji">🤲</span>
     </div>
     
@@ -87,14 +90,9 @@
       <span>3.) Listen to Each Other</span>
       <span class="emoji">👂</span>
     </div>
-  </div>
-</div>
-
-<div class="page">
-  <div class="border">
     
     <div class="step">
-      <span>4.) Brainstorm a Solution Together</span>
+      <span>4.) Brainstorm a Solution</span>
     </div>
     
     <div class="step">
