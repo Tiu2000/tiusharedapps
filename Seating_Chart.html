@@ -197,7 +197,7 @@
     <script>
         const container = document.getElementById('court-container');
         let zIndexCounter = 100;
-        let globalWorkbook = null; // Stores the spreadsheet data globally
+        let globalWorkbook = null; 
 
         function toggleMenu() {
             const controls = document.getElementById('controls');
@@ -208,7 +208,6 @@
 
         // --- Multi-Tab Google Sheets / Excel Logic ---
         
-        // 1. Fetch from pasted link
         async function fetchGoogleSheet() {
             const urlInput = document.getElementById('sheetUrlInput').value.trim();
             if (!urlInput) { alert("Please paste a Google Sheets URL."); return; }
@@ -217,7 +216,6 @@
             fetchBtn.innerText = "Loading...";
 
             try {
-                // Convert Google Sheet link to an Excel download link
                 let exportUrl = urlInput;
                 if (exportUrl.includes('/pubhtml') || exportUrl.includes('/pub')) {
                     exportUrl = exportUrl.split('?')[0] + '?output=xlsx';
@@ -225,27 +223,25 @@
                     exportUrl = exportUrl.replace(/\/edit.*/, '/export?format=xlsx');
                 }
 
-                // Use a proxy to bypass school network CORS blocks
-                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(exportUrl);
+                // UPDATED PROXY: Swapped from allorigins to corsproxy.io
+                const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(exportUrl);
                 
                 const response = await fetch(proxyUrl);
                 if (!response.ok) throw new Error("Network error fetching sheet.");
                 
                 const arrayBuffer = await response.arrayBuffer();
                 
-                // Read the workbook using SheetJS
                 globalWorkbook = XLSX.read(arrayBuffer, { type: 'array' });
                 populateDropdown();
                 
             } catch (error) {
                 console.error(error);
-                alert("Could not fetch link directly (likely blocked by network firewall). Please download the sheet as an Excel file (.xlsx) and use the 'Upload .xlsx' button instead.");
+                alert("Could not fetch link directly. Google may be blocking the download proxy. Please download your sheet as an Excel file (.xlsx) and use the 'Upload .xlsx' button instead.");
             } finally {
                 fetchBtn.innerText = "Fetch Link";
             }
         }
 
-        // 2. Failsafe: Handle manual Excel file upload
         function handleExcelUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -257,14 +253,13 @@
                 populateDropdown();
             };
             reader.readAsArrayBuffer(file);
-            event.target.value = ''; // Reset input
+            event.target.value = ''; 
         }
 
-        // 3. Populate dropdown with tabs
         function populateDropdown() {
             if (!globalWorkbook) return;
             const select = document.getElementById('classSelect');
-            select.innerHTML = ''; // Clear old tabs
+            select.innerHTML = ''; 
             
             globalWorkbook.SheetNames.forEach(sheetName => {
                 const opt = document.createElement('option');
@@ -275,22 +270,18 @@
 
             select.style.display = 'block';
             
-            // Automatically render the first tab
             if (globalWorkbook.SheetNames.length > 0) {
                 renderSelectedClass();
             }
         }
 
-        // 4. Render the seats based on selected tab
         function renderSelectedClass() {
             if (!globalWorkbook) return;
             const sheetName = document.getElementById('classSelect').value;
             const worksheet = globalWorkbook.Sheets[sheetName];
             
-            // Convert tab data to JSON array
             const students = XLSX.utils.sheet_to_json(worksheet);
             
-            // Clear existing seats before placing new ones
             document.querySelectorAll('.seat').forEach(s => s.remove());
 
             const startX = 100, startY = 100, spacingX = 90, spacingY = 110;
@@ -302,7 +293,6 @@
                 const x = startX + (col * spacingX);
                 const y = startY + (row * spacingY);
 
-                // Check common headers for Name and Image
                 const name = student.StudentName || student.Name || student.student || Object.values(student)[0] || "Unknown";
                 const imgUrl = student.ImageURL || student.Image || student.Photo || null;
                 
@@ -371,3 +361,82 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
+                    const data = JSON.parse(e.target.result);
+                    document.querySelectorAll('.seat').forEach(s => s.remove());
+                    data.forEach(item => createSeatElement(parseFloat(item.left), parseFloat(item.top), item.name, item.imgUrl));
+                    input.value = ''; 
+                } catch (err) { alert('Error loading layout file.'); }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- Sound and Drag Logic ---
+        let isSoundEnabled = true;
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function toggleSound() {
+            isSoundEnabled = !isSoundEnabled;
+            const btn = document.getElementById('btnSound');
+            btn.innerText = isSoundEnabled ? "Sound: ON" : "Sound: OFF";
+            isSoundEnabled ? btn.classList.remove('muted') : btn.classList.add('muted');
+        }
+
+        function playSound(type) {
+            if (!isSoundEnabled) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            
+            if (type === 'pickup') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+            } else {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+            }
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function makeDraggable(el) {
+            let isDragging = false, startX, startY, initialLeft, initialTop;
+            el.addEventListener('mousedown', dragStart);
+            el.addEventListener('touchstart', dragStart, {passive: false});
+
+            function dragStart(e) {
+                if (e.target.tagName === 'INPUT') return;
+                isDragging = true;
+                if (e.type === 'touchstart') { startX = e.touches[0].clientX; startY = e.touches[0].clientY; } 
+                else { startX = e.clientX; startY = e.clientY; }
+                
+                initialLeft = el.offsetLeft; initialTop = el.offsetTop;
+                el.style.zIndex = ++zIndexCounter;
+                playSound('pickup');
+
+                document.addEventListener('mousemove', dragMove);
+                document.addEventListener('mouseup', dragEnd);
+                document.addEventListener('touchmove', dragMove, {passive: false});
+                document.addEventListener('touchend', dragEnd);
+            }
+            function dragMove(e) {
+                if (!isDragging) return;
+                e.preventDefault(); 
+                let currentX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+                let currentY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+                el.style.left = `${initialLeft + (currentX - startX)}px`;
+                el.style.top = `${initialTop + (currentY - startY)}px`;
+            }
+            function dragEnd() {
+                if (!isDragging) return;
+                isDragging = false; playSound('drop');
+                document.removeEventListener('mousemove', dragMove);
+                document.removeEventListener('mouseup', dragEnd);
+                document.removeEventListener('touchmove', dragMove);
+                document.removeEventListener('touchend', dragEnd);
+            }
+        }
+    </script>
+</body>
+</html>
