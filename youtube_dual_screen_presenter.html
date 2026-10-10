@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Dual Screen Presenter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Custom scrollbars for a sleek look */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        
+        /* Ensure projector takes full screen perfectly */
+        #projector-screen iframe { border: none; outline: none; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-screen w-screen overflow-hidden">
+
+    <div id="dashboard-screen" class="hidden h-full flex flex-col">
+        <!-- Header -->
+        <header class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center shadow-md z-10 shrink-0">
+            <div class="flex items-center gap-3">
+                <svg class="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                <h1 class="text-2xl font-bold tracking-tight">YouTube Presenter</h1>
+            </div>
+            <button onclick="launchProjector()" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-5 rounded-md shadow-lg transition flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                Launch Projector Window
+            </button>
+        </header>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex overflow-hidden">
+            
+            <div class="w-1/2 bg-gray-850 flex flex-col border-r border-gray-700 h-full overflow-y-auto bg-gray-900/50">
+                
+                <!-- Quick Play Section -->
+                <div class="p-6 border-b border-gray-800 bg-gray-800 shrink-0">
+                    <h2 class="text-xl font-bold mb-2 text-blue-400 flex items-center gap-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        Quick Play
+                    </h2>
+                    <p class="text-sm text-gray-400 mb-4">Paste a YouTube URL and send it directly to the projector.</p>
+                    <div class="flex gap-3 mt-2">
+                        <input type="text" id="manual-url" placeholder="https://youtube.com/watch?v=..." class="flex-1 bg-gray-900 border border-gray-600 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-blue-500 text-md transition shadow-inner">
+                        <button id="quick-play-btn" onclick="pushManualVideo()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg transition text-md font-bold shadow-lg flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            Push
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Playlist Section -->
+                <div class="p-6 flex-1 flex flex-col min-h-0">
+                    <div class="flex justify-between items-center mb-4 shrink-0">
+                        <h2 class="text-xl font-bold text-green-400 flex items-center gap-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
+                            Saved Playlists
+                        </h2>
+                        <button onclick="createNewPlaylist()" class="bg-gray-700 hover:bg-gray-600 text-sm py-1.5 px-3 rounded text-white transition flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            New
+                        </button>
+                    </div>
+
+                    <div class="flex gap-4 mb-4 shrink-0">
+                        <select id="playlist-selector" onchange="selectPlaylist()" class="flex-1 bg-gray-800 border border-gray-600 text-white px-3 py-2 rounded focus:outline-none focus:border-green-500">
+                            <option value="">-- Select a Playlist --</option>
+                        </select>
+                        <button onclick="deleteCurrentPlaylist()" class="bg-red-900/50 hover:bg-red-800/80 text-red-200 px-3 py-2 rounded transition border border-red-800" title="Delete Playlist">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+
+                    <div id="playlist-controls" class="hidden flex flex-col flex-1 min-h-0 bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex flex-wrap gap-2 mb-4 shrink-0 items-center">
+                            <input type="text" id="playlist-url-add" placeholder="Paste YouTube URL to add..." class="flex-1 min-w-[200px] bg-gray-900 border border-gray-600 text-sm text-white px-3 py-2 rounded focus:outline-none focus:border-green-500 transition">
+                            
+                            <!-- Added Start, End, and Loop inputs -->
+                            <input type="text" id="playlist-start" placeholder="Start (e.g. 1:30 or 90)" class="w-24 bg-gray-900 border border-gray-600 text-sm text-white px-2 py-2 rounded focus:outline-none focus:border-green-500 transition">
+                            <input type="text" id="playlist-end" placeholder="End (e.g. 2:45 or 165)" class="w-24 bg-gray-900 border border-gray-600 text-sm text-white px-2 py-2 rounded focus:outline-none focus:border-green-500 transition">
+                            <label class="flex items-center gap-1 text-sm text-gray-300 cursor-pointer select-none">
+                                <input type="checkbox" id="playlist-loop" class="rounded bg-gray-900 border-gray-600 text-green-500"> Loop
+                            </label>
+
+                            <button onclick="addVideoToActivePlaylist()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded transition text-sm font-semibold">
+                                Add
+                            </button>
+                        </div>
+                        
+                        <div id="playlist-videos-container" class="flex-1 overflow-y-auto space-y-2 pr-2">
+                            <!-- Playlist videos injected here -->
+                        </div>
+                    </div>
+                    
+                    <div id="empty-playlist-msg" class="text-center text-gray-500 mt-10">
+                        Select or create a playlist to get started.
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-1/2 p-8 flex flex-col bg-gray-900 relative">
+                <h2 class="text-2xl font-bold mb-8 text-gray-100 border-b border-gray-800 pb-4">Projector Remote</h2>
+                
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-2xl mb-8">
+                    <h3 class="text-sm uppercase tracking-widest text-gray-400 font-bold mb-6">Playback</h3>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <button onclick="sendRemoteCommand('play')" class="bg-green-600 hover:bg-green-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-green-500/50 group">
+                            <svg class="w-10 h-10 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            <span class="font-bold text-lg">Play</span>
+                        </button>
+                        
+                        <button onclick="sendRemoteCommand('pause')" class="bg-yellow-600 hover:bg-yellow-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-yellow-500/50 group">
+                            <svg class="w-10 h-10 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                            <span class="font-bold text-lg">Pause</span>
+                        </button>
+                        
+                        <button onclick="sendRemoteCommand('rewind')" class="bg-blue-600 hover:bg-blue-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-blue-500/50 group">
+                            <svg class="w-10 h-10 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"></path></svg>
+                            <span class="font-bold text-lg">Rewind 10s</span>
+                        </button>
+
+                        <button onclick="sendRemoteCommand('stop')" class="bg-red-600 hover:bg-red-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-red-500/50 group">
+                            <svg class="w-10 h-10 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                            <span class="font-bold text-lg">Stop</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-auto bg-gray-800 p-4 rounded-lg border border-gray-700 flex items-start gap-4">
+                    <svg class="w-6 h-6 text-blue-400 shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div class="text-sm text-gray-400">
+                        <p><strong class="text-gray-200">Tip:</strong> Ensure the Projector window is open. Pushing a video sends it to the projector instantly. Modern browsers require you to click 'Play' here to start playback if auto-play is blocked.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="projector-screen" class="hidden w-full h-full bg-black relative flex items-center justify-center">
+        <!-- Container for the YouTube Iframe API -->
+        <div id="yt-player-container" class="w-full h-full absolute inset-0"></div>
+        
+        <!-- Waiting State -->
+        <div id="projector-waiting" class="absolute inset-0 flex flex-col items-center justify-center text-gray-500 pointer-events-none transition-opacity duration-500 z-10 bg-black">
+            <svg class="w-24 h-24 mb-6 opacity-30 animate-pulse text-red-600" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+            <h2 class="text-3xl font-light tracking-[0.2em] uppercase text-gray-300">Projector Ready</h2>
+            <p class="mt-3 opacity-60 text-lg">Waiting for video from Dashboard...</p>
+        </div>
+    </div>
+
+    <script>
+        // Setup Broadcast Channel for dual-screen communication
+        const channelName = 'youtube-presenter-channel';
+        const presenterChannel = new BroadcastChannel(channelName);
+        
+        // Routing Check
+        const urlParams = new URLSearchParams(window.location.search);
+        const isProjector = urlParams.get('mode') === 'projector';
+
+        // State for Playlists
+        let playlists = [];
+        let activePlaylistId = null;
+
+        // Added state for currently playing playlist sequence
+        let playingPlaylistId = null; 
+        let playingIndex = -1;
+
+        // Initialization
+        window.onload = () => {
+            if (isProjector) {
+                initProjector();
+            } else {
+                initDashboard();
+            }
+        };
+
+        // --- COMMON UTILITIES --- //
+
+        // Extracts YouTube Video ID from various URL formats
+        function extractVideoId(urlOrId) {
+            if (!urlOrId) return null;
+            if (/^[a-zA-Z0-9_-]{11}$/.test(urlOrId)) return urlOrId;
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = urlOrId.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        // --- DASHBOARD LOGIC --- //
+        
+        function initDashboard() {
+            document.getElementById('dashboard-screen').classList.remove('hidden');
+            loadPlaylists();
+        }
+
+        function launchProjector() {
+            const url = window.location.href.split('?')[0] + '?mode=projector';
+            window.open(url, 'YTProjectorWindow', 'width=1280,height=720,fullscreen=yes');
+        }
+
+        function sendRemoteCommand(command) {
+            presenterChannel.postMessage({ action: command });
+        }
+
+        function pushManualVideo() {
+            const input = document.getElementById('manual-url').value.trim();
+            if (!input) return;
+
+            const videoId = extractVideoId(input);
+            if (videoId) {
+                // Reset playlist sequence tracking when a manual video is pushed
+                playingPlaylistId = null;
+                playingIndex = -1;
+
+                presenterChannel.postMessage({ action: 'load', videoId: videoId });
+                document.getElementById('manual-url').value = ''; 
+                
+                // Button Feedback
+                const btn = document.getElementById('quick-play-btn');
+                const oldHTML = btn.innerHTML;
+                btn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Sent!`;
+                btn.classList.replace('bg-blue-600', 'bg-green-600');
+                
+                setTimeout(() => {
+                    btn.innerHTML = oldHTML;
+                    btn.classList.replace('bg-green-600', 'bg-blue-600');
+                }, 2000);
+            } else {
+                alert("Invalid YouTube URL");
+            }
+        }
+
+        function loadPlaylists() {
+            const saved = localStorage.getItem('yt_presenter_playlists');
+            if (saved) {
+                try { playlists = JSON.parse(saved); } 
+                catch (e) { playlists = []; }
+            }
+            renderPlaylistDropdown();
+        }
+
+        function savePlaylists() {
+            localStorage.setItem('yt_presenter_playlists', JSON.stringify(playlists));
+        }
+
+        function createNewPlaylist() {
+            const name = prompt("Enter a name for the new playlist:");
+            if (name && name.trim() !== "") {
+                const newPlaylist = {
+                    id: 'pl_' + Date.now(),
+                    name: name.trim(),
+                    videos: []
+                };
+                playlists.push(newPlaylist);
+                savePlaylists();
+                activePlaylistId = newPlaylist.id;
+                renderPlaylistDropdown();
+                updatePlaylistUI();
+            }
+        }
+
+        function renderPlaylistDropdown() {
+            const selector = document.getElementById('playlist-selector');
+            selector.innerHTML = '<option value="">-- Select a Playlist --</option>';
+            
+            playlists.forEach(pl => {
+                const opt = document.createElement('option');
+                opt.value = pl.id;
+                opt.textContent = pl.name;
+                if (pl.id === activePlaylistId) opt.selected = true;
+                selector.appendChild(opt);
+            });
+            
+            updatePlaylistUI();
+        }
+
+        function selectPlaylist() {
+            activePlaylistId = document.getElementById('playlist-selector').value;
+            updatePlaylistUI();
+        }
+
+        function deleteCurrentPlaylist() {
+            if (!activePlaylistId) return;
+            if (confirm("Are you sure you want to delete this playlist?")) {
+                playlists = playlists.filter(pl => pl.id !== activePlaylistId);
+                activePlaylistId = null;
+                savePlaylists();
+                renderPlaylistDropdown();
+            }
+        }
+
+        function updatePlaylistUI() {
+            const controls = document.getElementById('playlist-controls');
+            const emptyMsg = document.getElementById('empty-playlist-msg');
+            
+            if (activePlaylistId) {
+                controls.classList.remove('hidden');
+                emptyMsg.classList.add('hidden');
+                renderActivePlaylistVideos();
+            } else {
+                controls.classList.add('hidden');
+                emptyMsg.classList.remove('hidden');
+            }
+        }
+
+        function addVideoToActivePlaylist() {
+            if (!activePlaylistId) return;
+            
+            const inputEl = document.getElementById('playlist-url-add');
+            const startEl = document.getElementById('playlist-start');
+            const endEl = document.getElementById('playlist-end');
+            const loopEl = document.getElementById('playlist-loop');
+
+            const url = inputEl.value.trim();
+            const videoId = extractVideoId(url);
+            
+            if (!videoId) {
+                alert("Please enter a valid YouTube URL");
+                return;
+            }
+
+            const activePl = playlists.find(pl => pl.id === activePlaylistId);
+            
+            let defaultTitle = `Video - ${videoId}`;
+            const title = prompt("Enter a title for this video (optional):", defaultTitle);
+            
+            // Helper to parse time strings like "1:30" to 90 seconds
+            const parseTime = (t) => {
+                if (!t) return null;
+                const parts = t.split(':');
+                if (parts.length === 2) return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+                return parseInt(t);
+            };
+
+            activePl.videos.push({
+                id: 'vid_' + Date.now(),
+                videoId: videoId,
+                title: title || defaultTitle,
+                startTime: parseTime(startEl.value.trim()),
+                endTime: parseTime(endEl.value.trim()),
+                loop: loopEl.checked
+            });
+
+            // Clear inputs
+            inputEl.value = ''; 
+            startEl.value = '';
+            endEl.value = '';
+            loopEl.checked = false;
+
+            savePlaylists();
+            renderActivePlaylistVideos();
+        }
+
+        function renderActivePlaylistVideos() {
+            const container = document.getElementById('playlist-videos-container');
+            container.innerHTML = '';
+            
+            const activePl = playlists.find(pl => pl.id === activePlaylistId);
+            if (!activePl || activePl.videos.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No videos in this playlist.</p>';
+                return;
+            }
+
+            activePl.videos.forEach((video, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-gray-900 p-3 rounded border border-gray-700 fade-in';
+                
+                // Build details string for times and loop
+                const details = [];
+                if (video.startTime) details.push(`Start: ${video.startTime}s`);
+                if (video.endTime) details.push(`End: ${video.endTime}s`);
+                if (video.loop) details.push(`Loop: Yes`);
+                const detailsHtml = details.length > 0 ? `<div class="text-xs text-gray-400 mt-1">${details.join(' | ')}</div>` : '';
+
+                div.innerHTML = `
+                    <div class="flex flex-col overflow-hidden w-full">
+                        <div class="flex items-center gap-3">
+                            <img src="https://img.youtube.com/vi/${video.videoId}/default.jpg" class="w-12 h-9 object-cover rounded" alt="thumb">
+                            <div class="truncate text-sm font-medium flex-1" title="${video.title}">
+                                ${video.title}
+                                ${detailsHtml}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0 ml-2">
+                        <button onclick="playFromPlaylist(${index})" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded transition shadow">
+                            Push
+                        </button>
+                        <button onclick="removeVideoFromPlaylist('${video.id}')" class="text-gray-500 hover:text-red-500 transition px-1" title="Remove">
+                            &times;
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function playFromPlaylist(index) {
+            if (!activePlaylistId) return;
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            if (!pl || index >= pl.videos.length) return;
+
+            // Update playing tracking
+            playingPlaylistId = activePlaylistId;
+            playingIndex = index;
+
+            const video = pl.videos[index];
+            
+            // Send load command with additional time/loop context
+            presenterChannel.postMessage({ 
+                action: 'load', 
+                videoId: video.videoId,
+                startSeconds: video.startTime,
+                endSeconds: video.endTime,
+                loop: video.loop
+            });
+        }
+
+        // Listen for playbackEnded events from projector to trigger auto-advance
+        if (!isProjector) {
+            presenterChannel.onmessage = (event) => {
+                if (event.data.action === 'playbackEnded') {
+                    if (playingPlaylistId) {
+                        const pl = playlists.find(p => p.id === playingPlaylistId);
+                        // Auto-advance to the next video in the playlist
+                        if (pl && playingIndex + 1 < pl.videos.length) {
+                            playingIndex++;
+                            // Temporarily set active playlist to match playing playlist if it changed
+                            const tempActive = activePlaylistId;
+                            activePlaylistId = playingPlaylistId;
+                            playFromPlaylist(playingIndex);
+                            activePlaylistId = tempActive;
+                        } else {
+                            // Finished playlist
+                            playingPlaylistId = null;
+                            playingIndex = -1;
+                        }
+                    }
+                }
+            };
+        }
+
+        function removeVideoFromPlaylist(vidId) {
+            const activePl = playlists.find(pl => pl.id === activePlaylistId);
+            if (activePl) {
+                activePl.videos = activePl.videos.filter(v => v.id !== vidId);
+                savePlaylists();
+                renderActivePlaylistVideos();
+            }
+        }
+
+
+        // --- PROJECTOR LOGIC --- //
+
+        let player;
+        let currentVideoContext = { loop: false, startSeconds: 0 }; // Added tracking for current context
+
+        function initProjector() {
+            document.body.classList.remove('p-8');
+            document.getElementById('projector-screen').classList.remove('hidden');
+            
+            // Load YouTube IFrame API script dynamically
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+
+        // Fired globally by YT API when ready
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('yt-player-container', {
+                height: '100%',
+                width: '100%',
+                videoId: '', // start empty
+                playerVars: {
+                    'autoplay': 1,
+                    'controls': 0, // hide native controls
+                    'disablekb': 1,
+                    'modestbranding': 1,
+                    'rel': 0
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            setupProjectorMessageListener();
+        }
+
+        function onPlayerStateChange(event) {
+            const waitingScreen = document.getElementById('projector-waiting');
+            if (event.data === YT.PlayerState.PLAYING || event.data === YT.PlayerState.BUFFERING) {
+                waitingScreen.style.opacity = '0';
+            } else if (event.data === YT.PlayerState.UNSTARTED && !player.getVideoUrl()) {
+                waitingScreen.style.opacity = '1';
+            } else if (event.data === YT.PlayerState.ENDED) {
+                // Handle section looping or notify dashboard of completion
+                if (currentVideoContext.loop) {
+                    player.seekTo(currentVideoContext.startSeconds || 0, true);
+                    player.playVideo();
+                } else {
+                    waitingScreen.style.opacity = '1';
+                    presenterChannel.postMessage({ action: 'playbackEnded' });
+                }
+            }
+        }
+
+        function setupProjectorMessageListener() {
+            const waitingScreen = document.getElementById('projector-waiting');
+
+            presenterChannel.onmessage = (event) => {
+                const data = event.data;
+                if (!player || typeof player.loadVideoById !== 'function') return; 
+
+                try {
+                    switch (data.action) {
+                        case 'load':
+                            waitingScreen.style.opacity = '0';
+                            
+                            // Save context for looping logic
+                            currentVideoContext = {
+                                loop: data.loop || false,
+                                startSeconds: data.startSeconds || 0
+                            };
+
+                            // Utilize YouTube APIs native start/end properties
+                            let loadConfig = { videoId: data.videoId };
+                            if (data.startSeconds) loadConfig.startSeconds = data.startSeconds;
+                            if (data.endSeconds) loadConfig.endSeconds = data.endSeconds;
+                            
+                            player.loadVideoById(loadConfig);
+                            break;
+                        case 'play':
+                            player.playVideo();
+                            break;
+                        case 'pause':
+                            player.pauseVideo();
+                            break;
+                        case 'stop':
+                            player.stopVideo();
+                            waitingScreen.style.opacity = '1';
+                            break;
+                        case 'rewind':
+                            const currentTime = player.getCurrentTime();
+                            player.seekTo(Math.max(0, currentTime - 10), true);
+                            break;
+                    }
+                } catch (e) {
+                    console.error("YouTube Player Error:", e);
+                }
+            };
+        }
+    </script>
+</body>
+</html>
