@@ -146,6 +146,21 @@
                                     <p id="slider-hint" class="text-[11px] text-gray-500 mt-1">Loading video length...  Drag the handles to set the loop range; the preview seeks as you drag.</p>
                                 </div>
 
+                                <!-- Replacement soundtrack -->
+                                <div class="bg-gray-800 border border-gray-700 rounded p-3 space-y-2">
+                                    <label for="playlist-soundtrack-url" class="text-xs text-gray-400 block">&#9834; Replacement soundtrack (optional, plays audio-only from a YouTube link)</label>
+                                    <input type="text" id="playlist-soundtrack-url" placeholder="Paste a YouTube link for the soundtrack" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none">
+                                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-400">
+                                        <span class="flex items-center gap-2">Volume
+                                            <input type="range" id="playlist-soundtrack-vol" class="remote-range" style="width:8rem" min="0" max="100" value="60" step="1" oninput="document.getElementById('playlist-soundtrack-vol-label').textContent=this.value+'%'">
+                                            <span id="playlist-soundtrack-vol-label" class="font-mono w-9">60%</span>
+                                        </span>
+                                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                                            <input type="checkbox" id="playlist-mute-original" checked class="rounded bg-gray-800 border-gray-600 text-green-500 w-4 h-4"> Mute the video's original audio
+                                        </label>
+                                    </div>
+                                </div>
+
                                 <div class="flex flex-wrap gap-2 items-center mt-1">
                                     <div class="flex items-center gap-1">
                                         <input type="number" id="playlist-start" oninput="onNumberInput()" placeholder="Start (s)" class="w-20 bg-gray-800 border border-gray-600 text-sm text-white px-2 py-1.5 rounded focus:outline-none focus:border-green-500 transition text-center" min="0">
@@ -206,6 +221,11 @@
                             <input type="range" id="np-rate" class="remote-range" min="0" max="7" value="3" step="1" disabled oninput="onRateInput()" onchange="onRateCommit()" aria-label="Playback speed">
                         </div>
                     </div>
+
+                    <div id="np-st-wrap" class="hidden mt-5">
+                        <div class="flex justify-between text-xs text-gray-400 mb-1"><span>&#9834; Soundtrack volume</span><span id="np-st-label" class="font-mono">60%</span></div>
+                        <input type="range" id="np-st" class="remote-range" min="0" max="100" value="60" step="1" oninput="onStInput()" onchange="onStCommit()" aria-label="Soundtrack volume">
+                    </div>
                 </div>
                 
                 <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-2xl mb-8">
@@ -256,6 +276,9 @@
         <!-- TIU watermark (subtle, non-interactive) -->
         <div class="tiu-mark tiu-mark-projector" aria-hidden="true">TIU</div>
 
+        <!-- Hidden audio-only soundtrack player -->
+        <div style="position:fixed;left:-400px;top:0;width:200px;height:200px;opacity:0;pointer-events:none" aria-hidden="true"><div id="yt-audio-container"></div></div>
+
         <!-- Waiting State -->
         <div id="projector-waiting" class="absolute inset-0 flex flex-col items-center justify-center text-gray-500 pointer-events-none transition-opacity duration-500 z-10 bg-black">
             <svg class="w-24 h-24 mb-6 opacity-30 animate-pulse text-red-600" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
@@ -280,6 +303,32 @@
         let dashboardPreviewPlayer = null;
         let projectorPlayer = null;
         let projectorMuted = false;
+        let audioPlayer = null, audioReady = false, pendingAudio = false, soundtrackActive = false, soundtrackVolume = 60;
+
+        // Main video is silent when global mute is on OR a replacement soundtrack is set to override it
+        function applyMutes() {
+            if (!projectorPlayer || !projectorPlayer.mute) return;
+            const ctx = currentVideoContext;
+            const mainMuted = projectorMuted || !!(soundtrackActive && ctx.soundtrack && ctx.muteOriginal);
+            mainMuted ? projectorPlayer.mute() : projectorPlayer.unMute();
+            if (audioPlayer && audioReady) projectorMuted ? audioPlayer.mute() : audioPlayer.unMute();
+        }
+        function startSoundtrack() {
+            const st = currentVideoContext.soundtrack;
+            soundtrackActive = !!st;
+            if (!audioReady) { pendingAudio = !!st; return; }
+            if (!st) { audioPlayer.stopVideo(); return; }
+            soundtrackVolume = st.volume;
+            audioPlayer.setVolume(soundtrackVolume);
+            audioPlayer.loadVideoById(st.videoId);
+        }
+        function stopSoundtrack() { soundtrackActive = false; if (audioReady) audioPlayer.stopVideo(); }
+        function onAudioStateChange(e) {
+            // Loop the soundtrack for as long as the video is on screen
+            if (e.data === YT.PlayerState.ENDED && soundtrackActive && currentVideoContext.soundtrack) {
+                audioPlayer.loadVideoById(currentVideoContext.soundtrack.videoId);
+            }
+        }
         let ytApiReady = false;
         let pendingPreviewId = null;
         let previewDuration = 0;
@@ -315,6 +364,14 @@
         // Global callback for YT Iframe API
         function onYouTubeIframeAPIReady() {
             if (isProjector) {
+                audioPlayer = new YT.Player('yt-audio-container', {
+                    height: '200', width: '200', videoId: '',
+                    playerVars: { autoplay: 1, controls: 0, disablekb: 1, rel: 0 },
+                    events: {
+                        onReady: () => { audioReady = true; if (pendingAudio) startSoundtrack(); applyMutes(); },
+                        onStateChange: onAudioStateChange
+                    }
+                });
                 projectorPlayer = new YT.Player('yt-player-container', {
                     height: '100%',
                     width: '100%',
@@ -508,14 +565,15 @@
             const min = +el.min, max = +el.max, pct = max > min ? ((+el.value - min) / (max - min)) * 100 : 0;
             el.style.background = `linear-gradient(to right, #22c55e ${pct}%, #374151 ${pct}%)`;
         }
-        function setNpEnabled(on) { ['np-seek', 'np-vol', 'np-rate'].forEach(id => npEl(id).disabled = !on); }
+        function setNpEnabled(on) { ['np-seek', 'np-vol', 'np-rate', 'np-st'].forEach(id => npEl(id).disabled = !on); }
 
         function renderStatus(st) {
             lastStatusAt = Date.now();
             const active = [1, 2, 3].includes(st.state);
             setNpEnabled(active);
+            renderSoundtrackRow(active ? st : {});
             const badge = npEl('np-state');
-            badge.textContent = (STATE_LABELS[st.state] || 'Idle') + (st.loop && active ? ' • Loop' : '');
+            badge.textContent = (STATE_LABELS[st.state] || 'Idle') + (st.loop && active ? ' • Loop' : '') + (st.soundtrack && active ? ' • ♪' : '');
             badge.className = 'text-xs px-2 py-0.5 rounded ' + (st.state === 1 ? 'bg-green-900 text-green-300' : st.state === 2 ? 'bg-yellow-900 text-yellow-300' : 'bg-gray-700 text-gray-300');
             npEl('np-title').textContent = active ? (st.title || 'Video ' + (st.videoId || '')) : 'Nothing playing';
             npEl('np-title').title = npEl('np-title').textContent;
@@ -537,6 +595,13 @@
                 const i = RATES.indexOf(st.rate);
                 if (i >= 0) { npEl('np-rate').value = i; npEl('np-rate-label').textContent = st.rate + 'x'; }
             }
+        }
+        let dragSt = false;
+        function onStInput() { dragSt = true; npEl('np-st-label').textContent = npEl('np-st').value + '%'; }
+        function onStCommit() { presenterChannel.postMessage({ action: 'soundtrackVolume', value: +npEl('np-st').value }); dragSt = false; }
+        function renderSoundtrackRow(st) {
+            npEl('np-st-wrap').classList.toggle('hidden', !st.soundtrack);
+            if (st.soundtrack && !dragSt) { npEl('np-st').value = st.soundtrackVolume; npEl('np-st-label').textContent = st.soundtrackVolume + '%'; }
         }
         function onSeekInput() { scrubbing = true; const el = npEl('np-seek'); npEl('np-time').textContent = fmt(+el.value); paintSeek(el); }
         function onSeekCommit() {
@@ -611,7 +676,12 @@
                     if (!videoId) { skipped++; return null; }
                     let start = numOrNull(v.startTime), end = numOrNull(v.endTime);
                     if (start !== null && end !== null && end <= start) end = null;
-                    return { id: 'vid_' + Date.now() + '_' + (n++), videoId,
+                    let soundtrack = null;
+                    if (v.soundtrack && typeof v.soundtrack.videoId === 'string' && /^[a-zA-Z0-9_-]{11}$/.test(v.soundtrack.videoId)) {
+                        const vol = Number.isFinite(+v.soundtrack.volume) ? Math.min(100, Math.max(0, Math.round(+v.soundtrack.volume))) : 60;
+                        soundtrack = { videoId: v.soundtrack.videoId, volume: vol };
+                    }
+                    return { id: 'vid_' + Date.now() + '_' + (n++), videoId, soundtrack, muteOriginal: !!soundtrack && v.muteOriginal === true,
                              title: (typeof v.title === 'string' && v.title.trim() ? v.title.trim() : 'Video - ' + videoId).slice(0, 200),
                              startTime: start, endTime: end, loop: v.loop === true };
                 }).filter(Boolean);
@@ -772,6 +842,15 @@
             const ev = endEl.value !== '' ? parseInt(endEl.value) : null;
             if (sv !== null && ev !== null && ev <= sv) return alert("End time must be greater than start time.");
 
+            const stRaw = document.getElementById('playlist-soundtrack-url').value.trim();
+            let soundtrack = null;
+            if (stRaw) {
+                const stId = extractVideoId(stRaw);
+                if (!stId) return alert("The soundtrack link isn't a valid YouTube link.");
+                soundtrack = { videoId: stId, volume: +document.getElementById('playlist-soundtrack-vol').value };
+            }
+            const muteOriginal = !!soundtrack && document.getElementById('playlist-mute-original').checked;
+
             const activePl = playlists.find(pl => pl.id === activePlaylistId);
             
             activePl.videos.push({
@@ -780,7 +859,9 @@
                 title: titleEl.value.trim() || `Video - ${videoId}`,
                 startTime: sv,
                 endTime: ev,
-                loop: loopEl.checked
+                loop: loopEl.checked,
+                soundtrack: soundtrack,
+                muteOriginal: muteOriginal
             });
 
             // Reset form
@@ -793,6 +874,10 @@
             currentPreviewId = null;
             stopPreviewTimers();
             resetSliders();
+            document.getElementById('playlist-soundtrack-url').value = '';
+            document.getElementById('playlist-soundtrack-vol').value = 60;
+            document.getElementById('playlist-soundtrack-vol-label').textContent = '60%';
+            document.getElementById('playlist-mute-original').checked = true;
             if (dashboardPreviewPlayer && dashboardPreviewPlayer.stopVideo) {
                 dashboardPreviewPlayer.stopVideo();
             }
@@ -821,6 +906,7 @@
                 if (video.startTime != null) details.push(`Start: ${video.startTime}s`);
                 if (video.endTime != null) details.push(`End: ${video.endTime}s`);
                 if (video.loop) details.push(`Loop: Yes`);
+                if (video.soundtrack) details.push(`♪ Soundtrack${video.muteOriginal ? ' (original muted)' : ''}`);
                 const detailsHtml = details.length > 0 ? `<div class="text-xs text-gray-400 mt-1">${details.join(' | ')}</div>` : '';
 
                 div.innerHTML = `
@@ -860,7 +946,9 @@
                 videoId: video.videoId,
                 startSeconds: video.startTime,
                 endSeconds: video.endTime,
-                loop: video.loop
+                loop: video.loop,
+                soundtrack: video.soundtrack || null,
+                muteOriginal: !!video.muteOriginal
             });
         }
 
@@ -910,8 +998,9 @@
                     const cfg = { videoId: currentVideoContext.videoId, startSeconds: currentVideoContext.startSeconds || 0 };
                     if (currentVideoContext.endSeconds) cfg.endSeconds = currentVideoContext.endSeconds;
                     projectorPlayer.loadVideoById(cfg);
-                    if (projectorMuted) projectorPlayer.mute();
+                    applyMutes();
                 } else {
+                    stopSoundtrack();
                     waitingScreen.style.opacity = '1';
                     presenterChannel.postMessage({ action: 'playbackEnded' });
                 }
@@ -930,7 +1019,8 @@
                         volume: p.getVolume ? p.getVolume() : 100, muted: projectorMuted, rate: p.getPlaybackRate ? p.getPlaybackRate() : 1,
                         title: vd && vd.title || '', videoId: currentVideoContext.videoId || '',
                         startSeconds: currentVideoContext.startSeconds || 0, endSeconds: currentVideoContext.endSeconds || 0,
-                        loop: !!currentVideoContext.loop
+                        loop: !!currentVideoContext.loop,
+                        soundtrack: soundtrackActive && !!currentVideoContext.soundtrack, soundtrackVolume: soundtrackVolume
                     });
                 } catch (e) { /* player not ready yet */ }
             };
@@ -943,15 +1033,17 @@
                     switch (data.action) {
                         case 'load':
                             waitingScreen.style.opacity = '0';
-                            currentVideoContext = { videoId: data.videoId, loop: data.loop || false, startSeconds: data.startSeconds || 0, endSeconds: data.endSeconds || 0 };
+                            currentVideoContext = { videoId: data.videoId, loop: data.loop || false, startSeconds: data.startSeconds || 0, endSeconds: data.endSeconds || 0, soundtrack: data.soundtrack || null, muteOriginal: !!data.muteOriginal };
                             let loadConfig = { videoId: data.videoId };
                             if (data.startSeconds) loadConfig.startSeconds = data.startSeconds;
                             if (data.endSeconds) loadConfig.endSeconds = data.endSeconds;
                             projectorPlayer.loadVideoById(loadConfig);
-                            if (projectorMuted) projectorPlayer.mute();
+                            startSoundtrack();
+                            applyMutes();
                             break;
-                        case 'mute': projectorMuted = true; projectorPlayer.mute(); break;
-                        case 'unmute': projectorMuted = false; projectorPlayer.unMute(); break;
+                        case 'mute': projectorMuted = true; applyMutes(); break;
+                        case 'unmute': projectorMuted = false; applyMutes(); break;
+                        case 'soundtrackVolume': soundtrackVolume = Math.min(100, Math.max(0, +data.value || 0)); if (audioReady) audioPlayer.setVolume(soundtrackVolume); break;
                         case 'seek': {
                             const lo = currentVideoContext.startSeconds || 0;
                             const hi = currentVideoContext.endSeconds || projectorPlayer.getDuration() || Infinity;
@@ -960,10 +1052,11 @@
                         }
                         case 'volume': projectorPlayer.setVolume(Math.min(100, Math.max(0, +data.value || 0))); break;
                         case 'rate': projectorPlayer.setPlaybackRate(+data.value || 1); break;
-                        case 'play': projectorPlayer.playVideo(); break;
-                        case 'pause': projectorPlayer.pauseVideo(); break;
+                        case 'play': projectorPlayer.playVideo(); if (soundtrackActive && audioReady) audioPlayer.playVideo(); break;
+                        case 'pause': projectorPlayer.pauseVideo(); if (soundtrackActive && audioReady) audioPlayer.pauseVideo(); break;
                         case 'stop': 
                             projectorPlayer.stopVideo(); 
+                            stopSoundtrack();
                             waitingScreen.style.opacity = '1'; 
                             break;
                         case 'rewind': 
