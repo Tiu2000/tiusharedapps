@@ -73,6 +73,12 @@
                             Push
                         </button>
                     </div>
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3">
+                        <input type="text" id="manual-soundtrack-url" placeholder="&#9834; Optional soundtrack: paste a YouTube link" aria-label="Soundtrack link" class="flex-1 min-w-[14rem] bg-gray-900 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-blue-500 text-sm transition shadow-inner">
+                        <label class="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
+                            <input type="checkbox" id="manual-mute-original" checked class="rounded bg-gray-800 border-gray-600 text-blue-500 w-4 h-4"> Mute original audio
+                        </label>
+                    </div>
                 </div>
                 
                 <!-- Playlist Section -->
@@ -193,7 +199,7 @@
                 </div>
             </div>
 
-            <div class="w-1/2 p-8 flex flex-col bg-gray-900 relative">
+            <div class="w-1/2 p-8 flex flex-col bg-gray-900 relative h-full overflow-y-auto">
                 <h2 class="text-2xl font-bold mb-8 text-gray-100 border-b border-gray-800 pb-4">Projector Remote</h2>
 
                 <!-- Now Playing slider dashboard -->
@@ -222,9 +228,9 @@
                         </div>
                     </div>
 
-                    <div id="np-st-wrap" class="hidden mt-5">
-                        <div class="flex justify-between text-xs text-gray-400 mb-1"><span>&#9834; Soundtrack volume</span><span id="np-st-label" class="font-mono">60%</span></div>
-                        <input type="range" id="np-st" class="remote-range" min="0" max="100" value="60" step="1" oninput="onStInput()" onchange="onStCommit()" aria-label="Soundtrack volume">
+                    <div id="np-st-wrap" class="mt-5">
+                        <div class="flex justify-between text-xs text-gray-400 mb-1"><span>&#9834; Soundtrack volume</span><span id="np-st-label" class="font-mono">None</span></div>
+                        <input type="range" id="np-st" class="remote-range" min="0" max="100" value="60" step="1" disabled oninput="onStInput()" onchange="onStCommit()" aria-label="Soundtrack volume">
                     </div>
                 </div>
                 
@@ -600,8 +606,9 @@
         function onStInput() { dragSt = true; npEl('np-st-label').textContent = npEl('np-st').value + '%'; }
         function onStCommit() { presenterChannel.postMessage({ action: 'soundtrackVolume', value: +npEl('np-st').value }); dragSt = false; }
         function renderSoundtrackRow(st) {
-            npEl('np-st-wrap').classList.toggle('hidden', !st.soundtrack);
-            if (st.soundtrack && !dragSt) { npEl('np-st').value = st.soundtrackVolume; npEl('np-st-label').textContent = st.soundtrackVolume + '%'; }
+            npEl('np-st').disabled = !st.soundtrack;
+            if (!st.soundtrack) { npEl('np-st-label').textContent = 'None'; return; }
+            if (!dragSt) { npEl('np-st').value = st.soundtrackVolume; npEl('np-st-label').textContent = st.soundtrackVolume + '%'; }
         }
         function onSeekInput() { scrubbing = true; const el = npEl('np-seek'); npEl('np-time').textContent = fmt(+el.value); paintSeek(el); }
         function onSeekCommit() {
@@ -726,7 +733,17 @@
             if (videoId) {
                 playingPlaylistId = null;
                 playingIndex = -1;
-                presenterChannel.postMessage({ action: 'load', videoId: videoId });
+                const stRaw = document.getElementById('manual-soundtrack-url').value.trim();
+                const stId = stRaw ? extractVideoId(stRaw) : null;
+                if (stRaw && !stId) return alert("The soundtrack link isn't a valid YouTube link.");
+                playingPlaylistId = null;
+                playingIndex = -1;
+                presenterChannel.postMessage({
+                    action: 'load', videoId: videoId,
+                    soundtrack: stId ? { videoId: stId, volume: +document.getElementById('np-st').value || 60 } : null,
+                    muteOriginal: !!stId && document.getElementById('manual-mute-original').checked
+                });
+                document.getElementById('manual-soundtrack-url').value = '';
                 document.getElementById('manual-url').value = ''; 
                 
                 const btn = document.getElementById('quick-play-btn');
