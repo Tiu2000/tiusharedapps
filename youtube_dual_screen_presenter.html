@@ -27,6 +27,10 @@
         .dual-range input[type=range]:disabled::-webkit-slider-thumb { border-color:#6b7280; cursor:not-allowed; }
         .tiu-mark { font-weight: 700; letter-spacing: 0.35em; user-select: none; pointer-events: none; }
         .tiu-mark-projector { position: absolute; right: 1.25rem; bottom: 1rem; z-index: 30; font-size: 0.95rem; color: #fff; opacity: 0.22; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+        .remote-range { -webkit-appearance:none; appearance:none; width:100%; height:8px; border-radius:4px; background:#374151; outline:none; cursor:pointer; }
+        .remote-range::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#fff; border:3px solid #22c55e; }
+        .remote-range::-moz-range-thumb { width:14px; height:14px; border-radius:50%; background:#fff; border:3px solid #22c55e; }
+        .remote-range:disabled { opacity:.4; cursor:not-allowed; }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(5px); }
@@ -176,6 +180,33 @@
 
             <div class="w-1/2 p-8 flex flex-col bg-gray-900 relative">
                 <h2 class="text-2xl font-bold mb-8 text-gray-100 border-b border-gray-800 pb-4">Projector Remote</h2>
+
+                <!-- Now Playing slider dashboard -->
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-2xl mb-8">
+                    <div class="flex items-center justify-between mb-4 gap-3">
+                        <h3 class="text-sm uppercase tracking-widest text-gray-400 font-bold shrink-0">Now Playing</h3>
+                        <span id="np-state" class="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300">Projector not connected</span>
+                    </div>
+                    <p id="np-title" class="text-gray-200 font-medium truncate mb-4" title="">Nothing playing</p>
+
+                    <div class="flex justify-between text-xs text-gray-400 font-mono mb-1">
+                        <span id="np-time">0:00</span>
+                        <span id="np-range" class="text-gray-500"></span>
+                        <span id="np-total">0:00</span>
+                    </div>
+                    <input type="range" id="np-seek" class="remote-range" min="0" max="0" value="0" step="1" disabled oninput="onSeekInput()" onchange="onSeekCommit()" aria-label="Seek">
+
+                    <div class="grid grid-cols-2 gap-6 mt-5">
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1"><span>Volume</span><span id="np-vol-label" class="font-mono">100%</span></div>
+                            <input type="range" id="np-vol" class="remote-range" min="0" max="100" value="100" step="1" disabled oninput="onVolumeInput()" onchange="onVolumeCommit()" aria-label="Volume">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1"><span>Speed</span><span id="np-rate-label" class="font-mono">1x</span></div>
+                            <input type="range" id="np-rate" class="remote-range" min="0" max="7" value="3" step="1" disabled oninput="onRateInput()" onchange="onRateCommit()" aria-label="Playback speed">
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-2xl mb-8">
                     <h3 class="text-sm uppercase tracking-widest text-gray-400 font-bold mb-6">Playback</h3>
@@ -257,7 +288,7 @@
         let currentVideoContext = { loop: false, startSeconds: 0 }; 
 
         window.onload = () => {
-            if (!isProjector) renderMuteButton();
+            if (!isProjector) { renderMuteButton(); setInterval(checkProjectorLink, 1000); }
             if (isProjector) {
                 document.body.classList.remove('p-8');
                 document.getElementById('projector-screen').classList.remove('hidden');
@@ -465,6 +496,69 @@
         function launchProjector() {
             const url = window.location.href.split('?')[0] + '?mode=projector';
             window.open(url, 'YTProjectorWindow', 'width=1280,height=720,fullscreen=yes');
+        }
+
+        // ---------- Now Playing slider dashboard ----------
+        const RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+        const STATE_LABELS = { 1: 'Playing', 2: 'Paused', 3: 'Buffering', 0: 'Ended', 5: 'Idle', '-1': 'Idle' };
+        let lastStatusAt = 0, scrubbing = false, dragVol = false, dragRate = false;
+        const npEl = (id) => document.getElementById(id);
+
+        function paintSeek(el) {
+            const min = +el.min, max = +el.max, pct = max > min ? ((+el.value - min) / (max - min)) * 100 : 0;
+            el.style.background = `linear-gradient(to right, #22c55e ${pct}%, #374151 ${pct}%)`;
+        }
+        function setNpEnabled(on) { ['np-seek', 'np-vol', 'np-rate'].forEach(id => npEl(id).disabled = !on); }
+
+        function renderStatus(st) {
+            lastStatusAt = Date.now();
+            const active = [1, 2, 3].includes(st.state);
+            setNpEnabled(active);
+            const badge = npEl('np-state');
+            badge.textContent = (STATE_LABELS[st.state] || 'Idle') + (st.loop && active ? ' • Loop' : '');
+            badge.className = 'text-xs px-2 py-0.5 rounded ' + (st.state === 1 ? 'bg-green-900 text-green-300' : st.state === 2 ? 'bg-yellow-900 text-yellow-300' : 'bg-gray-700 text-gray-300');
+            npEl('np-title').textContent = active ? (st.title || 'Video ' + (st.videoId || '')) : 'Nothing playing';
+            npEl('np-title').title = npEl('np-title').textContent;
+            if (!active) return;
+
+            // Slider spans the clip window (start..end) so you scrub exactly what the loop plays
+            const lo = Math.floor(st.startSeconds || 0), hi = Math.floor(st.endSeconds || st.duration || 0);
+            const seek = npEl('np-seek');
+            if (!scrubbing) {
+                seek.min = lo; seek.max = Math.max(hi, lo + 1);
+                seek.value = Math.min(Math.max(st.time, lo), seek.max);
+                npEl('np-time').textContent = fmt(st.time);
+            }
+            npEl('np-total').textContent = fmt(hi);
+            npEl('np-range').textContent = (lo > 0 || (st.endSeconds || 0) > 0) ? `clip ${fmt(lo)}–${fmt(hi)}` : '';
+            paintSeek(seek);
+            if (!dragVol) { npEl('np-vol').value = st.volume; npEl('np-vol-label').textContent = (st.muted ? 'Muted' : st.volume + '%'); }
+            if (!dragRate) {
+                const i = RATES.indexOf(st.rate);
+                if (i >= 0) { npEl('np-rate').value = i; npEl('np-rate-label').textContent = st.rate + 'x'; }
+            }
+        }
+        function onSeekInput() { scrubbing = true; const el = npEl('np-seek'); npEl('np-time').textContent = fmt(+el.value); paintSeek(el); }
+        function onSeekCommit() {
+            presenterChannel.postMessage({ action: 'seek', time: +npEl('np-seek').value });
+            scrubbing = false;
+        }
+        function onVolumeInput() { dragVol = true; npEl('np-vol-label').textContent = npEl('np-vol').value + '%'; }
+        function onVolumeCommit() {
+            presenterChannel.postMessage({ action: 'volume', value: +npEl('np-vol').value });
+            dragVol = false;
+        }
+        function onRateInput() { dragRate = true; npEl('np-rate-label').textContent = RATES[+npEl('np-rate').value] + 'x'; }
+        function onRateCommit() {
+            presenterChannel.postMessage({ action: 'rate', value: RATES[+npEl('np-rate').value] });
+            dragRate = false;
+        }
+        function checkProjectorLink() {
+            if (Date.now() - lastStatusAt > 2500) {
+                setNpEnabled(false);
+                npEl('np-state').textContent = 'Projector not connected';
+                npEl('np-state').className = 'text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300';
+            }
         }
 
         // ---------- Mute ----------
@@ -782,6 +876,7 @@
         // Dashboard listening for projector events (auto-advance)
         if (!isProjector) {
             presenterChannel.onmessage = (event) => {
+                if (event.data.action === 'status') { renderStatus(event.data); return; }
                 if (event.data.action === 'projectorReady') {
                     presenterChannel.postMessage({ action: isMuted ? 'mute' : 'unmute' });
                 }
@@ -827,6 +922,19 @@
             const waitingScreen = document.getElementById('projector-waiting');
 
             presenterChannel.postMessage({ action: 'projectorReady' });
+            const sendStatus = () => {
+                try {
+                    const p = projectorPlayer, vd = p.getVideoData ? p.getVideoData() : null;
+                    presenterChannel.postMessage({
+                        action: 'status', state: p.getPlayerState(), time: p.getCurrentTime() || 0, duration: p.getDuration() || 0,
+                        volume: p.getVolume ? p.getVolume() : 100, muted: projectorMuted, rate: p.getPlaybackRate ? p.getPlaybackRate() : 1,
+                        title: vd && vd.title || '', videoId: currentVideoContext.videoId || '',
+                        startSeconds: currentVideoContext.startSeconds || 0, endSeconds: currentVideoContext.endSeconds || 0,
+                        loop: !!currentVideoContext.loop
+                    });
+                } catch (e) { /* player not ready yet */ }
+            };
+            setInterval(sendStatus, 500);
             presenterChannel.onmessage = (event) => {
                 const data = event.data;
                 if (!projectorPlayer || typeof projectorPlayer.loadVideoById !== 'function') return; 
@@ -844,6 +952,14 @@
                             break;
                         case 'mute': projectorMuted = true; projectorPlayer.mute(); break;
                         case 'unmute': projectorMuted = false; projectorPlayer.unMute(); break;
+                        case 'seek': {
+                            const lo = currentVideoContext.startSeconds || 0;
+                            const hi = currentVideoContext.endSeconds || projectorPlayer.getDuration() || Infinity;
+                            projectorPlayer.seekTo(Math.min(Math.max(+data.time || 0, lo), hi), true);
+                            break;
+                        }
+                        case 'volume': projectorPlayer.setVolume(Math.min(100, Math.max(0, +data.value || 0))); break;
+                        case 'rate': projectorPlayer.setPlaybackRate(+data.value || 1); break;
                         case 'play': projectorPlayer.playVideo(); break;
                         case 'pause': projectorPlayer.pauseVideo(); break;
                         case 'stop': 
