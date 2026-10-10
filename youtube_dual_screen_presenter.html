@@ -15,6 +15,16 @@
         
         #projector-screen iframe { border: none; outline: none; }
         
+        .dual-range { position: relative; height: 28px; }
+        .dual-range .track { position:absolute; left:0; right:0; top:12px; height:4px; background:#374151; border-radius:2px; }
+        .dual-range .fill { position:absolute; top:12px; height:4px; background:#22c55e; border-radius:2px; }
+        .dual-range .playhead { position:absolute; top:7px; width:2px; height:14px; background:#f87171; pointer-events:none; }
+        .dual-range input[type=range] { position:absolute; left:0; width:100%; top:0; height:28px; margin:0; background:none; pointer-events:none; -webkit-appearance:none; appearance:none; }
+        .dual-range input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; pointer-events:auto; width:16px; height:16px; border-radius:50%; background:#fff; border:3px solid #22c55e; cursor:pointer; }
+        .dual-range input[type=range]::-moz-range-thumb { pointer-events:auto; width:12px; height:12px; border-radius:50%; background:#fff; border:3px solid #22c55e; cursor:pointer; }
+        .dual-range input[type=range]::-webkit-slider-runnable-track { background:transparent; }
+        .dual-range input[type=range]::-moz-range-track { background:transparent; }
+        .dual-range input[type=range]:disabled::-webkit-slider-thumb { border-color:#6b7280; cursor:not-allowed; }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(5px); }
@@ -94,16 +104,35 @@
                                 
                                 <!-- Mini Iframe for Dashboard Preview -->
                                 <div class="w-full aspect-video bg-black rounded overflow-hidden border border-gray-700 relative">
+                                    <img id="preview-thumb" alt="" class="absolute inset-0 w-full h-full object-cover opacity-60">
                                     <div id="dashboard-preview-player" class="absolute inset-0 w-full h-full"></div>
+                                    <div id="preview-error" class="hidden absolute inset-x-0 bottom-0 bg-red-900/90 text-red-100 text-xs px-3 py-2 z-10"></div>
+                                </div>
+
+                                <!-- Loop range slider -->
+                                <div class="bg-gray-800 border border-gray-700 rounded p-3">
+                                    <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                        <span>Start <b id="lbl-start" class="text-green-400 font-mono">0:00</b></span>
+                                        <span>Length <b id="lbl-len" class="text-gray-200 font-mono">0:00</b></span>
+                                        <span>End <b id="lbl-end" class="text-green-400 font-mono">0:00</b></span>
+                                    </div>
+                                    <div class="dual-range" id="dual-range">
+                                        <div class="track"></div>
+                                        <div class="fill" id="range-fill"></div>
+                                        <div class="playhead" id="range-playhead"></div>
+                                        <input type="range" id="slider-start" min="0" max="0" value="0" step="1" disabled oninput="onSliderInput('start')">
+                                        <input type="range" id="slider-end" min="0" max="0" value="0" step="1" disabled oninput="onSliderInput('end')">
+                                    </div>
+                                    <p id="slider-hint" class="text-[11px] text-gray-500 mt-1">Loading video length...  Drag the handles to set the loop range; the preview seeks as you drag.</p>
                                 </div>
 
                                 <div class="flex flex-wrap gap-2 items-center mt-1">
                                     <div class="flex items-center gap-1">
-                                        <input type="number" id="playlist-start" placeholder="Start (s)" class="w-20 bg-gray-800 border border-gray-600 text-sm text-white px-2 py-1.5 rounded focus:outline-none focus:border-green-500 transition text-center" min="0">
+                                        <input type="number" id="playlist-start" oninput="onNumberInput()" placeholder="Start (s)" class="w-20 bg-gray-800 border border-gray-600 text-sm text-white px-2 py-1.5 rounded focus:outline-none focus:border-green-500 transition text-center" min="0">
                                         <button onclick="captureStartTime()" class="bg-gray-700 hover:bg-gray-600 text-xs px-2 py-1.5 rounded transition whitespace-nowrap text-gray-300 border border-gray-600">Set Start</button>
                                     </div>
                                     <div class="flex items-center gap-1">
-                                        <input type="number" id="playlist-end" placeholder="End (s)" class="w-20 bg-gray-800 border border-gray-600 text-sm text-white px-2 py-1.5 rounded focus:outline-none focus:border-green-500 transition text-center" min="0">
+                                        <input type="number" id="playlist-end" oninput="onNumberInput()" placeholder="End (s)" class="w-20 bg-gray-800 border border-gray-600 text-sm text-white px-2 py-1.5 rounded focus:outline-none focus:border-green-500 transition text-center" min="0">
                                         <button onclick="captureEndTime()" class="bg-gray-700 hover:bg-gray-600 text-xs px-2 py-1.5 rounded transition whitespace-nowrap text-gray-300 border border-gray-600">Set End</button>
                                     </div>
                                     <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none ml-2">
@@ -195,6 +224,11 @@
         // Players
         let dashboardPreviewPlayer = null;
         let projectorPlayer = null;
+        let ytApiReady = false;
+        let pendingPreviewId = null;
+        let previewDuration = 0;
+        let durationTimer = null;
+        let rangeTimer = null;
         let currentVideoContext = { loop: false, startSeconds: 0 }; 
 
         window.onload = () => {
@@ -235,13 +269,121 @@
                     }
                 });
             } else {
-                dashboardPreviewPlayer = new YT.Player('dashboard-preview-player', {
-                    height: '100%',
-                    width: '100%',
-                    videoId: '',
-                    playerVars: { 'autoplay': 0, 'controls': 1, 'modestbranding': 1, 'rel': 0 }
-                });
+                ytApiReady = true;
+                if (pendingPreviewId) ensurePreviewPlayer(pendingPreviewId);
             }
+        }
+
+        let currentPreviewId = null;
+
+        // Create the preview player only once its container is visible; afterwards just cue new videos
+        function ensurePreviewPlayer(videoId) {
+            if (!ytApiReady) { pendingPreviewId = videoId; return; }
+            pendingPreviewId = null;
+            if (dashboardPreviewPlayer && typeof dashboardPreviewPlayer.cueVideoById === 'function') {
+                dashboardPreviewPlayer.cueVideoById(videoId);
+                startDurationWatch();
+                return;
+            }
+            if (dashboardPreviewPlayer) return; // still constructing; onReady will cue
+            const vars = { autoplay: 0, controls: 1, modestbranding: 1, rel: 0, playsinline: 1 };
+            if (location.protocol.startsWith('http')) vars.origin = location.origin;
+            dashboardPreviewPlayer = new YT.Player('dashboard-preview-player', {
+                height: '100%', width: '100%', videoId: videoId, playerVars: vars,
+                events: {
+                    onReady: () => { startDurationWatch(); startRangeWatch(); },
+                    onError: onPreviewError,
+                    onStateChange: (e) => { if (e.data === YT.PlayerState.CUED || e.data === YT.PlayerState.PLAYING) startDurationWatch(); }
+                }
+            });
+        }
+
+        function onPreviewError(e) {
+            const msgs = { 2: 'Invalid video ID.', 5: 'HTML5 player error.', 100: 'Video not found or private.',
+                101: 'The owner disabled embedding for this video.', 150: 'The owner disabled embedding for this video.',
+                153: 'YouTube refused the embed (no referrer). Open this page through http://localhost or a web server instead of file://.' };
+            const el = document.getElementById('preview-error');
+            el.textContent = 'Preview error ' + e.data + ': ' + (msgs[e.data] || 'Unknown error.');
+            el.classList.remove('hidden');
+        }
+
+        // ---------- Loop range slider ----------
+        const $ = (id) => document.getElementById(id);
+        function fmt(sec) {
+            sec = Math.max(0, Math.floor(sec));
+            const m = Math.floor(sec / 60), s = sec % 60;
+            return m + ':' + String(s).padStart(2, '0');
+        }
+        function stopPreviewTimers() { clearInterval(durationTimer); }
+        function resetSliders() {
+            previewDuration = 0;
+            ['slider-start', 'slider-end'].forEach(id => { const el = $(id); el.max = 0; el.value = 0; el.disabled = true; });
+            $('playlist-start').value = ''; $('playlist-end').value = '';
+            $('slider-hint').textContent = 'Loading video length...  Drag the handles to set the loop range; the preview seeks as you drag.';
+            updateSliderVisuals();
+        }
+        function startDurationWatch() {
+            clearInterval(durationTimer);
+            let tries = 0;
+            durationTimer = setInterval(() => {
+                const d = dashboardPreviewPlayer && dashboardPreviewPlayer.getDuration ? dashboardPreviewPlayer.getDuration() : 0;
+                if (d > 0) { clearInterval(durationTimer); setDuration(d); }
+                else if (++tries > 100) { clearInterval(durationTimer); $('slider-hint').textContent = 'Could not read video length. Use the number fields instead.'; }
+            }, 300);
+        }
+        function setDuration(d) {
+            previewDuration = Math.floor(d);
+            const st = $('slider-start'), en = $('slider-end');
+            const sVal = $('playlist-start').value, eVal = $('playlist-end').value;
+            st.max = en.max = previewDuration;
+            st.disabled = en.disabled = false;
+            st.value = sVal !== '' ? Math.min(+sVal, previewDuration) : 0;
+            en.value = eVal !== '' ? Math.min(+eVal, previewDuration) : previewDuration;
+            $('slider-hint').textContent = 'Drag the handles to set the loop range; the preview seeks as you drag.';
+            updateSliderVisuals();
+        }
+        function updateSliderVisuals() {
+            const st = +$('slider-start').value, en = +$('slider-end').value, max = previewDuration || 1;
+            $('lbl-start').textContent = fmt(st);
+            $('lbl-end').textContent = fmt(en);
+            $('lbl-len').textContent = fmt(Math.max(0, en - st));
+            $('range-fill').style.left = (st / max * 100) + '%';
+            $('range-fill').style.width = (Math.max(0, en - st) / max * 100) + '%';
+        }
+        function onSliderInput(which) {
+            const st = $('slider-start'), en = $('slider-end');
+            if (+st.value >= +en.value) {
+                if (which === 'start') st.value = Math.max(0, +en.value - 1);
+                else en.value = Math.min(previewDuration, +st.value + 1);
+            }
+            // 0 / full length mean "no limit"
+            $('playlist-start').value = +st.value > 0 ? st.value : '';
+            $('playlist-end').value = +en.value < previewDuration ? en.value : '';
+            updateSliderVisuals();
+            if (dashboardPreviewPlayer && dashboardPreviewPlayer.seekTo) {
+                dashboardPreviewPlayer.seekTo(which === 'start' ? +st.value : Math.max(+st.value, +en.value - 2), true);
+            }
+        }
+        function onNumberInput() {
+            if (!previewDuration) return;
+            const s = $('playlist-start').value, e = $('playlist-end').value;
+            $('slider-start').value = s !== '' ? Math.min(Math.max(0, +s), previewDuration) : 0;
+            $('slider-end').value = e !== '' ? Math.min(Math.max(0, +e), previewDuration) : previewDuration;
+            updateSliderVisuals();
+        }
+        // Playhead + live loop in the preview (only when "Loop" is ticked)
+        function startRangeWatch() {
+            clearInterval(rangeTimer);
+            rangeTimer = setInterval(() => {
+                const p = dashboardPreviewPlayer;
+                if (!p || typeof p.getCurrentTime !== 'function' || !previewDuration) return;
+                const t = p.getCurrentTime();
+                $('range-playhead').style.left = (t / previewDuration * 100) + '%';
+                if ($('playlist-loop').checked && p.getPlayerState() === 1) {
+                    const st = +$('slider-start').value, en = +$('slider-end').value;
+                    if (t >= en - 0.2 || t < st - 1) p.seekTo(st, true);
+                }
+            }, 200);
         }
 
         async function handlePlaylistUrlPaste(url) {
@@ -251,15 +393,18 @@
             
             if (!videoId) {
                 previewSection.classList.add('hidden');
+                stopPreviewTimers();
                 return;
             }
+            if (videoId === currentPreviewId) return;
+            currentPreviewId = videoId;
 
             // Show preview and load video
             previewSection.classList.remove('hidden');
-            if (dashboardPreviewPlayer && dashboardPreviewPlayer.loadVideoById) {
-                dashboardPreviewPlayer.loadVideoById(videoId);
-                dashboardPreviewPlayer.pauseVideo(); // Prevent auto-playing sound immediately
-            }
+            document.getElementById('preview-thumb').src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+            document.getElementById('preview-error').classList.add('hidden');
+            resetSliders();
+            ensurePreviewPlayer(videoId);
 
             // Fetch Title Automatically using oEmbed proxy
             titleInput.value = "Fetching title...";
@@ -280,14 +425,14 @@
         function captureStartTime() {
             if (dashboardPreviewPlayer && typeof dashboardPreviewPlayer.getCurrentTime === 'function') {
                 const currentTime = Math.floor(dashboardPreviewPlayer.getCurrentTime());
-                document.getElementById('playlist-start').value = currentTime;
+                document.getElementById('playlist-start').value = currentTime; onNumberInput();
             }
         }
 
         function captureEndTime() {
             if (dashboardPreviewPlayer && typeof dashboardPreviewPlayer.getCurrentTime === 'function') {
                 const currentTime = Math.floor(dashboardPreviewPlayer.getCurrentTime());
-                document.getElementById('playlist-end').value = currentTime;
+                document.getElementById('playlist-end').value = currentTime; onNumberInput();
             }
         }
 
@@ -395,14 +540,18 @@
             const videoId = extractVideoId(urlEl.value.trim());
             if (!videoId) return alert("Please enter a valid YouTube URL");
 
+            const sv = startEl.value !== '' ? parseInt(startEl.value) : null;
+            const ev = endEl.value !== '' ? parseInt(endEl.value) : null;
+            if (sv !== null && ev !== null && ev <= sv) return alert("End time must be greater than start time.");
+
             const activePl = playlists.find(pl => pl.id === activePlaylistId);
             
             activePl.videos.push({
                 id: 'vid_' + Date.now(),
                 videoId: videoId,
                 title: titleEl.value.trim() || `Video - ${videoId}`,
-                startTime: startEl.value ? parseInt(startEl.value) : null,
-                endTime: endEl.value ? parseInt(endEl.value) : null,
+                startTime: sv,
+                endTime: ev,
                 loop: loopEl.checked
             });
 
@@ -413,6 +562,9 @@
             endEl.value = '';
             loopEl.checked = false;
             document.getElementById('preview-section').classList.add('hidden');
+            currentPreviewId = null;
+            stopPreviewTimers();
+            resetSliders();
             if (dashboardPreviewPlayer && dashboardPreviewPlayer.stopVideo) {
                 dashboardPreviewPlayer.stopVideo();
             }
@@ -420,6 +572,8 @@
             savePlaylists();
             renderActivePlaylistVideos();
         }
+
+        function esc(t) { return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
         function renderActivePlaylistVideos() {
             const container = document.getElementById('playlist-videos-container');
@@ -436,8 +590,8 @@
                 div.className = 'flex items-center justify-between bg-gray-900 p-3 rounded border border-gray-700 fade-in';
                 
                 const details = [];
-                if (video.startTime !== null) details.push(`Start: ${video.startTime}s`);
-                if (video.endTime !== null) details.push(`End: ${video.endTime}s`);
+                if (video.startTime != null) details.push(`Start: ${video.startTime}s`);
+                if (video.endTime != null) details.push(`End: ${video.endTime}s`);
                 if (video.loop) details.push(`Loop: Yes`);
                 const detailsHtml = details.length > 0 ? `<div class="text-xs text-gray-400 mt-1">${details.join(' | ')}</div>` : '';
 
@@ -445,8 +599,8 @@
                     <div class="flex flex-col overflow-hidden w-full">
                         <div class="flex items-center gap-3">
                             <img src="https://img.youtube.com/vi/${video.videoId}/default.jpg" class="w-12 h-9 object-cover rounded" alt="thumb">
-                            <div class="truncate text-sm font-medium flex-1" title="${video.title}">
-                                ${video.title}
+                            <div class="truncate text-sm font-medium flex-1" title="${esc(video.title)}">
+                                ${esc(video.title)}
                                 ${detailsHtml}
                             </div>
                         </div>
@@ -519,9 +673,11 @@
             } else if (event.data === YT.PlayerState.UNSTARTED && !projectorPlayer.getVideoUrl()) {
                 waitingScreen.style.opacity = '1';
             } else if (event.data === YT.PlayerState.ENDED) {
-                if (currentVideoContext.loop) {
-                    projectorPlayer.seekTo(currentVideoContext.startSeconds || 0, true);
-                    projectorPlayer.playVideo();
+                if (currentVideoContext.loop && currentVideoContext.videoId) {
+                    // Reload with both bounds; a plain seekTo would lose endSeconds on the 2nd pass
+                    const cfg = { videoId: currentVideoContext.videoId, startSeconds: currentVideoContext.startSeconds || 0 };
+                    if (currentVideoContext.endSeconds) cfg.endSeconds = currentVideoContext.endSeconds;
+                    projectorPlayer.loadVideoById(cfg);
                 } else {
                     waitingScreen.style.opacity = '1';
                     presenterChannel.postMessage({ action: 'playbackEnded' });
@@ -540,7 +696,7 @@
                     switch (data.action) {
                         case 'load':
                             waitingScreen.style.opacity = '0';
-                            currentVideoContext = { loop: data.loop || false, startSeconds: data.startSeconds || 0 };
+                            currentVideoContext = { videoId: data.videoId, loop: data.loop || false, startSeconds: data.startSeconds || 0, endSeconds: data.endSeconds || 0 };
                             let loadConfig = { videoId: data.videoId };
                             if (data.startSeconds) loadConfig.startSeconds = data.startSeconds;
                             if (data.endSeconds) loadConfig.endSeconds = data.endSeconds;
