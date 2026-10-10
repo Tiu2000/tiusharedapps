@@ -25,6 +25,8 @@
         .dual-range input[type=range]::-webkit-slider-runnable-track { background:transparent; }
         .dual-range input[type=range]::-moz-range-track { background:transparent; }
         .dual-range input[type=range]:disabled::-webkit-slider-thumb { border-color:#6b7280; cursor:not-allowed; }
+        .tiu-mark { font-weight: 700; letter-spacing: 0.35em; user-select: none; pointer-events: none; }
+        .tiu-mark-projector { position: absolute; right: 1.25rem; bottom: 1rem; z-index: 30; font-size: 0.95rem; color: #fff; opacity: 0.22; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(5px); }
@@ -40,6 +42,7 @@
             <div class="flex items-center gap-3">
                 <svg class="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
                 <h1 class="text-2xl font-bold tracking-tight">YouTube Presenter</h1>
+                <span class="tiu-mark text-xs text-gray-500 border-l border-gray-600 pl-3 ml-1" aria-label="TIU">TIU</span>
             </div>
             <button onclick="launchProjector()" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-5 rounded-md shadow-lg transition flex items-center gap-2">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
@@ -219,6 +222,9 @@
         <!-- Container for the YouTube Iframe API -->
         <div id="yt-player-container" class="w-full h-full absolute inset-0"></div>
         
+        <!-- TIU watermark (subtle, non-interactive) -->
+        <div class="tiu-mark tiu-mark-projector" aria-hidden="true">TIU</div>
+
         <!-- Waiting State -->
         <div id="projector-waiting" class="absolute inset-0 flex flex-col items-center justify-center text-gray-500 pointer-events-none transition-opacity duration-500 z-10 bg-black">
             <svg class="w-24 h-24 mb-6 opacity-30 animate-pulse text-red-600" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
