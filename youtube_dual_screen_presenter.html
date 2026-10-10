@@ -75,10 +75,16 @@
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
                             Saved Playlists
                         </h2>
+                        <div class="flex gap-2">
+                        <button onclick="exportPlaylists('all')" class="bg-gray-700 hover:bg-gray-600 text-sm py-1.5 px-3 rounded text-white transition" title="Download all playlists as a JSON file">Export All</button>
+                        <button onclick="exportPlaylists('current')" class="bg-gray-700 hover:bg-gray-600 text-sm py-1.5 px-3 rounded text-white transition" title="Download the selected playlist">Export</button>
+                        <button onclick="document.getElementById('import-file').click()" class="bg-gray-700 hover:bg-gray-600 text-sm py-1.5 px-3 rounded text-white transition" title="Import playlists from a JSON file">Import</button>
+                        <input type="file" id="import-file" accept=".json,application/json" class="hidden" onchange="importPlaylists(this)">
                         <button onclick="createNewPlaylist()" class="bg-gray-700 hover:bg-gray-600 text-sm py-1.5 px-3 rounded text-white transition flex items-center gap-1">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                             New
                         </button>
+                        </div>
                     </div>
 
                     <div class="flex gap-4 mb-4 shrink-0">
@@ -191,6 +197,11 @@
                             <svg class="w-10 h-10 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
                             <span class="font-bold text-lg">Stop</span>
                         </button>
+
+                        <button id="mute-btn" onclick="toggleMute()" aria-pressed="false" class="col-span-2 bg-gray-700 hover:bg-gray-600 text-white py-4 rounded-xl flex items-center justify-center gap-3 transition shadow-lg border border-gray-500/50">
+                            <svg id="mute-icon" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"></svg>
+                            <span id="mute-label" class="font-bold text-lg">Mute</span>
+                        </button>
                     </div>
                 </div>
 
@@ -231,6 +242,7 @@
         // Players
         let dashboardPreviewPlayer = null;
         let projectorPlayer = null;
+        let projectorMuted = false;
         let ytApiReady = false;
         let pendingPreviewId = null;
         let previewDuration = 0;
@@ -239,6 +251,7 @@
         let currentVideoContext = { loop: false, startSeconds: 0 }; 
 
         window.onload = () => {
+            if (!isProjector) renderMuteButton();
             if (isProjector) {
                 document.body.classList.remove('p-8');
                 document.getElementById('projector-screen').classList.remove('hidden');
@@ -446,6 +459,91 @@
         function launchProjector() {
             const url = window.location.href.split('?')[0] + '?mode=projector';
             window.open(url, 'YTProjectorWindow', 'width=1280,height=720,fullscreen=yes');
+        }
+
+        // ---------- Mute ----------
+        let isMuted = false;
+        const ICON_SOUND = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5.586v12.828a1 1 0 01-1.707.707L5.586 15z"></path>';
+        const ICON_MUTED = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5.586v12.828a1 1 0 01-1.707.707L5.586 15zM17 14l4-4m0 4l-4-4"></path>';
+        function renderMuteButton() {
+            const btn = document.getElementById('mute-btn');
+            if (!btn) return;
+            document.getElementById('mute-label').textContent = isMuted ? 'Unmute' : 'Mute';
+            document.getElementById('mute-icon').innerHTML = isMuted ? ICON_MUTED : ICON_SOUND;
+            btn.setAttribute('aria-pressed', String(isMuted));
+            btn.classList.toggle('bg-red-700', isMuted);
+            btn.classList.toggle('bg-gray-700', !isMuted);
+        }
+        function toggleMute() {
+            isMuted = !isMuted;
+            presenterChannel.postMessage({ action: isMuted ? 'mute' : 'unmute' });
+            renderMuteButton();
+        }
+
+        // ---------- Import / Export ----------
+        function downloadFile(filename, text) {
+            const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+        function buildExportData(scope) {
+            const list = scope === 'current' ? playlists.filter(p => p.id === activePlaylistId) : playlists;
+            return { app: 'youtube-presenter', version: 1, exportedAt: new Date().toISOString(), playlists: list };
+        }
+        function exportPlaylists(scope) {
+            if (scope === 'current' && !activePlaylistId) return alert("Select a playlist to export first.");
+            const data = buildExportData(scope);
+            if (!data.playlists.length) return alert("There are no playlists to export.");
+            const base = scope === 'current' ? data.playlists[0].name.replace(/[^\w\-]+/g, '_') : 'youtube-presenter-playlists';
+            downloadFile(base + '.json', JSON.stringify(data, null, 2));
+        }
+        const numOrNull = (v) => (Number.isFinite(+v) && v !== null && v !== '' && +v >= 0) ? Math.floor(+v) : null;
+        // Validate untrusted JSON and return clean playlists (fresh ids so nothing collides)
+        function sanitizeImport(raw) {
+            let list = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.playlists) ? raw.playlists : (raw && Array.isArray(raw.videos) ? [raw] : null));
+            if (!list) throw new Error("This file doesn't look like a YouTube Presenter export.");
+            let skipped = 0, n = 0;
+            const clean = list.filter(p => p && typeof p === 'object').map(p => {
+                const videos = (Array.isArray(p.videos) ? p.videos : []).map(v => {
+                    const videoId = v && typeof v.videoId === 'string' && /^[a-zA-Z0-9_-]{11}$/.test(v.videoId) ? v.videoId : null;
+                    if (!videoId) { skipped++; return null; }
+                    let start = numOrNull(v.startTime), end = numOrNull(v.endTime);
+                    if (start !== null && end !== null && end <= start) end = null;
+                    return { id: 'vid_' + Date.now() + '_' + (n++), videoId,
+                             title: (typeof v.title === 'string' && v.title.trim() ? v.title.trim() : 'Video - ' + videoId).slice(0, 200),
+                             startTime: start, endTime: end, loop: v.loop === true };
+                }).filter(Boolean);
+                return { id: 'pl_' + Date.now() + '_' + (n++), name: (typeof p.name === 'string' && p.name.trim() ? p.name.trim() : 'Imported playlist').slice(0, 80), videos };
+            });
+            return { clean, skipped };
+        }
+        function importPlaylistsFromText(text) {
+            const { clean, skipped } = sanitizeImport(JSON.parse(text));
+            clean.forEach(pl => {
+                let name = pl.name, i = 2;
+                while (playlists.some(p => p.name === name)) name = pl.name + ' (' + i++ + ')';
+                pl.name = name; playlists.push(pl);
+            });
+            if (clean.length) activePlaylistId = clean[0].id;
+            savePlaylists();
+            renderPlaylistDropdown();
+            return { count: clean.length, skipped };
+        }
+        function importPlaylists(input) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const r = importPlaylistsFromText(reader.result);
+                    alert(`Imported ${r.count} playlist${r.count === 1 ? '' : 's'}` + (r.skipped ? ` (${r.skipped} invalid video${r.skipped === 1 ? '' : 's'} skipped).` : '.'));
+                } catch (e) { alert("Import failed: " + e.message); }
+            };
+            reader.onerror = () => alert("Could not read that file.");
+            reader.readAsText(file);
+            input.value = ''; // allow re-importing the same file
         }
 
         function sendRemoteCommand(command) {
@@ -678,6 +776,9 @@
         // Dashboard listening for projector events (auto-advance)
         if (!isProjector) {
             presenterChannel.onmessage = (event) => {
+                if (event.data.action === 'projectorReady') {
+                    presenterChannel.postMessage({ action: isMuted ? 'mute' : 'unmute' });
+                }
                 if (event.data.action === 'playbackEnded') {
                     if (playingPlaylistId) {
                         const pl = playlists.find(p => p.id === playingPlaylistId);
@@ -708,6 +809,7 @@
                     const cfg = { videoId: currentVideoContext.videoId, startSeconds: currentVideoContext.startSeconds || 0 };
                     if (currentVideoContext.endSeconds) cfg.endSeconds = currentVideoContext.endSeconds;
                     projectorPlayer.loadVideoById(cfg);
+                    if (projectorMuted) projectorPlayer.mute();
                 } else {
                     waitingScreen.style.opacity = '1';
                     presenterChannel.postMessage({ action: 'playbackEnded' });
@@ -718,6 +820,7 @@
         function setupProjectorMessageListener() {
             const waitingScreen = document.getElementById('projector-waiting');
 
+            presenterChannel.postMessage({ action: 'projectorReady' });
             presenterChannel.onmessage = (event) => {
                 const data = event.data;
                 if (!projectorPlayer || typeof projectorPlayer.loadVideoById !== 'function') return; 
@@ -731,7 +834,10 @@
                             if (data.startSeconds) loadConfig.startSeconds = data.startSeconds;
                             if (data.endSeconds) loadConfig.endSeconds = data.endSeconds;
                             projectorPlayer.loadVideoById(loadConfig);
+                            if (projectorMuted) projectorPlayer.mute();
                             break;
+                        case 'mute': projectorMuted = true; projectorPlayer.mute(); break;
+                        case 'unmute': projectorMuted = false; projectorPlayer.unMute(); break;
                         case 'play': projectorPlayer.playVideo(); break;
                         case 'pause': projectorPlayer.pauseVideo(); break;
                         case 'stop': 
