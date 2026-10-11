@@ -202,6 +202,23 @@
             <div class="w-1/2 p-8 flex flex-col bg-gray-900 relative h-full overflow-y-auto">
                 <h2 class="text-2xl font-bold mb-8 text-gray-100 border-b border-gray-800 pb-4">Projector Remote</h2>
 
+                <!-- Projector screen preview (muted mirror) -->
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-2xl mb-8">
+                    <div class="flex items-center justify-between gap-3">
+                        <h3 class="text-sm uppercase tracking-widest text-gray-400 font-bold">Screen Preview</h3>
+                        <button id="mirror-toggle" onclick="toggleMirror()" aria-pressed="false" class="text-sm px-4 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-white border border-gray-500/50 transition">Show preview</button>
+                    </div>
+                    <div id="mirror-wrap" class="hidden mt-4">
+                        <div class="w-full max-w-xl mx-auto aspect-video bg-black rounded overflow-hidden border border-gray-700 relative">
+                            <div id="mirror-player" class="absolute inset-0 w-full h-full"></div>
+                            <div class="absolute inset-0 z-10"></div>
+                            <div id="mirror-idle" class="absolute inset-0 z-20 flex items-center justify-center text-gray-400 text-sm bg-black">Nothing playing on the projector</div>
+                            <div id="mirror-error" class="hidden absolute inset-x-0 bottom-0 z-30 bg-red-900/90 text-red-100 text-xs px-3 py-2"></div>
+                        </div>
+                        <p class="text-[11px] text-gray-500 mt-2 text-center">A muted copy that follows the projector (usually within a second). Sound plays from the projector only.</p>
+                    </div>
+                </div>
+
                 <!-- Now Playing slider dashboard -->
                 <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-2xl mb-8">
                     <div class="flex items-center justify-between mb-4 gap-3">
@@ -236,7 +253,15 @@
                 
                 <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-2xl mb-8">
                     <h3 class="text-sm uppercase tracking-widest text-gray-400 font-bold mb-6">Playback</h3>
-                    
+
+                    <div class="flex items-center justify-between mb-4 text-sm text-gray-400">
+                        <label for="skip-step">Skip step (Rewind / Forward)</label>
+                        <select id="skip-step" onchange="updateSkipLabels()" class="bg-gray-900 border border-gray-600 rounded px-3 py-1.5 text-white focus:outline-none focus:border-blue-500">
+                            <option value="5">5 seconds</option><option value="10" selected>10 seconds</option><option value="15">15 seconds</option>
+                            <option value="30">30 seconds</option><option value="60">60 seconds</option>
+                        </select>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-4">
                         <button onclick="sendRemoteCommand('play')" class="bg-green-600 hover:bg-green-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-green-500/50 group">
                             <svg class="w-10 h-10 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -248,9 +273,14 @@
                             <span class="font-bold text-lg">Pause</span>
                         </button>
                         
-                        <button onclick="sendRemoteCommand('rewind')" class="bg-blue-600 hover:bg-blue-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-blue-500/50 group">
+                        <button onclick="skipVideo('rewind')" class="bg-blue-600 hover:bg-blue-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-blue-500/50 group">
                             <svg class="w-10 h-10 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"></path></svg>
-                            <span class="font-bold text-lg">Rewind 10s</span>
+                            <span id="rewind-label" class="font-bold text-lg">Rewind 10s</span>
+                        </button>
+
+                        <button onclick="skipVideo('forward')" class="bg-indigo-600 hover:bg-indigo-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-indigo-500/50 group">
+                            <svg class="w-10 h-10 group-hover:scale-110 transition-transform" style="transform:scaleX(-1)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"></path></svg>
+                            <span id="forward-label" class="font-bold text-lg">Forward 10s</span>
                         </button>
 
                         <button onclick="sendRemoteCommand('stop')" class="bg-red-600 hover:bg-red-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-red-500/50 group">
@@ -258,8 +288,8 @@
                             <span class="font-bold text-lg">Stop</span>
                         </button>
 
-                        <button id="mute-btn" onclick="toggleMute()" aria-pressed="false" class="col-span-2 bg-gray-700 hover:bg-gray-600 text-white py-4 rounded-xl flex items-center justify-center gap-3 transition shadow-lg border border-gray-500/50">
-                            <svg id="mute-icon" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"></svg>
+                        <button id="mute-btn" onclick="toggleMute()" aria-pressed="false" class="bg-gray-700 hover:bg-gray-600 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-gray-500/50">
+                            <svg id="mute-icon" class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"></svg>
                             <span id="mute-label" class="font-bold text-lg">Mute</span>
                         </button>
                     </div>
@@ -575,6 +605,8 @@
 
         function renderStatus(st) {
             lastStatusAt = Date.now();
+            lastStatus = st;
+            syncMirror(st);
             const active = [1, 2, 3].includes(st.state);
             setNpEnabled(active);
             renderSoundtrackRow(active ? st : {});
@@ -629,6 +661,7 @@
             if (Date.now() - lastStatusAt > 2500) {
                 setNpEnabled(false);
                 npEl('np-state').textContent = 'Projector not connected';
+                if (lastStatus) { lastStatus = Object.assign({}, lastStatus, { state: -1 }); syncMirror(lastStatus); }
                 npEl('np-state').className = 'text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300';
             }
         }
@@ -721,6 +754,72 @@
             reader.onerror = () => alert("Could not read that file.");
             reader.readAsText(file);
             input.value = ''; // allow re-importing the same file
+        }
+
+        // ---------- Skip (rewind / fast-forward) ----------
+        function skipSeconds() { return +document.getElementById('skip-step').value || 10; }
+        function updateSkipLabels() {
+            document.getElementById('rewind-label').textContent = 'Rewind ' + skipSeconds() + 's';
+            document.getElementById('forward-label').textContent = 'Forward ' + skipSeconds() + 's';
+        }
+        function skipVideo(direction) {
+            presenterChannel.postMessage({ action: direction, seconds: skipSeconds() });
+        }
+
+        // ---------- Screen preview (muted mirror of the projector) ----------
+        let mirrorOn = false, mirrorPlayer = null, mirrorReady = false, mirrorVideoId = null, lastStatus = null;
+        function toggleMirror() {
+            mirrorOn = !mirrorOn;
+            document.getElementById('mirror-wrap').classList.toggle('hidden', !mirrorOn);
+            const b = document.getElementById('mirror-toggle');
+            b.textContent = mirrorOn ? 'Hide preview' : 'Show preview';
+            b.setAttribute('aria-pressed', String(mirrorOn));
+            if (mirrorOn) { if (lastStatus) syncMirror(lastStatus); }
+            else stopMirror();
+        }
+        function stopMirror() {
+            if (mirrorPlayer && mirrorReady) mirrorPlayer.stopVideo();
+            mirrorVideoId = null;
+        }
+        function createMirror(st) {
+            const vars = { autoplay: 1, controls: 0, disablekb: 1, modestbranding: 1, rel: 0, playsinline: 1, mute: 1, start: Math.floor(st.time) };
+            if (st.endSeconds) vars.end = Math.floor(st.endSeconds);
+            if (location.protocol.startsWith('http')) vars.origin = location.origin;
+            document.getElementById('mirror-error').classList.add('hidden');
+            mirrorPlayer = new YT.Player('mirror-player', {
+                width: '100%', height: '100%', videoId: st.videoId, playerVars: vars,
+                events: {
+                    onReady: () => { mirrorReady = true; mirrorVideoId = st.videoId; mirrorPlayer.mute(); mirrorPlayer.playVideo(); },
+                    onError: (e) => {
+                        const el = document.getElementById('mirror-error');
+                        el.textContent = e.data === 153 ? 'Preview blocked by YouTube (open this page through http://localhost or a web server, not file://).'
+                            : 'Preview unavailable for this video (error ' + e.data + '). The projector is unaffected.';
+                        el.classList.remove('hidden');
+                    }
+                }
+            });
+        }
+        function syncMirror(st) {
+            if (!mirrorOn) return;
+            const active = [1, 2, 3].includes(st.state);
+            document.getElementById('mirror-idle').classList.toggle('hidden', active);
+            if (!active) { stopMirror(); return; }
+            if (!ytApiReady) return;
+            if (!mirrorPlayer) { createMirror(st); return; }
+            if (!mirrorReady) return;
+            if (mirrorVideoId !== st.videoId) {
+                mirrorVideoId = st.videoId;
+                const cfg = { videoId: st.videoId, startSeconds: st.time };
+                if (st.endSeconds) cfg.endSeconds = st.endSeconds;
+                mirrorPlayer.loadVideoById(cfg);
+                mirrorPlayer.mute();
+                return;
+            }
+            if (Math.abs(mirrorPlayer.getCurrentTime() - st.time) > 1.5) mirrorPlayer.seekTo(st.time, true); // follow seeks, skips and loops
+            if (mirrorPlayer.getPlaybackRate && mirrorPlayer.getPlaybackRate() !== st.rate) mirrorPlayer.setPlaybackRate(st.rate);
+            const ms = mirrorPlayer.getPlayerState();
+            if (st.state === 2 && ms === 1) mirrorPlayer.pauseVideo();
+            if (st.state === 1 && ms !== 1 && ms !== 3) mirrorPlayer.playVideo();
         }
 
         function sendRemoteCommand(command) {
@@ -1139,9 +1238,15 @@
                             stopSoundtrack();
                             waitingScreen.style.opacity = '1'; 
                             break;
-                        case 'rewind': 
-                            projectorPlayer.seekTo(Math.max(0, projectorPlayer.getCurrentTime() - 10), true); 
+                        case 'rewind':
+                        case 'forward': {
+                            // Skip within the clip window; forward past the end finishes the video (loops / auto-advances)
+                            const step = Math.min(600, Math.max(1, +data.seconds || 10)) * (data.action === 'rewind' ? -1 : 1);
+                            const lo = currentVideoContext.startSeconds || 0;
+                            const hi = currentVideoContext.endSeconds || projectorPlayer.getDuration() || Infinity;
+                            projectorPlayer.seekTo(Math.min(hi, Math.max(lo, projectorPlayer.getCurrentTime() + step)), true);
                             break;
+                        }
                     }
                 } catch (e) { console.error("YouTube Player Error:", e); }
             };
