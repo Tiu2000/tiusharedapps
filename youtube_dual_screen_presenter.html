@@ -305,6 +305,65 @@
         </div>
     </div>
 
+    <!-- Edit video modal -->
+    <div id="edit-modal" class="hidden fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="ed-heading">
+        <div class="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 id="ed-heading" class="text-xl font-bold text-white">Edit video</h3>
+                <button onclick="closeEditor()" class="text-gray-400 hover:text-white text-2xl leading-none px-2" aria-label="Close editor">&times;</button>
+            </div>
+            <div class="grid gap-3">
+                <label class="text-xs text-gray-400">Title
+                    <input type="text" id="ed-title" maxlength="200" oninput="edTitleTouched = true" class="mt-1 w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none">
+                </label>
+                <label class="text-xs text-gray-400">Video link <span class="text-gray-500">(change it to swap in a different video)</span>
+                    <input type="text" id="ed-url" onchange="onEdUrlChange()" class="mt-1 w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none">
+                </label>
+            </div>
+            <div class="w-full aspect-video bg-black rounded overflow-hidden border border-gray-700 relative">
+                <div id="ed-player" class="absolute inset-0 w-full h-full"></div>
+                <div id="ed-error" class="hidden absolute inset-x-0 bottom-0 z-10 bg-red-900/90 text-red-100 text-xs px-3 py-2"></div>
+            </div>
+            <div class="bg-gray-800 border border-gray-700 rounded p-3">
+                <div class="flex justify-between text-xs text-gray-400 mb-1">
+                    <span>Start <b id="ed-lbl-start" class="text-green-400 font-mono">0:00</b></span>
+                    <span>Length <b id="ed-lbl-len" class="text-gray-200 font-mono">0:00</b></span>
+                    <span>End <b id="ed-lbl-end" class="text-green-400 font-mono">0:00</b></span>
+                </div>
+                <div class="dual-range">
+                    <div class="track"></div><div class="fill" id="ed-fill"></div><div class="playhead" id="ed-playhead"></div>
+                    <input type="range" id="ed-slider-start" min="0" max="0" value="0" step="1" disabled oninput="onEdSlider('start')" aria-label="Start time">
+                    <input type="range" id="ed-slider-end" min="0" max="0" value="0" step="1" disabled oninput="onEdSlider('end')" aria-label="End time">
+                </div>
+                <div class="flex flex-wrap gap-2 items-center mt-3">
+                    <input type="number" id="ed-start" min="0" placeholder="Start (s)" oninput="onEdNumber()" class="w-28 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none">
+                    <button onclick="setEdFromPlayer('start')" class="text-xs px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white transition">Set start from preview</button>
+                    <input type="number" id="ed-end" min="0" placeholder="End (s)" oninput="onEdNumber()" class="w-28 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none">
+                    <button onclick="setEdFromPlayer('end')" class="text-xs px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white transition">Set end from preview</button>
+                    <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none ml-auto"><input type="checkbox" id="ed-loop" class="rounded bg-gray-800 border-gray-600 text-green-500 w-4 h-4"> Loop</label>
+                </div>
+            </div>
+            <div class="bg-gray-800 border border-gray-700 rounded p-3 space-y-2">
+                <label for="ed-st-url" class="text-xs text-gray-400 block">&#9834; Soundtrack (YouTube link, audio only; leave empty for none)</label>
+                <input type="text" id="ed-st-url" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none">
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-400">
+                    <span class="flex items-center gap-2">Volume
+                        <input type="range" id="ed-st-vol" class="remote-range" style="width:8rem" min="0" max="100" value="60" step="1" oninput="document.getElementById('ed-st-vol-label').textContent=this.value+'%'">
+                        <span id="ed-st-vol-label" class="font-mono w-9">60%</span>
+                    </span>
+                    <label class="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" id="ed-st-mute" class="rounded bg-gray-800 border-gray-600 text-green-500 w-4 h-4"> Mute the video's original audio</label>
+                </div>
+            </div>
+            <p id="ed-note" class="hidden text-xs text-yellow-300"></p>
+            <p id="ed-validation" class="hidden text-sm text-red-300" role="alert"></p>
+            <div class="flex flex-wrap gap-2 justify-end pt-2">
+                <button onclick="closeEditor()" class="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white text-sm transition">Cancel</button>
+                <button onclick="saveEditor(true)" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition">Save &amp; Push</button>
+                <button onclick="saveEditor(false)" class="px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-bold transition">Save</button>
+            </div>
+        </div>
+    </div>
+
     <div id="projector-screen" class="hidden w-full h-full bg-black relative flex items-center justify-center">
         <!-- Container for the YouTube Iframe API -->
         <div id="yt-player-container" class="w-full h-full absolute inset-0"></div>
@@ -1036,6 +1095,10 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2 shrink-0 ml-2">
+                        <button onclick="openEditor('${video.id}')" class="text-xs px-2 py-1.5 rounded transition border bg-gray-800 border-gray-600 text-gray-200 hover:bg-gray-700 flex items-center gap-1" title="Edit this video" aria-label="Edit this video">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.768-6.768a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-.878.515L7 17l1.657-3.95A2 2 0 019 13z"></path></svg>
+                            Edit
+                        </button>
                         <button onclick="toggleSoundtrackEditor('${video.id}')" class="text-xs px-2 py-1.5 rounded transition border ${video.soundtrack ? 'bg-green-900/60 border-green-700 text-green-300' : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'}" title="${video.soundtrack ? 'Edit soundtrack' : 'Add a soundtrack'}" aria-label="${video.soundtrack ? 'Edit soundtrack' : 'Add a soundtrack'}">
                             &#9834;
                         </button>
@@ -1075,6 +1138,156 @@
                 }
             });
         }
+
+        // ---------- Full video editor (modal) ----------
+        let editingId = null, edPlayer = null, edVideoId = null, edDuration = 0, edTitleTouched = false, edDurTimer = null, edLoopTimer = null;
+        const edv = (id) => document.getElementById(id);
+        function edShowError(msg) { const el = edv('ed-validation'); el.textContent = msg || ''; el.classList.toggle('hidden', !msg); }
+
+        function openEditor(id) {
+            const v = findVideo(id);
+            if (!v) return;
+            editingId = id; edVideoId = v.videoId; edDuration = 0; edTitleTouched = false;
+            edv('ed-title').value = v.title;
+            edv('ed-url').value = 'https://youtu.be/' + v.videoId;
+            edv('ed-start').value = v.startTime != null ? v.startTime : '';
+            edv('ed-end').value = v.endTime != null ? v.endTime : '';
+            edv('ed-loop').checked = !!v.loop;
+            edv('ed-st-url').value = v.soundtrack ? 'https://youtu.be/' + v.soundtrack.videoId : '';
+            edv('ed-st-vol').value = v.soundtrack ? v.soundtrack.volume : 60;
+            edv('ed-st-vol-label').textContent = edv('ed-st-vol').value + '%';
+            edv('ed-st-mute').checked = v.soundtrack ? !!v.muteOriginal : true;
+            edv('ed-error').classList.add('hidden');
+            edShowError('');
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            const playingThis = pl && playingPlaylistId === activePlaylistId && playingIndex === pl.videos.indexOf(v);
+            edv('ed-note').textContent = playingThis ? 'This video is playing now. Use "Save & Push" to apply your changes on the projector.' : '';
+            edv('ed-note').classList.toggle('hidden', !playingThis);
+            resetEdSliders();
+            edv('edit-modal').classList.remove('hidden');
+            edv('ed-title').focus();
+            ensureEdPlayer();
+        }
+        function closeEditor() {
+            edv('edit-modal').classList.add('hidden');
+            clearInterval(edDurTimer); clearInterval(edLoopTimer);
+            if (edPlayer && edPlayer.stopVideo) edPlayer.stopVideo();
+            editingId = null;
+        }
+        function ensureEdPlayer() {
+            if (!ytApiReady) { setTimeout(() => editingId && ensureEdPlayer(), 300); return; }
+            if (edPlayer && edPlayer.cueVideoById) { edPlayer.cueVideoById(edVideoId); watchEdDuration(); startEdLoop(); return; }
+            if (edPlayer) return;
+            const vars = { autoplay: 0, controls: 1, modestbranding: 1, rel: 0, playsinline: 1 };
+            if (location.protocol.startsWith('http')) vars.origin = location.origin;
+            edPlayer = new YT.Player('ed-player', {
+                width: '100%', height: '100%', videoId: edVideoId, playerVars: vars,
+                events: {
+                    onReady: () => { watchEdDuration(); startEdLoop(); },
+                    onError: (e) => { const el = edv('ed-error'); el.textContent = 'Preview error ' + e.data + (e.data === 153 ? ': open this page through http://localhost or a web server, not file://.' : '.'); el.classList.remove('hidden'); }
+                }
+            });
+        }
+        function resetEdSliders() {
+            edDuration = 0;
+            ['ed-slider-start', 'ed-slider-end'].forEach(id => { edv(id).max = 0; edv(id).value = 0; edv(id).disabled = true; });
+            paintEd();
+        }
+        function watchEdDuration() {
+            clearInterval(edDurTimer);
+            let tries = 0;
+            edDurTimer = setInterval(() => {
+                const d = edPlayer && edPlayer.getDuration ? edPlayer.getDuration() : 0;
+                if (d > 0) { clearInterval(edDurTimer); edDuration = Math.floor(d); edv('ed-slider-start').max = edv('ed-slider-end').max = edDuration; edv('ed-slider-start').disabled = edv('ed-slider-end').disabled = false; onEdNumber(); }
+                else if (++tries > 100) clearInterval(edDurTimer);
+            }, 300);
+        }
+        function paintEd() {
+            const st = +edv('ed-slider-start').value, en = +edv('ed-slider-end').value, max = edDuration || 1;
+            edv('ed-lbl-start').textContent = fmt(st); edv('ed-lbl-end').textContent = fmt(en); edv('ed-lbl-len').textContent = fmt(Math.max(0, en - st));
+            edv('ed-fill').style.left = (st / max * 100) + '%'; edv('ed-fill').style.width = (Math.max(0, en - st) / max * 100) + '%';
+        }
+        function onEdNumber() {
+            if (!edDuration) return;
+            const s = edv('ed-start').value, e = edv('ed-end').value;
+            edv('ed-slider-start').value = s !== '' ? Math.min(Math.max(0, +s), edDuration) : 0;
+            edv('ed-slider-end').value = e !== '' ? Math.min(Math.max(0, +e), edDuration) : edDuration;
+            paintEd();
+        }
+        function onEdSlider(which) {
+            const st = edv('ed-slider-start'), en = edv('ed-slider-end');
+            if (+st.value >= +en.value) { if (which === 'start') st.value = Math.max(0, +en.value - 1); else en.value = Math.min(edDuration, +st.value + 1); }
+            edv('ed-start').value = +st.value > 0 ? st.value : '';
+            edv('ed-end').value = +en.value < edDuration ? en.value : '';
+            paintEd();
+            if (edPlayer && edPlayer.seekTo) edPlayer.seekTo(which === 'start' ? +st.value : Math.max(+st.value, +en.value - 2), true);
+        }
+        function setEdFromPlayer(which) {
+            if (!edPlayer || !edPlayer.getCurrentTime) return;
+            edv(which === 'start' ? 'ed-start' : 'ed-end').value = Math.floor(edPlayer.getCurrentTime());
+            onEdNumber();
+        }
+        function startEdLoop() {
+            clearInterval(edLoopTimer);
+            edLoopTimer = setInterval(() => {
+                if (!edPlayer || !edPlayer.getCurrentTime || !edDuration) return;
+                const t = edPlayer.getCurrentTime();
+                edv('ed-playhead').style.left = (t / edDuration * 100) + '%';
+                if (edv('ed-loop').checked && edPlayer.getPlayerState() === 1) {
+                    const st = +edv('ed-slider-start').value, en = +edv('ed-slider-end').value;
+                    if (t >= en - 0.2 || t < st - 1) edPlayer.seekTo(st, true);
+                }
+            }, 200);
+        }
+        async function onEdUrlChange() {
+            const id = extractVideoId(edv('ed-url').value.trim());
+            if (!id) return edShowError("That isn't a valid YouTube link.");
+            edShowError('');
+            if (id === edVideoId) return;
+            edVideoId = id;
+            edv('ed-start').value = ''; edv('ed-end').value = ''; // old times don't apply to a different video
+            edv('ed-error').classList.add('hidden');
+            resetEdSliders();
+            ensureEdPlayer();
+            if (!edTitleTouched) {
+                try {
+                    const r = await fetch('https://noembed.com/embed?url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + id));
+                    const d = await r.json();
+                    if (d && d.title && !edTitleTouched && edVideoId === id) edv('ed-title').value = d.title;
+                } catch (e) { /* offline: keep current title */ }
+            }
+        }
+        function saveEditor(andPush) {
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            const v = pl && pl.videos.find(x => x.id === editingId);
+            if (!v) return closeEditor();
+            const vid = extractVideoId(edv('ed-url').value.trim());
+            if (!vid) return edShowError("The video link isn't a valid YouTube link.");
+            const sRaw = edv('ed-start').value.trim(), eRaw = edv('ed-end').value.trim();
+            if (sRaw !== '' && numOrNull(sRaw) === null) return edShowError('Start must be a number of seconds (0 or more).');
+            if (eRaw !== '' && numOrNull(eRaw) === null) return edShowError('End must be a number of seconds (0 or more).');
+            const sv = numOrNull(sRaw), ev = numOrNull(eRaw);
+            if (sv !== null && ev !== null && ev <= sv) return edShowError('End time must be greater than the start time.');
+            const stRaw = edv('ed-st-url').value.trim();
+            let soundtrack = null;
+            if (stRaw) {
+                const stId = extractVideoId(stRaw);
+                if (!stId) return edShowError("The soundtrack link isn't a valid YouTube link.");
+                soundtrack = { videoId: stId, volume: +edv('ed-st-vol').value };
+            }
+            v.videoId = vid;
+            v.title = edv('ed-title').value.trim() || ('Video - ' + vid);
+            v.startTime = sv; v.endTime = ev;
+            v.loop = edv('ed-loop').checked;
+            v.soundtrack = soundtrack;
+            v.muteOriginal = !!soundtrack && edv('ed-st-mute').checked;
+            savePlaylists();
+            const index = pl.videos.indexOf(v);
+            closeEditor();
+            renderActivePlaylistVideos();
+            if (andPush) playFromPlaylist(index);
+        }
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && editingId) closeEditor(); });
 
         let editingSoundtrackId = null;
         function toggleSoundtrackEditor(id) {
