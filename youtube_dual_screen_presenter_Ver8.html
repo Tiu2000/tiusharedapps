@@ -1,0 +1,2411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Dual Screen Presenter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        
+        #projector-screen iframe { border: none; outline: none; }
+        
+        .dual-range { position: relative; height: 28px; }
+        .dual-range .track { position:absolute; left:0; right:0; top:12px; height:4px; background:#374151; border-radius:2px; }
+        .dual-range .fill { position:absolute; top:12px; height:4px; background:#22c55e; border-radius:2px; }
+        .dual-range .playhead { position:absolute; top:7px; width:2px; height:14px; background:#f87171; pointer-events:none; }
+        .dual-range input[type=range] { position:absolute; left:0; width:100%; top:0; height:28px; margin:0; background:none; pointer-events:none; -webkit-appearance:none; appearance:none; }
+        .dual-range input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; pointer-events:auto; width:16px; height:16px; border-radius:50%; background:#fff; border:3px solid #22c55e; cursor:pointer; }
+        .dual-range input[type=range]::-moz-range-thumb { pointer-events:auto; width:12px; height:12px; border-radius:50%; background:#fff; border:3px solid #22c55e; cursor:pointer; }
+        .dual-range input[type=range]::-webkit-slider-runnable-track { background:transparent; }
+        .dual-range input[type=range]::-moz-range-track { background:transparent; }
+        .dual-range input[type=range]:disabled::-webkit-slider-thumb { border-color:#6b7280; cursor:not-allowed; }
+
+        .quick-dual-range .fill { background:#3b82f6 !important; }
+        .quick-dual-range input[type=range]::-webkit-slider-thumb { border-color:#3b82f6 !important; }
+        .quick-dual-range input[type=range]::-moz-range-thumb { border-color:#3b82f6 !important; }
+
+        .tiu-mark { font-weight: 700; letter-spacing: 0.35em; user-select: none; pointer-events: none; }
+        .tiu-mark-projector { position: absolute; right: 1.25rem; bottom: 1rem; z-index: 30; font-size: 0.95rem; color: #fff; opacity: 0.22; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+        .remote-range { -webkit-appearance:none; appearance:none; width:100%; height:8px; border-radius:4px; background:#374151; outline:none; cursor:pointer; }
+        .remote-range::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#fff; border:3px solid #22c55e; }
+        .remote-range::-moz-range-thumb { width:14px; height:14px; border-radius:50%; background:#fff; border:3px solid #22c55e; }
+        .remote-range:disabled { opacity:.4; cursor:not-allowed; }
+        .drag-handle { cursor: grab; touch-action: none; line-height: 1; letter-spacing: -0.2em; }
+        .dragging { opacity: .55; outline: 1px dashed #22c55e; }
+        .drop-before { box-shadow: 0 -4px 0 0 #22c55e; }
+        .drop-after { box-shadow: 0 4px 0 0 #22c55e; }
+        body.reordering, body.reordering * { cursor: grabbing !important; user-select: none !important; }
+        kbd { display:inline-block; min-width:1.6rem; text-align:center; padding:1px 7px; font: 600 0.75rem ui-monospace, monospace; color:#e5e7eb; background:#1f2937; border:1px solid #4b5563; border-bottom-width:2px; border-radius:5px; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-screen w-screen overflow-hidden">
+
+    <div id="dashboard-screen" class="hidden h-full flex flex-col">
+        <!-- Header -->
+        <header class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center shadow-md z-10 shrink-0">
+            <div class="flex items-center gap-3">
+                <svg class="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                <h1 class="text-2xl font-bold tracking-tight">YouTube Presenter</h1>
+                <span class="tiu-mark text-xs text-gray-500 border-l border-gray-600 pl-3 ml-1" aria-label="TIU">TIU</span>
+            </div>
+            <div class="flex items-center gap-3">
+            <button onclick="toggleHotkeyHelp()" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-md shadow-lg transition flex items-center gap-2 border border-gray-500/50" title="Keyboard shortcuts (press ?)" aria-label="Show keyboard shortcuts">
+                <span aria-hidden="true">&#9000;</span> Hotkeys
+            </button>
+            <button id="close-projector-btn" onclick="closeProjector()" disabled class="bg-gray-700 text-white font-semibold py-2 px-4 rounded-md shadow-lg transition flex items-center gap-2 border border-red-500/50 opacity-40 cursor-not-allowed" title="No projector window is open" aria-label="Close the projector window">
+                <span aria-hidden="true">&#10005;</span> Close Projector
+            </button>
+            <button onclick="launchProjector()" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-5 rounded-md shadow-lg transition flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                Launch Projector Window
+            </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex overflow-hidden">
+            
+            <div class="w-1/2 bg-gray-850 flex flex-col border-r border-gray-700 h-full overflow-y-auto bg-gray-900/50">
+                
+                <!-- Quick Play Section -->
+                <div class="p-6 border-b border-gray-800 bg-gray-800 shrink-0">
+                    <h2 class="text-xl font-bold mb-2 text-blue-400 flex items-center gap-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        Quick Play
+                    </h2>
+                    <p class="text-sm text-gray-400 mb-4">Paste a YouTube URL to preview, trim loop ranges, and send directly to the projector.</p>
+                    <div class="flex gap-3 mt-2">
+                        <input type="text" id="manual-url" placeholder="Paste YouTube URL here to load preview..." oninput="handleQuickUrlPaste(this.value)" class="flex-1 bg-gray-900 border border-gray-600 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-blue-500 text-md transition shadow-inner">
+                    </div>
+
+                    <p id="quick-url-hint" class="text-xs text-gray-500 mt-2">Paste a YouTube link (watch, youtu.be or Shorts) or an 11-character video ID.</p>
+
+                    <!-- Quick Play Preview & Slider Section -->
+                    <div id="quick-preview-section" class="hidden flex flex-col gap-3 mt-4 border-t border-gray-700 pt-4">
+                        <input type="text" id="quick-video-title" placeholder="Video Title..." class="w-full bg-gray-900 border border-gray-600 text-sm text-white px-3 py-2 rounded focus:outline-none focus:border-blue-500 transition font-medium">
+                        
+                        <!-- Mini Preview Player -->
+                        <div class="w-full aspect-video bg-black rounded overflow-hidden border border-gray-700 relative">
+                            <img id="quick-preview-thumb" alt="" class="absolute inset-0 w-full h-full object-cover opacity-60">
+                            <div id="quick-preview-player" class="absolute inset-0 w-full h-full"></div>
+                            <div id="quick-preview-error" class="hidden absolute inset-x-0 bottom-0 bg-red-900/90 text-red-100 text-xs px-3 py-2 z-10"></div>
+                        </div>
+
+                        <!-- Quick Play Dual Range Slider -->
+                        <div class="bg-gray-900 border border-gray-700 rounded p-3">
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>Start <b id="quick-lbl-start" class="text-blue-400 font-mono">0:00</b></span>
+                                <span>Length <b id="quick-lbl-len" class="text-gray-200 font-mono">0:00</b></span>
+                                <span>End <b id="quick-lbl-end" class="text-blue-400 font-mono">0:00</b></span>
+                            </div>
+                            <div class="dual-range quick-dual-range" id="quick-dual-range">
+                                <div class="track"></div>
+                                <div class="fill" id="quick-range-fill"></div>
+                                <div class="playhead" id="quick-range-playhead"></div>
+                                <input type="range" id="quick-slider-start" min="0" max="0" value="0" step="1" disabled oninput="onQuickSliderInput('start')">
+                                <input type="range" id="quick-slider-end" min="0" max="0" value="0" step="1" disabled oninput="onQuickSliderInput('end')">
+                            </div>
+                            <p id="quick-slider-hint" class="text-[11px] text-gray-500 mt-1">Loading video length... Drag handles to set trim range; preview seeks as you drag.</p>
+                        </div>
+
+                        <!-- Quick Play Replacement Soundtrack -->
+                        <div class="bg-gray-900 border border-gray-700 rounded p-3 space-y-2">
+                            <label for="manual-soundtrack-url" class="text-xs text-gray-400 block">&#9834; Optional soundtrack (plays audio-only from YouTube link)</label>
+                            <input type="text" id="manual-soundtrack-url" placeholder="Paste a YouTube link for soundtrack" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-400">
+                                <span class="flex items-center gap-2">Volume
+                                    <input type="range" id="manual-soundtrack-vol" class="remote-range" style="width:8rem" min="0" max="100" value="60" step="1" oninput="document.getElementById('manual-soundtrack-vol-label').textContent=this.value+'%'">
+                                    <span id="manual-soundtrack-vol-label" class="font-mono w-9">60%</span>
+                                </span>
+                                <label class="flex items-center gap-2 cursor-pointer select-none">
+                                    <input type="checkbox" id="manual-mute-original" checked class="rounded bg-gray-800 border-gray-600 text-blue-500 w-4 h-4"> Mute original audio
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Quick Play Controls & Push -->
+                        <div class="flex flex-wrap gap-2 items-center mt-1">
+                            <div class="flex items-center gap-1">
+                                <input type="number" id="quick-start" oninput="onQuickNumberInput()" placeholder="Start (s)" class="w-20 bg-gray-900 border border-gray-600 text-sm text-white px-2 py-1.5 rounded focus:outline-none focus:border-blue-500 transition text-center" min="0">
+                                <button onclick="captureQuickStartTime()" class="bg-gray-700 hover:bg-gray-600 text-xs px-2 py-1.5 rounded transition whitespace-nowrap text-gray-300 border border-gray-600">Set Start</button>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <input type="number" id="quick-end" oninput="onQuickNumberInput()" placeholder="End (s)" class="w-20 bg-gray-900 border border-gray-600 text-sm text-white px-2 py-1.5 rounded focus:outline-none focus:border-blue-500 transition text-center" min="0">
+                                <button onclick="captureQuickEndTime()" class="bg-gray-700 hover:bg-gray-600 text-xs px-2 py-1.5 rounded transition whitespace-nowrap text-gray-300 border border-gray-600">Set End</button>
+                            </div>
+                            <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none ml-2">
+                                <input type="checkbox" id="manual-loop" onchange="syncLoopCountEnabled('manual-loop','manual-loop-count')" class="rounded bg-gray-800 border-gray-600 text-blue-500 w-4 h-4"> Loop
+                            </label>
+<label class="flex items-center gap-1 text-xs text-gray-400" title="Leave blank to repeat endlessly">repeat <input type="number" id="manual-loop-count" min="1" max="999" placeholder="&#8734;" disabled aria-label="Number of extra repeats (blank = endless)" class="w-16 bg-gray-800 border border-gray-600 text-sm text-white px-2 py-1 rounded focus:outline-none focus:border-blue-500 text-center disabled:opacity-40"> more times</label>
+
+                            <button id="quick-play-btn" onclick="pushManualVideo()" class="ml-auto bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg transition text-sm font-bold shadow-md flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                                Push
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Playlist Section -->
+                <div class="p-6 flex flex-col shrink-0">
+                    <div class="flex justify-between items-center mb-4 shrink-0">
+                        <h2 class="text-xl font-bold text-green-400 flex items-center gap-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
+                            Saved Playlists
+                        </h2>
+                        <div class="flex gap-2">
+                        <button onclick="exportPlaylists('all')" class="bg-gray-700 hover:bg-gray-600 text-sm py-1.5 px-3 rounded text-white transition" title="Download all playlists as a JSON file">Export All</button>
+                        <button onclick="exportPlaylists('current')" class="bg-gray-700 hover:bg-gray-600 text-sm py-1.5 px-3 rounded text-white transition" title="Download the selected playlist">Export</button>
+                        <button onclick="document.getElementById('import-file').click()" class="bg-gray-700 hover:bg-gray-600 text-sm py-1.5 px-3 rounded text-white transition" title="Import playlists from a JSON file">Import</button>
+                        <input type="file" id="import-file" accept=".json,application/json" class="hidden" onchange="importPlaylists(this)">
+                        <button onclick="createNewPlaylist()" class="bg-gray-700 hover:bg-gray-600 text-sm py-1.5 px-3 rounded text-white transition flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            New
+                        </button>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 mb-4 shrink-0">
+                        <select id="playlist-selector" onchange="selectPlaylist()" class="flex-1 bg-gray-800 border border-gray-600 text-white px-3 py-2 rounded focus:outline-none focus:border-green-500">
+                            <option value="">-- Select a Playlist --</option>
+                        </select>
+                        <button onclick="renamePlaylist()" class="bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-2 rounded transition border border-gray-600 flex items-center gap-1 text-sm" title="Rename Playlist">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.768-6.768a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-.878.515L7 17l1.657-3.95A2 2 0 019 13z"></path></svg>
+                            Rename
+                        </button>
+                        <button onclick="deleteCurrentPlaylist()" class="bg-red-900/50 hover:bg-red-800/80 text-red-200 px-3 py-2 rounded transition border border-red-800 flex items-center gap-1 text-sm" title="Delete Playlist">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            Delete
+                        </button>
+                    </div>
+
+                    <div id="playlist-controls" class="hidden flex flex-col bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        
+                        <input type="text" id="playlist-name-input" maxlength="80" title="Click to edit the playlist title" onchange="commitPlaylistName(this.value)" onkeydown="if(event.key==='Enter')this.blur(); if(event.key==='Escape'){updatePlaylistUI();this.blur();}" class="w-full bg-transparent border-b border-gray-600 hover:border-gray-400 focus:border-green-500 focus:outline-none text-lg font-bold text-white px-1 py-1 mb-4 shrink-0 transition">
+
+                        <!-- Playlist repeat -->
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4 shrink-0 text-sm text-gray-300 bg-gray-800 border border-gray-700 rounded px-3 py-2">
+                            <span class="text-gray-400">&#8635; Playlist repeat</span>
+                            <select id="pl-repeat-mode" onchange="onPlaylistRepeatChange()" aria-label="Playlist repeat mode" class="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-green-500">
+                                <option value="off">Off (play once)</option>
+                                <option value="endless">Endless</option>
+                                <option value="count">Repeat a set number of times</option>
+                            </select>
+                            <span id="pl-repeat-more" class="flex items-center gap-1 text-xs text-gray-400 opacity-40">
+                                <input type="number" id="pl-repeat-count" min="1" max="999" value="1" disabled onchange="onPlaylistRepeatChange()" aria-label="Number of extra playlist repeats" class="w-16 bg-gray-900 border border-gray-600 text-sm text-white px-2 py-1 rounded focus:outline-none focus:border-green-500 text-center"> more times
+                            </span>
+                            <span id="pl-repeat-status" class="ml-auto text-xs text-green-400"></span>
+                        </div>
+
+                        <!-- Add Video Form with Preview -->
+                        <div class="bg-gray-900 p-4 rounded-lg border border-gray-700 mb-4 shrink-0">
+                            <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">Add to Playlist</h3>
+                            
+                            <input type="text" id="playlist-url-add" placeholder="Paste YouTube URL here to load preview..." oninput="handlePlaylistUrlPaste(this.value)" class="w-full bg-gray-800 border border-gray-600 text-sm text-white px-3 py-2 rounded focus:outline-none focus:border-green-500 transition mb-3">
+                            
+                            <p id="playlist-url-hint" class="text-xs text-gray-500 mt-2">Paste a YouTube link (watch, youtu.be or Shorts) or an 11-character video ID.</p>
+                            <div id="playlist-add-idle" class="mt-3">
+                                <button disabled class="w-full bg-green-600 text-white px-4 py-2 rounded text-sm font-bold shadow-md opacity-40 cursor-not-allowed" title="Paste a valid YouTube link first">+ Add to List</button>
+                            </div>
+
+                            <!-- Hidden until URL is pasted -->
+                            <div id="preview-section" class="hidden flex flex-col gap-3">
+                                <input type="text" id="playlist-video-title" placeholder="Video Title..." class="w-full bg-gray-800 border border-gray-600 text-sm text-white px-3 py-2 rounded focus:outline-none focus:border-green-500 transition font-medium">
+                                
+                                <!-- Mini Iframe for Dashboard Preview -->
+                                <div class="w-full aspect-video bg-black rounded overflow-hidden border border-gray-700 relative">
+                                    <img id="preview-thumb" alt="" class="absolute inset-0 w-full h-full object-cover opacity-60">
+                                    <div id="dashboard-preview-player" class="absolute inset-0 w-full h-full"></div>
+                                    <div id="preview-error" class="hidden absolute inset-x-0 bottom-0 bg-red-900/90 text-red-100 text-xs px-3 py-2 z-10"></div>
+                                </div>
+
+                                <!-- Loop range slider -->
+                                <div class="bg-gray-800 border border-gray-700 rounded p-3">
+                                    <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                        <span>Start <b id="lbl-start" class="text-green-400 font-mono">0:00</b></span>
+                                        <span>Length <b id="lbl-len" class="text-gray-200 font-mono">0:00</b></span>
+                                        <span>End <b id="lbl-end" class="text-green-400 font-mono">0:00</b></span>
+                                    </div>
+                                    <div class="dual-range" id="dual-range">
+                                        <div class="track"></div>
+                                        <div class="fill" id="range-fill"></div>
+                                        <div class="playhead" id="range-playhead"></div>
+                                        <input type="range" id="slider-start" min="0" max="0" value="0" step="1" disabled oninput="onSliderInput('start')">
+                                        <input type="range" id="slider-end" min="0" max="0" value="0" step="1" disabled oninput="onSliderInput('end')">
+                                    </div>
+                                    <p id="slider-hint" class="text-[11px] text-gray-500 mt-1">Loading video length... Drag the handles to set the loop range; the preview seeks as you drag.</p>
+                                </div>
+
+                                <!-- Replacement soundtrack -->
+                                <div class="bg-gray-800 border border-gray-700 rounded p-3 space-y-2">
+                                    <label for="playlist-soundtrack-url" class="text-xs text-gray-400 block">&#9834; Replacement soundtrack (optional, plays audio-only from a YouTube link)</label>
+                                    <input type="text" id="playlist-soundtrack-url" placeholder="Paste a YouTube link for the soundtrack" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none">
+                                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-400">
+                                        <span class="flex items-center gap-2">Volume
+                                            <input type="range" id="playlist-soundtrack-vol" class="remote-range" style="width:8rem" min="0" max="100" value="60" step="1" oninput="document.getElementById('playlist-soundtrack-vol-label').textContent=this.value+'%'">
+                                            <span id="playlist-soundtrack-vol-label" class="font-mono w-9">60%</span>
+                                        </span>
+                                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                                            <input type="checkbox" id="playlist-mute-original" checked class="rounded bg-gray-800 border-gray-600 text-green-500 w-4 h-4"> Mute the video's original audio
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-wrap gap-2 items-center mt-1">
+                                    <div class="flex items-center gap-1">
+                                        <input type="number" id="playlist-start" oninput="onNumberInput()" placeholder="Start (s)" class="w-20 bg-gray-800 border border-gray-600 text-sm text-white px-2 py-1.5 rounded focus:outline-none focus:border-green-500 transition text-center" min="0">
+                                        <button onclick="captureStartTime()" class="bg-gray-700 hover:bg-gray-600 text-xs px-2 py-1.5 rounded transition whitespace-nowrap text-gray-300 border border-gray-600">Set Start</button>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <input type="number" id="playlist-end" oninput="onNumberInput()" placeholder="End (s)" class="w-20 bg-gray-800 border border-gray-600 text-sm text-white px-2 py-1.5 rounded focus:outline-none focus:border-green-500 transition text-center" min="0">
+                                        <button onclick="captureEndTime()" class="bg-gray-700 hover:bg-gray-600 text-xs px-2 py-1.5 rounded transition whitespace-nowrap text-gray-300 border border-gray-600">Set End</button>
+                                    </div>
+                                    <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none ml-2">
+                                        <input type="checkbox" id="playlist-loop" onchange="syncLoopCountEnabled('playlist-loop','playlist-loop-count')" class="rounded bg-gray-800 border-gray-600 text-green-500 w-4 h-4"> Loop
+                                    </label>
+<label class="flex items-center gap-1 text-xs text-gray-400" title="Leave blank to repeat endlessly">repeat <input type="number" id="playlist-loop-count" min="1" max="999" placeholder="&#8734;" disabled aria-label="Number of extra repeats (blank = endless)" class="w-16 bg-gray-800 border border-gray-600 text-sm text-white px-2 py-1 rounded focus:outline-none focus:border-green-500 text-center disabled:opacity-40"> more times</label>
+
+                                    <button onclick="addVideoToActivePlaylist()" class="ml-auto bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded transition text-sm font-bold shadow-md">
+                                        Add to List
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <h3 class="text-sm font-semibold text-gray-300 mb-2 uppercase tracking-wider shrink-0">Current Playlist Sequence</h3>
+                        <p class="text-xs text-gray-500 mb-2">Drag the <span aria-hidden="true">&#8942;&#8942;</span> handle to change the order (or focus it and press &uarr; / &darr;).</p>
+                        <div id="reorder-status" class="sr-only" aria-live="polite"></div>
+                        <div id="playlist-videos-container" class="space-y-2">
+                            <!-- Playlist videos injected here -->
+                        </div>
+                    </div>
+                    
+                    <div id="empty-playlist-msg" class="text-center text-gray-500 mt-10">
+                        Select or create a playlist to get started.
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-1/2 p-8 flex flex-col bg-gray-900 relative h-full overflow-y-auto">
+                <h2 class="text-2xl font-bold mb-8 text-gray-100 border-b border-gray-800 pb-4">Projector Remote</h2>
+
+                <!-- Projector screen preview (muted mirror) -->
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-2xl mb-8">
+                    <div class="flex items-center justify-between gap-3">
+                        <h3 class="text-sm uppercase tracking-widest text-gray-400 font-bold">Screen Preview</h3>
+                        <button id="mirror-toggle" onclick="toggleMirror()" aria-pressed="false" class="text-sm px-4 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-white border border-gray-500/50 transition">Show preview</button>
+                    </div>
+                    <div id="mirror-wrap" class="hidden mt-4">
+                        <div class="w-full max-w-xl mx-auto aspect-video bg-black rounded overflow-hidden border border-gray-700 relative">
+                            <div id="mirror-player" class="absolute inset-0 w-full h-full"></div>
+                            <div class="absolute inset-0 z-10"></div>
+                            <div id="mirror-idle" class="absolute inset-0 z-20 flex items-center justify-center text-gray-400 text-sm bg-black">Nothing playing on the projector</div>
+                            <div id="mirror-error" class="hidden absolute inset-x-0 bottom-0 z-30 bg-red-900/90 text-red-100 text-xs px-3 py-2"></div>
+                        </div>
+                        <p class="text-[11px] text-gray-500 mt-2 text-center">A muted copy that follows the projector (usually within a second). Sound plays from the projector only.</p>
+                    </div>
+                </div>
+
+                <!-- Now Playing slider dashboard -->
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-2xl mb-8">
+                    <div class="flex items-center justify-between mb-4 gap-3">
+                        <h3 class="text-sm uppercase tracking-widest text-gray-400 font-bold shrink-0">Now Playing</h3>
+                        <span id="np-state" class="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300">Projector not connected</span>
+                    </div>
+                    <p id="np-title" class="text-gray-200 font-medium truncate mb-4" title="">Nothing playing</p>
+                    <p id="np-playlist" class="hidden text-xs text-gray-400 -mt-3 mb-4 truncate"></p>
+                    <p id="np-notice" class="hidden text-xs text-yellow-300 bg-yellow-900/30 border border-yellow-800 rounded px-3 py-2 mb-4" role="status"></p>
+
+                    <div class="flex justify-between text-xs text-gray-400 font-mono mb-1">
+                        <span id="np-time">0:00</span>
+                        <span id="np-range" class="text-gray-500"></span>
+                        <span id="np-total">0:00</span>
+                    </div>
+                    <input type="range" id="np-seek" class="remote-range" min="0" max="0" value="0" step="1" disabled oninput="onSeekInput()" onchange="onSeekCommit()" aria-label="Seek">
+
+                    <div class="grid grid-cols-2 gap-6 mt-5">
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1"><span>Volume</span><span id="np-vol-label" class="font-mono">100%</span></div>
+                            <input type="range" id="np-vol" class="remote-range" min="0" max="100" value="100" step="1" disabled oninput="onVolumeInput()" onchange="onVolumeCommit()" aria-label="Volume">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1"><span>Speed</span><span id="np-rate-label" class="font-mono">1x</span></div>
+                            <input type="range" id="np-rate" class="remote-range" min="0" max="7" value="3" step="1" disabled oninput="onRateInput()" onchange="onRateCommit()" aria-label="Playback speed">
+                        </div>
+                    </div>
+
+                    <div id="np-st-wrap" class="mt-5">
+                        <div class="flex justify-between text-xs text-gray-400 mb-1"><span>&#9834; Soundtrack volume</span><span id="np-st-label" class="font-mono">None</span></div>
+                        <input type="range" id="np-st" class="remote-range" min="0" max="100" value="60" step="1" disabled oninput="onStInput()" onchange="onStCommit()" aria-label="Soundtrack volume">
+                    </div>
+                </div>
+                
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-2xl mb-8">
+                    <h3 class="text-sm uppercase tracking-widest text-gray-400 font-bold mb-6">Playback</h3>
+
+                    <div class="flex items-center justify-between mb-4 text-sm text-gray-400">
+                        <label for="skip-step">Skip step (Rewind / Forward)</label>
+                        <select id="skip-step" onchange="updateSkipLabels()" class="bg-gray-900 border border-gray-600 rounded px-3 py-1.5 text-white focus:outline-none focus:border-blue-500">
+                            <option value="5">5 seconds</option><option value="10" selected>10 seconds</option><option value="15">15 seconds</option>
+                            <option value="30">30 seconds</option><option value="60">60 seconds</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <button onclick="sendRemoteCommand('play')" class="bg-green-600 hover:bg-green-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-green-500/50 group">
+                            <svg class="w-10 h-10 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            <span class="font-bold text-lg">Play</span>
+                        </button>
+                        
+                        <button onclick="sendRemoteCommand('pause')" class="bg-yellow-600 hover:bg-yellow-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-yellow-500/50 group">
+                            <svg class="w-10 h-10 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                            <span class="font-bold text-lg">Pause</span>
+                        </button>
+                        
+                        <button onclick="skipVideo('rewind')" class="bg-blue-600 hover:bg-blue-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-blue-500/50 group">
+                            <svg class="w-10 h-10 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"></path></svg>
+                            <span id="rewind-label" class="font-bold text-lg">Rewind 10s</span>
+                        </button>
+
+                        <button onclick="skipVideo('forward')" class="bg-indigo-600 hover:bg-indigo-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-indigo-500/50 group">
+                            <svg class="w-10 h-10 group-hover:scale-110 transition-transform" style="transform:scaleX(-1)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"></path></svg>
+                            <span id="forward-label" class="font-bold text-lg">Forward 10s</span>
+                        </button>
+
+                        <button onclick="sendRemoteCommand('stop')" class="bg-red-600 hover:bg-red-500 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-red-500/50 group">
+                            <svg class="w-10 h-10 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                            <span class="font-bold text-lg">Stop</span>
+                        </button>
+
+                        <button id="mute-btn" onclick="toggleMute()" aria-pressed="false" class="bg-gray-700 hover:bg-gray-600 text-white py-6 rounded-xl flex flex-col items-center justify-center gap-3 transition shadow-lg border border-gray-500/50">
+                            <svg id="mute-icon" class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"></svg>
+                            <span id="mute-label" class="font-bold text-lg">Mute</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-auto bg-gray-800 p-4 rounded-lg border border-gray-700 flex items-start gap-4">
+                    <svg class="w-6 h-6 text-blue-400 shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div class="text-sm text-gray-400">
+                        <p><strong class="text-gray-200">Tip:</strong> The Preview Players help you find exact loop times. Click 'Set Start' or 'Set End' while previewing a video to capture the exact timestamp instantly.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="hotkey-toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] bg-gray-800/95 border border-gray-600 text-white text-base px-5 py-2.5 rounded-lg shadow-2xl pointer-events-none" role="status" aria-live="polite"></div>
+
+    <!-- Hotkey help -->
+    <div id="hotkey-help" class="hidden fixed inset-0 z-[60] bg-black/75 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="hk-heading" onclick="if (event.target === this) toggleHotkeyHelp(false)">
+        <div class="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="hk-heading" class="text-xl font-bold text-white">Keyboard shortcuts</h3>
+                <button id="hk-close" onclick="toggleHotkeyHelp(false)" class="text-gray-400 hover:text-white text-2xl leading-none px-2" aria-label="Close shortcuts">&times;</button>
+            </div>
+            <p class="text-xs text-gray-400 mb-4">They work from the dashboard or the projector window. They pause while you are typing in a box, and never fire with Ctrl, Alt or Cmd held.</p>
+            <div class="grid md:grid-cols-2 gap-x-8 gap-y-5 text-sm">
+                <div>
+                    <h4 class="text-xs uppercase tracking-widest text-gray-500 mb-2">Playback</h4>
+                    <dl class="space-y-1.5">
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Play / Pause</dt><dd><kbd>Space</kbd> <kbd>K</kbd></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Stop</dt><dd><kbd>S</kbd></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Restart (from clip start)</dt><dd><kbd>R</kbd> <kbd>Home</kbd></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Rewind (skip step)</dt><dd><kbd>&larr;</kbd> <kbd>J</kbd></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Forward (skip step)</dt><dd><kbd>&rarr;</kbd> <kbd>L</kbd></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Skip 3&times; further</dt><dd><kbd>Shift</kbd> + <kbd>&larr;</kbd> / <kbd>&rarr;</kbd></dd></div>
+                    </dl>
+                </div>
+                <div>
+                    <h4 class="text-xs uppercase tracking-widest text-gray-500 mb-2">Sound &amp; speed</h4>
+                    <dl class="space-y-1.5">
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Mute / Unmute</dt><dd><kbd>M</kbd></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Volume up / down</dt><dd><kbd>&uarr;</kbd> <kbd>&darr;</kbd></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Soundtrack volume</dt><dd><kbd>[</kbd> <kbd>]</kbd></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Slower / Faster</dt><dd><kbd>,</kbd> <kbd>.</kbd></dd></div>
+                    </dl>
+                </div>
+                <div>
+                    <h4 class="text-xs uppercase tracking-widest text-gray-500 mb-2">Playlist</h4>
+                    <dl class="space-y-1.5">
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Next item</dt><dd><kbd>N</kbd> <kbd>PgDn</kbd></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Previous item</dt><dd><kbd>P</kbd> <kbd>PgUp</kbd></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Play item 1&ndash;9 of the selected playlist</dt><dd><kbd>1</kbd>&ndash;<kbd>9</kbd></dd></div>
+                    </dl>
+                </div>
+                <div>
+                    <h4 class="text-xs uppercase tracking-widest text-gray-500 mb-2">Screen</h4>
+                    <dl class="space-y-1.5">
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Show / hide screen preview</dt><dd><kbd>V</kbd></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Launch projector window</dt><dd><kbd>O</kbd></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">This help</dt><dd><kbd>?</kbd> <kbd>H</kbd></dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-gray-300">Close this help</dt><dd><kbd>Esc</kbd></dd></div>
+                    </dl>
+                </div>
+            </div>
+            <label class="flex items-center gap-2 mt-6 text-sm text-gray-300 cursor-pointer select-none">
+                <input type="checkbox" id="hotkeys-enabled" checked onchange="setHotkeysEnabled(this.checked)" class="rounded bg-gray-800 border-gray-600 text-green-500 w-4 h-4"> Hotkeys enabled
+            </label>
+        </div>
+    </div>
+
+    <!-- Edit video modal -->
+    <div id="edit-modal" class="hidden fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="ed-heading">
+        <div class="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 id="ed-heading" class="text-xl font-bold text-white">Edit video</h3>
+                <button onclick="closeEditor()" class="text-gray-400 hover:text-white text-2xl leading-none px-2" aria-label="Close editor">&times;</button>
+            </div>
+            <div class="grid gap-3">
+                <label class="text-xs text-gray-400">Title
+                    <input type="text" id="ed-title" maxlength="200" oninput="edTitleTouched = true" class="mt-1 w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none">
+                </label>
+                <label class="text-xs text-gray-400">Video link <span class="text-gray-500">(change it to swap in a different video)</span>
+                    <input type="text" id="ed-url" onchange="onEdUrlChange()" class="mt-1 w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none">
+                </label>
+            </div>
+            <div class="w-full aspect-video bg-black rounded overflow-hidden border border-gray-700 relative">
+                <div id="ed-player" class="absolute inset-0 w-full h-full"></div>
+                <div id="ed-error" class="hidden absolute inset-x-0 bottom-0 z-10 bg-red-900/90 text-red-100 text-xs px-3 py-2"></div>
+            </div>
+            <div class="bg-gray-800 border border-gray-700 rounded p-3">
+                <div class="flex justify-between text-xs text-gray-400 mb-1">
+                    <span>Start <b id="ed-lbl-start" class="text-green-400 font-mono">0:00</b></span>
+                    <span>Length <b id="ed-lbl-len" class="text-gray-200 font-mono">0:00</b></span>
+                    <span>End <b id="ed-lbl-end" class="text-green-400 font-mono">0:00</b></span>
+                </div>
+                <div class="dual-range">
+                    <div class="track"></div><div class="fill" id="ed-fill"></div><div class="playhead" id="ed-playhead"></div>
+                    <input type="range" id="ed-slider-start" min="0" max="0" value="0" step="1" disabled oninput="onEdSlider('start')" aria-label="Start time">
+                    <input type="range" id="ed-slider-end" min="0" max="0" value="0" step="1" disabled oninput="onEdSlider('end')" aria-label="End time">
+                </div>
+                <div class="flex flex-wrap gap-2 items-center mt-3">
+                    <input type="number" id="ed-start" min="0" placeholder="Start (s)" oninput="onEdNumber()" class="w-28 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none">
+                    <button onclick="setEdFromPlayer('start')" class="text-xs px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white transition">Set start from preview</button>
+                    <input type="number" id="ed-end" min="0" placeholder="End (s)" oninput="onEdNumber()" class="w-28 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none">
+                    <button onclick="setEdFromPlayer('end')" class="text-xs px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white transition">Set end from preview</button>
+                    <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none ml-auto"><input type="checkbox" id="ed-loop" onchange="syncLoopCountEnabled('ed-loop','ed-loop-count')" class="rounded bg-gray-800 border-gray-600 text-green-500 w-4 h-4"> Loop</label>
+<label class="flex items-center gap-1 text-xs text-gray-400" title="Leave blank to repeat endlessly">repeat <input type="number" id="ed-loop-count" min="1" max="999" placeholder="&#8734;" disabled aria-label="Number of extra repeats (blank = endless)" class="w-16 bg-gray-800 border border-gray-600 text-sm text-white px-2 py-1 rounded focus:outline-none focus:border-green-500 text-center disabled:opacity-40"> more times</label>
+                </div>
+            </div>
+            <div class="bg-gray-800 border border-gray-700 rounded p-3 space-y-2">
+                <label for="ed-st-url" class="text-xs text-gray-400 block">&#9834; Soundtrack (YouTube link, audio only; leave empty for none)</label>
+                <input type="text" id="ed-st-url" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none">
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-400">
+                    <span class="flex items-center gap-2">Volume
+                        <input type="range" id="ed-st-vol" class="remote-range" style="width:8rem" min="0" max="100" value="60" step="1" oninput="document.getElementById('ed-st-vol-label').textContent=this.value+'%'">
+                        <span id="ed-st-vol-label" class="font-mono w-9">60%</span>
+                    </span>
+                    <label class="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" id="ed-st-mute" class="rounded bg-gray-800 border-gray-600 text-green-500 w-4 h-4"> Mute the video's original audio</label>
+                </div>
+            </div>
+            <p id="ed-note" class="hidden text-xs text-yellow-300"></p>
+            <p id="ed-validation" class="hidden text-sm text-red-300" role="alert"></p>
+            <div class="flex flex-wrap gap-2 justify-end pt-2">
+                <button onclick="closeEditor()" class="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white text-sm transition">Cancel</button>
+                <button onclick="saveEditor(true)" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition">Save &amp; Push</button>
+                <button onclick="saveEditor(false)" class="px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-bold transition">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="projector-screen" class="hidden w-full h-full bg-black relative flex items-center justify-center">
+        <!-- Container for the YouTube Iframe API -->
+        <div id="yt-player-container" class="w-full h-full absolute inset-0"></div>
+        <div id="projector-click-shield" class="absolute inset-0 z-[5]" aria-hidden="true" onclick="window.focus()"></div>
+        
+        <!-- TIU watermark (subtle, non-interactive) -->
+        <div class="tiu-mark tiu-mark-projector" aria-hidden="true">TIU</div>
+
+        <!-- Hidden audio-only soundtrack player -->
+        <div style="position:fixed;left:-400px;top:0;width:200px;height:200px;opacity:0;pointer-events:none" aria-hidden="true"><div id="yt-audio-container"></div></div>
+
+        <!-- Waiting State -->
+        <div id="projector-close-fallback" class="hidden absolute inset-0 z-40 bg-black flex flex-col items-center justify-center text-center p-8">
+            <p class="text-2xl text-gray-200 mb-3">The dashboard asked this window to close</p>
+            <p class="text-gray-400">Your browser did not let it close itself. Close this window with its &times; button, or press Ctrl+W.</p>
+        </div>
+        <div id="projector-waiting" class="absolute inset-0 flex flex-col items-center justify-center text-gray-500 pointer-events-none transition-opacity duration-500 z-10 bg-black">
+            <svg class="w-24 h-24 mb-6 opacity-30 animate-pulse text-red-600" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+            <h2 class="text-3xl font-light tracking-[0.2em] uppercase text-gray-300">Projector Ready</h2>
+            <p class="mt-3 opacity-60 text-lg">Waiting for video from Dashboard...</p>
+        </div>
+    </div>
+
+    <script>
+        const channelName = 'youtube-presenter-channel';
+        const presenterChannel = new BroadcastChannel(channelName);
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const isProjector = urlParams.get('mode') === 'projector';
+
+        let playlists = [];
+        let activePlaylistId = null;
+        let playingPlaylistId = null; 
+        let playingIndex = -1;
+        let playlistPass = 1;
+        let loadSeq = 0;               // stamps every load so late/duplicate "ended" messages can be ignored
+        let consecutiveErrors = 0;
+        const problemByVideo = {};     // videoId -> why it could not play (memory only)
+        const PLAY_ERRORS = {
+            2: 'the video ID is invalid', 5: 'the player hit an error',
+            100: 'the video was not found, is private, or was removed',
+            101: 'the owner has disabled embedding for this video', 150: 'the owner has disabled embedding for this video',
+            153: 'YouTube blocked the embed (open this page via http/https, not file://)',
+            timeout: 'the video did not start in time'
+        };
+        let noticeTimer = null;
+        function showNotice(text) {
+            const el = document.getElementById('np-notice');
+            if (!el) return;
+            el.textContent = text; el.classList.remove('hidden');
+            clearTimeout(noticeTimer);
+            noticeTimer = setTimeout(() => el.classList.add('hidden'), 30000);
+        }
+
+        // Players
+        let dashboardPreviewPlayer = null;
+        let quickPreviewPlayer = null;
+        let projectorPlayer = null;
+        let projectorMuted = false;
+        let audioPlayer = null, audioReady = false, pendingAudio = false, soundtrackActive = false, soundtrackVolume = 60;
+
+        // Main video is silent when global mute is on OR a replacement soundtrack is set to override it
+        function applyMutes() {
+            if (!projectorPlayer || !projectorPlayer.mute) return;
+            const ctx = currentVideoContext;
+            const mainMuted = projectorMuted || !!(soundtrackActive && ctx.soundtrack && ctx.muteOriginal);
+            mainMuted ? projectorPlayer.mute() : projectorPlayer.unMute();
+            if (audioPlayer && audioReady) projectorMuted ? audioPlayer.mute() : audioPlayer.unMute();
+        }
+        function startSoundtrack() {
+            const st = currentVideoContext.soundtrack;
+            soundtrackActive = !!st;
+            if (!audioReady) { pendingAudio = !!st; return; }
+            if (!st) { audioPlayer.stopVideo(); return; }
+            soundtrackVolume = st.volume;
+            audioPlayer.setVolume(soundtrackVolume);
+            audioPlayer.loadVideoById(st.videoId);
+        }
+        function stopSoundtrack() { soundtrackActive = false; if (audioReady) audioPlayer.stopVideo(); }
+        function onAudioStateChange(e) {
+            // Loop the soundtrack for as long as the video is on screen
+            if (e.data === YT.PlayerState.ENDED && soundtrackActive && currentVideoContext.soundtrack) {
+                audioPlayer.loadVideoById(currentVideoContext.soundtrack.videoId);
+            }
+        }
+        let ytApiReady = false;
+        let pendingPreviewId = null;
+        let pendingQuickPreviewId = null;
+        let previewDuration = 0;
+        let quickPreviewDuration = 0;
+        let durationTimer = null;
+        let quickDurationTimer = null;
+        let rangeTimer = null;
+        let quickRangeTimer = null;
+        let currentVideoContext = { loop: false, startSeconds: 0 }; 
+
+        window.onload = () => {
+            if (!isProjector) { renderMuteButton(); setInterval(checkProjectorLink, 1000); initReorder(); }
+            initHotkeys();
+            if (isProjector) {
+                document.body.classList.remove('p-8');
+                document.getElementById('projector-screen').classList.remove('hidden');
+            } else {
+                document.getElementById('dashboard-screen').classList.remove('hidden');
+                loadPlaylists();
+            }
+
+            // Load YouTube IFrame API script globally for both modes
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        };
+
+        function extractVideoId(input) {
+            if (!input) return null;
+            const text = String(input).trim();
+            const isId = (x) => !!x && /^[a-zA-Z0-9_-]{11}$/.test(x);
+            if (isId(text)) return text;
+            let url;
+            try { url = new URL(/^https?:\/\//i.test(text) ? text : 'https://' + text); } catch (e) { return null; }
+            const host = url.hostname.toLowerCase().replace(/^(www\.|m\.|music\.)+/, '');
+            let id = null;
+            if (host === 'youtu.be') {
+                id = url.pathname.split('/')[1];
+            } else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+                if (url.pathname === '/watch') id = url.searchParams.get('v');
+                else {
+                    // /shorts/ID, /live/ID, /embed/ID, /v/ID, /e/ID
+                    const m = url.pathname.match(/^\/(?:shorts|live|embed|v|e)\/([^/?#]+)/);
+                    if (m) id = m[1];
+                }
+            }
+            return isId(id) ? id : null;
+        }
+
+        const URL_HINT_DEFAULT = 'Paste a YouTube link (watch, youtu.be or Shorts) or an 11-character video ID.';
+        function setUrlHint(elId, raw, videoId) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            const t = (raw || '').trim();
+            if (!t) { el.textContent = URL_HINT_DEFAULT; el.className = 'text-xs text-gray-500 mt-2'; }
+            else if (videoId) { el.textContent = '\u2713 Video found'; el.className = 'text-xs text-green-400 mt-2'; }
+            else if (t.length >= 12) { el.textContent = "That doesn't look like a YouTube video link. Try a watch, youtu.be or Shorts link."; el.className = 'text-xs text-red-300 mt-2'; }
+            else { el.textContent = URL_HINT_DEFAULT; el.className = 'text-xs text-gray-500 mt-2'; }
+        }
+
+        // Global callback for YT Iframe API
+        function onYouTubeIframeAPIReady() {
+            if (isProjector) {
+                audioPlayer = new YT.Player('yt-audio-container', {
+                    height: '200', width: '200', videoId: '',
+                    playerVars: { autoplay: 1, controls: 0, disablekb: 1, rel: 0 },
+                    events: {
+                        onReady: () => { audioReady = true; if (pendingAudio) startSoundtrack(); applyMutes(); },
+                        onStateChange: onAudioStateChange
+                    }
+                });
+                projectorPlayer = new YT.Player('yt-player-container', {
+                    height: '100%',
+                    width: '100%',
+                    videoId: '', 
+                    playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1, 'modestbranding': 1, 'rel': 0 },
+                    events: {
+                        'onReady': () => setupProjectorMessageListener(),
+                        'onStateChange': onProjectorStateChange,
+                        'onError': onProjectorError
+                    }
+                });
+            } else {
+                ytApiReady = true;
+                if (pendingPreviewId) ensurePreviewPlayer(pendingPreviewId);
+                if (pendingQuickPreviewId) ensureQuickPreviewPlayer(pendingQuickPreviewId);
+            }
+        }
+
+        let currentPreviewId = null;
+        let currentQuickPreviewId = null;
+
+        // ---------- Saved Playlists Preview Player ----------
+        function ensurePreviewPlayer(videoId) {
+            if (!ytApiReady) { pendingPreviewId = videoId; return; }
+            pendingPreviewId = null;
+            if (dashboardPreviewPlayer && typeof dashboardPreviewPlayer.cueVideoById === 'function') {
+                dashboardPreviewPlayer.cueVideoById(videoId);
+                startDurationWatch();
+                return;
+            }
+            if (dashboardPreviewPlayer) return;
+            const vars = { autoplay: 0, controls: 1, modestbranding: 1, rel: 0, playsinline: 1 };
+            if (location.protocol.startsWith('http')) vars.origin = location.origin;
+            dashboardPreviewPlayer = new YT.Player('dashboard-preview-player', {
+                height: '100%', width: '100%', videoId: videoId, playerVars: vars,
+                events: {
+                    onReady: () => { startDurationWatch(); startRangeWatch(); },
+                    onError: onPreviewError,
+                    onStateChange: (e) => { if (e.data === YT.PlayerState.CUED || e.data === YT.PlayerState.PLAYING) startDurationWatch(); }
+                }
+            });
+        }
+
+        function onPreviewError(e) {
+            const msgs = { 2: 'Invalid video ID.', 5: 'HTML5 player error.', 100: 'Video not found or private.',
+                101: 'The owner disabled embedding for this video.', 150: 'The owner disabled embedding for this video.',
+                153: 'YouTube refused the embed (no referrer). Open this page through http://localhost or a web server instead of file://.' };
+            const el = document.getElementById('preview-error');
+            el.textContent = 'Preview error ' + e.data + ': ' + (msgs[e.data] || 'Unknown error.');
+            el.classList.remove('hidden');
+        }
+
+        // ---------- Quick Play Preview Player ----------
+        function ensureQuickPreviewPlayer(videoId) {
+            if (!ytApiReady) { pendingQuickPreviewId = videoId; return; }
+            pendingQuickPreviewId = null;
+            if (quickPreviewPlayer && typeof quickPreviewPlayer.cueVideoById === 'function') {
+                quickPreviewPlayer.cueVideoById(videoId);
+                startQuickDurationWatch();
+                return;
+            }
+            if (quickPreviewPlayer) return;
+            const vars = { autoplay: 0, controls: 1, modestbranding: 1, rel: 0, playsinline: 1 };
+            if (location.protocol.startsWith('http')) vars.origin = location.origin;
+            quickPreviewPlayer = new YT.Player('quick-preview-player', {
+                height: '100%', width: '100%', videoId: videoId, playerVars: vars,
+                events: {
+                    onReady: () => { startQuickDurationWatch(); startQuickRangeWatch(); },
+                    onError: onQuickPreviewError,
+                    onStateChange: (e) => { if (e.data === YT.PlayerState.CUED || e.data === YT.PlayerState.PLAYING) startQuickDurationWatch(); }
+                }
+            });
+        }
+
+        function onQuickPreviewError(e) {
+            const msgs = { 2: 'Invalid video ID.', 5: 'HTML5 player error.', 100: 'Video not found or private.',
+                101: 'The owner disabled embedding for this video.', 150: 'The owner disabled embedding for this video.',
+                153: 'YouTube refused the embed (no referrer). Open this page through http://localhost or a web server instead of file://.' };
+            const el = document.getElementById('quick-preview-error');
+            el.textContent = 'Preview error ' + e.data + ': ' + (msgs[e.data] || 'Unknown error.');
+            el.classList.remove('hidden');
+        }
+
+        // ---------- Loop range sliders helper ----------
+        const $ = (id) => document.getElementById(id);
+        function fmt(sec) {
+            sec = Math.max(0, Math.floor(sec));
+            const m = Math.floor(sec / 60), s = sec % 60;
+            return m + ':' + String(s).padStart(2, '0');
+        }
+
+        // Playlist range slider controls
+        function stopPreviewTimers() { clearInterval(durationTimer); }
+        function resetSliders() {
+            previewDuration = 0;
+            ['slider-start', 'slider-end'].forEach(id => { const el = $(id); el.max = 0; el.value = 0; el.disabled = true; });
+            $('playlist-start').value = ''; $('playlist-end').value = '';
+            $('slider-hint').textContent = 'Loading video length... Drag the handles to set the loop range; the preview seeks as you drag.';
+            updateSliderVisuals();
+        }
+        function startDurationWatch() {
+            clearInterval(durationTimer);
+            let tries = 0;
+            durationTimer = setInterval(() => {
+                const d = dashboardPreviewPlayer && dashboardPreviewPlayer.getDuration ? dashboardPreviewPlayer.getDuration() : 0;
+                if (d > 0) { clearInterval(durationTimer); setDuration(d); }
+                else if (++tries > 100) { clearInterval(durationTimer); $('slider-hint').textContent = 'Could not read video length. Use the number fields instead.'; }
+            }, 300);
+        }
+        function setDuration(d) {
+            previewDuration = Math.floor(d);
+            const st = $('slider-start'), en = $('slider-end');
+            const sVal = $('playlist-start').value, eVal = $('playlist-end').value;
+            st.max = en.max = previewDuration;
+            st.disabled = en.disabled = false;
+            st.value = sVal !== '' ? Math.min(+sVal, previewDuration) : 0;
+            en.value = eVal !== '' ? Math.min(+eVal, previewDuration) : previewDuration;
+            $('slider-hint').textContent = 'Drag the handles to set the loop range; the preview seeks as you drag.';
+            updateSliderVisuals();
+        }
+        function updateSliderVisuals() {
+            const st = +$('slider-start').value, en = +$('slider-end').value, max = previewDuration || 1;
+            $('lbl-start').textContent = fmt(st);
+            $('lbl-end').textContent = fmt(en);
+            $('lbl-len').textContent = fmt(Math.max(0, en - st));
+            $('range-fill').style.left = (st / max * 100) + '%';
+            $('range-fill').style.width = (Math.max(0, en - st) / max * 100) + '%';
+        }
+        function onSliderInput(which) {
+            const st = $('slider-start'), en = $('slider-end');
+            if (+st.value >= +en.value) {
+                if (which === 'start') st.value = Math.max(0, +en.value - 1);
+                else en.value = Math.min(previewDuration, +st.value + 1);
+            }
+            $('playlist-start').value = +st.value > 0 ? st.value : '';
+            $('playlist-end').value = +en.value < previewDuration ? en.value : '';
+            updateSliderVisuals();
+            if (dashboardPreviewPlayer && dashboardPreviewPlayer.seekTo) {
+                dashboardPreviewPlayer.seekTo(which === 'start' ? +st.value : Math.max(+st.value, +en.value - 2), true);
+            }
+        }
+        function onNumberInput() {
+            if (!previewDuration) return;
+            const s = $('playlist-start').value, e = $('playlist-end').value;
+            $('slider-start').value = s !== '' ? Math.min(Math.max(0, +s), previewDuration) : 0;
+            $('slider-end').value = e !== '' ? Math.min(Math.max(0, +e), previewDuration) : previewDuration;
+            updateSliderVisuals();
+        }
+        function startRangeWatch() {
+            clearInterval(rangeTimer);
+            rangeTimer = setInterval(() => {
+                const p = dashboardPreviewPlayer;
+                if (!p || typeof p.getCurrentTime !== 'function' || !previewDuration) return;
+                const t = p.getCurrentTime();
+                $('range-playhead').style.left = (t / previewDuration * 100) + '%';
+                if ($('playlist-loop').checked && p.getPlayerState() === 1) {
+                    const st = +$('slider-start').value, en = +$('slider-end').value;
+                    if (t >= en - 0.2 || t < st - 1) p.seekTo(st, true);
+                }
+            }, 200);
+        }
+
+        // Quick Play Range Slider Controls
+        function stopQuickPreviewTimers() { clearInterval(quickDurationTimer); }
+        function resetQuickSliders() {
+            quickPreviewDuration = 0;
+            ['quick-slider-start', 'quick-slider-end'].forEach(id => { const el = $(id); el.max = 0; el.value = 0; el.disabled = true; });
+            $('quick-start').value = ''; $('quick-end').value = '';
+            $('quick-slider-hint').textContent = 'Loading video length... Drag handles to set trim range; preview seeks as you drag.';
+            updateQuickSliderVisuals();
+        }
+        function startQuickDurationWatch() {
+            clearInterval(quickDurationTimer);
+            let tries = 0;
+            quickDurationTimer = setInterval(() => {
+                const d = quickPreviewPlayer && quickPreviewPlayer.getDuration ? quickPreviewPlayer.getDuration() : 0;
+                if (d > 0) { clearInterval(quickDurationTimer); setQuickDuration(d); }
+                else if (++tries > 100) { clearInterval(quickDurationTimer); $('quick-slider-hint').textContent = 'Could not read video length. Use number fields instead.'; }
+            }, 300);
+        }
+        function setQuickDuration(d) {
+            quickPreviewDuration = Math.floor(d);
+            const st = $('quick-slider-start'), en = $('quick-slider-end');
+            const sVal = $('quick-start').value, eVal = $('quick-end').value;
+            st.max = en.max = quickPreviewDuration;
+            st.disabled = en.disabled = false;
+            st.value = sVal !== '' ? Math.min(+sVal, quickPreviewDuration) : 0;
+            en.value = eVal !== '' ? Math.min(+eVal, quickPreviewDuration) : quickPreviewDuration;
+            $('quick-slider-hint').textContent = 'Drag handles to set trim range; preview seeks as you drag.';
+            updateQuickSliderVisuals();
+        }
+        function updateQuickSliderVisuals() {
+            const st = +$('quick-slider-start').value, en = +$('quick-slider-end').value, max = quickPreviewDuration || 1;
+            $('quick-lbl-start').textContent = fmt(st);
+            $('quick-lbl-end').textContent = fmt(en);
+            $('quick-lbl-len').textContent = fmt(Math.max(0, en - st));
+            $('quick-range-fill').style.left = (st / max * 100) + '%';
+            $('quick-range-fill').style.width = (Math.max(0, en - st) / max * 100) + '%';
+        }
+        function onQuickSliderInput(which) {
+            const st = $('quick-slider-start'), en = $('quick-slider-end');
+            if (+st.value >= +en.value) {
+                if (which === 'start') st.value = Math.max(0, +en.value - 1);
+                else en.value = Math.min(quickPreviewDuration, +st.value + 1);
+            }
+            $('quick-start').value = +st.value > 0 ? st.value : '';
+            $('quick-end').value = +en.value < quickPreviewDuration ? en.value : '';
+            updateQuickSliderVisuals();
+            if (quickPreviewPlayer && quickPreviewPlayer.seekTo) {
+                quickPreviewPlayer.seekTo(which === 'start' ? +st.value : Math.max(+st.value, +en.value - 2), true);
+            }
+        }
+        function onQuickNumberInput() {
+            if (!quickPreviewDuration) return;
+            const s = $('quick-start').value, e = $('quick-end').value;
+            $('quick-slider-start').value = s !== '' ? Math.min(Math.max(0, +s), quickPreviewDuration) : 0;
+            $('quick-slider-end').value = e !== '' ? Math.min(Math.max(0, +e), quickPreviewDuration) : quickPreviewDuration;
+            updateQuickSliderVisuals();
+        }
+        function startQuickRangeWatch() {
+            clearInterval(quickRangeTimer);
+            quickRangeTimer = setInterval(() => {
+                const p = quickPreviewPlayer;
+                if (!p || typeof p.getCurrentTime !== 'function' || !quickPreviewDuration) return;
+                const t = p.getCurrentTime();
+                $('quick-range-playhead').style.left = (t / quickPreviewDuration * 100) + '%';
+                if ($('manual-loop').checked && p.getPlayerState() === 1) {
+                    const st = +$('quick-slider-start').value, en = +$('quick-slider-end').value;
+                    if (t >= en - 0.2 || t < st - 1) p.seekTo(st, true);
+                }
+            }, 200);
+        }
+
+        // Quick Play URL Handler
+        async function handleQuickUrlPaste(url) {
+            const videoId = extractVideoId(url);
+            setUrlHint('quick-url-hint', url, videoId);
+            const section = $('quick-preview-section');
+            const titleInput = $('quick-video-title');
+
+            if (!videoId) {
+                section.classList.add('hidden');
+                stopQuickPreviewTimers();
+                currentQuickPreviewId = null;
+                return;
+            }
+            if (videoId === currentQuickPreviewId) return;
+            currentQuickPreviewId = videoId;
+
+            section.classList.remove('hidden');
+            $('quick-preview-thumb').src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+            $('quick-preview-error').classList.add('hidden');
+            resetQuickSliders();
+            ensureQuickPreviewPlayer(videoId);
+
+            titleInput.value = "Fetching title...";
+            try {
+                const response = await fetch(`https://noembed.com/embed?dataType=json&url=https://www.youtube.com/watch?v=${videoId}`);
+                const data = await response.json();
+                titleInput.value = (data && data.title) ? data.title : `YouTube Video - ${videoId}`;
+            } catch (err) {
+                titleInput.value = `YouTube Video - ${videoId}`;
+            }
+        }
+
+        function captureQuickStartTime() {
+            if (quickPreviewPlayer && typeof quickPreviewPlayer.getCurrentTime === 'function') {
+                $('quick-start').value = Math.floor(quickPreviewPlayer.getCurrentTime());
+                onQuickNumberInput();
+            }
+        }
+
+        function captureQuickEndTime() {
+            if (quickPreviewPlayer && typeof quickPreviewPlayer.getCurrentTime === 'function') {
+                $('quick-end').value = Math.floor(quickPreviewPlayer.getCurrentTime());
+                onQuickNumberInput();
+            }
+        }
+
+        // Playlist URL Handler
+        async function handlePlaylistUrlPaste(url) {
+            const videoId = extractVideoId(url);
+            const previewSection = document.getElementById('preview-section');
+            const titleInput = document.getElementById('playlist-video-title');
+            setUrlHint('playlist-url-hint', url, videoId);
+            document.getElementById('playlist-add-idle').classList.toggle('hidden', !!videoId);
+            
+            if (!videoId) {
+                previewSection.classList.add('hidden');
+                stopPreviewTimers();
+                return;
+            }
+            if (videoId === currentPreviewId) return;
+            currentPreviewId = videoId;
+
+            previewSection.classList.remove('hidden');
+            document.getElementById('preview-thumb').src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+            document.getElementById('preview-error').classList.add('hidden');
+            resetSliders();
+            ensurePreviewPlayer(videoId);
+
+            titleInput.value = "Fetching title...";
+            try {
+                const response = await fetch(`https://noembed.com/embed?dataType=json&url=https://www.youtube.com/watch?v=${videoId}`);
+                const data = await response.json();
+                titleInput.value = (data && data.title) ? data.title : `YouTube Video - ${videoId}`;
+            } catch (err) {
+                titleInput.value = `YouTube Video - ${videoId}`;
+            }
+        }
+
+        function captureStartTime() {
+            if (dashboardPreviewPlayer && typeof dashboardPreviewPlayer.getCurrentTime === 'function') {
+                document.getElementById('playlist-start').value = Math.floor(dashboardPreviewPlayer.getCurrentTime()); 
+                onNumberInput();
+            }
+        }
+
+        function captureEndTime() {
+            if (dashboardPreviewPlayer && typeof dashboardPreviewPlayer.getCurrentTime === 'function') {
+                document.getElementById('playlist-end').value = Math.floor(dashboardPreviewPlayer.getCurrentTime()); 
+                onNumberInput();
+            }
+        }
+
+        let projectorWindow = null;
+        function launchProjector() {
+            const url = window.location.href.split('?')[0] + '?mode=projector';
+            projectorWindow = window.open(url, 'YTProjectorWindow', 'width=1280,height=720,fullscreen=yes') || projectorWindow;
+        }
+
+        // Button is only live while a projector window is actually talking to us
+        function updateCloseButton() {
+            const b = document.getElementById('close-projector-btn');
+            if (!b) return;
+            const on = Date.now() - lastStatusAt < 2500;
+            b.disabled = !on;
+            b.classList.toggle('opacity-40', !on);
+            b.classList.toggle('cursor-not-allowed', !on);
+            b.classList.toggle('hover:bg-red-700', on);
+            b.title = on ? 'Close the projector window' : 'No projector window is open';
+        }
+        // The projector is gone (closed by us or by hand): drop everything that pointed at it
+        function markProjectorGone() {
+            lastStatusAt = 0;
+            playingPlaylistId = null;
+            playingIndex = -1;
+            if (lastStatus) { lastStatus = Object.assign({}, lastStatus, { state: -1 }); syncMirror(lastStatus); }
+            checkProjectorLink();
+            updateCloseButton();
+            updateRepeatStatus();
+            const np = document.getElementById('np-playlist'); if (np) np.classList.add('hidden');
+        }
+        function closeProjector() {
+            const alive = Date.now() - lastStatusAt < 2500 || (projectorWindow && !projectorWindow.closed);
+            if (!alive) { showNotice('There is no projector window open.'); return; }
+            const playing = lastStatus && (lastStatus.state === 1 || lastStatus.state === 3);
+            if (playing && !confirm('Close the projector window? Playback will stop.')) return;
+            presenterChannel.postMessage({ action: 'closeProjector' }); // works even if this page was reloaded
+            try { if (projectorWindow && !projectorWindow.closed) projectorWindow.close(); } catch (e) { /* cross-window access blocked */ }
+            projectorWindow = null;
+            markProjectorGone();
+            showNotice('Projector window closed.');
+        }
+
+        // ---------- Now Playing slider dashboard ----------
+        const RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+        const STATE_LABELS = { 1: 'Playing', 2: 'Paused', 3: 'Buffering', 0: 'Ended', 5: 'Idle', '-1': 'Idle' };
+        let lastStatusAt = 0, scrubbing = false, dragVol = false, dragRate = false;
+        const npEl = (id) => document.getElementById(id);
+
+        function paintSeek(el) {
+            const min = +el.min, max = +el.max, pct = max > min ? ((+el.value - min) / (max - min)) * 100 : 0;
+            el.style.background = `linear-gradient(to right, #22c55e ${pct}%, #374151 ${pct}%)`;
+        }
+        function setNpEnabled(on) { ['np-seek', 'np-vol', 'np-rate', 'np-st'].forEach(id => npEl(id).disabled = !on); }
+
+        function renderStatus(st) {
+            lastStatusAt = Date.now();
+            updateCloseButton();
+            lastStatus = st;
+            syncMirror(st);
+            const active = [1, 2, 3].includes(st.state);
+            setNpEnabled(active);
+            renderSoundtrackRow(active ? st : {});
+            const badge = npEl('np-state');
+            badge.textContent = (STATE_LABELS[st.state] || 'Idle') + (st.loop && active ? (st.repeatsLeft === 0 ? ' • Last play' : st.repeatsLeft > 0 ? ' • Loop, ' + st.repeatsLeft + ' left' : ' • Loop ∞') : '') + (st.soundtrack && active ? ' • ♪' : '');
+            badge.className = 'text-xs px-2 py-0.5 rounded ' + (st.state === 1 ? 'bg-green-900 text-green-300' : st.state === 2 ? 'bg-yellow-900 text-yellow-300' : 'bg-gray-700 text-gray-300');
+            npEl('np-title').textContent = active ? (st.title || 'Video ' + (st.videoId || '')) : 'Nothing playing';
+            npEl('np-title').title = npEl('np-title').textContent;
+            const prog = active ? playlistProgressText() : '';
+            npEl('np-playlist').textContent = prog; npEl('np-playlist').classList.toggle('hidden', !prog);
+            updateRepeatStatus();
+            if (!active) return;
+
+            const lo = Math.floor(st.startSeconds || 0), hi = Math.floor(st.endSeconds || st.duration || 0);
+            const seek = npEl('np-seek');
+            if (!scrubbing) {
+                seek.min = lo; seek.max = Math.max(hi, lo + 1);
+                seek.value = Math.min(Math.max(st.time, lo), seek.max);
+                npEl('np-time').textContent = fmt(st.time);
+            }
+            npEl('np-total').textContent = fmt(hi);
+            npEl('np-range').textContent = (lo > 0 || (st.endSeconds || 0) > 0) ? `clip ${fmt(lo)}–${fmt(hi)}` : '';
+            paintSeek(seek);
+            if (!dragVol) { npEl('np-vol').value = st.volume; npEl('np-vol-label').textContent = (st.muted ? 'Muted' : st.volume + '%'); }
+            if (!dragRate) {
+                const i = RATES.indexOf(st.rate);
+                if (i >= 0) { npEl('np-rate').value = i; npEl('np-rate-label').textContent = st.rate + 'x'; }
+            }
+        }
+        let dragSt = false;
+        function onStInput() { dragSt = true; npEl('np-st-label').textContent = npEl('np-st').value + '%'; }
+        function onStCommit() { presenterChannel.postMessage({ action: 'soundtrackVolume', value: +npEl('np-st').value }); dragSt = false; }
+        function renderSoundtrackRow(st) {
+            npEl('np-st').disabled = !st.soundtrack;
+            if (!st.soundtrack) { npEl('np-st-label').textContent = 'None'; return; }
+            if (!dragSt) { npEl('np-st').value = st.soundtrackVolume; npEl('np-st-label').textContent = st.soundtrackVolume + '%'; }
+        }
+        function onSeekInput() { scrubbing = true; const el = npEl('np-seek'); npEl('np-time').textContent = fmt(+el.value); paintSeek(el); }
+        function onSeekCommit() {
+            presenterChannel.postMessage({ action: 'seek', time: +npEl('np-seek').value });
+            scrubbing = false;
+        }
+        function onVolumeInput() { dragVol = true; npEl('np-vol-label').textContent = npEl('np-vol').value + '%'; }
+        function onVolumeCommit() {
+            presenterChannel.postMessage({ action: 'volume', value: +npEl('np-vol').value });
+            dragVol = false;
+        }
+        function onRateInput() { dragRate = true; npEl('np-rate-label').textContent = RATES[+npEl('np-rate').value] + 'x'; }
+        function onRateCommit() {
+            presenterChannel.postMessage({ action: 'rate', value: RATES[+npEl('np-rate').value] });
+            dragRate = false;
+        }
+        function checkProjectorLink() {
+            updateCloseButton();
+            if (Date.now() - lastStatusAt > 2500) {
+                setNpEnabled(false);
+                npEl('np-state').textContent = 'Projector not connected';
+                if (lastStatus) { lastStatus = Object.assign({}, lastStatus, { state: -1 }); syncMirror(lastStatus); }
+                npEl('np-state').className = 'text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300';
+            }
+        }
+
+        // ---------- Mute ----------
+        let isMuted = false;
+        const ICON_SOUND = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5.586v12.828a1 1 0 01-1.707.707L5.586 15z"></path>';
+        const ICON_MUTED = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5.586v12.828a1 1 0 01-1.707.707L5.586 15zM17 14l4-4m0 4l-4-4"></path>';
+        function renderMuteButton() {
+            const btn = document.getElementById('mute-btn');
+            if (!btn) return;
+            document.getElementById('mute-label').textContent = isMuted ? 'Unmute' : 'Mute';
+            document.getElementById('mute-icon').innerHTML = isMuted ? ICON_MUTED : ICON_SOUND;
+            btn.setAttribute('aria-pressed', String(isMuted));
+            btn.classList.toggle('bg-red-700', isMuted);
+            btn.classList.toggle('bg-gray-700', !isMuted);
+        }
+        function toggleMute() {
+            isMuted = !isMuted;
+            presenterChannel.postMessage({ action: isMuted ? 'mute' : 'unmute' });
+            renderMuteButton();
+        }
+
+        // ---------- Import / Export ----------
+        function downloadFile(filename, text) {
+            const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+        function buildExportData(scope) {
+            const list = scope === 'current' ? playlists.filter(p => p.id === activePlaylistId) : playlists;
+            return { app: 'youtube-presenter', version: 1, exportedAt: new Date().toISOString(), playlists: list };
+        }
+        function exportPlaylists(scope) {
+            if (scope === 'current' && !activePlaylistId) return alert("Select a playlist to export first.");
+            const data = buildExportData(scope);
+            if (!data.playlists.length) return alert("There are no playlists to export.");
+            const base = scope === 'current' ? data.playlists[0].name.replace(/[^\w\-]+/g, '_') : 'youtube-presenter-playlists';
+            downloadFile(base + '.json', JSON.stringify(data, null, 2));
+        }
+        const numOrNull = (v) => (Number.isFinite(+v) && v !== null && v !== '' && +v >= 0) ? Math.floor(+v) : null;
+        
+        function sanitizeImport(raw) {
+            let list = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.playlists) ? raw.playlists : (raw && Array.isArray(raw.videos) ? [raw] : null));
+            if (!list) throw new Error("This file doesn't look like a YouTube Presenter export.");
+            let skipped = 0, n = 0;
+            const clean = list.filter(p => p && typeof p === 'object').map(p => {
+                const videos = (Array.isArray(p.videos) ? p.videos : []).map(v => {
+                    const videoId = v && typeof v.videoId === 'string' && /^[a-zA-Z0-9_-]{11}$/.test(v.videoId) ? v.videoId : null;
+                    if (!videoId) { skipped++; return null; }
+                    let start = numOrNull(v.startTime), end = numOrNull(v.endTime);
+                    if (start !== null && end !== null && end <= start) end = null;
+                    let soundtrack = null;
+                    if (v.soundtrack && typeof v.soundtrack.videoId === 'string' && /^[a-zA-Z0-9_-]{11}$/.test(v.soundtrack.videoId)) {
+                        const vol = Number.isFinite(+v.soundtrack.volume) ? Math.min(100, Math.max(0, Math.round(+v.soundtrack.volume))) : 60;
+                        soundtrack = { videoId: v.soundtrack.videoId, volume: vol };
+                    }
+                    return { id: 'vid_' + Date.now() + '_' + (n++), videoId, soundtrack, muteOriginal: !!soundtrack && v.muteOriginal === true,
+                             title: (typeof v.title === 'string' && v.title.trim() ? v.title.trim() : 'Video - ' + videoId).slice(0, 200),
+                             startTime: start, endTime: end, loop: v.loop === true, loopCount: v.loop === true ? cleanCount(v.loopCount) : null };
+                }).filter(Boolean);
+                return { id: 'pl_' + Date.now() + '_' + (n++), name: (typeof p.name === 'string' && p.name.trim() ? p.name.trim() : 'Imported playlist').slice(0, 80), videos, repeat: getRepeat(p) };
+            });
+            return { clean, skipped };
+        }
+        function importPlaylistsFromText(text) {
+            const { clean, skipped } = sanitizeImport(JSON.parse(text));
+            clean.forEach(pl => {
+                let name = pl.name, i = 2;
+                while (playlists.some(p => p.name === name)) name = pl.name + ' (' + i++ + ')';
+                pl.name = name; playlists.push(pl);
+            });
+            if (clean.length) activePlaylistId = clean[0].id;
+            savePlaylists();
+            renderPlaylistDropdown();
+            return { count: clean.length, skipped };
+        }
+        function importPlaylists(input) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const r = importPlaylistsFromText(reader.result);
+                    alert(`Imported ${r.count} playlist${r.count === 1 ? '' : 's'}` + (r.skipped ? ` (${r.skipped} invalid video${r.skipped === 1 ? '' : 's'} skipped).` : '.'));
+                } catch (e) { alert("Import failed: " + e.message); }
+            };
+            reader.onerror = () => alert("Could not read that file.");
+            reader.readAsText(file);
+            input.value = '';
+        }
+
+        // ---------- Loop counts + playlist repeat ----------
+        // Counts mean EXTRA repeats after the first play (blank = endless).
+        function readLoopCount(id) {
+            const raw = document.getElementById(id).value.trim();
+            if (raw === '') return { ok: true, value: null };
+            const n = Number(raw);
+            return (Number.isInteger(n) && n >= 1 && n <= 999) ? { ok: true, value: n } : { ok: false, value: null };
+        }
+        const LOOP_COUNT_MSG = 'Repeat count must be a whole number from 1 to 999 (leave blank to repeat endlessly).';
+        function syncLoopCountEnabled(cbId, countId) {
+            const c = document.getElementById(countId);
+            c.disabled = !document.getElementById(cbId).checked;
+            if (c.disabled) c.value = '';
+        }
+        function cleanCount(x) { return (typeof x === 'number' && Number.isInteger(x) && x >= 1 && x <= 999) ? x : null; }
+        function getRepeat(pl) {
+            const r = pl && pl.repeat;
+            if (!r || !['endless', 'count'].includes(r.mode)) return { mode: 'off', count: 1 };
+            return { mode: r.mode, count: cleanCount(r.count) || 1 };
+        }
+        function renderRepeatUI() {
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            if (!pl) return;
+            const r = getRepeat(pl);
+            $('pl-repeat-mode').value = r.mode;
+            $('pl-repeat-count').value = r.count;
+            $('pl-repeat-count').disabled = r.mode !== 'count';
+            $('pl-repeat-more').classList.toggle('opacity-40', r.mode !== 'count');
+            updateRepeatStatus();
+        }
+        function onPlaylistRepeatChange() {
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            if (!pl) return;
+            let n = parseInt($('pl-repeat-count').value, 10);
+            n = Math.min(999, Math.max(1, Number.isFinite(n) ? n : 1));
+            pl.repeat = { mode: $('pl-repeat-mode').value, count: n };
+            savePlaylists();
+            renderRepeatUI();
+        }
+        function passText(pl) {
+            const r = getRepeat(pl);
+            return r.mode === 'endless' ? `pass ${playlistPass} (endless)` : r.mode === 'count' ? `pass ${playlistPass} of ${r.count + 1}` : '';
+        }
+        function playlistProgressText() {
+            const pl = playingPlaylistId && playlists.find(p => p.id === playingPlaylistId);
+            if (!pl || playingIndex < 0) return '';
+            const pass = passText(pl);
+            return `Playlist "${pl.name}" • video ${playingIndex + 1} of ${pl.videos.length}` + (pass ? ' • ' + pass : '');
+        }
+        function updateRepeatStatus() {
+            const el = document.getElementById('pl-repeat-status');
+            if (!el) return;
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            el.textContent = (pl && playingPlaylistId === activePlaylistId && playingIndex >= 0) ? passText(pl) : '';
+        }
+
+        // ---------- Skip (rewind / fast-forward) ----------
+        function skipSeconds() { return +document.getElementById('skip-step').value || 10; }
+        function updateSkipLabels() {
+            document.getElementById('rewind-label').textContent = 'Rewind ' + skipSeconds() + 's';
+            document.getElementById('forward-label').textContent = 'Forward ' + skipSeconds() + 's';
+        }
+        function skipVideo(direction, mult = 1) {
+            presenterChannel.postMessage({ action: direction, seconds: skipSeconds() * mult });
+        }
+
+        // ---------- Screen preview (muted mirror of the projector) ----------
+        let mirrorOn = false, mirrorPlayer = null, mirrorReady = false, mirrorVideoId = null, lastStatus = null;
+        function toggleMirror() {
+            mirrorOn = !mirrorOn;
+            document.getElementById('mirror-wrap').classList.toggle('hidden', !mirrorOn);
+            const b = document.getElementById('mirror-toggle');
+            b.textContent = mirrorOn ? 'Hide preview' : 'Show preview';
+            b.setAttribute('aria-pressed', String(mirrorOn));
+            if (mirrorOn) { if (lastStatus) syncMirror(lastStatus); }
+            else stopMirror();
+        }
+        function stopMirror() {
+            if (mirrorPlayer && mirrorReady) mirrorPlayer.stopVideo();
+            mirrorVideoId = null;
+        }
+        function createMirror(st) {
+            const vars = { autoplay: 1, controls: 0, disablekb: 1, modestbranding: 1, rel: 0, playsinline: 1, mute: 1, start: Math.floor(st.time) };
+            if (st.endSeconds) vars.end = Math.floor(st.endSeconds);
+            if (location.protocol.startsWith('http')) vars.origin = location.origin;
+            document.getElementById('mirror-error').classList.add('hidden');
+            mirrorPlayer = new YT.Player('mirror-player', {
+                width: '100%', height: '100%', videoId: st.videoId, playerVars: vars,
+                events: {
+                    onReady: () => { mirrorReady = true; mirrorVideoId = st.videoId; mirrorPlayer.mute(); mirrorPlayer.playVideo(); },
+                    onError: (e) => {
+                        const el = document.getElementById('mirror-error');
+                        el.textContent = e.data === 153 ? 'Preview blocked by YouTube (open this page through http://localhost or a web server, not file://).'
+                            : 'Preview unavailable for this video (error ' + e.data + '). The projector is unaffected.';
+                        el.classList.remove('hidden');
+                    }
+                }
+            });
+        }
+        function syncMirror(st) {
+            if (!mirrorOn) return;
+            const active = [1, 2, 3].includes(st.state);
+            document.getElementById('mirror-idle').classList.toggle('hidden', active);
+            if (!active) { stopMirror(); return; }
+            if (!ytApiReady) return;
+            if (!mirrorPlayer) { createMirror(st); return; }
+            if (!mirrorReady) return;
+            if (mirrorVideoId !== st.videoId) {
+                mirrorVideoId = st.videoId;
+                const cfg = { videoId: st.videoId, startSeconds: st.time };
+                if (st.endSeconds) cfg.endSeconds = st.endSeconds;
+                mirrorPlayer.loadVideoById(cfg);
+                mirrorPlayer.mute();
+                return;
+            }
+            if (Math.abs(mirrorPlayer.getCurrentTime() - st.time) > 1.5) mirrorPlayer.seekTo(st.time, true);
+            if (mirrorPlayer.getPlaybackRate && mirrorPlayer.getPlaybackRate() !== st.rate) mirrorPlayer.setPlaybackRate(st.rate);
+            const ms = mirrorPlayer.getPlayerState();
+            if (st.state === 2 && ms === 1) mirrorPlayer.pauseVideo();
+            if (st.state === 1 && ms !== 1 && ms !== 3) mirrorPlayer.playVideo();
+        }
+
+        function sendRemoteCommand(command) {
+            presenterChannel.postMessage({ action: command });
+        }
+
+        function pushManualVideo() {
+            const input = document.getElementById('manual-url').value.trim();
+            const videoId = extractVideoId(input);
+            if (!videoId) return alert("Please enter a valid YouTube URL.");
+
+            const startEl = document.getElementById('quick-start');
+            const endEl = document.getElementById('quick-end');
+            const sv = startEl.value !== '' ? parseInt(startEl.value) : null;
+            const ev = endEl.value !== '' ? parseInt(endEl.value) : null;
+            if (sv !== null && ev !== null && ev <= sv) return alert("End time must be greater than start time.");
+
+            const stRaw = document.getElementById('manual-soundtrack-url').value.trim();
+            const stId = stRaw ? extractVideoId(stRaw) : null;
+            if (stRaw && !stId) return alert("The soundtrack link isn't a valid YouTube link.");
+            const quickLoop = document.getElementById('manual-loop').checked;
+            const lcq = readLoopCount('manual-loop-count');
+            if (!lcq.ok) return alert(LOOP_COUNT_MSG);
+
+            playingPlaylistId = null;
+            playingIndex = -1;
+            consecutiveErrors = 0;
+
+            presenterChannel.postMessage({
+                action: 'load', 
+                seq: ++loadSeq,
+                videoId: videoId,
+                startSeconds: sv,
+                endSeconds: ev,
+                loop: quickLoop,
+                loopCount: quickLoop ? lcq.value : null,
+                soundtrack: stId ? { videoId: stId, volume: +document.getElementById('manual-soundtrack-vol').value || 60 } : null,
+                muteOriginal: !!stId && document.getElementById('manual-mute-original').checked
+            });
+
+            // UI Feedback
+            const btn = document.getElementById('quick-play-btn');
+            const oldHTML = btn.innerHTML;
+            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Sent!`;
+            btn.classList.replace('bg-blue-600', 'bg-green-600');
+            setTimeout(() => { btn.innerHTML = oldHTML; btn.classList.replace('bg-green-600', 'bg-blue-600'); }, 2000);
+        }
+
+        function loadPlaylists() {
+            const saved = localStorage.getItem('yt_presenter_playlists');
+            if (saved) {
+                try { playlists = JSON.parse(saved); } catch (e) { playlists = []; }
+            }
+            renderPlaylistDropdown();
+        }
+
+        function savePlaylists() {
+            localStorage.setItem('yt_presenter_playlists', JSON.stringify(playlists));
+        }
+
+        function createNewPlaylist() {
+            const name = prompt("Enter a name for the new playlist:");
+            if (name && name.trim() !== "") {
+                const newPlaylist = { id: 'pl_' + Date.now(), name: name.trim(), videos: [], repeat: { mode: 'off', count: 1 } };
+                playlists.push(newPlaylist);
+                savePlaylists();
+                activePlaylistId = newPlaylist.id;
+                renderPlaylistDropdown();
+            }
+        }
+
+        function renderPlaylistDropdown() {
+            const selector = document.getElementById('playlist-selector');
+            selector.innerHTML = '<option value="">-- Select a Playlist --</option>';
+            
+            playlists.forEach(pl => {
+                const opt = document.createElement('option');
+                opt.value = pl.id;
+                opt.textContent = pl.name;
+                if (pl.id === activePlaylistId) opt.selected = true;
+                selector.appendChild(opt);
+            });
+            updatePlaylistUI();
+        }
+
+        function selectPlaylist() {
+            activePlaylistId = document.getElementById('playlist-selector').value;
+            updatePlaylistUI();
+        }
+
+        function commitPlaylistName(value) {
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            const name = (value || '').trim();
+            if (!pl) return;
+            if (!name) { document.getElementById('playlist-name-input').value = pl.name; return; }
+            pl.name = name;
+            savePlaylists();
+            renderPlaylistDropdown();
+        }
+
+        function renamePlaylist() {
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            if (!pl) return alert("Select a playlist first.");
+            const name = prompt("Rename playlist:", pl.name);
+            if (name !== null) commitPlaylistName(name);
+        }
+
+        function deleteCurrentPlaylist() {
+            if (!activePlaylistId) return;
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            const count = pl ? pl.videos.length : 0;
+            if (confirm(`Delete "${pl ? pl.name : 'this playlist'}" and its ${count} video${count === 1 ? '' : 's'}? This cannot be undone.`)) {
+                if (playingPlaylistId === activePlaylistId) { playingPlaylistId = null; playingIndex = -1; }
+                playlists = playlists.filter(pl => pl.id !== activePlaylistId);
+                activePlaylistId = null;
+                savePlaylists();
+                renderPlaylistDropdown();
+            }
+        }
+
+        function updatePlaylistUI() {
+            const controls = document.getElementById('playlist-controls');
+            const emptyMsg = document.getElementById('empty-playlist-msg');
+            
+            if (activePlaylistId) {
+                controls.classList.remove('hidden');
+                const cur = playlists.find(p => p.id === activePlaylistId);
+                const nameEl = document.getElementById('playlist-name-input');
+                if (cur && document.activeElement !== nameEl) nameEl.value = cur.name;
+                renderRepeatUI();
+                emptyMsg.classList.add('hidden');
+                renderActivePlaylistVideos();
+            } else {
+                controls.classList.add('hidden');
+                emptyMsg.classList.remove('hidden');
+            }
+        }
+
+        function addVideoToActivePlaylist() {
+            if (!activePlaylistId) return;
+            
+            const urlEl = document.getElementById('playlist-url-add');
+            const titleEl = document.getElementById('playlist-video-title');
+            const startEl = document.getElementById('playlist-start');
+            const endEl = document.getElementById('playlist-end');
+            const loopEl = document.getElementById('playlist-loop');
+
+            const videoId = extractVideoId(urlEl.value.trim());
+            if (!videoId) return alert("Please enter a valid YouTube URL");
+
+            const sv = startEl.value !== '' ? parseInt(startEl.value) : null;
+            const ev = endEl.value !== '' ? parseInt(endEl.value) : null;
+            if (sv !== null && ev !== null && ev <= sv) return alert("End time must be greater than start time.");
+
+            const stRaw = document.getElementById('playlist-soundtrack-url').value.trim();
+            let soundtrack = null;
+            if (stRaw) {
+                const stId = extractVideoId(stRaw);
+                if (!stId) return alert("The soundtrack link isn't a valid YouTube link.");
+                soundtrack = { videoId: stId, volume: +document.getElementById('playlist-soundtrack-vol').value };
+            }
+            const muteOriginal = !!soundtrack && document.getElementById('playlist-mute-original').checked;
+            const lc = readLoopCount('playlist-loop-count');
+            if (!lc.ok) return alert(LOOP_COUNT_MSG);
+            const loopCount = loopEl.checked ? lc.value : null;
+
+            const activePl = playlists.find(pl => pl.id === activePlaylistId);
+            
+            activePl.videos.push({
+                id: 'vid_' + Date.now(),
+                videoId: videoId,
+                title: titleEl.value.trim() || `Video - ${videoId}`,
+                startTime: sv,
+                endTime: ev,
+                loop: loopEl.checked,
+                loopCount: loopCount,
+                soundtrack: soundtrack,
+                muteOriginal: muteOriginal
+            });
+
+            // Reset form
+            document.getElementById('playlist-add-idle').classList.remove('hidden');
+            setUrlHint('playlist-url-hint', '', null);
+            setTimeout(() => { const c = document.getElementById('playlist-videos-container'); const last = c && c.lastElementChild; if (last && last.scrollIntoView) last.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 60);
+            urlEl.value = '';
+            titleEl.value = '';
+            startEl.value = '';
+            endEl.value = '';
+            loopEl.checked = false;
+            syncLoopCountEnabled('playlist-loop', 'playlist-loop-count');
+            document.getElementById('preview-section').classList.add('hidden');
+            currentPreviewId = null;
+            stopPreviewTimers();
+            resetSliders();
+            document.getElementById('playlist-soundtrack-url').value = '';
+            document.getElementById('playlist-soundtrack-vol').value = 60;
+            document.getElementById('playlist-soundtrack-vol-label').textContent = '60%';
+            document.getElementById('playlist-mute-original').checked = true;
+            if (dashboardPreviewPlayer && dashboardPreviewPlayer.stopVideo) {
+                dashboardPreviewPlayer.stopVideo();
+            }
+
+            savePlaylists();
+            renderActivePlaylistVideos();
+        }
+
+        function esc(t) { return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+        function renderActivePlaylistVideos() {
+            const container = document.getElementById('playlist-videos-container');
+            container.innerHTML = '';
+            
+            const activePl = playlists.find(pl => pl.id === activePlaylistId);
+            if (!activePl || activePl.videos.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No videos in this playlist.</p>';
+                return;
+            }
+
+            activePl.videos.forEach((video, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-gray-900 p-3 rounded border border-gray-700 fade-in';
+                div.dataset.vid = video.id;
+                div.setAttribute('role', 'listitem');
+                
+                const details = [];
+                if (video.startTime != null) details.push(`Start: ${video.startTime}s`);
+                if (video.endTime != null) details.push(`End: ${video.endTime}s`);
+                if (video.loop) details.push(`Loop: ${video.loopCount ? video.loopCount + '\u00d7 more' : 'endless'}`);
+                if (problemByVideo[video.videoId]) details.push('\u26a0 Could not play: ' + problemByVideo[video.videoId]);
+                if (video.soundtrack) details.push(`♪ Soundtrack${video.muteOriginal ? ' (original muted)' : ''}`);
+                const detailsHtml = details.length > 0 ? `<div class="text-xs text-gray-400 mt-1">${details.join(' | ')}</div>` : '';
+
+                div.innerHTML = `
+                    <button type="button" class="drag-handle shrink-0 mr-2 px-1 py-2 text-gray-500 hover:text-gray-200 select-none rounded focus:outline-none focus:ring-2 focus:ring-green-500" title="Drag to reorder" aria-label="Reorder ${esc(video.title)}: drag, or press the up or down arrow key" onkeydown="onHandleKey(event, '${video.id}')">&#8942;&#8942;</button>
+                    <div class="flex flex-col overflow-hidden w-full">
+                        <div class="flex items-center gap-3">
+                            <img src="https://img.youtube.com/vi/${video.videoId}/default.jpg" class="w-12 h-9 object-cover rounded" alt="thumb">
+                            <div class="truncate text-sm font-medium flex-1" title="${esc(video.title)}">
+                                ${esc(video.title)}
+                                ${detailsHtml}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0 ml-2">
+                        <button onclick="openEditor('${video.id}')" class="text-xs px-2 py-1.5 rounded transition border bg-gray-800 border-gray-600 text-gray-200 hover:bg-gray-700 flex items-center gap-1" title="Edit this video" aria-label="Edit this video">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.768-6.768a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-.878.515L7 17l1.657-3.95A2 2 0 019 13z"></path></svg>
+                            Edit
+                        </button>
+                        <button onclick="toggleSoundtrackEditor('${video.id}')" class="text-xs px-2 py-1.5 rounded transition border ${video.soundtrack ? 'bg-green-900/60 border-green-700 text-green-300' : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'}" title="${video.soundtrack ? 'Edit soundtrack' : 'Add a soundtrack'}" aria-label="${video.soundtrack ? 'Edit soundtrack' : 'Add a soundtrack'}">
+                            &#9834;
+                        </button>
+                        <button onclick="playFromPlaylist(${index})" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded transition shadow">
+                            Push
+                        </button>
+                        <button onclick="removeVideoFromPlaylist('${video.id}')" class="text-gray-500 hover:text-red-500 transition px-1">
+                            &times;
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+
+                if (video.id === editingSoundtrackId) {
+                    const ed = document.createElement('div');
+                    ed.className = 'bg-gray-800 border border-green-800 rounded p-3 -mt-1 space-y-2 fade-in';
+                    const vol = video.soundtrack ? video.soundtrack.volume : 60;
+                    ed.innerHTML = `
+                        <label class="text-xs text-gray-400 block" for="st-edit-url">&#9834; Soundtrack for this video (YouTube link, audio only)</label>
+                        <input type="text" id="st-edit-url" value="${video.soundtrack ? 'https://youtu.be/' + video.soundtrack.videoId : ''}" placeholder="Paste a YouTube link" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none">
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-400">
+                            <span class="flex items-center gap-2">Volume
+                                <input type="range" id="st-edit-vol" class="remote-range" style="width:8rem" min="0" max="100" step="1" value="${vol}" oninput="document.getElementById('st-edit-vol-label').textContent=this.value+'%'">
+                                <span id="st-edit-vol-label" class="font-mono w-9">${vol}%</span>
+                            </span>
+                            <label class="flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" id="st-edit-mute" ${!video.soundtrack || video.muteOriginal ? 'checked' : ''} class="rounded bg-gray-800 border-gray-600 text-green-500 w-4 h-4"> Mute the video's original audio
+                            </label>
+                        </div>
+                        <div class="flex gap-2 justify-end">
+                            ${video.soundtrack ? `<button onclick="removeSoundtrack('${video.id}')" class="text-xs px-3 py-1.5 rounded bg-red-900/50 hover:bg-red-800/80 border border-red-800 text-red-200 transition">Remove</button>` : ''}
+                            <button onclick="toggleSoundtrackEditor(null)" class="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-200 transition">Cancel</button>
+                            <button onclick="saveSoundtrack('${video.id}')" class="text-xs px-3 py-1.5 rounded bg-green-600 hover:bg-green-500 text-white font-bold transition">Save</button>
+                        </div>
+                        <p class="text-[11px] text-gray-500">Takes effect the next time you push this video.</p>`;
+                    container.appendChild(ed);
+                }
+            });
+        }
+
+        // ---------- Full video editor (modal) ----------
+        let editingId = null, edPlayer = null, edVideoId = null, edDuration = 0, edTitleTouched = false, edDurTimer = null, edLoopTimer = null;
+        const edv = (id) => document.getElementById(id);
+        function edShowError(msg) { const el = edv('ed-validation'); el.textContent = msg || ''; el.classList.toggle('hidden', !msg); }
+
+        function openEditor(id) {
+            const v = findVideo(id);
+            if (!v) return;
+            editingId = id; edVideoId = v.videoId; edDuration = 0; edTitleTouched = false;
+            edv('ed-title').value = v.title;
+            edv('ed-url').value = 'https://youtu.be/' + v.videoId;
+            edv('ed-start').value = v.startTime != null ? v.startTime : '';
+            edv('ed-end').value = v.endTime != null ? v.endTime : '';
+            edv('ed-loop').checked = !!v.loop;
+            edv('ed-loop-count').value = v.loop && v.loopCount ? v.loopCount : '';
+            syncLoopCountEnabled('ed-loop', 'ed-loop-count');
+            edv('ed-st-url').value = v.soundtrack ? 'https://youtu.be/' + v.soundtrack.videoId : '';
+            edv('ed-st-vol').value = v.soundtrack ? v.soundtrack.volume : 60;
+            edv('ed-st-vol-label').textContent = edv('ed-st-vol').value + '%';
+            edv('ed-st-mute').checked = v.soundtrack ? !!v.muteOriginal : true;
+            edv('ed-error').classList.add('hidden');
+            edShowError('');
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            const playingThis = pl && playingPlaylistId === activePlaylistId && playingIndex === pl.videos.indexOf(v);
+            edv('ed-note').textContent = playingThis ? 'This video is playing now. Use "Save & Push" to apply your changes on the projector.' : '';
+            edv('ed-note').classList.toggle('hidden', !playingThis);
+            resetEdSliders();
+            edv('edit-modal').classList.remove('hidden');
+            edv('ed-title').focus();
+            ensureEdPlayer();
+        }
+        function closeEditor() {
+            edv('edit-modal').classList.add('hidden');
+            clearInterval(edDurTimer); clearInterval(edLoopTimer);
+            if (edPlayer && edPlayer.stopVideo) edPlayer.stopVideo();
+            editingId = null;
+        }
+        function ensureEdPlayer() {
+            if (!ytApiReady) { setTimeout(() => editingId && ensureEdPlayer(), 300); return; }
+            if (edPlayer && edPlayer.cueVideoById) { edPlayer.cueVideoById(edVideoId); watchEdDuration(); startEdLoop(); return; }
+            if (edPlayer) return;
+            const vars = { autoplay: 0, controls: 1, modestbranding: 1, rel: 0, playsinline: 1 };
+            if (location.protocol.startsWith('http')) vars.origin = location.origin;
+            edPlayer = new YT.Player('ed-player', {
+                width: '100%', height: '100%', videoId: edVideoId, playerVars: vars,
+                events: {
+                    onReady: () => { watchEdDuration(); startEdLoop(); },
+                    onError: (e) => { const el = edv('ed-error'); el.textContent = 'Preview error ' + e.data + (e.data === 153 ? ': open this page through http://localhost or a web server, not file://.' : '.'); el.classList.remove('hidden'); }
+                }
+            });
+        }
+        function resetEdSliders() {
+            edDuration = 0;
+            ['ed-slider-start', 'ed-slider-end'].forEach(id => { edv(id).max = 0; edv(id).value = 0; edv(id).disabled = true; });
+            paintEd();
+        }
+        function watchEdDuration() {
+            clearInterval(edDurTimer);
+            let tries = 0;
+            edDurTimer = setInterval(() => {
+                const d = edPlayer && edPlayer.getDuration ? edPlayer.getDuration() : 0;
+                if (d > 0) { clearInterval(edDurTimer); edDuration = Math.floor(d); edv('ed-slider-start').max = edv('ed-slider-end').max = edDuration; edv('ed-slider-start').disabled = edv('ed-slider-end').disabled = false; onEdNumber(); }
+                else if (++tries > 100) clearInterval(edDurTimer);
+            }, 300);
+        }
+        function paintEd() {
+            const st = +edv('ed-slider-start').value, en = +edv('ed-slider-end').value, max = edDuration || 1;
+            edv('ed-lbl-start').textContent = fmt(st); edv('ed-lbl-end').textContent = fmt(en); edv('ed-lbl-len').textContent = fmt(Math.max(0, en - st));
+            edv('ed-fill').style.left = (st / max * 100) + '%'; edv('ed-fill').style.width = (Math.max(0, en - st) / max * 100) + '%';
+        }
+        function onEdNumber() {
+            if (!edDuration) return;
+            const s = edv('ed-start').value, e = edv('ed-end').value;
+            edv('ed-slider-start').value = s !== '' ? Math.min(Math.max(0, +s), edDuration) : 0;
+            edv('ed-slider-end').value = e !== '' ? Math.min(Math.max(0, +e), edDuration) : edDuration;
+            paintEd();
+        }
+        function onEdSlider(which) {
+            const st = edv('ed-slider-start'), en = edv('ed-slider-end');
+            if (+st.value >= +en.value) { if (which === 'start') st.value = Math.max(0, +en.value - 1); else en.value = Math.min(edDuration, +st.value + 1); }
+            edv('ed-start').value = +st.value > 0 ? st.value : '';
+            edv('ed-end').value = +en.value < edDuration ? en.value : '';
+            paintEd();
+            if (edPlayer && edPlayer.seekTo) edPlayer.seekTo(which === 'start' ? +st.value : Math.max(+st.value, +en.value - 2), true);
+        }
+        function setEdFromPlayer(which) {
+            if (!edPlayer || !edPlayer.getCurrentTime) return;
+            edv(which === 'start' ? 'ed-start' : 'ed-end').value = Math.floor(edPlayer.getCurrentTime());
+            onEdNumber();
+        }
+        function startEdLoop() {
+            clearInterval(edLoopTimer);
+            edLoopTimer = setInterval(() => {
+                if (!edPlayer || !edPlayer.getCurrentTime || !edDuration) return;
+                const t = edPlayer.getCurrentTime();
+                edv('ed-playhead').style.left = (t / edDuration * 100) + '%';
+                if (edv('ed-loop').checked && edPlayer.getPlayerState() === 1) {
+                    const st = +edv('ed-slider-start').value, en = +edv('ed-slider-end').value;
+                    if (t >= en - 0.2 || t < st - 1) edPlayer.seekTo(st, true);
+                }
+            }, 200);
+        }
+        async function onEdUrlChange() {
+            const id = extractVideoId(edv('ed-url').value.trim());
+            if (!id) return edShowError("That isn't a valid YouTube link.");
+            edShowError('');
+            if (id === edVideoId) return;
+            edVideoId = id;
+            edv('ed-start').value = ''; edv('ed-end').value = '';
+            edv('ed-error').classList.add('hidden');
+            resetEdSliders();
+            ensureEdPlayer();
+            if (!edTitleTouched) {
+                try {
+                    const r = await fetch('https://noembed.com/embed?url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + id));
+                    const d = await r.json();
+                    if (d && d.title && !edTitleTouched && edVideoId === id) edv('ed-title').value = d.title;
+                } catch (e) { }
+            }
+        }
+        function saveEditor(andPush) {
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            const v = pl && pl.videos.find(x => x.id === editingId);
+            if (!v) return closeEditor();
+            const vid = extractVideoId(edv('ed-url').value.trim());
+            if (!vid) return edShowError("The video link isn't a valid YouTube link.");
+            const sRaw = edv('ed-start').value.trim(), eRaw = edv('ed-end').value.trim();
+            if (sRaw !== '' && numOrNull(sRaw) === null) return edShowError('Start must be a number of seconds (0 or more).');
+            if (eRaw !== '' && numOrNull(eRaw) === null) return edShowError('End must be a number of seconds (0 or more).');
+            const sv = numOrNull(sRaw), ev = numOrNull(eRaw);
+            const lcEd = readLoopCount('ed-loop-count');
+            if (!lcEd.ok) return edShowError(LOOP_COUNT_MSG);
+            if (sv !== null && ev !== null && ev <= sv) return edShowError('End time must be greater than the start time.');
+            const stRaw = edv('ed-st-url').value.trim();
+            let soundtrack = null;
+            if (stRaw) {
+                const stId = extractVideoId(stRaw);
+                if (!stId) return edShowError("The soundtrack link isn't a valid YouTube link.");
+                soundtrack = { videoId: stId, volume: +edv('ed-st-vol').value };
+            }
+            v.videoId = vid;
+            v.title = edv('ed-title').value.trim() || ('Video - ' + vid);
+            v.startTime = sv; v.endTime = ev;
+            v.loop = edv('ed-loop').checked;
+            v.loopCount = v.loop ? lcEd.value : null;
+            v.soundtrack = soundtrack;
+            v.muteOriginal = !!soundtrack && edv('ed-st-mute').checked;
+            savePlaylists();
+            const index = pl.videos.indexOf(v);
+            closeEditor();
+            renderActivePlaylistVideos();
+            if (andPush) playFromPlaylist(index);
+        }
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && editingId) closeEditor(); });
+
+        let editingSoundtrackId = null;
+        function toggleSoundtrackEditor(id) {
+            editingSoundtrackId = (id && id !== editingSoundtrackId) ? id : null;
+            renderActivePlaylistVideos();
+            const input = document.getElementById('st-edit-url');
+            if (input) input.focus();
+        }
+        function findVideo(id) {
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            return pl ? pl.videos.find(v => v.id === id) : null;
+        }
+        function saveSoundtrack(id) {
+            const video = findVideo(id);
+            if (!video) return;
+            const raw = document.getElementById('st-edit-url').value.trim();
+            if (!raw) return removeSoundtrack(id);
+            const stId = extractVideoId(raw);
+            if (!stId) return alert("That isn't a valid YouTube link.");
+            video.soundtrack = { videoId: stId, volume: +document.getElementById('st-edit-vol').value };
+            video.muteOriginal = document.getElementById('st-edit-mute').checked;
+            editingSoundtrackId = null;
+            savePlaylists();
+            renderActivePlaylistVideos();
+        }
+        function removeSoundtrack(id) {
+            const video = findVideo(id);
+            if (!video) return;
+            video.soundtrack = null;
+            video.muteOriginal = false;
+            editingSoundtrackId = null;
+            savePlaylists();
+            renderActivePlaylistVideos();
+        }
+
+        function playFromPlaylist(index, isAuto = false) {
+            if (!activePlaylistId) return;
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            if (!pl || index >= pl.videos.length) return;
+
+            if (!isAuto) { playlistPass = 1; consecutiveErrors = 0; } // a manual push starts a fresh pass count
+            playingPlaylistId = activePlaylistId;
+            playingIndex = index;
+            const video = pl.videos[index];
+            
+            presenterChannel.postMessage({ 
+                action: 'load', 
+                seq: ++loadSeq,
+                videoId: video.videoId,
+                startSeconds: video.startTime,
+                endSeconds: video.endTime,
+                loop: video.loop,
+                loopCount: video.loop ? (video.loopCount || null) : null,
+                soundtrack: video.soundtrack || null,
+                muteOriginal: !!video.muteOriginal
+            });
+        }
+
+        function removeVideoFromPlaylist(vidId) {
+            if (editingSoundtrackId === vidId) editingSoundtrackId = null;
+            const activePl = playlists.find(pl => pl.id === activePlaylistId);
+            if (activePl) {
+                const removedAt = activePl.videos.findIndex(v => v.id === vidId);
+                // keep "what is playing" / "what plays next" correct when an earlier item disappears
+                if (removedAt >= 0 && playingPlaylistId === activePl.id && playingIndex >= 0 && removedAt <= playingIndex) playingIndex--;
+                activePl.videos = activePl.videos.filter(v => v.id !== vidId);
+                savePlaylists();
+                renderActivePlaylistVideos();
+            }
+        }
+
+        // ---------- Keyboard hotkeys ----------
+        const HOTKEY_PREF = 'yt_presenter_hotkeys_enabled';
+        let hotkeysEnabled = true;
+        try { hotkeysEnabled = localStorage.getItem(HOTKEY_PREF) !== 'off'; } catch (e) { /* storage unavailable */ }
+        let toastTimer = null, suppressSpaceUp = false, helpReturnFocus = null;
+
+        function hotkeyToast(msg) {
+            const el = document.getElementById('hotkey-toast');
+            if (!el) return;
+            el.textContent = msg; el.classList.remove('hidden');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.add('hidden'), 1500);
+        }
+        const helpIsOpen = () => !document.getElementById('hotkey-help').classList.contains('hidden');
+        function toggleHotkeyHelp(force) {
+            const el = document.getElementById('hotkey-help');
+            const open = typeof force === 'boolean' ? force : el.classList.contains('hidden');
+            if (open === helpIsOpen()) return;
+            el.classList.toggle('hidden', !open);
+            if (open) { helpReturnFocus = document.activeElement; document.getElementById('hk-close').focus(); }
+            else if (helpReturnFocus && helpReturnFocus.focus) helpReturnFocus.focus();
+        }
+        function setHotkeysEnabled(on) {
+            hotkeysEnabled = !!on;
+            try { localStorage.setItem(HOTKEY_PREF, hotkeysEnabled ? 'on' : 'off'); } catch (e) { /* ignore */ }
+            document.getElementById('hotkeys-enabled').checked = hotkeysEnabled;
+            hotkeyToast(hotkeysEnabled ? 'Hotkeys on' : 'Hotkeys off (press ? to turn them back on)');
+        }
+        const projectorConnected = () => Date.now() - lastStatusAt < 2500;
+        function needProjector() {
+            if (projectorConnected()) return true;
+            hotkeyToast('Projector not connected: press O to open it');
+            return false;
+        }
+        function clamp(n, lo, hi) { return Math.min(hi, Math.max(lo, n)); }
+        // A value we just sent beats a status that was already on its way, so quick key taps don't jump backwards.
+        const pendingVals = {};
+        const currentVal = (name, fromStatus) => { const p = pendingVals[name]; return (p && Date.now() < p.until) ? p.v : fromStatus; };
+        const setPending = (name, v) => { pendingVals[name] = { v, until: Date.now() + 1500 }; };
+
+        function hkPlayPause() {
+            if (!needProjector()) return;
+            const st = lastStatus ? lastStatus.state : -1;
+            if (st === 1 || st === 3) { presenterChannel.postMessage({ action: 'pause' }); hotkeyToast('\u23f8 Paused'); }
+            else if (st === 2) { presenterChannel.postMessage({ action: 'play' }); hotkeyToast('\u25b6 Playing'); }
+            else hotkeyToast('Nothing is playing: press N or 1\u20139 to start an item');
+        }
+        function hkStop() { if (!needProjector()) return; presenterChannel.postMessage({ action: 'stop' }); hotkeyToast('\u23f9 Stopped'); }
+        function hkRestart() {
+            if (!needProjector()) return;
+            presenterChannel.postMessage({ action: 'seek', time: (lastStatus && lastStatus.startSeconds) || 0 });
+            hotkeyToast('\u23ee Restarted');
+        }
+        function hkSkip(direction, k) {
+            if (!needProjector()) return;
+            const mult = k.shiftKey ? 3 : 1;
+            skipVideo(direction, mult);
+            hotkeyToast((direction === 'rewind' ? '\u23ea \u2212' : '\u23e9 +') + skipSeconds() * mult + 's');
+        }
+        function hkVolume(delta) {
+            if (!needProjector()) return;
+            const cur = currentVal('volume', lastStatus && Number.isFinite(lastStatus.volume) ? lastStatus.volume : 100);
+            const v = clamp(Math.round(cur / 5) * 5 + delta, 0, 100);
+            setPending('volume', v);
+            presenterChannel.postMessage({ action: 'volume', value: v });
+            hotkeyToast('\u{1f50a} Volume ' + v + '%');
+        }
+        function hkSoundtrackVolume(delta) {
+            if (!needProjector()) return;
+            if (!lastStatus || !lastStatus.soundtrack) return hotkeyToast('No soundtrack playing');
+            const v = clamp(Math.round(currentVal('soundtrack', lastStatus.soundtrackVolume) / 5) * 5 + delta, 0, 100);
+            setPending('soundtrack', v);
+            presenterChannel.postMessage({ action: 'soundtrackVolume', value: v });
+            hotkeyToast('\u266a Soundtrack ' + v + '%');
+        }
+        function hkMute() { toggleMute(); hotkeyToast(isMuted ? '\u{1f507} Muted' : '\u{1f50a} Unmuted'); }
+        function hkSpeed(dir) {
+            if (!needProjector()) return;
+            const i = RATES.indexOf(currentVal('rate', lastStatus ? lastStatus.rate : 1));
+            const j = clamp((i < 0 ? RATES.indexOf(1) : i) + dir, 0, RATES.length - 1);
+            setPending('rate', RATES[j]);
+            presenterChannel.postMessage({ action: 'rate', value: RATES[j] });
+            hotkeyToast('Speed ' + RATES[j] + 'x');
+        }
+        // load item idx of playlist plId, keeping the playlist pass count and the selected playlist
+        function playlistPlay(plId, idx) {
+            const temp = activePlaylistId;
+            activePlaylistId = plId;
+            playFromPlaylist(idx, true);
+            activePlaylistId = temp;
+        }
+        function hkNext() {
+            const pl = playingPlaylistId && playlists.find(p => p.id === playingPlaylistId);
+            if (!pl) {
+                const sel = playlists.find(p => p.id === activePlaylistId);
+                if (!sel || !sel.videos.length) return hotkeyToast('No playlist item to play');
+                playFromPlaylist(0);
+                return hotkeyToast('\u25b6 ' + sel.videos[0].title);
+            }
+            if (playingIndex + 1 < pl.videos.length) {
+                playlistPlay(pl.id, playingIndex + 1);
+                hotkeyToast('\u23ed ' + pl.videos[playingIndex].title);
+            } else {
+                advancePlaylist(); // wraps if playlist repeat allows it
+                if (playingPlaylistId) hotkeyToast('\u21bb Back to the start');
+                else { presenterChannel.postMessage({ action: 'stop' }); hotkeyToast('End of playlist'); }
+            }
+        }
+        function hkPrev() {
+            const pl = playingPlaylistId && playlists.find(p => p.id === playingPlaylistId);
+            if (!pl) return hotkeyToast('No playlist is playing');
+            playlistPlay(pl.id, Math.max(0, playingIndex - 1));
+            hotkeyToast('\u23ee ' + pl.videos[playingIndex].title);
+        }
+        function hkItem(n) {
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            if (!pl) return hotkeyToast('Select a playlist first');
+            if (n > pl.videos.length) return hotkeyToast('This playlist has only ' + pl.videos.length + ' item' + (pl.videos.length === 1 ? '' : 's'));
+            playFromPlaylist(n - 1);
+            hotkeyToast('\u25b6 ' + n + '. ' + pl.videos[n - 1].title);
+        }
+
+        // key -> { fn, repeat }   (repeat: keep firing while the key is held)
+        const HOTKEYS = {
+            ' ': { fn: hkPlayPause }, k: { fn: hkPlayPause },
+            s: { fn: hkStop }, r: { fn: hkRestart }, Home: { fn: hkRestart },
+            ArrowLeft: { fn: (k) => hkSkip('rewind', k), repeat: true }, j: { fn: (k) => hkSkip('rewind', k), repeat: true },
+            ArrowRight: { fn: (k) => hkSkip('forward', k), repeat: true }, l: { fn: (k) => hkSkip('forward', k), repeat: true },
+            ArrowUp: { fn: () => hkVolume(5), repeat: true }, ArrowDown: { fn: () => hkVolume(-5), repeat: true },
+            '[': { fn: () => hkSoundtrackVolume(-5), repeat: true }, ']': { fn: () => hkSoundtrackVolume(5), repeat: true },
+            m: { fn: hkMute },
+            ',': { fn: () => hkSpeed(-1) }, '<': { fn: () => hkSpeed(-1) }, '.': { fn: () => hkSpeed(1) }, '>': { fn: () => hkSpeed(1) },
+            n: { fn: hkNext }, PageDown: { fn: hkNext }, p: { fn: hkPrev }, PageUp: { fn: hkPrev },
+            v: { fn: () => { toggleMirror(); hotkeyToast(mirrorOn ? 'Preview on' : 'Preview off'); } },
+            o: { fn: () => { launchProjector(); hotkeyToast('Opening projector window'); } }
+        };
+        for (let n = 1; n <= 9; n++) HOTKEYS[String(n)] = { fn: () => hkItem(n) };
+
+        // Returns true if the key was a hotkey (so the caller can stop the browser's default action)
+        function handleHotkey(k) {
+            const key = (typeof k.key === 'string' && k.key.length === 1) ? k.key.toLowerCase() : k.key;
+            if (key === '?' || key === 'h') { if (!k.repeat) toggleHotkeyHelp(); return true; }
+            if (helpIsOpen()) { if (key === 'Escape') { toggleHotkeyHelp(false); return true; } return false; }
+            if (!hotkeysEnabled) return false;
+            const modalOpen = !document.getElementById('edit-modal').classList.contains('hidden');
+            if (modalOpen) return false;
+            const a = Object.prototype.hasOwnProperty.call(HOTKEYS, key) ? HOTKEYS[key] : null;
+            if (!a) return false;
+            if (k.repeat && !a.repeat) return true; // swallow a held key without re-firing
+            a.fn(k);
+            return true;
+        }
+        // Keys that belong to the control that has focus
+        function hotkeyBlockedBy(el, key) {
+            if (!el || !el.tagName) return false;
+            const tag = el.tagName;
+            if (el.isContentEditable || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+            if (tag === 'INPUT') {
+                const t = (el.type || 'text').toLowerCase();
+                if (t === 'range') return key.startsWith('Arrow') || key === 'Home' || key === 'End' || key === 'PageUp' || key === 'PageDown';
+                if (t === 'checkbox' || t === 'radio' || t === 'button') return key === ' ';
+                return true;
+            }
+            return false;
+        }
+        function addKeyHints() {
+            const hints = [["sendRemoteCommand('play')", 'Space'], ["sendRemoteCommand('pause')", 'Space'], ["skipVideo('rewind')", '\u2190'],
+                           ["skipVideo('forward')", '\u2192'], ["sendRemoteCommand('stop')", 'S'], ['toggleMute()', 'M']];
+            hints.forEach(([call, label]) => {
+                const b = document.querySelector(`button[onclick="${call}"]`);
+                if (b && !b.querySelector('.key-hint')) b.insertAdjacentHTML('beforeend', `<kbd class="key-hint opacity-80" aria-hidden="true">${label}</kbd>`);
+            });
+        }
+        function initHotkeys() {
+            if (isProjector) {
+                // The projector window grabs focus when it opens: pass its keys to the dashboard.
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey || e.altKey || e.metaKey) return;
+                    presenterChannel.postMessage({ action: 'hotkey', key: e.key, shiftKey: e.shiftKey, repeat: e.repeat });
+                    if (e.key === ' ' || e.key.startsWith('Arrow') || e.key === 'PageUp' || e.key === 'PageDown' || e.key === 'Home') e.preventDefault();
+                });
+                return;
+            }
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey || e.altKey || e.metaKey || e.isComposing) return;
+                if (hotkeyBlockedBy(e.target, e.key)) return;
+                if (handleHotkey({ key: e.key, shiftKey: e.shiftKey, repeat: e.repeat })) {
+                    e.preventDefault();
+                    if (e.key === ' ') suppressSpaceUp = true;
+                }
+            });
+            // a focused button would otherwise "click" itself when Space is released
+            document.addEventListener('keyup', (e) => { if (e.key === ' ' && suppressSpaceUp) { e.preventDefault(); suppressSpaceUp = false; } });
+            addKeyHints();
+            document.getElementById('hotkeys-enabled').checked = hotkeysEnabled;
+        }
+
+        // ---------- Drag-to-reorder ----------
+        const drag = { active: false, id: null, from: -1, to: -1, pointerId: null, y: 0, timer: null };
+        const getRows = () => Array.from(document.getElementById('playlist-videos-container').children).filter(el => el.dataset && el.dataset.vid);
+
+        function announce(text) { const el = document.getElementById('reorder-status'); if (el) el.textContent = text; }
+
+        // Move one item to a new position in the selected playlist. Keeps the "now playing" index on the same video.
+        function moveVideo(from, to) {
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            if (!pl) return false;
+            const n = pl.videos.length;
+            if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from >= n || to >= n || from === to) return false;
+            const playingVid = (playingPlaylistId === pl.id && playingIndex >= 0) ? pl.videos[playingIndex] : null;
+            const [item] = pl.videos.splice(from, 1);
+            pl.videos.splice(to, 0, item);
+            if (playingVid) playingIndex = pl.videos.indexOf(playingVid);
+            savePlaylists();
+            renderActivePlaylistVideos();
+            updateRepeatStatus();
+            announce(`Moved "${item.title}" to position ${to + 1} of ${n}.`);
+            return true;
+        }
+
+        // Where would the dragged row land? rects = every row's {top,bottom}; returns its final index.
+        function dropIndexFromY(y, rects, fromIndex) {
+            const others = rects.filter((_, i) => i !== fromIndex);
+            for (let i = 0; i < others.length; i++) {
+                if (y < (others[i].top + others[i].bottom) / 2) return i;
+            }
+            return others.length;
+        }
+
+        function clearDropMarks() { getRows().forEach(r => r.classList.remove('drop-before', 'drop-after')); }
+        function updateDropIndicator() {
+            const rows = getRows();
+            drag.to = dropIndexFromY(drag.y, rows.map(r => r.getBoundingClientRect()), drag.from);
+            clearDropMarks();
+            if (drag.to === drag.from) return;
+            const others = rows.filter((_, i) => i !== drag.from);
+            if (drag.to < others.length) others[drag.to].classList.add('drop-before');
+            else others[others.length - 1].classList.add('drop-after');
+        }
+        function scrollParentOf(el) {
+            for (let p = el.parentElement; p; p = p.parentElement) {
+                const oy = getComputedStyle(p).overflowY;
+                if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight) return p;
+            }
+            return document.scrollingElement || document.documentElement;
+        }
+        function autoScrollTick() {
+            if (!drag.active) return;
+            const sc = scrollParentOf(document.getElementById('playlist-videos-container'));
+            const r = sc === document.scrollingElement || sc === document.documentElement ? { top: 0, bottom: window.innerHeight } : sc.getBoundingClientRect();
+            const edge = 70;
+            let dy = 0;
+            if (drag.y < r.top + edge) dy = -Math.ceil((r.top + edge - drag.y) / 5);
+            else if (drag.y > r.bottom - edge) dy = Math.ceil((drag.y - (r.bottom - edge)) / 5);
+            if (dy && sc.scrollBy) { sc.scrollBy(0, Math.max(-24, Math.min(24, dy))); updateDropIndicator(); }
+        }
+        function endDrag() {
+            clearInterval(drag.timer);
+            clearDropMarks();
+            getRows().forEach(r => r.classList.remove('dragging'));
+            document.body.classList.remove('reordering');
+            drag.active = false;
+        }
+        function onDragMove(e) {
+            if (!drag.active || e.pointerId !== drag.pointerId) return;
+            drag.y = e.clientY;
+            updateDropIndicator();
+        }
+        function onDragEnd(e) {
+            if (!drag.active || e.pointerId !== drag.pointerId) return;
+            const { from, to } = drag;
+            endDrag();
+            if (from !== to) moveVideo(from, to);
+        }
+        function onHandleKey(e, vidId) {
+            if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+            const pl = playlists.find(p => p.id === activePlaylistId);
+            if (!pl) return;
+            e.preventDefault();
+            const i = pl.videos.findIndex(v => v.id === vidId);
+            if (moveVideo(i, i + (e.key === 'ArrowUp' ? -1 : 1))) {
+                const h = document.querySelector(`#playlist-videos-container [data-vid="${vidId}"] .drag-handle`);
+                if (h) h.focus();
+            }
+        }
+        function initReorder() {
+            const c = document.getElementById('playlist-videos-container');
+            c.setAttribute('role', 'list');
+            c.addEventListener('pointerdown', (e) => {
+                const h = e.target.closest && e.target.closest('.drag-handle');
+                if (!h || (e.pointerType === 'mouse' && e.button !== 0)) return;
+                const row = h.closest('[data-vid]');
+                if (!row || drag.active) return;
+                drag.active = true; drag.id = row.dataset.vid; drag.from = getRows().indexOf(row); drag.to = drag.from;
+                drag.pointerId = e.pointerId; drag.y = e.clientY;
+                try { h.setPointerCapture(e.pointerId); } catch (err) { /* not supported everywhere */ }
+                row.classList.add('dragging');
+                document.body.classList.add('reordering');
+                drag.timer = setInterval(autoScrollTick, 30);
+                e.preventDefault();
+            });
+            c.addEventListener('pointermove', onDragMove);
+            c.addEventListener('pointerup', onDragEnd);
+            c.addEventListener('pointercancel', () => { if (drag.active) endDrag(); });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drag.active) endDrag(); });
+        }
+
+        // Move to the next playlist item, wrapping if playlist repeat is on
+        function advancePlaylist() {
+            if (!playingPlaylistId) return;
+            const pl = playlists.find(p => p.id === playingPlaylistId);
+            const playNext = (idx) => {
+                playingIndex = idx;
+                const tempActive = activePlaylistId;
+                activePlaylistId = playingPlaylistId;
+                playFromPlaylist(idx, true);
+                activePlaylistId = tempActive;
+            };
+            if (pl && playingIndex + 1 < pl.videos.length) {
+                playNext(playingIndex + 1);
+            } else if (pl && pl.videos.length) {
+                const r = getRepeat(pl);
+                if (r.mode === 'endless' || (r.mode === 'count' && playlistPass <= r.count)) {
+                    playlistPass++;
+                    playNext(0);
+                } else {
+                    playingPlaylistId = null;
+                    playingIndex = -1;
+                }
+            } else {
+                playingPlaylistId = null;
+                playingIndex = -1;
+            }
+            updateRepeatStatus();
+        }
+
+        // A video could not play: say why, flag it, and keep the playlist moving (but never spin forever)
+        function handlePlaybackError(d) {
+            if (d.seq !== undefined && d.seq !== loadSeq) return;
+            const reason = PLAY_ERRORS[d.code] || ('error ' + d.code);
+            problemByVideo[d.videoId] = reason;
+            const pl = playingPlaylistId && playlists.find(p => p.id === playingPlaylistId);
+            if (!pl) {
+                showNotice(`\u26a0 Could not play ${d.videoId}: ${reason}.`);
+            } else {
+                const vid = pl.videos[playingIndex];
+                consecutiveErrors++;
+                if (consecutiveErrors >= pl.videos.length) {
+                    playingPlaylistId = null; playingIndex = -1;
+                    showNotice(`\u26a0 Stopped: none of the videos in "${pl.name}" could be played (last problem: ${reason}).`);
+                } else {
+                    showNotice(`\u26a0 Skipped "${vid ? vid.title : d.videoId}": ${reason}.`);
+                    advancePlaylist();
+                }
+            }
+            renderActivePlaylistVideos();
+            updateRepeatStatus();
+        }
+
+        // Dashboard listening for projector events
+        if (!isProjector) {
+            presenterChannel.onmessage = (event) => {
+                if (event.data.action === 'status') { renderStatus(event.data); return; }
+                if (event.data.action === 'hotkey') { handleHotkey(event.data); return; }
+                if (event.data.action === 'projectorClosed') { markProjectorGone(); showNotice('Projector window closed.'); return; }
+                if (event.data.action === 'closeFailed') {
+                    showNotice("The projector window couldn't close itself (browsers only allow that for windows a page opened). Close it with its \u00d7 button or Ctrl+W.");
+                    return;
+                }
+                if (event.data.action === 'projectorReady') {
+                    presenterChannel.postMessage({ action: isMuted ? 'mute' : 'unmute' });
+                }
+                if (event.data.action === 'playbackEnded') {
+                    if (event.data.seq !== undefined && event.data.seq !== loadSeq) return; // stale or duplicate
+                    advancePlaylist();
+                }
+                if (event.data.action === 'playbackStarted') {
+                    if (event.data.seq !== undefined && event.data.seq !== loadSeq) return;
+                    consecutiveErrors = 0;
+                    if (problemByVideo[event.data.videoId]) { delete problemByVideo[event.data.videoId]; renderActivePlaylistVideos(); }
+                }
+                if (event.data.action === 'playbackError') handlePlaybackError(event.data);
+            };
+        }
+
+        // ---------- Reliable end-of-video / error handling (projector) ----------
+        // Tunables (seconds); tests shorten them.
+        let STALL_RETRY_S = 8, STALL_FAIL_S = 18;
+        let watching = false;          // true from a load until the video finishes, errors or is stopped
+        let playedSinceLoad = false;   // has THIS load actually reached PLAYING?
+        let finishedGuard = false;     // makes "finished" fire once per play
+        let startedReported = false;
+        let endTicks = 0, lastT = 0, stallSeconds = 0, stallRetried = false, ignoreWrapUntil = 0;
+
+        function beginPlayAttempt() {
+            playedSinceLoad = false; finishedGuard = false; endTicks = 0; lastT = 0;
+            stallSeconds = 0; stallRetried = false; watching = true;
+        }
+        function loadConfigFromContext() {
+            const c = currentVideoContext;
+            const cfg = { videoId: c.videoId, startSeconds: c.startSeconds || 0 };
+            if (c.endSeconds) cfg.endSeconds = c.endSeconds;
+            return cfg;
+        }
+        // One place decides what "the video is done" means: restart it (loops) or tell the dashboard.
+        function handleVideoFinished() {
+            if (finishedGuard || !watching) return;
+            finishedGuard = true;
+            const ctx = currentVideoContext;
+            if (ctx.loop && ctx.videoId && ctx.repeatsLeft !== 0) {
+                if (ctx.repeatsLeft > 0) ctx.repeatsLeft--; // finite loops count down; endless stays null
+                beginPlayAttempt();
+                projectorPlayer.loadVideoById(loadConfigFromContext());
+                applyMutes();
+            } else {
+                watching = false;
+                stopSoundtrack();
+                document.getElementById('projector-waiting').style.opacity = '1';
+                presenterChannel.postMessage({ action: 'playbackEnded', seq: ctx.seq, videoId: ctx.videoId });
+            }
+        }
+        function reportPlaybackError(code) {
+            if (!watching) return;
+            watching = false;
+            stopSoundtrack();
+            document.getElementById('projector-waiting').style.opacity = '1';
+            presenterChannel.postMessage({ action: 'playbackError', seq: currentVideoContext.seq, videoId: currentVideoContext.videoId, code: code });
+        }
+        function onProjectorError(e) { reportPlaybackError(e && e.data); }
+
+        function onProjectorStateChange(event) {
+            const waitingScreen = document.getElementById('projector-waiting');
+            if (event.data === YT.PlayerState.PLAYING) {
+                waitingScreen.style.opacity = '0';
+                playedSinceLoad = true;
+                if (!startedReported && watching) {
+                    startedReported = true;
+                    presenterChannel.postMessage({ action: 'playbackStarted', seq: currentVideoContext.seq, videoId: currentVideoContext.videoId });
+                }
+            } else if (event.data === YT.PlayerState.BUFFERING) {
+                waitingScreen.style.opacity = '0';
+            } else if (event.data === YT.PlayerState.UNSTARTED && !projectorPlayer.getVideoUrl()) {
+                waitingScreen.style.opacity = '1';
+            } else if (event.data === YT.PlayerState.ENDED) {
+                // An ENDED that arrives before this load ever played is a leftover from the previous
+                // video (some players, e.g. Shorts, emit one). Acting on it would skip the new video.
+                if (!playedSinceLoad) return;
+                handleVideoFinished();
+            }
+        }
+
+        function setupProjectorMessageListener() {
+            const waitingScreen = document.getElementById('projector-waiting');
+
+            presenterChannel.postMessage({ action: 'projectorReady' });
+            // tell the dashboard right away when this window goes away (X button, Ctrl+W, or a close command)
+            window.addEventListener('pagehide', () => { try { presenterChannel.postMessage({ action: 'projectorClosed' }); } catch (e) { /* ignore */ } });
+            const sendStatus = () => {
+                try {
+                    const p = projectorPlayer, vd = p.getVideoData ? p.getVideoData() : null;
+                    presenterChannel.postMessage({
+                        action: 'status', state: p.getPlayerState(), time: p.getCurrentTime() || 0, duration: p.getDuration() || 0,
+                        volume: p.getVolume ? p.getVolume() : 100, muted: projectorMuted, rate: p.getPlaybackRate ? p.getPlaybackRate() : 1,
+                        title: vd && vd.title || '', videoId: currentVideoContext.videoId || '',
+                        startSeconds: currentVideoContext.startSeconds || 0, endSeconds: currentVideoContext.endSeconds || 0,
+                        loop: !!currentVideoContext.loop,
+                        repeatsLeft: currentVideoContext.loop ? (currentVideoContext.repeatsLeft === undefined ? null : currentVideoContext.repeatsLeft) : null,
+                        soundtrack: soundtrackActive && !!currentVideoContext.soundtrack, soundtrackVolume: soundtrackVolume
+                    });
+                } catch (e) { }
+            };
+            setInterval(sendStatus, 500);
+
+            // Watchdog: don't depend on the player emitting ENDED (Shorts can loop or skip it) and
+            // don't hang forever on a video that never starts.
+            setInterval(() => {
+                if (!watching) return;
+                try {
+                    const p = projectorPlayer, st = p.getPlayerState(), ctx = currentVideoContext;
+                    if (playedSinceLoad) {
+                        if (st !== 1) { endTicks = 0; lastT = p.getCurrentTime() || 0; return; }
+                        const t = p.getCurrentTime() || 0, dur = p.getDuration() || 0, hi = ctx.endSeconds || dur;
+                        if (hi > 0 && t >= hi - 0.25) { if (++endTicks >= 3) handleVideoFinished(); }
+                        else {
+                            endTicks = 0;
+                            // time jumped from the end back to the start by itself = the player looped without ENDED
+                            if (Date.now() > ignoreWrapUntil && hi > 3 && lastT >= hi - 1.5 && t < lastT - 1 && t <= (ctx.startSeconds || 0) + 2) handleVideoFinished();
+                        }
+                        lastT = t;
+                    } else {
+                        stallSeconds += 0.3;
+                        if (stallSeconds >= STALL_FAIL_S) reportPlaybackError('timeout');
+                        else if (stallSeconds >= STALL_RETRY_S && !stallRetried) { stallRetried = true; p.loadVideoById(loadConfigFromContext()); applyMutes(); }
+                    }
+                } catch (e) { /* player not ready */ }
+            }, 300);
+            presenterChannel.onmessage = (event) => {
+                const data = event.data;
+                if (data.action === 'closeProjector') {
+                    watching = false;
+                    try { projectorPlayer.stopVideo(); } catch (e) { /* player may not be ready */ }
+                    try { stopSoundtrack(); } catch (e) { /* ignore */ }
+                    presenterChannel.postMessage({ action: 'projectorClosed' });
+                    window.close();
+                    // still here half a second later = the browser refused
+                    setTimeout(() => {
+                        document.getElementById('projector-close-fallback').classList.remove('hidden');
+                        presenterChannel.postMessage({ action: 'closeFailed' });
+                    }, 500);
+                    return;
+                }
+                if (!projectorPlayer || typeof projectorPlayer.loadVideoById !== 'function') return; 
+
+                try {
+                    switch (data.action) {
+                        case 'load':
+                            document.getElementById('projector-close-fallback').classList.add('hidden');
+                            waitingScreen.style.opacity = '0';
+                            currentVideoContext = { videoId: data.videoId, seq: data.seq, loop: data.loop || false, startSeconds: data.startSeconds || 0, endSeconds: data.endSeconds || 0, soundtrack: data.soundtrack || null, muteOriginal: !!data.muteOriginal, repeatsLeft: (data.loop && data.loopCount) ? data.loopCount : null };
+                            let loadConfig = { videoId: data.videoId };
+                            if (data.startSeconds) loadConfig.startSeconds = data.startSeconds;
+                            if (data.endSeconds) loadConfig.endSeconds = data.endSeconds;
+                            beginPlayAttempt();
+                            startedReported = false;
+                            projectorPlayer.loadVideoById(loadConfig);
+                            startSoundtrack();
+                            applyMutes();
+                            break;
+                        case 'mute': projectorMuted = true; applyMutes(); break;
+                        case 'unmute': projectorMuted = false; applyMutes(); break;
+                        case 'soundtrackVolume': soundtrackVolume = Math.min(100, Math.max(0, +data.value || 0)); if (audioReady) audioPlayer.setVolume(soundtrackVolume); break;
+                        case 'seek': {
+                            ignoreWrapUntil = Date.now() + 1500;
+                            const lo = currentVideoContext.startSeconds || 0;
+                            const hi = currentVideoContext.endSeconds || projectorPlayer.getDuration() || Infinity;
+                            projectorPlayer.seekTo(Math.min(Math.max(+data.time || 0, lo), hi), true);
+                            break;
+                        }
+                        case 'volume': projectorPlayer.setVolume(Math.min(100, Math.max(0, +data.value || 0))); break;
+                        case 'rate': projectorPlayer.setPlaybackRate(+data.value || 1); break;
+                        case 'play': projectorPlayer.playVideo(); if (soundtrackActive && audioReady) audioPlayer.playVideo(); break;
+                        case 'pause': projectorPlayer.pauseVideo(); if (soundtrackActive && audioReady) audioPlayer.pauseVideo(); break;
+                        case 'stop': 
+                            watching = false;
+                            projectorPlayer.stopVideo(); 
+                            stopSoundtrack();
+                            waitingScreen.style.opacity = '1'; 
+                            break;
+                        case 'rewind':
+                        case 'forward': {
+                            ignoreWrapUntil = Date.now() + 1500;
+                            const step = Math.min(600, Math.max(1, +data.seconds || 10)) * (data.action === 'rewind' ? -1 : 1);
+                            const lo = currentVideoContext.startSeconds || 0;
+                            const hi = currentVideoContext.endSeconds || projectorPlayer.getDuration() || Infinity;
+                            projectorPlayer.seekTo(Math.min(hi, Math.max(lo, projectorPlayer.getCurrentTime() + step)), true);
+                            break;
+                        }
+                    }
+                } catch (e) { console.error("YouTube Player Error:", e); }
+            };
+        }
+    </script>
+</body>
+</html>
