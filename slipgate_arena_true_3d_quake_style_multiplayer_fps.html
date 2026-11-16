@@ -33,6 +33,7 @@
       padding: 0;
       width: 100%;
       height: 100%;
+      height: 100dvh;
       overflow: hidden;
       overscroll-behavior: none;
       touch-action: none;
@@ -190,77 +191,76 @@
   <div id="hudLayer" class="hidden fixed inset-0 z-20 pointer-events-none">
 
     <!-- TOP BAR: 3D RADAR + MATCH STATUS + KILL FEED -->
-    <div class="flex items-start justify-between p-2.5 sm:p-4 gap-2 sm:gap-3">
+    <div class="flex items-start justify-between p-2 sm:p-3 gap-2">
       <!-- TOP-LEFT: 3D ELEVATION RADAR / MINIMAP -->
-      <div class="flex flex-col items-start gap-1.5">
-        <div id="minimapWrapper" title="Tap to resize Radar" class="pointer-events-auto cursor-pointer relative rounded-xl overflow-hidden border-2 border-zinc-700/90 bg-zinc-950/85 shadow-xl transition-all">
-          <canvas id="minimapCanvas" width="144" height="144" class="block w-24 h-24 sm:w-36 sm:h-36 transition-all"></canvas>
-          <div id="minimapLabel" class="absolute bottom-1 left-1.5 text-[9px] sm:text-[10px] font-mono-tech text-amber-400/90 font-bold tracking-wider">
-            3D RADAR
+      <div class="flex flex-col items-start gap-1">
+        <div id="minimapWrapper" title="Tap to resize Radar" class="pointer-events-auto cursor-pointer relative rounded-xl overflow-hidden border border-zinc-700/90 bg-zinc-950/80 shadow-xl transition-all">
+          <canvas id="minimapCanvas" width="144" height="144" class="block w-20 h-20 sm:w-24 sm:h-24 lg:w-36 lg:h-36 transition-all"></canvas>
+          <div id="minimapLabel" class="absolute bottom-0.5 left-1 text-[8px] sm:text-[9px] font-mono-tech text-amber-400/90 font-bold tracking-wider">
+            RADAR
           </div>
-          <div id="hudElevationBadge" class="absolute top-1 right-1.5 px-1.5 py-0.2 rounded bg-zinc-900/90 border border-cyan-500/50 text-[9px] font-mono-tech text-cyan-300 font-bold">
+          <div id="hudElevationBadge" class="absolute top-0.5 right-1 px-1 rounded bg-zinc-900/90 border border-cyan-500/50 text-[8px] sm:text-[9px] font-mono-tech text-cyan-300 font-bold">
             LVL 1
           </div>
         </div>
 
         <!-- ONLINE ROOM BADGE IN HUD -->
-        <div id="hudRoomPill" class="hidden pointer-events-auto flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900/90 border border-amber-500/50 text-[11px] sm:text-xs font-mono-tech shadow-lg">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span class="text-zinc-400 hidden sm:inline">ROOM:</span>
+        <div id="hudRoomPill" class="hidden pointer-events-auto flex items-center gap-1 px-2 py-0.5 rounded-lg bg-zinc-900/90 border border-amber-500/50 text-[10px] sm:text-xs font-mono-tech shadow-lg">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
           <span id="hudRoomCodeText" class="text-amber-400 font-extrabold">SLIP-0000</span>
-          <button id="hudCopyRoomBtn" type="button" class="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 text-[10px] font-bold transition">
+          <button id="hudCopyRoomBtn" type="button" class="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 text-[9px] font-bold transition">
             COPY
           </button>
         </div>
       </div>
 
-      <!-- TOP-CENTER: FRAG TRACKER & 3D CONTROLS HINT -->
+      <!-- TOP-CENTER: FRAG TRACKER & DESKTOP-ONLY 3D CONTROLS HINT -->
       <div class="flex flex-col items-center gap-1">
-        <div class="flex items-center gap-2.5 sm:gap-5 px-3 sm:px-4 py-1.5 rounded-xl bg-zinc-950/85 border border-zinc-700/80 shadow-xl backdrop-blur-sm">
+        <div class="flex items-center gap-2 sm:gap-4 px-2.5 sm:px-4 py-1 rounded-xl bg-zinc-950/80 border border-zinc-700/80 shadow-xl backdrop-blur-sm">
           <div class="text-center">
-            <div class="text-[9px] sm:text-[10px] font-mono-tech text-zinc-400 uppercase">Limit</div>
-            <div id="hudFragLimit" class="text-sm sm:text-lg font-mono-tech font-extrabold text-amber-400">15</div>
+            <div class="text-[8px] sm:text-[10px] font-mono-tech text-zinc-400 uppercase">Limit</div>
+            <div id="hudFragLimit" class="text-xs sm:text-base font-mono-tech font-extrabold text-amber-400">15</div>
           </div>
-          <div class="h-6 w-px bg-zinc-700"></div>
+          <div class="h-5 w-px bg-zinc-700"></div>
           <div id="hudScoreSummary" class="text-center">
-            <div class="text-[9px] sm:text-[10px] font-mono-tech text-zinc-400 uppercase">Frags</div>
-            <div id="hudMyFrags" class="text-sm sm:text-lg font-mono-tech font-extrabold text-white">0</div>
+            <div class="text-[8px] sm:text-[10px] font-mono-tech text-zinc-400 uppercase">Frags</div>
+            <div id="hudMyFrags" class="text-xs sm:text-base font-mono-tech font-extrabold text-white">0</div>
           </div>
-          <div class="h-6 w-px bg-zinc-700"></div>
+          <div class="h-5 w-px bg-zinc-700"></div>
           <div class="text-center">
-            <div class="text-[9px] sm:text-[10px] font-mono-tech text-zinc-400 uppercase">Leader</div>
-            <div id="hudLeaderInfo" class="text-[11px] sm:text-sm font-mono-tech font-bold text-emerald-400 truncate max-w-[85px] sm:max-w-[120px]">—</div>
+            <div class="text-[8px] sm:text-[10px] font-mono-tech text-zinc-400 uppercase">Leader</div>
+            <div id="hudLeaderInfo" class="text-[10px] sm:text-xs font-mono-tech font-bold text-emerald-400 truncate max-w-[76px] sm:max-w-[120px]">—</div>
           </div>
         </div>
 
         <!-- QUAD DAMAGE ACTIVE BANNER -->
-        <div id="hudQuadBanner" class="hidden px-3 py-0.5 rounded-full bg-purple-950/90 border border-purple-400 text-purple-200 font-mono-tech text-[11px] sm:text-xs font-extrabold tracking-wider glow-purple animate-pulse">
-          QUAD DAMAGE 4X — <span id="hudQuadTimer">15.0</span>s
+        <div id="hudQuadBanner" class="hidden px-2.5 py-0.5 rounded-full bg-purple-950/90 border border-purple-400 text-purple-200 font-mono-tech text-[10px] sm:text-xs font-extrabold tracking-wider glow-purple animate-pulse">
+          QUAD 4X — <span id="hudQuadTimer">15.0</span>s
         </div>
 
-        <!-- DESKTOP POINTER LOCK / 3D LOOK HINT -->
-        <div id="hudPointerHint" class="hidden md:block px-3 py-1 rounded-lg bg-zinc-900/85 border border-amber-500/40 text-[11px] font-mono-tech text-amber-200/90 text-center">
+        <!-- DESKTOP POINTER LOCK / 3D LOOK HINT (HIDDEN ON TOUCH DEVICES) -->
+        <div id="hudPointerHint" class="hidden lg:block px-3 py-1 rounded-lg bg-zinc-900/85 border border-amber-500/40 text-[11px] font-mono-tech text-amber-200/90 text-center">
           Click screen for 3D Mouse Look • WASD Move • Arrows Look Up/Down/Left/Right • Space Jump • Shift Dash
         </div>
       </div>
 
-      <!-- TOP-RIGHT: KILL FEED & QUICK CONTROLS -->
-      <div class="flex flex-col items-end gap-1.5">
-        <div class="pointer-events-auto flex items-center gap-1 sm:gap-1.5">
-          <button id="hudScoresBtn" type="button" title="Scoreboard (Tab)" class="px-2 sm:px-2.5 py-1.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700 text-[11px] sm:text-xs font-mono-tech text-amber-300 font-bold shadow">
+      <!-- TOP-RIGHT: COMPACT UTILITY BAR & KILL FEED -->
+      <div class="flex flex-col items-end gap-1">
+        <div class="pointer-events-auto flex items-center gap-1">
+          <button id="hudScoresBtn" type="button" title="Scoreboard (Tab)" class="px-2 py-1.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700 text-[10px] sm:text-xs font-mono-tech text-amber-300 font-bold shadow">
             SCORES
           </button>
-          <button id="hudFullscreenBtn" type="button" title="Toggle Fullscreen" class="px-2 sm:px-2.5 py-1.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700 text-[11px] sm:text-xs font-mono-tech text-zinc-200 font-bold shadow">
-            ⛶
+          <button id="hudFullscreenBtn" type="button" title="Toggle Fullscreen" class="px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/70 text-[10px] sm:text-xs font-mono-tech text-amber-300 font-extrabold shadow">
+            ⛶ FULL
           </button>
-          <button id="hudMuteBtn" type="button" title="Toggle Sound (M)" class="hidden sm:inline-block px-2.5 py-1.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700 text-xs font-mono-tech text-zinc-200 font-bold shadow">
+          <button id="hudMuteBtn" type="button" title="Toggle Sound (M)" class="hidden lg:inline-block px-2.5 py-1.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700 text-xs font-mono-tech text-zinc-200 font-bold shadow">
             SFX: ON
           </button>
-          <button id="hudMenuBtn" type="button" title="Pause & Settings (ESC)" class="px-2.5 py-1.5 rounded-lg bg-zinc-900/90 hover:bg-red-950/80 border border-amber-500/50 hover:border-red-500/60 text-[11px] sm:text-xs font-mono-tech text-white font-bold shadow">
+          <button id="hudMenuBtn" type="button" title="Pause & Settings (ESC)" class="px-2 py-1.5 rounded-lg bg-zinc-900/90 hover:bg-red-950/80 border border-zinc-700 hover:border-red-500/60 text-[10px] sm:text-xs font-mono-tech text-white font-bold shadow">
             PAUSE
           </button>
         </div>
-        <div id="killFeedContainer" class="flex flex-col items-end gap-1 max-w-[210px] sm:max-w-xs"></div>
+        <div id="killFeedContainer" class="flex flex-col items-end gap-0.5 max-w-[175px] sm:max-w-[230px]"></div>
       </div>
     </div>
 
@@ -271,88 +271,92 @@
     </div>
 
     <!-- =================================================================== -->
-    <!-- VIRTUAL MULTI-TOUCH CONTROLS LAYER (PHONES & TABLETS)               -->
+    <!-- VIRTUAL MULTI-TOUCH CONTROLS LAYER (NON-OVERLAPPING MOBILE LAYOUT)  -->
     <!-- =================================================================== -->
     <div id="touchControlsLayer" class="hidden fixed inset-0 z-25 pointer-events-none">
-      <!-- LEFT VIRTUAL ANALOG THUMBSTICK -->
+      <!-- LEFT VIRTUAL ANALOG THUMBSTICK (SITS ABOVE COMPACT BOTTOM VITALS) -->
       <div id="virtualJoystickBase"
-           class="fixed left-6 bottom-24 w-28 h-28 rounded-full border-2 border-amber-400/45 bg-zinc-950/35 backdrop-blur-[1px] shadow-[0_0_24px_rgba(245,158,11,0.2)] flex items-center justify-center transition-opacity duration-150 opacity-55">
-        <div class="w-16 h-16 rounded-full border border-amber-500/25"></div>
+           style="left: 20px; bottom: 72px;"
+           class="fixed w-24 h-24 rounded-full border-2 border-amber-400/45 bg-zinc-950/35 backdrop-blur-[1px] shadow-[0_0_20px_rgba(245,158,11,0.2)] flex items-center justify-center transition-opacity duration-150 opacity-60">
+        <div class="w-14 h-14 rounded-full border border-amber-500/25"></div>
         <div id="virtualJoystickNub"
-             class="w-11 h-11 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 border-2 border-amber-100 shadow-[0_0_16px_rgba(245,158,11,0.75)]"></div>
+             class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 border-2 border-amber-100 shadow-[0_0_14px_rgba(245,158,11,0.75)]"></div>
       </div>
 
-      <!-- RIGHT TOUCH-DRAG 3D LOOK HINT -->
-      <div id="touchAimHint" class="fixed right-6 top-1/2 -translate-y-1/2 text-[10px] font-mono-tech text-zinc-400/50 uppercase tracking-widest pointer-events-none">
-        DRAG TO LOOK 3D
-      </div>
+      <!-- BOTTOM-RIGHT L-ARC ACTION CLUSTER (KEEPS TOP-RIGHT & CENTER CLEAR) -->
+      <div class="fixed right-3 bottom-3 pointer-events-none">
+        <!-- JUMP BUTTON (TO LEFT OF FIRE) -->
+        <button id="touchJumpBtn" type="button"
+                style="right: 96px; bottom: 6px;"
+                class="touch-action-btn fixed pointer-events-auto w-14 h-14 rounded-full bg-zinc-900/85 border-2 border-cyan-400/80 text-cyan-300 font-mono-tech text-[10px] font-extrabold tracking-wider shadow-[0_0_16px_rgba(6,182,212,0.35)] flex flex-col items-center justify-center">
+          <span class="text-xs leading-none">▲</span>
+          <span class="mt-0.5">JUMP</span>
+        </button>
 
-      <!-- RIGHT ERGONOMIC ACTION CLUSTER: FIRE, JUMP, NEXT WPN -->
-      <div class="fixed right-4 bottom-20 sm:right-7 sm:bottom-24 flex flex-col items-end gap-3 pointer-events-none">
-        <div class="flex items-center gap-2.5 pointer-events-auto">
-          <button id="touchJumpBtn" type="button"
-                  class="touch-action-btn w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-zinc-900/85 border-2 border-cyan-400/80 text-cyan-300 font-mono-tech text-xs font-extrabold tracking-wider shadow-[0_0_18px_rgba(6,182,212,0.35)] flex flex-col items-center justify-center">
-            <span class="text-sm leading-none">▲</span>
-            <span class="mt-0.5">JUMP</span>
-          </button>
+        <!-- NEXT WEAPON BUTTON (ABOVE-LEFT ARC OF FIRE) -->
+        <button id="touchNextWpnBtn" type="button"
+                style="right: 78px; bottom: 68px;"
+                class="touch-action-btn fixed pointer-events-auto w-13 h-13 w-[52px] h-[52px] rounded-full bg-zinc-900/85 border-2 border-amber-400/80 text-amber-300 font-mono-tech text-[10px] font-extrabold tracking-wider shadow-[0_0_16px_rgba(245,158,11,0.3)] flex flex-col items-center justify-center">
+          <span class="text-xs leading-none">⇄</span>
+          <span class="mt-0.5">WPN</span>
+        </button>
 
-          <button id="touchNextWpnBtn" type="button"
-                  class="touch-action-btn w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-zinc-900/85 border-2 border-amber-400/80 text-amber-300 font-mono-tech text-[11px] font-extrabold tracking-wider shadow-[0_0_18px_rgba(245,158,11,0.3)] flex flex-col items-center justify-center">
-            <span class="text-sm leading-none">⇄</span>
-            <span class="mt-0.5">WPN</span>
-          </button>
-        </div>
-
+        <!-- PRIMARY FIRE TRIGGER (BOTTOM-RIGHT CORNER) -->
         <button id="touchFireBtn" type="button"
-                class="touch-action-btn pointer-events-auto w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-red-600/90 to-amber-600/90 border-4 border-amber-300 text-white font-extrabold text-base sm:text-lg tracking-widest shadow-[0_0_30px_rgba(239,68,68,0.65)] flex flex-col items-center justify-center">
-          <span class="text-xl leading-none">⌖</span>
-          <span class="mt-1">FIRE</span>
+                class="touch-action-btn pointer-events-auto w-20 h-20 sm:w-22 sm:h-22 rounded-full bg-gradient-to-br from-red-600/90 to-amber-600/90 border-[3px] border-amber-300 text-white font-extrabold text-sm tracking-widest shadow-[0_0_24px_rgba(239,68,68,0.65)] flex flex-col items-center justify-center">
+          <span class="text-lg leading-none">⌖</span>
+          <span class="mt-0.5">FIRE</span>
         </button>
       </div>
     </div>
 
-    <!-- SINGLE PLAYER BOTTOM HUD -->
-    <div id="singlePlayerBottomHud" class="fixed bottom-0 inset-x-0 p-2 sm:p-4 flex flex-wrap items-end justify-between gap-2 pointer-events-none">
-      <!-- HEALTH & ARMOR -->
-      <div class="flex items-center gap-2 sm:gap-3 bg-zinc-950/88 border border-zinc-700/80 px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl shadow-2xl backdrop-blur-sm">
+    <!-- SINGLE PLAYER BOTTOM HUD (SLIM SINGLE-ROW BAR ON MOBILE) -->
+    <div id="singlePlayerBottomHud" class="fixed bottom-0 inset-x-0 p-2 sm:p-3 flex items-end justify-between gap-2 pointer-events-none">
+      <!-- UNIFIED COMPACT HEALTH, ARMOR & ACTIVE AMMO PILL -->
+      <div class="flex items-center gap-2 sm:gap-3 bg-zinc-950/88 border border-zinc-700/80 px-2.5 sm:px-3.5 py-1.5 rounded-xl shadow-2xl backdrop-blur-sm">
         <div>
-          <div class="flex items-center gap-1 text-[10px] sm:text-[11px] font-mono-tech text-zinc-400">
+          <div class="flex items-center gap-1 text-[9px] sm:text-[10px] font-mono-tech text-zinc-400 leading-none">
             <span class="text-red-500 font-bold">+</span> HP
           </div>
-          <div id="hudHealthVal" class="hud-stat-clamp font-mono-tech font-extrabold text-white mt-0.5">100</div>
-          <div class="w-16 sm:w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-1">
+          <div id="hudHealthVal" class="text-base sm:text-xl font-mono-tech font-extrabold text-white leading-tight">100</div>
+          <div class="w-11 sm:w-16 h-1 bg-zinc-800 rounded-full overflow-hidden">
             <div id="hudHealthBar" class="h-full bg-red-500 transition-all duration-100" style="width: 100%"></div>
           </div>
         </div>
-        <div class="h-8 sm:h-10 w-px bg-zinc-800"></div>
+        <div class="h-7 w-px bg-zinc-800"></div>
         <div>
-          <div class="flex items-center gap-1 text-[10px] sm:text-[11px] font-mono-tech text-zinc-400">
+          <div class="flex items-center gap-1 text-[9px] sm:text-[10px] font-mono-tech text-zinc-400 leading-none">
             <span class="text-emerald-400 font-bold">◈</span> AP
           </div>
-          <div id="hudArmorVal" class="hud-stat-clamp font-mono-tech font-extrabold text-emerald-400 mt-0.5">25</div>
-          <div class="w-16 sm:w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-1">
+          <div id="hudArmorVal" class="text-base sm:text-xl font-mono-tech font-extrabold text-emerald-400 leading-tight">25</div>
+          <div class="w-11 sm:w-16 h-1 bg-zinc-800 rounded-full overflow-hidden">
             <div id="hudArmorBar" class="h-full bg-emerald-400 transition-all duration-100" style="width: 25%"></div>
           </div>
         </div>
+        <div class="h-7 w-px bg-zinc-800"></div>
+        <div class="text-right">
+          <div id="hudWeaponName" class="text-[9px] sm:text-[10px] font-mono-tech text-amber-400 font-bold uppercase leading-none">NAILGUN</div>
+          <div id="hudAmmoVal" class="text-base sm:text-xl font-mono-tech font-extrabold text-white leading-tight">INF</div>
+        </div>
       </div>
 
-      <!-- TAPPABLE WEAPON RACK + DASH METER -->
-      <div class="flex flex-col items-center gap-1 pointer-events-auto">
-        <div class="flex items-center gap-1 sm:gap-1.5 bg-zinc-950/90 border border-zinc-700/80 p-1 sm:p-1.5 rounded-xl shadow-xl">
-          <button type="button" id="weapSlot0" class="px-2 sm:px-2.5 py-1.5 rounded-lg border border-amber-500 bg-amber-500/20 text-amber-300 font-mono-tech text-[11px] sm:text-xs font-bold cursor-pointer">
-            <span class="hidden sm:inline">[1] </span>NAIL <span class="text-zinc-400">∞</span>
+      <!-- COMPACT TAPPABLE WEAPON RACK (CENTERED ON MOBILE, CLEAR OF FIRE BUTTON) -->
+      <div class="flex flex-col items-center gap-1 pointer-events-auto mr-24 sm:mr-28 lg:mr-0">
+        <div class="flex items-center gap-1 bg-zinc-950/88 border border-zinc-700/80 p-1 rounded-xl shadow-xl">
+          <button type="button" id="weapSlot0" class="px-1.5 sm:px-2.5 py-1 rounded-lg border border-amber-500 bg-amber-500/20 text-amber-300 font-mono-tech text-[10px] sm:text-xs font-bold cursor-pointer">
+            <span class="hidden lg:inline">[1] </span>NAIL <span class="text-zinc-400">∞</span>
           </button>
-          <button type="button" id="weapSlot1" class="px-2 sm:px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/70 text-zinc-400 font-mono-tech text-[11px] sm:text-xs font-bold cursor-pointer">
-            <span class="hidden sm:inline">[2] </span>SSG <span id="slotAmmo1" class="text-zinc-300">20</span>
+          <button type="button" id="weapSlot1" class="px-1.5 sm:px-2.5 py-1 rounded-lg border border-zinc-800 bg-zinc-900/70 text-zinc-400 font-mono-tech text-[10px] sm:text-xs font-bold cursor-pointer">
+            <span class="hidden lg:inline">[2] </span>SSG <span id="slotAmmo1" class="text-zinc-300">20</span>
           </button>
-          <button type="button" id="weapSlot2" class="px-2 sm:px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/70 text-zinc-400 font-mono-tech text-[11px] sm:text-xs font-bold cursor-pointer">
-            <span class="hidden sm:inline">[3] </span>RCKT <span id="slotAmmo2" class="text-zinc-300">10</span>
+          <button type="button" id="weapSlot2" class="px-1.5 sm:px-2.5 py-1 rounded-lg border border-zinc-800 bg-zinc-900/70 text-zinc-400 font-mono-tech text-[10px] sm:text-xs font-bold cursor-pointer">
+            <span class="hidden lg:inline">[3] </span>RCKT <span id="slotAmmo2" class="text-zinc-300">10</span>
           </button>
-          <button type="button" id="weapSlot3" class="px-2 sm:px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/70 text-zinc-400 font-mono-tech text-[11px] sm:text-xs font-bold cursor-pointer">
-            <span class="hidden sm:inline">[4] </span>RAIL <span id="slotAmmo3" class="text-zinc-300">8</span>
+          <button type="button" id="weapSlot3" class="px-1.5 sm:px-2.5 py-1 rounded-lg border border-zinc-800 bg-zinc-900/70 text-zinc-400 font-mono-tech text-[10px] sm:text-xs font-bold cursor-pointer">
+            <span class="hidden lg:inline">[4] </span>RAIL <span id="slotAmmo3" class="text-zinc-300">8</span>
           </button>
         </div>
-        <div class="hidden sm:flex items-center gap-2 text-[10px] font-mono-tech text-zinc-400">
+        <div class="hidden lg:flex items-center gap-2 text-[10px] font-mono-tech text-zinc-400">
           <span>DASH [SHIFT]</span>
           <div class="w-28 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
             <div id="hudDashBar" class="h-full bg-amber-400 transition-all duration-75" style="width: 100%"></div>
@@ -360,11 +364,8 @@
         </div>
       </div>
 
-      <!-- CURRENT WEAPON AMMO READOUT -->
-      <div class="bg-zinc-950/88 border border-zinc-700/80 px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl shadow-2xl backdrop-blur-sm text-right min-w-[96px] sm:min-w-[130px]">
-        <div id="hudWeaponName" class="text-[10px] sm:text-[11px] font-mono-tech text-amber-400 font-bold uppercase tracking-wider">NAILGUN</div>
-        <div id="hudAmmoVal" class="hud-stat-clamp font-mono-tech font-extrabold text-white mt-0.5">INF</div>
-      </div>
+      <!-- DESKTOP RIGHT SPACER FOR BALANCED FLEX LAYOUT -->
+      <div class="hidden lg:block w-24"></div>
     </div>
 
     <!-- SPLIT SCREEN OVERLAY LABELS -->
@@ -1828,8 +1829,20 @@
 
     function updateTouchControlsVisibility() {
       const layer = document.getElementById("touchControlsLayer");
+      const pointerHint = document.getElementById("hudPointerHint");
+      const touchEnabled = getTouchControlsEnabled();
+
+      if (pointerHint) {
+        if (touchEnabled || isTouchDevice()) {
+          pointerHint.classList.add("hidden");
+          pointerHint.classList.remove("lg:block");
+        } else {
+          pointerHint.classList.add("lg:block");
+        }
+      }
+
       if (!layer) return;
-      const active = state.screen === "playing" && !state.paused && getTouchControlsEnabled();
+      const active = state.screen === "playing" && !state.paused && touchEnabled;
       if (active) {
         layer.classList.remove("hidden");
       } else {
@@ -1851,10 +1864,10 @@
       const base = document.getElementById("virtualJoystickBase");
       const nub = document.getElementById("virtualJoystickNub");
       if (base && nub) {
-        base.style.left = "24px";
-        base.style.bottom = "96px";
+        base.style.left = "20px";
+        base.style.bottom = "72px";
         base.style.top = "auto";
-        base.style.opacity = "0.55";
+        base.style.opacity = "0.6";
         nub.style.transform = "translate(0px, 0px)";
       }
     }
@@ -1870,15 +1883,61 @@
       }
     }
 
-    function toggleFullscreen() {
-      try {
-        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-          document.documentElement.requestFullscreen().catch(() => {});
-        } else if (document.fullscreenElement && document.exitFullscreen) {
-          document.exitFullscreen().catch(() => {});
-        }
-      } catch (e) {}
+    function isFullscreenActive() {
+      return Boolean(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.msFullscreenElement
+      );
     }
+
+    function syncFullscreenButtonUI() {
+      const active = isFullscreenActive();
+      const hudBtn = document.getElementById("hudFullscreenBtn");
+      const lobbyBtn = document.getElementById("lobbyFullscreenBtn");
+      const pauseBtn = document.getElementById("pauseFullscreenBtn");
+      if (hudBtn) hudBtn.textContent = active ? "⛶ EXIT" : "⛶ FULL";
+      if (lobbyBtn) lobbyBtn.textContent = active ? "⛶ EXIT FULLSCREEN" : "⛶ FULLSCREEN";
+      if (pauseBtn) pauseBtn.textContent = active ? "EXIT FULLSCREEN" : "FULLSCREEN";
+    }
+
+    async function enterFullscreenSafe(silent = false) {
+      const el = document.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+      try {
+        if (req && !isFullscreenActive()) {
+          await req.call(el);
+          if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock("landscape").catch(() => {});
+          }
+        }
+      } catch (e) {
+        window.scrollTo(0, 1);
+        if (!silent) {
+          showToast("IMMERSIVE VIEWPORT ACTIVE");
+        }
+      }
+      syncFullscreenButtonUI();
+    }
+
+    async function toggleFullscreen() {
+      try {
+        if (!isFullscreenActive()) {
+          await enterFullscreenSafe(false);
+        } else {
+          const exitFn = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+          if (exitFn) {
+            await exitFn.call(document);
+          }
+        }
+      } catch (e) {
+        showToast("FULLSCREEN TOGGLED");
+      }
+      syncFullscreenButtonUI();
+    }
+
+    document.addEventListener("fullscreenchange", syncFullscreenButtonUI);
+    document.addEventListener("webkitfullscreenchange", syncFullscreenButtonUI);
 
     function getAllCombatants() {
       return [
@@ -3369,9 +3428,9 @@
       for (let i = 0; i < 4; i++) {
         const slot = document.getElementById(`weapSlot${i}`);
         if (i === me.weapon) {
-          slot.className = "px-2 sm:px-2.5 py-1.5 rounded-lg border border-amber-500 bg-amber-500/20 text-amber-300 font-mono-tech text-[11px] sm:text-xs font-bold cursor-pointer";
+          slot.className = "px-1.5 sm:px-2.5 py-1 rounded-lg border border-amber-500 bg-amber-500/20 text-amber-300 font-mono-tech text-[10px] sm:text-xs font-bold cursor-pointer";
         } else {
-          slot.className = "px-2 sm:px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/70 text-zinc-400 font-mono-tech text-[11px] sm:text-xs font-bold cursor-pointer";
+          slot.className = "px-1.5 sm:px-2.5 py-1 rounded-lg border border-zinc-800 bg-zinc-900/70 text-zinc-400 font-mono-tech text-[10px] sm:text-xs font-bold cursor-pointer";
         }
       }
 
@@ -3480,7 +3539,9 @@
 
       state.screen = "playing";
       updateTouchControlsVisibility();
-      if (mode !== "split" && !getTouchControlsEnabled()) {
+      if (getTouchControlsEnabled()) {
+        enterFullscreenSafe(true);
+      } else if (mode !== "split") {
         requestPointerLockSafe();
       }
     }
@@ -3736,11 +3797,11 @@
             state.touchMoveForward = 0;
             state.touchMoveStrafe = 0;
             if (joyBase && joyNub) {
-              joyBase.style.left = "24px";
-              joyBase.style.bottom = "96px";
+              joyBase.style.left = "20px";
+              joyBase.style.bottom = "72px";
               joyBase.style.top = "auto";
-              joyBase.style.opacity = "0.55";
-              joyNub.style.transform = "translate(0px, 0px)";
+              joyBase.style.opacity = "0.6";
+              nub.style.transform = "translate(0px, 0px)";
             }
           } else if (t.identifier === state.rightAimTouchId) {
             state.rightAimTouchId = null;
@@ -3973,9 +4034,9 @@
         state.minimapExpanded = !state.minimapExpanded;
         const mc = document.getElementById("minimapCanvas");
         if (state.minimapExpanded) {
-          mc.className = "block w-40 h-40 sm:w-52 sm:h-52 transition-all";
+          mc.className = "block w-36 h-36 sm:w-48 sm:h-48 transition-all";
         } else {
-          mc.className = "block w-24 h-24 sm:w-36 sm:h-36 transition-all";
+          mc.className = "block w-20 h-20 sm:w-24 sm:h-24 lg:w-36 lg:h-36 transition-all";
         }
       });
 
