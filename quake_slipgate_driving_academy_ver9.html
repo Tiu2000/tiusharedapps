@@ -326,13 +326,51 @@
       .sig-lamp { padding: 2px 5px; font-size: 10px; }
     }
 
-    @media (max-height: 460px) and (orientation: landscape) {
-      #coach-panel { width: 175px; }
-      .coach-metrics, .score-strip { display: none; }
-      #gps-canvas { width: 64px; height: 64px; }
-      #vm-left, #vm-right { width: 84px; height: 48px; }
-      #vm-rear { width: 132px; height: 48px; }
+    @media (max-width: 960px) and (max-height: 500px) and (orientation: landscape) {
+      #controls-hint { display: none !important; }
+      #top-hud { top: 3px; left: 4px; right: 4px; gap: 3px; flex-wrap: nowrap; }
+      .hud-group {
+        flex-wrap: nowrap; overflow-x: auto; max-width: 49%;
+        -webkit-overflow-scrolling: touch; scrollbar-width: none; padding: 2px 4px;
+      }
+      .hud-group::-webkit-scrollbar { display: none; }
+      .q-btn { padding: 4px 6px; font-size: 9.5px; white-space: nowrap; flex-shrink: 0; }
+      .brand-tag { font-size: 9.5px; white-space: nowrap; flex-shrink: 0; }
+
+      #coach-panel {
+        width: 245px; left: 50%; transform: translateX(-50%);
+        padding: 4px 8px; background: rgba(28, 19, 13, 0.86);
+      }
+      .coach-hdr { margin-bottom: 2px; padding-bottom: 2px; font-size: 9.5px; }
+      #coach-step-text { font-size: 9.5px; min-height: 0; line-height: 1.25; }
+      .coach-metrics, .score-strip, .score-rules { display: none; }
+
+      #bay-status-banner { right: 4px; padding: 3px 6px; font-size: 9px; }
+      #alert-banner { right: 4px; padding: 3px 6px; font-size: 9px; }
+
+      #gps-wrap { top: 64px; bottom: auto; right: 4px; padding: 2px; }
+      #gps-canvas { width: 62px; height: 62px; }
+      #gps-label { font-size: 7px; max-width: 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      #vm-left, #vm-right { width: 82px; height: 46px; }
+      #vm-rear { width: 128px; height: 46px; }
+
+      #touch-deck { bottom: 56px; left: 8px; right: 8px; }
+      #touch-wheel-pad { width: 76px; height: 76px; }
+      #touch-wheel-spoke::after { top: -27px; height: 11px; }
+      .wheel-sub-lbl { display: none; }
+      .t-pad { min-width: 46px; height: 42px; padding: 0 8px; font-size: 10.5px; }
+
+      #quake-bottom-hud { height: 52px; grid-template-columns: 1fr 64px 1.25fr; padding: 2px 6px; }
+      .ranger-bezel { width: 42px; height: 42px; }
+      #ranger-canvas { width: 36px; height: 36px; }
+      .digital-num { font-size: 14px; }
+      .digital-lbl { font-size: 7.5px; }
+      .gear-pill { padding: 2px 4px; font-size: 9.5px; }
+      .sig-lamp { padding: 2px 4px; font-size: 9.5px; }
     }
+
+    body.pseudo-fullscreen #top-hud { opacity: 0.92; }
   </style>
 </head>
 <body>
@@ -360,6 +398,7 @@
       <button class="q-btn" id="btn-pedals" onclick="toggleTouchDeck()">PEDALS</button>
       <button class="q-btn active" id="btn-coach" onclick="toggleCoach()">COACH (H)</button>
       <button class="q-btn active" id="btn-sound" onclick="toggleSound()">SFX (V)</button>
+      <button class="q-btn" id="btn-fullscreen" onclick="toggleFullScreen()">[ ] FULL</button>
       <button class="q-btn" onclick="resetLevel()">RESET</button>
     </div>
   </div>
@@ -414,7 +453,7 @@
   <!-- Controls Quick Guide -->
   <div id="controls-hint" class="q-panel">
     <span class="kcap">W/S</span> Drive/Rev &nbsp;<span class="kcap">A/D</span> Steer &nbsp;<span class="kcap">Z/X</span> Signals &nbsp;<span class="kcap">SPACE</span> Brake<br/>
-    <span class="kcap">P</span> Park &nbsp;<span class="kcap">C</span> Cam &nbsp;<span class="kcap">Q/E</span> Glance &nbsp;<span class="kcap">[/]</span> Mirror Tilt &nbsp;<span class="kcap">N</span> Night
+    <span class="kcap">P</span> Park &nbsp;<span class="kcap">C</span> Cam &nbsp;<span class="kcap">Q/E</span> Glance &nbsp;<span class="kcap">[/]</span> Mirror Tilt &nbsp;<span class="kcap">F</span> Full
   </div>
 
   <!-- On-Screen Touch Pedals & Steering Deck -->
@@ -540,20 +579,21 @@
       const topHud = document.getElementById('top-hud');
       const strip = document.getElementById('virtual-mirror-strip');
       const topBottom = topHud ? topHud.getBoundingClientRect().bottom : 42;
-      const mirrorTop = Math.round(topBottom + 6);
+      const mirrorTop = Math.round(topBottom + 4);
       if (strip) strip.style.top = `${mirrorTop}px`;
 
       const stripVisible = strip && strip.style.display === 'flex';
-      const contentTop = stripVisible ? mirrorTop + strip.offsetHeight + 8 : mirrorTop;
+      const contentTop = stripVisible ? mirrorTop + strip.offsetHeight + 6 : mirrorTop;
       const coach = document.getElementById('coach-panel');
       const bayBanner = document.getElementById('bay-status-banner');
       const alertBanner = document.getElementById('alert-banner');
       const gpsWrap = document.getElementById('gps-wrap');
+      const isCompactMobile = window.innerWidth <= 960 && (window.innerWidth <= 768 || window.innerHeight <= 500);
       if (coach) coach.style.top = `${contentTop}px`;
       if (bayBanner) bayBanner.style.top = `${contentTop}px`;
-      if (alertBanner) alertBanner.style.top = `${contentTop + 34}px`;
-      if (gpsWrap && window.innerWidth <= 768) {
-        gpsWrap.style.top = `${contentTop + 34}px`;
+      if (alertBanner) alertBanner.style.top = `${contentTop + 30}px`;
+      if (gpsWrap && isCompactMobile) {
+        gpsWrap.style.top = `${contentTop + 28}px`;
       } else if (gpsWrap) {
         gpsWrap.style.top = 'auto';
       }
@@ -987,6 +1027,7 @@
       else if (e.code === 'KeyN') toggleNightMode();
       else if (e.code === 'KeyH') toggleCoach();
       else if (e.code === 'KeyV') toggleSound();
+      else if (e.code === 'KeyF') toggleFullScreen();
       else if (e.code === 'KeyZ') toggleSignal(-1);
       else if (e.code === 'KeyX') toggleSignal(1);
       else if (e.code === 'BracketLeft') adjustMirrorTilt(-0.04);
@@ -1029,7 +1070,6 @@
           const cy = rect.top + rect.height * 0.5;
           const dx = e.clientX - cx;
           const dy = e.clientY - cy;
-          // Map angle relative to top (12 o'clock) into [-1, 1] steering ratio
           let ang = Math.atan2(dx, -dy);
           ang = Math.max(-Math.PI * 0.65, Math.min(Math.PI * 0.65, ang));
           touchWheelAngle = ang / (Math.PI * 0.65);
@@ -1192,7 +1232,6 @@
           pillar.position.set(px, 1.18, pz);
           g.add(pillar);
         });
-        // Rear Quarter-Panel Fender Flares (Self-Reference Anchors in Side Mirrors)
         [-0.96, 0.96].forEach(fz => {
           const flare = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.34, 0.12), bodyMat);
           flare.position.set(-1.45, 0.78, fz);
@@ -1997,6 +2036,19 @@
       updateMirrorStripVisibility();
     }
 
+    function isVirtualMirrorStripActive() {
+      if (State.mirrorMode === 'ON') return true;
+      if (State.mirrorMode === 'OFF') return false;
+      return State.camMode !== 0;
+    }
+
+    function updateMirrorStripVisibility() {
+      const strip = document.getElementById('virtual-mirror-strip');
+      if (!strip) return;
+      strip.style.display = isVirtualMirrorStripActive() ? 'flex' : 'none';
+      layoutHudOverlays();
+    }
+
     function adjustMirrorTilt(delta) {
       State.manualMirrorTilt = Math.max(-0.26, Math.min(0.26, State.manualMirrorTilt + delta));
       const deg = Math.round(THREE.MathUtils.radToDeg(State.manualMirrorTilt));
@@ -2026,8 +2078,26 @@
       document.getElementById('btn-pedals').classList.toggle('active', open);
     }
 
+    function toggleCoach() {
+      State.coachOn = !State.coachOn;
+      const panel = document.getElementById('coach-panel');
+      if (panel) panel.style.display = State.coachOn ? 'block' : 'none';
+      const btn = document.getElementById('btn-coach');
+      if (btn) btn.classList.toggle('active', State.coachOn);
+    }
+
+    function toggleSound() {
+      SoundFX.enabled = !SoundFX.enabled;
+      const btn = document.getElementById('btn-sound');
+      if (btn) btn.classList.toggle('active', SoundFX.enabled);
+      if (!SoundFX.enabled && SoundFX.engineGain && SoundFX.ctx) {
+        SoundFX.engineGain.gain.setTargetAtTime(0, SoundFX.ctx.currentTime, 0.05);
+      } else if (SoundFX.enabled) {
+        SoundFX.resume();
+      }
+    }
+
     function toggleSignal(dir) {
-      SoundFX.resume();
       Car.signal = Car.signal === dir ? 0 : dir;
       State.signalBlinkTimer = 0;
       State.signalBlinkOn = Car.signal !== 0;
@@ -2038,45 +2108,64 @@
     function updateSignalUI() {
       const lEl = document.getElementById('sig-l');
       const rEl = document.getElementById('sig-r');
-      const lLit = Car.signal === -1 && State.signalBlinkOn;
-      const rLit = Car.signal === 1 && State.signalBlinkOn;
-      if (lEl) lEl.classList.toggle('lit', lLit);
-      if (rEl) rEl.classList.toggle('lit', rLit);
+      const leftLit = Car.signal === -1 && State.signalBlinkOn;
+      const rightLit = Car.signal === 1 && State.signalBlinkOn;
+      if (lEl) lEl.classList.toggle('lit', leftLit);
+      if (rEl) rEl.classList.toggle('lit', rightLit);
       if (playerCar) {
-        playerCar.leftSigMat.color.setHex(lLit ? 0xfbbf24 : 0x452708);
-        playerCar.rightSigMat.color.setHex(rLit ? 0xfbbf24 : 0x452708);
+        playerCar.leftSigMat.color.setHex(leftLit ? 0xfbbf24 : 0x452708);
+        playerCar.rightSigMat.color.setHex(rightLit ? 0xfbbf24 : 0x452708);
       }
     }
 
-    function isVirtualMirrorStripActive() {
-      if (State.mirrorMode === 'ON') return true;
-      if (State.mirrorMode === 'OFF') return false;
-      return State.camMode !== 0;
-    }
-
-    function updateMirrorStripVisibility() {
-      const strip = document.getElementById('virtual-mirror-strip');
-      strip.style.display = isVirtualMirrorStripActive() ? 'flex' : 'none';
+    function updateFullScreenButton() {
+      const btn = document.getElementById('btn-fullscreen');
+      if (!btn) return;
+      const isNativeFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      const isPseudoFs = document.body.classList.contains('pseudo-fullscreen');
+      const active = isNativeFs || isPseudoFs;
+      btn.textContent = active ? '[X] EXIT' : '[ ] FULL';
+      btn.classList.toggle('active', active);
       layoutHudOverlays();
     }
 
-    function toggleCoach() {
-      State.coachOn = !State.coachOn;
-      document.getElementById('coach-panel').style.display = State.coachOn ? 'block' : 'none';
-      document.getElementById('btn-coach').classList.toggle('active', State.coachOn);
+    async function toggleFullScreen() {
+      SoundFX.resume();
+      const docEl = document.documentElement;
+      const isNativeFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      const isPseudoFs = document.body.classList.contains('pseudo-fullscreen');
+
+      if (isNativeFs || isPseudoFs) {
+        document.body.classList.remove('pseudo-fullscreen');
+        try {
+          if (document.exitFullscreen) await document.exitFullscreen();
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        } catch (err) {}
+        updateFullScreenButton();
+        return;
+      }
+
+      try {
+        if (docEl.requestFullscreen) {
+          await docEl.requestFullscreen({ navigationUI: 'hide' });
+          if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(() => {});
+          }
+        } else if (docEl.webkitRequestFullscreen) {
+          docEl.webkitRequestFullscreen();
+        } else {
+          document.body.classList.add('pseudo-fullscreen');
+          window.scrollTo(0, 1);
+        }
+      } catch (err) {
+        document.body.classList.add('pseudo-fullscreen');
+        window.scrollTo(0, 1);
+      }
+      updateFullScreenButton();
     }
 
-    function toggleSound() {
-      SoundFX.enabled = !SoundFX.enabled;
-      const btn = document.getElementById('btn-sound');
-      btn.textContent = SoundFX.enabled ? 'SFX (V)' : 'MUTED (V)';
-      btn.classList.toggle('active', SoundFX.enabled);
-      if (!SoundFX.enabled && SoundFX.engineGain && SoundFX.ctx) {
-        SoundFX.engineGain.gain.setTargetAtTime(0.0001, SoundFX.ctx.currentTime, 0.05);
-      } else {
-        SoundFX.resume();
-      }
-    }
+    document.addEventListener('fullscreenchange', updateFullScreenButton);
+    document.addEventListener('webkitfullscreenchange', updateFullScreenButton);
 
     function showAlert(msg) {
       const el = document.getElementById('alert-banner');
@@ -2119,7 +2208,6 @@
       const angErrRad = Math.min(absDiff, Math.abs(Math.PI - absDiff));
       const angErrDeg = THREE.MathUtils.radToDeg(angErrRad);
 
-      // Curb-side wheel outer edge vs granite curb face
       const sideSign = bay.curbSide || 1;
       const curbEdgeOffset = sideSign * (bay.wid * 0.5);
       const carCurbEdge = lat + sideSign * (Car.wid * 0.5 + Math.sin(angErrRad) * (Car.len * 0.35));
@@ -2137,7 +2225,6 @@
       const angScore = Math.max(0, 1 - angErrDeg / 25) * 30;
       const alignPct = Math.round(Math.min(100, posScore + latScore + angScore));
 
-      // On Fortress Hill (rising Eastward), wheels should be turned away from right curb (steer < -6 deg)
       const wheelCurbedOk = !bay.isHill || THREE.MathUtils.radToDeg(Car.steer) <= -6;
 
       return { along, lat, curbIn, angErrDeg, inside, alignPct, wheelCurbedOk };
@@ -2204,7 +2291,6 @@
         if (State.alertTimer <= 0) document.getElementById('alert-banner').style.display = 'none';
       }
 
-      // Turn signal relay blink timer
       if (Car.signal !== 0) {
         State.signalBlinkTimer += dt;
         if (State.signalBlinkTimer >= 0.42) {
@@ -2226,8 +2312,10 @@
       const right = !!(Keys['KeyD'] || Keys['ArrowRight'] || TouchKeys['ArrowRight']);
       const brake = !!Keys['Space'];
 
-      // Blind-spot glance (Q / E)
-      // Steering input with progressive self-centering (supports Touch Wheel, Gamepad & Keys)
+      if (Keys['KeyQ']) State.glance = -0.85;
+      else if (Keys['KeyE']) State.glance = 0.85;
+      else if (!touchWheelActive) State.glance = 0;
+
       const steerRate = 2.15;
       if (touchWheelActive) {
         const targetSteer = touchWheelAngle * Car.maxSteer;
@@ -2249,7 +2337,6 @@
       const slopeAlong = centerGround.slopeX * Math.cos(Car.heading);
       Car.gradeDeg = THREE.MathUtils.radToDeg(Math.atan(slopeAlong));
 
-      // Automatically shift out of Park when pressing Drive (W/Up) or Reverse (S/Down)
       if (Car.gear === 'P' && !brake && !State.completed) {
         if (gas) {
           Car.gear = 'D';
@@ -2264,7 +2351,6 @@
         Car.speed *= Math.exp(-11 * dt);
         if (Math.abs(Car.speed) < 0.08) Car.speed = 0;
       } else {
-        // Hill gravity pull when off the brake in D, N, or R
         const gravityPull = -9.81 * Math.sin(Math.atan(slopeAlong)) * 0.65;
         Car.speed += gravityPull * dt;
 
@@ -2291,7 +2377,6 @@
       updateGearUI();
       SoundFX.updateEngine(Math.abs(Car.speed));
 
-      // Rear-Axle Kinematic Bicycle Steering Geometry
       const ds = Car.speed * dt;
       const dH = (ds / Car.wheelbase) * Math.tan(Car.steer);
       const nextH = Car.heading + dH;
@@ -2312,7 +2397,6 @@
         Car.speed = -Car.speed * 0.25;
       }
 
-      // 4-Wheel Individual Curb & Suspension Physics
       const fx = Math.cos(Car.heading), fz = Math.sin(Car.heading);
       const rx = -fz, rz = fx;
       const axX = 1.31, axZ = 0.92;
@@ -2342,7 +2426,6 @@
       }
       Car.onCurb = anyWheelOnCurb;
 
-      // Red-light intersection check
       if (State.redCooldown <= 0 && Math.abs(Car.speed) > 1.8) {
         for (const tl of trafficLights) {
           const dx = Car.x - tl.x;
@@ -2362,7 +2445,6 @@
         }
       }
 
-      // Update 3D player car transform, brake lights, steering wheel & tires
       if (playerCar) {
         playerCar.group.position.set(Car.x, Car.y, Car.z);
         playerCar.group.rotation.set(Car.curbRoll, -Car.heading, Car.curbPitch);
@@ -2377,7 +2459,6 @@
         steeringWheelMesh.rotation.x = Car.steer * 2.4;
       }
 
-      // Record telemetry frame for Post-Park Top-Down Replay Scrubber
       State.replayTimer += dt;
       if (State.replayTimer >= 0.12 && (Math.abs(Car.speed) > 0.05 || State.replayFrames.length === 0)) {
         State.replayTimer = 0;
@@ -2396,7 +2477,6 @@
     function updateTrafficAndPeds(dt) {
       State.cycleTime += dt;
 
-      // Synchronized 4-Way Traffic Light Phases
       for (const tl of trafficLights) {
         const phase = (State.cycleTime + tl.offset) % 27;
         if (phase < 11) {
@@ -2418,13 +2498,11 @@
         }
       }
 
-      // Moving AI City Traffic (Yields for Red Lights, Player Car & Turn Signals)
       for (const ai of aiCars) {
         const fx = Math.cos(ai.heading);
         const fz = Math.sin(ai.heading);
         let shouldStop = false;
 
-        // Yield to player ahead or signaling/reversing nearby
         const toPlayerX = Car.x - ai.x;
         const toPlayerZ = Car.z - ai.z;
         const distP = Math.hypot(toPlayerX, toPlayerZ);
@@ -2434,7 +2512,6 @@
           shouldStop = true;
         }
 
-        // Obey red lights before entering intersections
         for (const tl of trafficLights) {
           const dIx = tl.x - ai.x;
           const dIz = tl.z - ai.z;
@@ -2459,7 +2536,6 @@
         ai.mesh.position.set(ai.x, 0, ai.z);
       }
 
-      // Articulated Walking Sidewalk + Crosswalk-Crossing Pedestrians
       const tl5th = trafficLights.find(t => t.x === 0 && t.z === 0);
       const tl6th = trafficLights.find(t => t.x === 70 && t.z === 0);
 
@@ -2482,7 +2558,6 @@
           }
           p.mesh.rotation.y = p.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
 
-          // Crosswalk Yield Enforcement
           if (p.inStreet && State.pedCooldown <= 0 && Math.abs(Car.speed) > 0.8) {
             if (Math.hypot(Car.x - p.x, Car.z - p.z) < 3.8) {
               State.pedCooldown = 3.5;
@@ -2568,7 +2643,6 @@
         document.getElementById('res-time-pen').textContent = `-${sb.timePen} pts`;
         document.getElementById('res-score').textContent = `${sb.total} / 1000`;
 
-        // Initialize interactive top-down replay scrubber
         const scrubber = document.getElementById('replay-scrubber');
         scrubber.max = Math.max(0, State.replayFrames.length - 1);
         scrubber.value = 0;
@@ -2604,7 +2678,6 @@
         return [w * 0.5 + along * scale, h * 0.52 + lat * scale];
       };
 
-      // Draw curb line & bay box
       const sideSign = bay.curbSide || 1;
       const curbY = h * 0.52 + sideSign * (bay.wid * 0.5 + 0.25) * scale;
       g.fillStyle = '#4a4238';
@@ -2623,7 +2696,6 @@
       const frames = State.replayFrames;
       if (!frames || frames.length === 0) return;
 
-      // Draw maneuver breadcrumb trail + Turn-In / Pivot markers
       g.strokeStyle = '#ff9d3b';
       g.lineWidth = 1.5;
       g.beginPath();
@@ -2657,7 +2729,6 @@
         g.fillText(`${Math.round(maxAngVal)}° PIVOT`, maxAngPt[0] - 20, maxAngPt[1] - 6);
       }
 
-      // Draw car rectangle at current scrub index
       const cur = frames[Math.min(frames.length - 1, Math.max(0, idx))];
       const [cx, cy] = toScreen(cur.x, cur.z);
       let relAng = cur.heading - bay.heading;
@@ -2693,7 +2764,6 @@
     function updateCoachAndHUD() {
       const lvl = LEVELS[State.lvlIdx];
 
-      // Open City Roam auto-locks onto the nearest open street curb bay
       if (lvl.isRoam) {
         let best = OPEN_BAYS[0];
         let bestD = Infinity;
@@ -2712,7 +2782,6 @@
       const m = computeBayMetrics();
       const sb = computeScoreBreakdown(m);
 
-      // Dynamic bay perimeter color
       if (bayMat) {
         if (m.inside) bayMat.color.setHex(0x10b981);
         else if (m.alignPct >= 55) bayMat.color.setHex(0x38bdf8);
@@ -2733,7 +2802,6 @@
         banner.className = 'q-panel st-amber';
       }
 
-      // 5-Step Parallel Parking Coach Logic
       const sideWord = (State.activeBay.curbSide || 1) === -1 ? 'LEFT' : 'RIGHT';
       const sigKey = (State.activeBay.curbSide || 1) === -1 ? 'Z' : 'X';
       let stepNum = 1;
@@ -2767,7 +2835,6 @@
       coachScoreEl.textContent = `${sb.total} / 1000`;
       coachScoreEl.style.color = scoreColor;
 
-      // Bottom Classic Quake Status Bar Readouts
       const mph = Math.round(Math.abs(Car.speed) * 2.237);
       const steerDeg = Math.round(THREE.MathUtils.radToDeg(Car.steer));
       document.getElementById('hud-mph').textContent = `${mph}`;
@@ -2797,7 +2864,6 @@
       const rx = -fz;
       const rz = fx;
 
-      // Reverse curb-dip tilt on curb-side mirror + manual [ / ] tilt adjustment
       const targetDip = Car.gear === 'R' ? 1 : 0;
       State.dipFactor += (targetDip - State.dipFactor) * Math.min(1, dt * 7);
       const curbSide = State.activeBay.curbSide || 1;
@@ -2810,7 +2876,6 @@
       if (leftPhysicalMirror) leftPhysicalMirror.rotation.z = leftDip * 0.14 - State.manualMirrorTilt;
       if (rightPhysicalMirror) rightPhysicalMirror.rotation.z = rightDip * 0.14 - State.manualMirrorTilt;
 
-      // 1) Center Interior Rear-View Mirror Optical Camera
       rearMirrorCam.position.set(Car.x - fx * 1.05, Car.y + 1.28, Car.z - fz * 1.05);
       rearMirrorCam.lookAt(
         Car.x - fx * 22,
@@ -2818,7 +2883,6 @@
         Car.z - fz * 22
       );
 
-      // 2) Left Exterior Side-View Mirror Camera (Tucked inward to frame rear fender!)
       leftMirrorCam.position.set(
         Car.x + fx * 0.45 - rx * 1.03,
         Car.y + 1.06,
@@ -2830,7 +2894,6 @@
         Car.z - fz * 14 - rz * 1.35
       );
 
-      // 3) Right Exterior Side-View Mirror Camera (Tucked inward to frame rear fender!)
       rightMirrorCam.position.set(
         Car.x + fx * 0.45 + rx * 1.03,
         Car.y + 1.06,
@@ -2842,7 +2905,6 @@
         Car.z - fz * 14 + rz * 1.35
       );
 
-      // Main Player Camera (0: 1st-Person Cockpit, 1: 3rd-Person Chase, 2: Top-Down)
       if (State.camMode === 0) {
         const eyeX = Car.x + fx * 0.12 - rx * 0.34;
         const eyeZ = Car.z + fz * 0.12 - rz * 0.34;
@@ -2983,7 +3045,6 @@
       g.fillStyle = '#1a1410';
       g.fillRect(0, 0, w, h);
 
-      // Roads
       g.strokeStyle = '#3d352e';
       g.lineWidth = Math.max(4, 14 * mapScale);
       [-140, -70, 0, 70, 140].forEach(rc => {
@@ -2992,40 +3053,34 @@
         g.beginPath(); g.moveTo(0, gy); g.lineTo(w, gy); g.stroke();
       });
 
-      // 43rd St Fortress Hill highlight
       const [hx0, hy] = toGps(HILL_X0, -70);
       const [hx1] = toGps(HILL_X1, -70);
       g.strokeStyle = '#d97706';
       g.lineWidth = 3;
       g.beginPath(); g.moveTo(hx0, hy); g.lineTo(hx1, hy); g.stroke();
 
-      // Traffic light dots
       for (const tl of trafficLights) {
         const [tx, ty] = toGps(tl.x, tl.z);
         g.fillStyle = tl.nsState === 'GREEN' ? '#22c55e' : '#ef4444';
         g.fillRect(tx - 2, ty - 2, 4, 4);
       }
 
-      // Open bays
       g.fillStyle = '#92400e';
       for (const b of OPEN_BAYS) {
         const [bx, by] = toGps(b.x, b.z);
         g.fillRect(bx - 2, by - 2, 4, 4);
       }
 
-      // Active target bay
       const [ax, ay] = toGps(State.activeBay.x, State.activeBay.z);
       g.fillStyle = '#34d399';
       g.fillRect(ax - 3.5, ay - 3.5, 7, 7);
 
-      // AI cars
       g.fillStyle = '#9ca3af';
       for (const ai of aiCars) {
         const [ix, iy] = toGps(ai.x, ai.z);
         g.fillRect(ix - 1.5, iy - 1.5, 3, 3);
       }
 
-      // Player triangle
       const [px, py] = toGps(Car.x, Car.z);
       g.save();
       g.translate(px, py);
@@ -3039,7 +3094,6 @@
       g.fill();
       g.restore();
 
-      // Update current street label
       let streetName = 'MIDTOWN DISTRICT';
       if (Math.abs(Car.x) < 10) streetName = '5TH AVE BOULEVARD';
       else if (Math.abs(Car.x + 70) < 10) streetName = '4TH AVE (1-WAY)';
@@ -3071,7 +3125,6 @@
       drawRangerPortrait();
       drawGpsMinimap();
 
-      // Advance replay animation if modal is open and playing
       if (State.completed && State.replayPlaying && State.replayFrames.length > 1) {
         State.replayCursor += dt * 10;
         if (State.replayCursor >= State.replayFrames.length) State.replayCursor = 0;
@@ -3091,8 +3144,7 @@
       buildBayVisuals();
       loadLevel(0);
       setCameraMode(0);
-      // Automatically enable Touch Pedals & Rotary Wheel on touch/mobile viewports
-      const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.innerWidth <= 820;
+      const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.innerWidth <= 960;
       if (isTouchDevice) {
         toggleTouchDeck();
       }
