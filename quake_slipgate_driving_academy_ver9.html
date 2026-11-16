@@ -1,0 +1,3106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Quake // Slipgate Driving Academy</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #120c08; font-family: "Courier New", Courier, monospace; color: #e6d5b8;
+    }
+    #game-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+    /* Quake 1996 Beveled Stone & Iron Panel Theme */
+    .q-panel {
+      background: linear-gradient(180deg, #3a2b20 0%, #241912 100%);
+      border: 2px solid #6b523e;
+      border-top-color: #8f7056;
+      border-left-color: #8f7056;
+      border-right-color: #160f0a;
+      border-bottom-color: #160f0a;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.78);
+    }
+    .q-btn {
+      background: linear-gradient(180deg, #4b382a 0%, #2b1f16 100%);
+      color: #e6d5b8;
+      border: 2px solid #755943;
+      border-top-color: #9c7b60;
+      border-left-color: #9c7b60;
+      border-right-color: #18100b;
+      border-bottom-color: #18100b;
+      padding: 4px 6px;
+      font-family: inherit;
+      font-size: 10.5px;
+      font-weight: bold;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      border-radius: 2px;
+      text-shadow: 1px 1px 0 #000;
+      transition: filter 0.1s;
+    }
+    .q-btn:hover { filter: brightness(1.18); }
+    .q-btn:active { transform: translateY(1px); }
+    .q-btn.active {
+      background: linear-gradient(180deg, #994916 0%, #5c2708 100%);
+      border-color: #ff9d3b;
+      color: #fff3d6;
+    }
+
+    /* Top Command HUD */
+    #top-hud {
+      position: fixed; top: 8px; left: 8px; right: 8px;
+      display: flex; flex-wrap: wrap; gap: 5px; justify-content: space-between;
+      pointer-events: none; z-index: 20;
+    }
+    .hud-group {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 3px;
+      padding: 4px 5px; border-radius: 3px; pointer-events: auto;
+    }
+    .brand-tag {
+      color: #ff9d3b; font-weight: bold; font-size: 11.5px;
+      padding: 0 4px; letter-spacing: 0.8px; text-shadow: 1px 1px 0 #000;
+    }
+
+    /* Top-Center Virtual Mirror Strip */
+    #virtual-mirror-strip {
+      position: fixed; top: 46px; left: 50%; transform: translateX(-50%);
+      display: none; gap: 8px; z-index: 18; pointer-events: none;
+    }
+    .mirror-frame {
+      position: relative;
+      border: 3px solid #594333;
+      border-top-color: #8c6d54;
+      border-bottom-color: #140d08;
+      background: transparent;
+      box-shadow: inset 0 0 0 1px #000, 0 4px 12px rgba(0, 0, 0, 0.85);
+      border-radius: 3px;
+    }
+    #vm-left, #vm-right { width: 152px; height: 96px; }
+    #vm-rear { width: 256px; height: 96px; }
+    .mirror-lbl {
+      position: absolute; bottom: 2px; left: 4px;
+      font-size: 9px; font-weight: bold; color: #ffbe55;
+      background: rgba(15, 10, 7, 0.78); padding: 1px 4px; border-radius: 2px;
+    }
+    .dip-badge {
+      position: absolute; top: 3px; right: 4px;
+      font-size: 8.5px; font-weight: bold; color: #38bdf8;
+      background: rgba(8, 25, 38, 0.88); border: 1px solid #0284c7;
+      padding: 1px 4px; border-radius: 2px; display: none;
+    }
+    .dip-badge.on { display: block; }
+
+    /* Left Parallel Parking Coach Panel */
+    #coach-panel {
+      position: fixed; top: 152px; left: 8px; width: 280px;
+      padding: 8px 10px; border-radius: 3px; z-index: 19; pointer-events: auto;
+    }
+    .coach-hdr {
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid #5c4534; padding-bottom: 4px; margin-bottom: 5px;
+      font-size: 11px; font-weight: bold; color: #ff9d3b;
+    }
+    #coach-step-text { font-size: 11px; line-height: 1.35; color: #f2e4cc; min-height: 44px; }
+    .coach-metrics {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px;
+      margin-top: 6px; padding-top: 5px; border-top: 1px solid #4a3728;
+      font-size: 9.5px; text-align: center;
+    }
+    .metric-box { background: #17100b; border: 1px solid #4a3728; padding: 3px 2px; border-radius: 2px; }
+    .metric-val { display: block; color: #ffbe55; font-weight: bold; font-size: 11px; }
+    .score-strip {
+      margin-top: 5px; padding: 4px 6px; background: #140d09;
+      border: 1px solid #5c4534; border-radius: 2px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 10.5px;
+    }
+    .score-strip strong { color: #34d399; font-size: 12px; }
+    .score-rules {
+      margin-top: 4px; font-size: 9px; color: #b8a389; line-height: 1.3;
+    }
+
+    /* Right Status & Alert Banners */
+    #bay-status-banner {
+      position: fixed; top: 152px; right: 8px;
+      padding: 6px 10px; border-radius: 3px; font-size: 11px; font-weight: bold;
+      letter-spacing: 0.6px; z-index: 19; pointer-events: none;
+    }
+    .st-amber { color: #ffbe55; border-color: #d97706; }
+    .st-cyan { color: #38bdf8; border-color: #0284c7; }
+    .st-green { color: #34d399; border-color: #059669; box-shadow: 0 0 14px rgba(16, 185, 129, 0.45); }
+
+    #alert-banner {
+      position: fixed; top: 190px; right: 8px;
+      padding: 6px 10px; border-radius: 3px; font-size: 11px; font-weight: bold;
+      color: #fca5a5; border-color: #b91c1c;
+      background: linear-gradient(180deg, #4a1212 0%, #240808 100%);
+      z-index: 20; display: none; pointer-events: none;
+    }
+
+    /* Bottom-Right City GPS Mini-Map */
+    #gps-wrap {
+      position: fixed; bottom: 82px; right: 8px;
+      padding: 5px; border-radius: 3px; z-index: 19;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      pointer-events: none;
+    }
+    #gps-canvas {
+      width: 140px; height: 140px; display: block;
+      image-rendering: pixelated; border: 1px solid #6b523e; background: #0f0a07;
+    }
+    #gps-label { font-size: 9.5px; font-weight: bold; color: #ffbe55; letter-spacing: 0.5px; }
+
+    /* Bottom-Left Controls Hint */
+    #controls-hint {
+      position: fixed; bottom: 82px; left: 8px;
+      padding: 5px 8px; border-radius: 3px; font-size: 9.5px; line-height: 1.45;
+      color: #cbb89d; z-index: 18; pointer-events: none;
+    }
+    .kcap {
+      background: #1a120c; border: 1px solid #6b523e; color: #ffbe55;
+      padding: 0 4px; border-radius: 2px; font-weight: bold;
+    }
+
+    /* Optional On-Screen Touch Pedals & Steering Deck */
+    #touch-deck {
+      position: fixed; bottom: 82px; left: 8px; right: 162px;
+      display: none; justify-content: space-between; align-items: flex-end;
+      pointer-events: none; z-index: 24;
+    }
+    #touch-deck.open { display: flex; }
+    .touch-cluster { display: flex; gap: 6px; pointer-events: auto; }
+    .t-pad {
+      min-width: 54px; height: 52px; padding: 0 10px;
+      font-size: 12px; font-weight: bold;
+      display: flex; align-items: center; justify-content: center;
+      touch-action: none;
+    }
+    .t-pad.pressed {
+      background: linear-gradient(180deg, #994916 0%, #5c2708 100%);
+      border-color: #ff9d3b;
+      color: #fff3d6;
+    }
+    #touch-steer-wheel-wrap {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      pointer-events: auto;
+    }
+    #touch-wheel-pad {
+      width: 96px; height: 96px; border-radius: 50%;
+      background: radial-gradient(circle, #3a2b20 35%, #1c130d 100%);
+      border: 3px solid #8f7056;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.85), inset 0 0 0 2px #140d09;
+      position: relative; touch-action: none; cursor: grab;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #touch-wheel-spoke {
+      width: 82%; height: 10px; background: #9c7b60; border-radius: 2px;
+      position: relative; pointer-events: none;
+    }
+    #touch-wheel-spoke::after {
+      content: ''; position: absolute; top: -34px; left: 50%; transform: translateX(-50%);
+      width: 8px; height: 14px; background: #ff9d3b; border-radius: 2px;
+    }
+    .wheel-sub-lbl {
+      font-size: 8.5px; font-weight: bold; color: #ffbe55;
+      background: rgba(20, 13, 9, 0.85); padding: 1px 5px; border-radius: 2px;
+    }
+
+    /* Classic 1996 Quake Bottom Status Bar HUD */
+    #quake-bottom-hud {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: min(860px, 100vw); height: 74px;
+      display: grid; grid-template-columns: 1.1fr 112px 1.35fr; align-items: center;
+      padding: 4px 10px; border-bottom: none; border-radius: 4px 4px 0 0; z-index: 25;
+      padding-bottom: env(safe-area-inset-bottom, 4px);
+    }
+    .hud-readouts { display: flex; justify-content: space-around; align-items: center; gap: 6px; }
+    .digital-cell { text-align: center; }
+    .digital-num {
+      font-size: 22px; font-weight: bold; color: #ff9d3b;
+      text-shadow: 2px 2px 0 #000; line-height: 1.05;
+    }
+    .digital-num.good { color: #34d399; }
+    .digital-num.warn { color: #fbbf24; }
+    .digital-num.bad { color: #f87171; }
+    .digital-lbl { font-size: 9px; color: #b8a389; letter-spacing: 0.7px; }
+
+    /* Turn Signal Arrows on Bottom HUD */
+    .sig-rack { display: flex; gap: 4px; align-items: center; }
+    .sig-lamp {
+      padding: 3px 6px; font-size: 12px; font-weight: bold;
+      background: #140d09; border: 1px solid #4a3728; color: #5c4a3a;
+      border-radius: 2px; cursor: pointer;
+    }
+    .sig-lamp.lit {
+      background: #78350f; border-color: #fbbf24; color: #fef08a;
+      box-shadow: 0 0 8px rgba(251, 191, 36, 0.65);
+    }
+
+    /* Center Ranger Portrait Bezel + Etched "TIU" Watermark */
+    .ranger-bezel {
+      position: relative; width: 64px; height: 64px; margin: 0 auto;
+      background: #140d09; border: 2px solid #755943;
+      border-right-color: #140d09; border-bottom-color: #140d09;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #ranger-canvas { width: 56px; height: 56px; image-rendering: pixelated; display: block; }
+    .tiu-watermark {
+      position: absolute; bottom: 1px; right: 3px;
+      font-size: 8px; font-weight: bold; letter-spacing: 1px;
+      color: rgba(255, 190, 85, 0.24); pointer-events: none;
+    }
+
+    /* Transmission Gear Pills */
+    .gear-rack { display: flex; gap: 3px; background: #140d09; padding: 3px; border: 1px solid #594333; border-radius: 2px; }
+    .gear-pill {
+      padding: 3px 5px; font-size: 11.5px; font-weight: bold; color: #6e5a49;
+      border-radius: 2px; cursor: pointer;
+    }
+    .gear-pill.active-p { background: #991b1b; color: #fecaca; }
+    .gear-pill.active-r { background: #b45309; color: #fef3c7; }
+    .gear-pill.active-n { background: #374151; color: #e5e7eb; }
+    .gear-pill.active-d { background: #065f46; color: #a7f3d0; }
+
+    /* Completion Modal + Interactive Top-Down Replay Scrubber */
+    #complete-modal {
+      position: fixed; inset: 0; background: rgba(10, 6, 4, 0.82);
+      display: none; align-items: center; justify-content: center; z-index: 40;
+    }
+    #complete-modal.open { display: flex; }
+    .modal-card { width: min(460px, 94vw); padding: 16px; border-radius: 4px; text-align: center; }
+    .modal-title { font-size: 18px; font-weight: bold; color: #ff9d3b; margin-bottom: 4px; text-shadow: 2px 2px 0 #000; }
+    .replay-box {
+      background: #120c08; border: 1px solid #5c4534; padding: 6px; margin-top: 8px; border-radius: 3px;
+    }
+    #replay-canvas {
+      width: 100%; height: 146px; display: block; background: #181310;
+      border: 1px solid #3a2b20; image-rendering: pixelated;
+    }
+    .replay-controls {
+      display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 10px; color: #ffbe55;
+    }
+    #replay-scrubber { flex: 1; accent-color: #ff9d3b; cursor: pointer; }
+    .modal-stats {
+      background: #160f0a; border: 1px solid #5c4534; padding: 8px 10px; margin: 10px 0;
+      text-align: left; font-size: 11px; line-height: 1.65;
+    }
+    .modal-stats span { float: right; color: #ffbe55; font-weight: bold; }
+
+    @media (max-width: 768px) {
+      #controls-hint { display: none; }
+      #top-hud { top: 4px; left: 4px; right: 4px; gap: 3px; }
+      .hud-group {
+        flex-wrap: nowrap; overflow-x: auto; max-width: 100%;
+        -webkit-overflow-scrolling: touch; scrollbar-width: none; padding: 3px 4px;
+      }
+      .hud-group::-webkit-scrollbar { display: none; }
+      .q-btn { padding: 5px 7px; font-size: 10px; white-space: nowrap; flex-shrink: 0; }
+      .brand-tag { font-size: 10px; white-space: nowrap; flex-shrink: 0; }
+
+      #coach-panel { width: 196px; padding: 5px 7px; font-size: 9.5px; left: 4px; }
+      #coach-step-text { font-size: 9.5px; min-height: 34px; }
+      .score-rules { display: none; }
+      #bay-status-banner { right: 4px; padding: 4px 7px; font-size: 9.5px; }
+      #alert-banner { right: 4px; padding: 4px 7px; font-size: 9.5px; }
+
+      #gps-wrap { bottom: auto; top: 158px; right: 4px; padding: 3px; }
+      #gps-canvas { width: 78px; height: 78px; }
+      #gps-label { font-size: 7.5px; max-width: 78px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      #vm-left, #vm-right { width: 92px; height: 60px; }
+      #vm-rear { width: 148px; height: 60px; }
+
+      #touch-deck { bottom: 68px; left: 6px; right: 6px; }
+      #touch-wheel-pad { width: 84px; height: 84px; }
+      .t-pad { min-width: 48px; height: 48px; padding: 0 8px; font-size: 11px; }
+
+      #quake-bottom-hud { height: 62px; grid-template-columns: 1fr 78px 1.25fr; padding: 2px 6px; }
+      .ranger-bezel { width: 48px; height: 48px; }
+      #ranger-canvas { width: 42px; height: 42px; }
+      .digital-num { font-size: 15px; }
+      .digital-lbl { font-size: 8px; }
+      .gear-pill { padding: 2px 4px; font-size: 10px; }
+      .sig-lamp { padding: 2px 5px; font-size: 10px; }
+    }
+
+    @media (max-height: 460px) and (orientation: landscape) {
+      #coach-panel { width: 175px; }
+      .coach-metrics, .score-strip { display: none; }
+      #gps-canvas { width: 64px; height: 64px; }
+      #vm-left, #vm-right { width: 84px; height: 48px; }
+      #vm-rear { width: 132px; height: 48px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+
+  <!-- Top HUD Command Strip -->
+  <div id="top-hud">
+    <div class="hud-group q-panel">
+      <span class="brand-tag">QUAKE // ACADEMY</span>
+      <button class="q-btn active" data-lvl="0" onclick="selectLevel(0)">1: 5TH &amp; 44TH</button>
+      <button class="q-btn" data-lvl="1" onclick="selectLevel(1)">2: 4TH 1-WAY</button>
+      <button class="q-btn" data-lvl="2" onclick="selectLevel(2)">3: 45TH HYDRANT</button>
+      <button class="q-btn" data-lvl="3" onclick="selectLevel(3)">4: 6TH BUSY</button>
+      <button class="q-btn" data-lvl="4" onclick="selectLevel(4)">5: DELIVERY</button>
+      <button class="q-btn" data-lvl="5" onclick="selectLevel(5)">6: CITY ROAM</button>
+      <button class="q-btn" data-lvl="6" onclick="selectLevel(6)">7: FORTRESS HILL</button>
+    </div>
+    <div class="hud-group q-panel">
+      <button class="q-btn active" data-cam="0" onclick="setCameraMode(0)">1ST</button>
+      <button class="q-btn" data-cam="1" onclick="setCameraMode(1)">3RD</button>
+      <button class="q-btn" data-cam="2" onclick="setCameraMode(2)">TOP</button>
+      <button class="q-btn" id="btn-north" onclick="toggleNorthUp()" style="display:none;">N-UP</button>
+      <button class="q-btn" id="btn-mirrors" onclick="cycleMirrorMode()">MIRRORS: AUTO</button>
+      <button class="q-btn" id="btn-night" onclick="toggleNightMode()">ATMOS: DUSK (N)</button>
+      <button class="q-btn" id="btn-pedals" onclick="toggleTouchDeck()">PEDALS</button>
+      <button class="q-btn active" id="btn-coach" onclick="toggleCoach()">COACH (H)</button>
+      <button class="q-btn active" id="btn-sound" onclick="toggleSound()">SFX (V)</button>
+      <button class="q-btn" onclick="resetLevel()">RESET</button>
+    </div>
+  </div>
+
+  <!-- Top-Center Virtual Mirror Strip (Rendered via WebGL Scissor/Viewport) -->
+  <div id="virtual-mirror-strip">
+    <div id="vm-left" class="mirror-frame">
+      <span class="mirror-lbl">LEFT MIRROR</span>
+      <span id="dip-left" class="dip-badge">CURB DIP</span>
+    </div>
+    <div id="vm-rear" class="mirror-frame">
+      <span class="mirror-lbl">REAR-VIEW MIRROR</span>
+    </div>
+    <div id="vm-right" class="mirror-frame">
+      <span class="mirror-lbl">RIGHT MIRROR</span>
+      <span id="dip-right" class="dip-badge">CURB DIP</span>
+    </div>
+  </div>
+
+  <!-- 5-Step Parallel Parking Coach -->
+  <div id="coach-panel" class="q-panel">
+    <div class="coach-hdr">
+      <span id="coach-title">STAGE 1: 5TH &amp; 44TH ST</span>
+      <span id="coach-step-badge">STEP 1/5</span>
+    </div>
+    <div id="coach-step-text">1. Signal right (X) and pull forward parallel alongside the front car (~3 ft gap).</div>
+    <div class="coach-metrics">
+      <div class="metric-box">CURB<span id="m-curb" class="metric-val">-- in</span></div>
+      <div class="metric-box">ANGLE<span id="m-angle" class="metric-val">0.0°</span></div>
+      <div class="metric-box">GRADE<span id="m-grade" class="metric-val">0.0°</span></div>
+      <div class="metric-box">FAULTS<span id="m-bumps" class="metric-val">0</span></div>
+    </div>
+    <div class="score-strip">
+      <span>ACADEMY POINTS</span>
+      <strong id="coach-score">1000 / 1000</strong>
+    </div>
+    <div class="score-rules">
+      Signal Bonus: +50 &bull; Bump/Red: -120 &bull; Tire Curb: -40 &bull; &gt;18s: -3/s
+    </div>
+  </div>
+
+  <!-- Bay Status & Violation Banners -->
+  <div id="bay-status-banner" class="q-panel st-amber">BAY: APPROACHING</div>
+  <div id="alert-banner" class="q-panel">CURB MOUNTED!</div>
+
+  <!-- City GPS Mini-Map -->
+  <div id="gps-wrap" class="q-panel">
+    <canvas id="gps-canvas" width="140" height="140"></canvas>
+    <div id="gps-label">5TH AVE BOULEVARD</div>
+  </div>
+
+  <!-- Controls Quick Guide -->
+  <div id="controls-hint" class="q-panel">
+    <span class="kcap">W/S</span> Drive/Rev &nbsp;<span class="kcap">A/D</span> Steer &nbsp;<span class="kcap">Z/X</span> Signals &nbsp;<span class="kcap">SPACE</span> Brake<br/>
+    <span class="kcap">P</span> Park &nbsp;<span class="kcap">C</span> Cam &nbsp;<span class="kcap">Q/E</span> Glance &nbsp;<span class="kcap">[/]</span> Mirror Tilt &nbsp;<span class="kcap">N</span> Night
+  </div>
+
+  <!-- On-Screen Touch Pedals & Steering Deck -->
+  <div id="touch-deck">
+    <div style="display:flex; align-items:flex-end; gap:8px;">
+      <div id="touch-steer-wheel-wrap">
+        <div id="touch-wheel-pad" title="Drag to Steer">
+          <div id="touch-wheel-spoke"></div>
+        </div>
+        <span class="wheel-sub-lbl">DRAG WHEEL</span>
+      </div>
+      <div class="touch-cluster" style="flex-direction:column; gap:4px;">
+        <div style="display:flex; gap:4px;">
+          <button class="q-btn t-pad" style="min-width:42px; height:38px;" onclick="toggleSignal(-1)">SIG &lt;</button>
+          <button class="q-btn t-pad" style="min-width:42px; height:38px;" onclick="toggleSignal(1)">SIG &gt;</button>
+        </div>
+        <div style="display:flex; gap:4px;">
+          <button class="q-btn t-pad" style="min-width:42px; height:38px;" data-key="ArrowLeft">&lt;</button>
+          <button class="q-btn t-pad" style="min-width:42px; height:38px;" data-key="ArrowRight">&gt;</button>
+        </div>
+      </div>
+    </div>
+    <div class="touch-cluster">
+      <button class="q-btn t-pad" onclick="engagePark()">PARK (P)</button>
+      <button class="q-btn t-pad" data-key="ArrowDown">REV / BRK</button>
+      <button class="q-btn t-pad" data-key="ArrowUp">GAS</button>
+    </div>
+  </div>
+
+  <!-- Classic 1996 Quake Bottom Status Bar HUD -->
+  <div id="quake-bottom-hud" class="q-panel">
+    <div class="hud-readouts">
+      <div class="digital-cell">
+        <div id="hud-mph" class="digital-num">0</div>
+        <div class="digital-lbl">MPH</div>
+      </div>
+      <div class="digital-cell">
+        <div id="hud-deg" class="digital-num">0°</div>
+        <div class="digital-lbl">STEER</div>
+      </div>
+      <div class="digital-cell">
+        <div id="hud-score" class="digital-num good">1000</div>
+        <div class="digital-lbl">POINTS</div>
+      </div>
+    </div>
+
+    <div class="ranger-bezel">
+      <canvas id="ranger-canvas" width="32" height="32"></canvas>
+      <span class="tiu-watermark">TIU</span>
+    </div>
+
+    <div class="hud-readouts">
+      <div class="sig-rack">
+        <span id="sig-l" class="sig-lamp" onclick="toggleSignal(-1)" title="Left Signal (Z)">&lt;</span>
+        <span id="sig-r" class="sig-lamp" onclick="toggleSignal(1)" title="Right Signal (X)">&gt;</span>
+      </div>
+      <div class="gear-rack">
+        <span id="gp-P" class="gear-pill" onclick="engagePark()">P</span>
+        <span id="gp-R" class="gear-pill" onclick="shiftGear('R')">R</span>
+        <span id="gp-N" class="gear-pill" onclick="shiftGear('N')">N</span>
+        <span id="gp-D" class="gear-pill active-d" onclick="shiftGear('D')">D</span>
+      </div>
+      <div class="digital-cell">
+        <div id="hud-align" class="digital-num">0%</div>
+        <div class="digital-lbl">ALIGN</div>
+      </div>
+      <div class="digital-cell">
+        <div id="hud-curb" class="digital-num">--</div>
+        <div class="digital-lbl">CURB</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stage Completion Modal with Top-Down Replay Scrubber -->
+  <div id="complete-modal">
+    <div class="modal-card q-panel">
+      <div class="modal-title">SLIPGATE BAY SECURED!</div>
+      <div id="modal-sub" style="font-size:10.5px; color:#cbb89d;">PARALLEL PARKING CERTIFICATION PASSED</div>
+
+      <div class="replay-box">
+        <canvas id="replay-canvas" width="400" height="146"></canvas>
+        <div class="replay-controls">
+          <button class="q-btn" id="btn-replay-play" onclick="toggleReplayPlay()">PAUSE</button>
+          <input type="range" id="replay-scrubber" min="0" max="100" value="0" oninput="scrubReplay(this.value)" />
+          <span id="replay-time-lbl">0.0s</span>
+        </div>
+      </div>
+
+      <div class="modal-stats">
+        <div>STARTING BASE SCORE: <span>1000 pts</span></div>
+        <div>TURN SIGNAL ETIQUETTE: <span id="res-sig-bonus">+50 pts</span></div>
+        <div>CURB GAP (<b id="res-curb">8.4 in</b> vs 9" ideal): <span id="res-curb-pen">-0 pts</span></div>
+        <div>PARALLEL ANGLE (<b id="res-angle">1.2°</b> error): <span id="res-ang-pen">-0 pts</span></div>
+        <div>FAULTS (<b id="res-pen">0</b> bumps/curbs/red/ped): <span id="res-col-pen">-0 pts</span></div>
+        <div>TIME (<b id="res-time">18.4 s</b>, -3/s after 18s): <span id="res-time-pen">-0 pts</span></div>
+        <div style="border-top:1px solid #5c4534; margin-top:4px; padding-top:4px; color:#34d399;">
+          FINAL ACADEMY POINTS: <span id="res-score">1000 / 1000</span>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:center;">
+        <button class="q-btn" onclick="resetLevel()">RETRY STAGE</button>
+        <button class="q-btn active" onclick="nextLevel()">NEXT STAGE &gt;&gt;</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. WEBGL RENDERER, SCENE, CAMERAS & OPTICAL MIRROR RENDER TARGETS
+       ========================================================================= */
+    const canvas = document.getElementById('game-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.autoClear = false;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x26180f, 0.0042);
+
+    const mainCam = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.15, 340);
+
+    function layoutHudOverlays() {
+      const topHud = document.getElementById('top-hud');
+      const strip = document.getElementById('virtual-mirror-strip');
+      const topBottom = topHud ? topHud.getBoundingClientRect().bottom : 42;
+      const mirrorTop = Math.round(topBottom + 6);
+      if (strip) strip.style.top = `${mirrorTop}px`;
+
+      const stripVisible = strip && strip.style.display === 'flex';
+      const contentTop = stripVisible ? mirrorTop + strip.offsetHeight + 8 : mirrorTop;
+      const coach = document.getElementById('coach-panel');
+      const bayBanner = document.getElementById('bay-status-banner');
+      const alertBanner = document.getElementById('alert-banner');
+      const gpsWrap = document.getElementById('gps-wrap');
+      if (coach) coach.style.top = `${contentTop}px`;
+      if (bayBanner) bayBanner.style.top = `${contentTop}px`;
+      if (alertBanner) alertBanner.style.top = `${contentTop + 34}px`;
+      if (gpsWrap && window.innerWidth <= 768) {
+        gpsWrap.style.top = `${contentTop + 34}px`;
+      } else if (gpsWrap) {
+        gpsWrap.style.top = 'auto';
+      }
+    }
+
+    window.addEventListener('resize', () => {
+      mainCam.aspect = window.innerWidth / window.innerHeight;
+      mainCam.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      layoutHudOverlays();
+    });
+
+    // 3 Dedicated Optical Mirror Cameras + Nearest-Neighbor Pixelated RenderTargets
+    const rearMirrorCam = new THREE.PerspectiveCamera(46, 256 / 96, 0.2, 160);
+    const leftMirrorCam = new THREE.PerspectiveCamera(50, 152 / 96, 0.2, 120);
+    const rightMirrorCam = new THREE.PerspectiveCamera(50, 152 / 96, 0.2, 120);
+
+    function makeMirrorRT(w, h) {
+      return new THREE.WebGLRenderTarget(w, h, {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        format: THREE.RGBAFormat
+      });
+    }
+    const rearRT = makeMirrorRT(256, 96);
+    const leftRT = makeMirrorRT(152, 96);
+    const rightRT = makeMirrorRT(152, 96);
+
+    // Orthographic Blit Quad with Horizontally Flipped UVs for Virtual Mirror Strip
+    const blitScene = new THREE.Scene();
+    const blitCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const blitGeo = new THREE.PlaneGeometry(2, 2);
+    const uvAttr = blitGeo.attributes.uv;
+    for (let i = 0; i < uvAttr.count; i++) {
+      uvAttr.setX(i, 1 - uvAttr.getX(i));
+    }
+    const blitQuad = new THREE.Mesh(
+      blitGeo,
+      new THREE.MeshBasicMaterial({ map: rearRT.texture, depthTest: false, depthWrite: false })
+    );
+    blitScene.add(blitQuad);
+
+    /* =========================================================================
+       2. PROCEDURAL 1996 QUAKE PIXEL TEXTURES, SIGNS & WEB AUDIO SYNTHESIZER
+       ========================================================================= */
+    const Textures = {};
+    function makePixelTex(w, h, drawFn, rx = 1, ry = 1) {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const g = c.getContext('2d');
+      drawFn(g, w, h);
+      const t = new THREE.CanvasTexture(c);
+      t.magFilter = THREE.NearestFilter;
+      t.minFilter = THREE.NearestFilter;
+      if (rx > 1 || ry > 1) {
+        t.wrapS = THREE.RepeatWrapping;
+        t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(rx, ry);
+      }
+      return t;
+    }
+
+    function initTextures() {
+      Textures.skyDusk = makePixelTex(256, 128, (g, w, h) => {
+        const grad = g.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, '#140b06');
+        grad.addColorStop(0.55, '#422211');
+        grad.addColorStop(0.88, '#87461d');
+        grad.addColorStop(1, '#29170d');
+        g.fillStyle = grad;
+        g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 420; i++) {
+          g.fillStyle = i % 3 === 0 ? 'rgba(255,165,70,0.12)' : 'rgba(18,10,6,0.28)';
+          g.fillRect((i * 37) % w, (i * 19) % (h - 14), 10 + (i % 18), 3);
+        }
+      });
+
+      Textures.skyNight = makePixelTex(256, 128, (g, w, h) => {
+        const grad = g.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, '#050408');
+        grad.addColorStop(0.65, '#120d18');
+        grad.addColorStop(0.92, '#291812');
+        grad.addColorStop(1, '#0d0907');
+        g.fillStyle = grad;
+        g.fillRect(0, 0, w, h);
+        g.fillStyle = '#fef3c7';
+        for (let i = 0; i < 160; i++) {
+          g.fillRect((i * 53) % w, (i * 23) % 72, 1, 1);
+        }
+      });
+
+      Textures.asphalt = makePixelTex(64, 64, (g, w, h) => {
+        g.fillStyle = '#24211e';
+        g.fillRect(0, 0, w, h);
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const n = ((x * 73 + y * 139) % 29) - 14;
+            const v = Math.max(18, Math.min(55, 35 + n));
+            g.fillStyle = `rgb(${v + 2},${v},${v - 2})`;
+            g.fillRect(x, y, 1, 1);
+          }
+        }
+      }, 72, 72);
+
+      Textures.sidewalk = makePixelTex(64, 64, (g, w, h) => {
+        g.fillStyle = '#6e655a';
+        g.fillRect(0, 0, w, h);
+        g.strokeStyle = '#3b342d';
+        g.lineWidth = 2;
+        g.strokeRect(1, 1, 30, 30);
+        g.strokeRect(33, 1, 30, 30);
+        g.strokeRect(1, 33, 30, 30);
+        g.strokeRect(33, 33, 30, 30);
+        for (let i = 0; i < 140; i++) {
+          g.fillStyle = i % 2 ? 'rgba(255,245,230,0.08)' : 'rgba(20,16,12,0.15)';
+          g.fillRect((i * 17) % w, (i * 29) % h, 2, 2);
+        }
+      }, 18, 18);
+
+      Textures.rustIron = makePixelTex(64, 64, (g, w, h) => {
+        g.fillStyle = '#4a3222';
+        g.fillRect(0, 0, w, h);
+        g.strokeStyle = '#24160e';
+        g.lineWidth = 2;
+        g.strokeRect(1, 1, w - 2, h - 2);
+        g.fillStyle = '#7c563c';
+        [[5, 5], [57, 5], [5, 57], [57, 57], [31, 5], [31, 57]].forEach(([rx, ry]) => g.fillRect(rx, ry, 2, 2));
+      }, 3, 3);
+
+      Textures.mossStone = makePixelTex(64, 64, (g, w, h) => {
+        g.fillStyle = '#4f493e';
+        g.fillRect(0, 0, w, h);
+        g.fillStyle = '#364428';
+        g.fillRect(0, 44, w, 20);
+        g.strokeStyle = '#241f19';
+        g.lineWidth = 2;
+        g.strokeRect(1, 1, 30, 20);
+        g.strokeRect(33, 1, 30, 20);
+        g.strokeRect(12, 23, 36, 20);
+        g.strokeRect(1, 45, 30, 18);
+        g.strokeRect(33, 45, 30, 18);
+      }, 4, 4);
+
+      Textures.brownstone = makePixelTex(64, 64, (g, w, h) => {
+        g.fillStyle = '#633722';
+        g.fillRect(0, 0, w, h);
+        g.fillStyle = '#24160f';
+        g.fillRect(0, 30, w, 3);
+        g.fillRect(0, 61, w, 3);
+        [[10, 7, true], [38, 7, false], [10, 38, false], [38, 38, true]].forEach(([wx, wy, lit]) => {
+          g.fillStyle = '#1b120c';
+          g.fillRect(wx - 2, wy - 2, 20, 22);
+          g.fillStyle = lit ? '#d98a2b' : '#263038';
+          g.fillRect(wx, wy, 16, 18);
+        });
+      }, 3, 3);
+
+      Textures.hazard = makePixelTex(64, 64, (g, w, h) => {
+        g.fillStyle = '#d99b1e';
+        g.fillRect(0, 0, w, h);
+        g.fillStyle = '#1b1612';
+        for (let i = -64; i < 128; i += 16) {
+          g.beginPath();
+          g.moveTo(i, 0); g.lineTo(i + 8, 0);
+          g.lineTo(i - 24, h); g.lineTo(i - 32, h);
+          g.closePath(); g.fill();
+        }
+      }, 4, 1);
+
+      Textures.signStop = makePixelTex(64, 64, (g, w, h) => {
+        g.fillStyle = '#140e0a';
+        g.fillRect(0, 0, w, h);
+        g.fillStyle = '#b91c1c';
+        g.fillRect(6, 6, 52, 52);
+        g.strokeStyle = '#f5f5f4';
+        g.lineWidth = 3;
+        g.strokeRect(8, 8, 48, 48);
+        g.fillStyle = '#ffffff';
+        g.font = 'bold 16px Courier New';
+        g.textAlign = 'center';
+        g.fillText('STOP', 32, 37);
+      });
+
+      Textures.signOneWay = makePixelTex(96, 32, (g, w, h) => {
+        g.fillStyle = '#141210';
+        g.fillRect(0, 0, w, h);
+        g.strokeStyle = '#e7e5e4';
+        g.lineWidth = 2;
+        g.strokeRect(2, 2, w - 4, h - 4);
+        g.fillStyle = '#ffffff';
+        g.font = 'bold 12px Courier New';
+        g.textAlign = 'center';
+        g.fillText('ONE WAY ->', 48, 20);
+      });
+
+      Textures.signNoPark = makePixelTex(64, 80, (g, w, h) => {
+        g.fillStyle = '#f5f5f4';
+        g.fillRect(0, 0, w, h);
+        g.strokeStyle = '#b91c1c';
+        g.lineWidth = 4;
+        g.strokeRect(3, 3, w - 6, h - 6);
+        g.fillStyle = '#b91c1c';
+        g.font = 'bold 11px Courier New';
+        g.textAlign = 'center';
+        g.fillText('NO', 32, 22);
+        g.fillText('PARKING', 32, 36);
+        g.fillStyle = '#1c1917';
+        g.font = 'bold 10px Courier New';
+        g.fillText('HYDRANT', 32, 54);
+        g.fillText('ZONE', 32, 68);
+      });
+
+      Textures.signHill = makePixelTex(64, 64, (g, w, h) => {
+        g.fillStyle = '#d97706';
+        g.fillRect(0, 0, w, h);
+        g.strokeStyle = '#1c1917';
+        g.lineWidth = 3;
+        g.strokeRect(3, 3, w - 6, h - 6);
+        g.fillStyle = '#1c1917';
+        g.font = 'bold 12px Courier New';
+        g.textAlign = 'center';
+        g.fillText('HILL', 32, 26);
+        g.fillText('GRADE 8%', 32, 44);
+      });
+    }
+
+    function makeStreetBladeTex(label) {
+      return makePixelTex(128, 32, (g, w, h) => {
+        g.fillStyle = '#143d29';
+        g.fillRect(0, 0, w, h);
+        g.strokeStyle = '#d97706';
+        g.lineWidth = 2;
+        g.strokeRect(2, 2, w - 4, h - 4);
+        g.fillStyle = '#fef3c7';
+        g.font = 'bold 14px Courier New';
+        g.textAlign = 'center';
+        g.fillText(label, 64, 21);
+      });
+    }
+
+    // Real-Time Procedural Web Audio Synthesizer
+    const SoundFX = {
+      ctx: null, enabled: true, engineOsc: null, engineGain: null,
+      resume() {
+        if (!this.enabled) return;
+        try {
+          if (!this.ctx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return;
+            this.ctx = new AC();
+            const osc = this.ctx.createOscillator();
+            const filter = this.ctx.createBiquadFilter();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.value = 42;
+            filter.type = 'lowpass';
+            filter.frequency.value = 180;
+            gain.gain.value = 0.032;
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            this.engineOsc = osc;
+            this.engineGain = gain;
+          }
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+        } catch (err) {}
+      },
+      updateEngine(speedAbs) {
+        if (!this.ctx || !this.engineOsc || !this.enabled) return;
+        const targetFreq = 42 + Math.min(105, speedAbs * 7.5);
+        this.engineOsc.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.06);
+        this.engineGain.gain.setTargetAtTime(0.03 + Math.min(0.034, speedAbs * 0.002), this.ctx.currentTime, 0.08);
+      },
+      tone(freq, endFreq, dur, type = 'square', vol = 0.1) {
+        if (!this.enabled || !this.ctx) return;
+        try {
+          const t = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, t);
+          osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), t + dur);
+          g.gain.setValueAtTime(vol, t);
+          g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+          osc.connect(g); g.connect(this.ctx.destination);
+          osc.start(t); osc.stop(t + dur);
+        } catch (err) {}
+      },
+      signalTick(high) { this.tone(high ? 920 : 680, high ? 840 : 620, 0.025, 'square', 0.035); },
+      bump() { this.tone(135, 36, 0.22, 'sawtooth', 0.14); },
+      curb() { this.tone(92, 34, 0.14, 'triangle', 0.13); },
+      parkClick() { this.tone(240, 110, 0.09, 'square', 0.08); },
+      chime() {
+        [330, 440, 554.37, 659.25].forEach((f, i) => {
+          setTimeout(() => this.tone(f, f * 1.02, 0.32, 'triangle', 0.09), i * 85);
+        });
+      }
+    };
+
+    /* =========================================================================
+       3. CITY CONFIG, 7 ON-STREET SCENARIOS (INCLUDING HILL GRADE) & STATE
+       ========================================================================= */
+    // Heading convention: 0 = East (+X), PI/2 = South (+Z), -PI/2 = North (-Z), PI = West (-X)
+    const HILL_X0 = -56;
+    const HILL_X1 = -12;
+    const HILL_SLOPE = 0.13; // ~7.4 deg grade rising Eastward (+X)
+
+    const OPEN_BAYS = [
+      { id: '5TH_N', label: "5TH AVE — RANGER'S DINER", curbSide: 1, x: 6.78, z: -26, heading: -Math.PI / 2, len: 6.9, wid: 2.45 },
+      { id: '5TH_S', label: '5TH AVE — MIDTOWN SOUTH', curbSide: 1, x: 6.78, z: 32, heading: -Math.PI / 2, len: 6.9, wid: 2.45 },
+      { id: '5TH_W', label: '5TH AVE — WEST CURB', curbSide: 1, x: -6.78, z: -34, heading: Math.PI / 2, len: 6.9, wid: 2.45 },
+      { id: '4TH_L', label: '4TH AVE (1-WAY LEFT CURB)', curbSide: -1, x: -75.78, z: -32, heading: -Math.PI / 2, len: 6.8, wid: 2.45 },
+      { id: '4TH_R', label: '4TH AVE — IRONWORKS', curbSide: 1, x: -64.22, z: 34, heading: -Math.PI / 2, len: 6.8, wid: 2.45 },
+      { id: '6TH_N', label: '6TH AVE — CATHEDRAL PLAZA', curbSide: 1, x: 75.78, z: -32, heading: -Math.PI / 2, len: 6.8, wid: 2.45 },
+      { id: '6TH_S', label: '6TH AVE — SOUTH PLAZA', curbSide: 1, x: 75.78, z: 34, heading: -Math.PI / 2, len: 6.9, wid: 2.45 },
+      { id: '44TH_P', label: '44TH ST — PARKSIDE', curbSide: 1, x: -34, z: 5.78, heading: 0, len: 6.9, wid: 2.45 },
+      { id: '44TH_E', label: '44TH ST — ACADEMY GATE', curbSide: 1, x: 36, z: 5.78, heading: 0, len: 6.9, wid: 2.45 },
+      { id: '45TH_H', label: '45TH ST — HYDRANT BAY', curbSide: 1, x: 25, z: 75.78, heading: 0, len: 6.4, wid: 2.42 },
+      { id: '43RD_H', label: '43RD ST — FORTRESS HILL (8%)', curbSide: 1, isHill: true, x: -34, z: -64.22, heading: 0, len: 7.0, wid: 2.45 }
+    ];
+
+    const LEVELS = [
+      {
+        name: 'STAGE 1: 5TH & 44TH ST', curbSide: 1,
+        bay: { x: 6.78, z: -26, heading: -Math.PI / 2, len: 6.9, wid: 2.45 },
+        start: { x: 3.4, z: -11, heading: -Math.PI / 2 },
+        parked: [
+          { x: 6.78, z: -32.6, heading: -Math.PI / 2, col: 0x3b4a36, type: 'sedan' },
+          { x: 6.78, z: -19.4, heading: -Math.PI / 2, col: 0x4a3228, type: 'compact' }
+        ]
+      },
+      {
+        name: 'STAGE 2: 4TH AVE 1-WAY', curbSide: -1,
+        bay: { x: -75.78, z: -32, heading: -Math.PI / 2, len: 6.8, wid: 2.45 },
+        start: { x: -72.0, z: -15, heading: -Math.PI / 2 },
+        parked: [
+          { x: -75.78, z: -38.9, heading: -Math.PI / 2, col: 0x5c3824, type: 'apc' },
+          { x: -75.78, z: -25.4, heading: -Math.PI / 2, col: 0x2f3b47, type: 'sedan' }
+        ]
+      },
+      {
+        name: 'STAGE 3: 45TH HYDRANT', curbSide: 1,
+        bay: { x: 25.0, z: 75.78, heading: 0, len: 6.3, wid: 2.42 },
+        start: { x: 11.0, z: 72.4, heading: 0 },
+        parked: [
+          { x: 18.2, z: 75.78, heading: 0, col: 0x6b2e1e, type: 'truck' }
+        ]
+      },
+      {
+        name: 'STAGE 4: 6TH AVE BUSY', curbSide: 1,
+        bay: { x: 75.78, z: -32, heading: -Math.PI / 2, len: 6.7, wid: 2.45 },
+        start: { x: 72.4, z: -15, heading: -Math.PI / 2 },
+        parked: [
+          { x: 75.78, z: -38.5, heading: -Math.PI / 2, col: 0x3b352e, type: 'sedan' },
+          { x: 75.78, z: -25.4, heading: -Math.PI / 2, col: 0x5c3824, type: 'apc' }
+        ]
+      },
+      {
+        name: 'STAGE 5: STREET DELIVERY', curbSide: 1, isRoute: true,
+        stops: [
+          { label: "STOP 1/3: 5TH AVE — RANGER'S DINER", curbSide: 1, x: 6.78, z: -26, heading: -Math.PI / 2, len: 6.9, wid: 2.45 },
+          { label: 'STOP 2/3: 44TH ST — PARKSIDE', curbSide: 1, x: -34, z: 5.78, heading: 0, len: 6.9, wid: 2.45 },
+          { label: 'STOP 3/3: 6TH AVE — SOUTH PLAZA', curbSide: 1, x: 75.78, z: 34, heading: -Math.PI / 2, len: 6.9, wid: 2.45 }
+        ],
+        bay: { x: 6.78, z: -26, heading: -Math.PI / 2, len: 6.9, wid: 2.45 },
+        start: { x: 3.4, z: -11, heading: -Math.PI / 2 },
+        parked: [
+          { x: 6.78, z: -32.6, heading: -Math.PI / 2, col: 0x3b4a36, type: 'sedan' },
+          { x: 6.78, z: -19.4, heading: -Math.PI / 2, col: 0x4a3228, type: 'compact' },
+          { x: -40.5, z: 5.78, heading: 0, col: 0x5c3824, type: 'sedan' },
+          { x: -27.2, z: 5.78, heading: 0, col: 0x2f3b47, type: 'truck' },
+          { x: 75.78, z: 27.4, heading: -Math.PI / 2, col: 0x3b4a36, type: 'sedan' },
+          { x: 75.78, z: 40.6, heading: -Math.PI / 2, col: 0x4a3228, type: 'apc' }
+        ]
+      },
+      {
+        name: 'STAGE 6: OPEN CITY ROAM', curbSide: 1, isRoam: true,
+        bay: { x: 6.78, z: -26, heading: -Math.PI / 2, len: 6.9, wid: 2.45 },
+        start: { x: 3.4, z: 14, heading: -Math.PI / 2 },
+        parked: [
+          { x: 6.78, z: -32.6, heading: -Math.PI / 2, col: 0x3b4a36, type: 'sedan' },
+          { x: 6.78, z: -19.4, heading: -Math.PI / 2, col: 0x4a3228, type: 'compact' },
+          { x: -75.78, z: -38.8, heading: -Math.PI / 2, col: 0x5c3824, type: 'apc' },
+          { x: -75.78, z: -25.4, heading: -Math.PI / 2, col: 0x2f3b47, type: 'sedan' },
+          { x: 75.78, z: -38.5, heading: -Math.PI / 2, col: 0x3b352e, type: 'sedan' },
+          { x: 75.78, z: -25.2, heading: -Math.PI / 2, col: 0x5c3824, type: 'truck' },
+          { x: -40.5, z: 5.78, heading: 0, col: 0x2f3b47, type: 'compact' },
+          { x: -27.5, z: 5.78, heading: 0, col: 0x3b4a36, type: 'sedan' }
+        ]
+      },
+      {
+        name: 'STAGE 7: FORTRESS HILL', curbSide: 1, isHill: true,
+        bay: { x: -34.0, z: -64.22, heading: 0, len: 7.0, wid: 2.45 },
+        start: { x: -49.0, z: -67.2, heading: 0 },
+        parked: [
+          { x: -26.8, z: -64.22, heading: 0, col: 0x6b3a26, type: 'apc' },
+          { x: -41.0, z: -64.22, heading: 0, col: 0x3b4a36, type: 'compact' }
+        ]
+      }
+    ];
+
+    const State = {
+      lvlIdx: 0, camMode: 0, mirrorMode: 'AUTO', northUp: true, coachOn: true, nightMode: false,
+      completed: false, startTime: 0, elapsed: 0, routeIdx: 0,
+      faceState: 'ok', hurtTimer: 0, glance: 0, dipFactor: 0, alertTimer: 0,
+      manualMirrorTilt: 0, signalBlinkTimer: 0, signalBlinkOn: false,
+      activeBay: { ...OPEN_BAYS[0] }, lastRedId: '', redCooldown: 0, pedCooldown: 0, cycleTime: 0,
+      replayFrames: [], replayTimer: 0, replayCursor: 0, replayPlaying: true
+    };
+
+    const Car = {
+      len: 4.4, wid: 1.94, wheelbase: 2.62, maxSteer: THREE.MathUtils.degToRad(36),
+      x: 3.4, z: -11, y: 0, heading: -Math.PI / 2, speed: 0, steer: 0,
+      gear: 'D', signal: 0, signaledProperly: false,
+      bumps: 0, violations: 0, curbMounts: 0, pedWarnings: 0,
+      onCurb: false, curbPitch: 0, curbRoll: 0, gradeDeg: 0, wheelRot: 0
+    };
+
+    const Keys = {};
+    const TouchKeys = {};
+    let touchWheelActive = false;
+    let touchWheelAngle = 0;
+
+    window.addEventListener('keydown', e => {
+      Keys[e.code] = true;
+      SoundFX.resume();
+      if (e.code === 'KeyP') engagePark();
+      else if (e.code === 'KeyC') setCameraMode((State.camMode + 1) % 3);
+      else if (e.code === 'KeyM') cycleMirrorMode();
+      else if (e.code === 'KeyN') toggleNightMode();
+      else if (e.code === 'KeyH') toggleCoach();
+      else if (e.code === 'KeyV') toggleSound();
+      else if (e.code === 'KeyZ') toggleSignal(-1);
+      else if (e.code === 'KeyX') toggleSignal(1);
+      else if (e.code === 'BracketLeft') adjustMirrorTilt(-0.04);
+      else if (e.code === 'BracketRight') adjustMirrorTilt(0.04);
+      else if (e.code === 'Backspace' || e.code === 'Enter' || (e.code === 'KeyR' && e.shiftKey)) {
+        e.preventDefault();
+        resetLevel();
+      }
+    });
+    window.addEventListener('keyup', e => { Keys[e.code] = false; });
+
+    function initTouchPads() {
+      document.querySelectorAll('.t-pad[data-key]').forEach(btn => {
+        const k = btn.dataset.key;
+        const press = e => {
+          e.preventDefault();
+          SoundFX.resume();
+          TouchKeys[k] = true;
+          btn.classList.add('pressed');
+        };
+        const release = e => {
+          if (e) e.preventDefault();
+          TouchKeys[k] = false;
+          btn.classList.remove('pressed');
+        };
+        btn.addEventListener('pointerdown', press);
+        btn.addEventListener('pointerup', release);
+        btn.addEventListener('pointerleave', release);
+        btn.addEventListener('pointercancel', release);
+      });
+
+      // Rotary Drag Steering Wheel for Mobile & Tablets
+      const wheelPad = document.getElementById('touch-wheel-pad');
+      const wheelSpoke = document.getElementById('touch-wheel-spoke');
+      if (wheelPad && wheelSpoke) {
+        let activePointerId = null;
+        const updateWheelFromEvent = e => {
+          const rect = wheelPad.getBoundingClientRect();
+          const cx = rect.left + rect.width * 0.5;
+          const cy = rect.top + rect.height * 0.5;
+          const dx = e.clientX - cx;
+          const dy = e.clientY - cy;
+          // Map angle relative to top (12 o'clock) into [-1, 1] steering ratio
+          let ang = Math.atan2(dx, -dy);
+          ang = Math.max(-Math.PI * 0.65, Math.min(Math.PI * 0.65, ang));
+          touchWheelAngle = ang / (Math.PI * 0.65);
+          wheelSpoke.style.transform = `rotate(${Math.round(touchWheelAngle * 95)}deg)`;
+        };
+
+        wheelPad.addEventListener('pointerdown', e => {
+          e.preventDefault();
+          SoundFX.resume();
+          activePointerId = e.pointerId;
+          touchWheelActive = true;
+          wheelPad.setPointerCapture(e.pointerId);
+          updateWheelFromEvent(e);
+        });
+        wheelPad.addEventListener('pointermove', e => {
+          if (touchWheelActive && e.pointerId === activePointerId) {
+            e.preventDefault();
+            updateWheelFromEvent(e);
+          }
+        });
+        const releaseWheel = e => {
+          if (e.pointerId === activePointerId) {
+            touchWheelActive = false;
+            touchWheelAngle = 0;
+            activePointerId = null;
+            wheelSpoke.style.transform = 'rotate(0deg)';
+          }
+        };
+        wheelPad.addEventListener('pointerup', releaseWheel);
+        wheelPad.addEventListener('pointercancel', releaseWheel);
+      }
+
+      // Swipe horizontally on the 3D viewport to glance Left/Right (Q/E)
+      let swipeStartX = null;
+      canvas.addEventListener('touchstart', e => {
+        SoundFX.resume();
+        if (e.touches.length === 1) swipeStartX = e.touches[0].clientX;
+      }, { passive: true });
+      canvas.addEventListener('touchmove', e => {
+        if (swipeStartX !== null && e.touches.length === 1) {
+          const dx = e.touches[0].clientX - swipeStartX;
+          if (Math.abs(dx) > 28) {
+            State.glance = dx > 0 ? -0.85 : 0.85;
+          }
+        }
+      }, { passive: true });
+      canvas.addEventListener('touchend', () => {
+        swipeStartX = null;
+        State.glance = 0;
+      }, { passive: true });
+    }
+
+    function pollGamepad() {
+      if (!navigator.getGamepads) return null;
+      const pads = navigator.getGamepads();
+      if (!pads) return null;
+      for (let i = 0; i < pads.length; i++) {
+        const gp = pads[i];
+        if (gp && gp.connected) {
+          const dead = v => (Math.abs(v) < 0.14 ? 0 : v);
+          const steerAxis = dead(gp.axes[0] || 0);
+          const rt = gp.buttons[7] ? gp.buttons[7].value : 0;
+          const lt = gp.buttons[6] ? gp.buttons[6].value : 0;
+          const aBtn = gp.buttons[0] && gp.buttons[0].pressed;
+          const bBtn = gp.buttons[1] && gp.buttons[1].pressed;
+          return { steerAxis, gasVal: Math.max(rt, aBtn ? 1 : 0), revVal: Math.max(lt, bBtn ? 1 : 0) };
+        }
+      }
+      return null;
+    }
+
+    /* =========================================================================
+       4. TERRAIN / 4-WHEEL CURB HEIGHT SAMPLER & 360M CITY BUILDER
+       ========================================================================= */
+    const staticColliders = [];
+    const sidewalkRects = [];
+    const trafficLights = [];
+    const aiCars = [];
+    const peds = [];
+    const streetLampLights = [];
+    let skyDomeMesh = null;
+    let ambientLightObj = null;
+    let sunLightObj = null;
+    let levelPropGroup = null;
+    let bayGroup = null;
+    let bayMat = null;
+    let trajectoryGroup = null;
+
+    function addStaticBox(x, z, len, wid, heading = 0) {
+      staticColliders.push({ x, z, halfL: len * 0.5, halfW: wid * 0.5, heading });
+    }
+
+    // Individual Wheel Ground & Curb Height Sampler (Supports Raised Sidewalks + Sloped Fortress Hill)
+    function getGroundInfoAt(x, z) {
+      if (x >= HILL_X0 && x <= HILL_X1 && z >= -77.5 && z <= -62.5) {
+        const baseH = (x - HILL_X0) * HILL_SLOPE;
+        const onViaductCurb = z >= -63.0 || z <= -77.0;
+        return {
+          y: baseH + (onViaductCurb ? 0.16 : 0),
+          isCurb: onViaductCurb,
+          slopeX: HILL_SLOPE
+        };
+      }
+      for (const r of sidewalkRects) {
+        if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1) {
+          return { y: 0.16, isCurb: true, slopeX: 0 };
+        }
+      }
+      return { y: 0, isCurb: false, slopeX: 0 };
+    }
+
+    const ARCHETYPES = {
+      sedan: { len: 4.4, wid: 1.94, bodyH: 0.72, cabLen: 2.15, cabH: 0.62, cabOff: -0.18 },
+      compact: { len: 3.6, wid: 1.82, bodyH: 0.68, cabLen: 1.9, cabH: 0.6, cabOff: -0.22 },
+      truck: { len: 5.8, wid: 2.15, bodyH: 0.76, cabLen: 3.9, cabH: 1.35, cabOff: -0.75 },
+      apc: { len: 5.2, wid: 2.12, bodyH: 0.92, cabLen: 3.4, cabH: 0.78, cabOff: -0.45 }
+    };
+
+    function createVehicleMesh(bodyColor, isPlayer = false, archetype = 'sedan') {
+      const spec = ARCHETYPES[archetype] || ARCHETYPES.sedan;
+      const g = new THREE.Group();
+      g.rotation.order = 'YXZ';
+
+      const bodyMat = new THREE.MeshLambertMaterial({ color: bodyColor });
+      const trimMat = new THREE.MeshLambertMaterial({ color: 0x1e1915 });
+      const glassMat = new THREE.MeshLambertMaterial({ color: 0x26353d });
+
+      const chassis = new THREE.Mesh(new THREE.BoxGeometry(spec.len, spec.bodyH, spec.wid), bodyMat);
+      chassis.position.y = 0.2 + spec.bodyH * 0.5;
+      g.add(chassis);
+
+      const halfL = spec.len * 0.5;
+      const fBump = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, spec.wid + 0.08), trimMat);
+      fBump.position.set(halfL + 0.02, 0.42, 0);
+      g.add(fBump);
+      const rBump = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, spec.wid + 0.08), trimMat);
+      rBump.position.set(-halfL - 0.02, 0.42, 0);
+      g.add(rBump);
+
+      if (!isPlayer) {
+        const cabMat = archetype === 'truck'
+          ? new THREE.MeshLambertMaterial({ map: Textures.rustIron })
+          : (archetype === 'apc' ? new THREE.MeshLambertMaterial({ map: Textures.mossStone }) : bodyMat);
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(spec.cabLen, spec.cabH, spec.wid - 0.24), cabMat);
+        cabin.position.set(spec.cabOff, 0.2 + spec.bodyH + spec.cabH * 0.5 - 0.04, 0);
+        g.add(cabin);
+        if (archetype === 'sedan' || archetype === 'compact') {
+          const glass = new THREE.Mesh(new THREE.BoxGeometry(spec.cabLen + 0.05, spec.cabH * 0.72, spec.wid - 0.2), glassMat);
+          glass.position.set(spec.cabOff, 0.2 + spec.bodyH + spec.cabH * 0.46, 0);
+          g.add(glass);
+        }
+      } else {
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.08, 1.66), bodyMat);
+        roof.position.set(-0.22, 1.48, 0);
+        g.add(roof);
+        [
+          [0.74, 0.78], [0.74, -0.78], [-1.18, 0.78], [-1.18, -0.78]
+        ].forEach(([px, pz]) => {
+          const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.58, 0.08), trimMat);
+          pillar.position.set(px, 1.18, pz);
+          g.add(pillar);
+        });
+        // Rear Quarter-Panel Fender Flares (Self-Reference Anchors in Side Mirrors)
+        [-0.96, 0.96].forEach(fz => {
+          const flare = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.34, 0.12), bodyMat);
+          flare.position.set(-1.45, 0.78, fz);
+          g.add(flare);
+        });
+      }
+
+      const headMat = new THREE.MeshBasicMaterial({ color: 0xffe4a3 });
+      const tailMat = new THREE.MeshBasicMaterial({ color: 0xdc2626 });
+      const leftSigMat = new THREE.MeshBasicMaterial({ color: 0x452708 });
+      const rightSigMat = new THREE.MeshBasicMaterial({ color: 0x452708 });
+
+      [-spec.wid * 0.34, spec.wid * 0.34].forEach(zOff => {
+        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.16, 0.3), headMat);
+        hl.position.set(halfL + 0.01, 0.64, zOff);
+        g.add(hl);
+        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.16, 0.3), tailMat);
+        tl.position.set(-halfL - 0.01, 0.64, zOff);
+        g.add(tl);
+      });
+
+      [
+        [halfL + 0.01, -spec.wid * 0.44, leftSigMat],
+        [-halfL - 0.01, -spec.wid * 0.44, leftSigMat],
+        [halfL + 0.01, spec.wid * 0.44, rightSigMat],
+        [-halfL - 0.01, spec.wid * 0.44, rightSigMat]
+      ].forEach(([sx, sz, sMat]) => {
+        const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.16), sMat);
+        lamp.position.set(sx, 0.64, sz);
+        g.add(lamp);
+      });
+
+      const wheelMat = new THREE.MeshLambertMaterial({ color: 0x161412 });
+      const hubMat = new THREE.MeshLambertMaterial({ color: 0x8a7560 });
+      const wheelGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.24, 10);
+      wheelGeo.rotateX(Math.PI / 2);
+      const axX = halfL - 0.89;
+      const axZ = spec.wid * 0.5 - 0.05;
+      const wheels = [];
+      [
+        [axX, 0.34, axZ, true],
+        [axX, 0.34, -axZ, true],
+        [-axX, 0.34, axZ, false],
+        [-axX, 0.34, -axZ, false]
+      ].forEach(([wx, wy, wz, front]) => {
+        const pivot = new THREE.Group();
+        pivot.position.set(wx, wy, wz);
+        const wMesh = new THREE.Mesh(wheelGeo, wheelMat);
+        const hub = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.1, 0.26), hubMat);
+        wMesh.add(hub);
+        pivot.add(wMesh);
+        g.add(pivot);
+        wheels.push({ pivot, mesh: wMesh, front });
+      });
+
+      return { group: g, wheels, tailMat, leftSigMat, rightSigMat, spec };
+    }
+
+    let playerCar = null;
+    let cockpitGroup = null;
+    let steeringWheelMesh = null;
+    let leftPhysicalMirror = null;
+    let rightPhysicalMirror = null;
+    let clusterCanvas = null;
+    let clusterCtx = null;
+    let clusterTex = null;
+    let headlightBeams = null;
+
+    function updateCockpitCluster() {
+      if (!clusterCtx || !clusterTex) return;
+      const g = clusterCtx;
+      g.fillStyle = '#140c08';
+      g.fillRect(0, 0, 256, 64);
+      g.strokeStyle = '#6b523e';
+      g.lineWidth = 2;
+      g.strokeRect(1, 1, 254, 62);
+
+      const cx = 42, cy = 36, r = 22;
+      g.strokeStyle = '#8f7056';
+      g.beginPath();
+      g.arc(cx, cy, r, Math.PI * 0.8, Math.PI * 2.2);
+      g.stroke();
+      const mph = Math.min(45, Math.abs(Car.speed) * 2.237);
+      const ang = Math.PI * 0.8 + (mph / 45) * (Math.PI * 1.4);
+      g.strokeStyle = '#ff9d3b';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(cx, cy);
+      g.lineTo(cx + Math.cos(ang) * (r - 4), cy + Math.sin(ang) * (r - 4));
+      g.stroke();
+      g.fillStyle = '#fef3c7';
+      g.font = 'bold 10px Courier New';
+      g.textAlign = 'center';
+      g.fillText(`${Math.round(mph)} MPH`, cx, 57);
+
+      g.fillStyle = Car.signal === -1 && State.signalBlinkOn ? '#34d399' : '#2e241c';
+      g.fillText('<<<', 98, 22);
+      g.fillStyle = Car.signal === 1 && State.signalBlinkOn ? '#34d399' : '#2e241c';
+      g.fillText('>>>', 158, 22);
+
+      g.fillStyle = '#ffbe55';
+      g.font = 'bold 20px Courier New';
+      g.fillText(Car.gear, 128, 30);
+
+      const rpmFrac = Math.min(1, 0.18 + (Math.abs(Car.speed) % 6) / 6.5);
+      g.fillStyle = '#291c14';
+      g.fillRect(88, 38, 80, 8);
+      g.fillStyle = rpmFrac > 0.8 ? '#ef4444' : '#d97706';
+      g.fillRect(88, 38, Math.round(80 * rpmFrac), 8);
+
+      const tiltDeg = Math.round(THREE.MathUtils.radToDeg(State.manualMirrorTilt));
+      g.fillStyle = '#b8a389';
+      g.font = 'bold 9px Courier New';
+      g.fillText(`MIR TILT: ${tiltDeg >= 0 ? '+' : ''}${tiltDeg}°`, 128, 57);
+
+      g.fillStyle = '#38bdf8';
+      g.font = 'bold 11px Courier New';
+      g.fillText(`STR ${Math.round(THREE.MathUtils.radToDeg(Car.steer))}°`, 214, 26);
+      g.fillStyle = '#fbbf24';
+      g.fillText(`GRD ${Car.gradeDeg.toFixed(1)}°`, 214, 46);
+
+      clusterTex.needsUpdate = true;
+    }
+
+    function buildPlayerCar() {
+      playerCar = createVehicleMesh(0x7c4524, true, 'sedan');
+      scene.add(playerCar.group);
+
+      headlightBeams = new THREE.Group();
+      [-0.65, 0.65].forEach(zOff => {
+        const cone = new THREE.Mesh(
+          new THREE.PlaneGeometry(14, 3.6),
+          new THREE.MeshBasicMaterial({
+            color: 0xffdf99, transparent: true, opacity: 0.14,
+            blending: THREE.AdditiveBlending, depthWrite: false
+          })
+        );
+        cone.rotation.x = -Math.PI / 2;
+        cone.position.set(9.2, 0.04, zOff);
+        headlightBeams.add(cone);
+      });
+      headlightBeams.visible = false;
+      playerCar.group.add(headlightBeams);
+
+      cockpitGroup = new THREE.Group();
+      playerCar.group.add(cockpitGroup);
+
+      const dash = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, 0.22, 1.62),
+        new THREE.MeshLambertMaterial({ color: 0x261b14 })
+      );
+      dash.position.set(0.68, 0.94, 0);
+      cockpitGroup.add(dash);
+
+      clusterCanvas = document.createElement('canvas');
+      clusterCanvas.width = 256; clusterCanvas.height = 64;
+      clusterCtx = clusterCanvas.getContext('2d');
+      clusterTex = new THREE.CanvasTexture(clusterCanvas);
+      clusterTex.magFilter = THREE.NearestFilter;
+      clusterTex.minFilter = THREE.NearestFilter;
+
+      const clusterScreen = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.26, 0.068),
+        new THREE.MeshBasicMaterial({ map: clusterTex })
+      );
+      clusterScreen.rotation.order = 'YXZ';
+      clusterScreen.rotation.y = -Math.PI / 2;
+      clusterScreen.rotation.x = -0.22;
+      clusterScreen.position.set(0.58, 1.072, -0.34);
+      cockpitGroup.add(clusterScreen);
+
+      const wheelColumn = new THREE.Group();
+      wheelColumn.position.set(0.48, 1.01, -0.34);
+      wheelColumn.rotation.z = -0.34;
+      cockpitGroup.add(wheelColumn);
+
+      steeringWheelMesh = new THREE.Mesh(
+        new THREE.TorusGeometry(0.115, 0.017, 8, 20),
+        new THREE.MeshLambertMaterial({ color: 0x17120e })
+      );
+      steeringWheelMesh.rotation.y = Math.PI / 2;
+      const topCenterStripe = new THREE.Mesh(
+        new THREE.BoxGeometry(0.022, 0.036, 0.038),
+        new THREE.MeshBasicMaterial({ color: 0xff9d3b })
+      );
+      topCenterStripe.position.y = 0.115;
+      const spoke = new THREE.Mesh(
+        new THREE.BoxGeometry(0.21, 0.022, 0.016),
+        new THREE.MeshLambertMaterial({ color: 0x9c7b60 })
+      );
+      const bottomSpoke = new THREE.Mesh(
+        new THREE.BoxGeometry(0.022, 0.105, 0.016),
+        new THREE.MeshLambertMaterial({ color: 0x9c7b60 })
+      );
+      bottomSpoke.position.y = -0.052;
+      const hubCap = new THREE.Mesh(
+        new THREE.BoxGeometry(0.046, 0.046, 0.024),
+        new THREE.MeshLambertMaterial({ color: 0x4a3222 })
+      );
+      steeringWheelMesh.add(topCenterStripe, spoke, bottomSpoke, hubCap);
+      wheelColumn.add(steeringWheelMesh);
+
+      const pinMat = new THREE.MeshBasicMaterial({ color: 0xffbe55 });
+      [
+        [2.05, 0.94, 0],
+        [2.05, 0.94, 0.72],
+        [2.05, 0.94, -0.72]
+      ].forEach(([px, py, pz]) => {
+        const pin = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.04), pinMat);
+        pin.position.set(px, py, pz);
+        cockpitGroup.add(pin);
+      });
+
+      function makePhysicalMirrorMesh(w, h, rt) {
+        const geo = new THREE.PlaneGeometry(w, h);
+        const uv = geo.attributes.uv;
+        for (let i = 0; i < uv.count; i++) {
+          uv.setX(i, 1 - uv.getX(i));
+        }
+        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: rt.texture }));
+        m.rotation.y = -Math.PI / 2;
+        return m;
+      }
+
+      const rearHousing = new THREE.Group();
+      rearHousing.position.set(0.56, 1.32, 0);
+      const rFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(0.05, 0.085, 0.28),
+        new THREE.MeshLambertMaterial({ color: 0x1c140e })
+      );
+      const rGlass = makePhysicalMirrorMesh(0.25, 0.065, rearRT);
+      rGlass.position.x = -0.028;
+      rearHousing.add(rFrame, rGlass);
+      cockpitGroup.add(rearHousing);
+
+      function buildSideMirror(sideSign) {
+        const pivot = new THREE.Group();
+        pivot.position.set(0.54, 1.08, sideSign * 1.12);
+        const stalk = new THREE.Mesh(
+          new THREE.BoxGeometry(0.06, 0.05, 0.2),
+          new THREE.MeshLambertMaterial({ color: 0x2b1f16 })
+        );
+        stalk.position.z = -sideSign * 0.09;
+        const shell = new THREE.Mesh(
+          new THREE.BoxGeometry(0.08, 0.13, 0.2),
+          new THREE.MeshLambertMaterial({ color: 0x4a3222 })
+        );
+        const glass = makePhysicalMirrorMesh(0.17, 0.105, sideSign === -1 ? leftRT : rightRT);
+        glass.position.x = -0.043;
+        pivot.add(stalk, shell, glass);
+        cockpitGroup.add(pivot);
+        return pivot;
+      }
+      leftPhysicalMirror = buildSideMirror(-1);
+      rightPhysicalMirror = buildSideMirror(1);
+    }
+
+    // Dynamic Reverse Trajectory Arcs & Front-Fender Swing Guide
+    const trajLeftDots = [];
+    const trajRightDots = [];
+    const swingDots = [];
+    function buildTrajectoryGuides() {
+      trajectoryGroup = new THREE.Group();
+      const pathMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+      const swingMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+      const dotGeo = new THREE.PlaneGeometry(0.22, 0.34);
+      dotGeo.rotateX(-Math.PI / 2);
+
+      for (let i = 0; i < 18; i++) {
+        const dl = new THREE.Mesh(dotGeo, pathMat);
+        const dr = new THREE.Mesh(dotGeo, pathMat);
+        const ds = new THREE.Mesh(dotGeo, swingMat);
+        trajectoryGroup.add(dl, dr, ds);
+        trajLeftDots.push(dl);
+        trajRightDots.push(dr);
+        swingDots.push(ds);
+      }
+      trajectoryGroup.visible = false;
+      scene.add(trajectoryGroup);
+    }
+
+    function updateTrajectoryGuides() {
+      if (!trajectoryGroup) return;
+      const show = Car.gear === 'R' && !State.completed;
+      trajectoryGroup.visible = show;
+      if (!show) return;
+
+      let simX = Car.x;
+      let simZ = Car.z;
+      let simH = Car.heading;
+      const stepDist = -0.36;
+      const outerSign = Car.steer >= 0 ? -1 : 1;
+
+      for (let i = 0; i < 18; i++) {
+        const dH = (stepDist / Car.wheelbase) * Math.tan(Car.steer);
+        simH += dH;
+        simX += Math.cos(simH) * stepDist;
+        simZ += Math.sin(simH) * stepDist;
+
+        const fx = Math.cos(simH), fz = Math.sin(simH);
+        const rx = -fz, rz = fx;
+        const gInfo = getGroundInfoAt(simX, simZ);
+        const yPos = gInfo.y + 0.045;
+
+        trajLeftDots[i].position.set(simX - fx * 1.31 - rx * 0.92, yPos, simZ - fz * 1.31 - rz * 0.92);
+        trajLeftDots[i].rotation.y = -simH;
+
+        trajRightDots[i].position.set(simX - fx * 1.31 + rx * 0.92, yPos, simZ - fz * 1.31 + rz * 0.92);
+        trajRightDots[i].rotation.y = -simH;
+
+        swingDots[i].position.set(
+          simX + fx * 2.15 + rx * (outerSign * 0.98),
+          yPos,
+          simZ + fz * 2.15 + rz * (outerSign * 0.98)
+        );
+        swingDots[i].rotation.y = -simH;
+      }
+    }
+
+    function createPedestrianMesh(coatHex, pantsHex, hairHex) {
+      const g = new THREE.Group();
+      const skinMat = new THREE.MeshLambertMaterial({ color: 0xd9a077 });
+      const coatMat = new THREE.MeshLambertMaterial({ color: coatHex });
+      const pantsMat = new THREE.MeshLambertMaterial({ color: pantsHex });
+      const hairMat = new THREE.MeshLambertMaterial({ color: hairHex });
+      const bootMat = new THREE.MeshLambertMaterial({ color: 0x1a1410 });
+
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.56, 0.24), coatMat);
+      torso.position.y = 1.02;
+      g.add(torso);
+
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.24), skinMat);
+      head.position.y = 1.44;
+      g.add(head);
+      const hair = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.09, 0.26), hairMat);
+      hair.position.y = 1.54;
+      g.add(hair);
+
+      function makeLimb(w, h, d, mat, yOff) {
+        const piv = new THREE.Group();
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        mesh.position.y = yOff;
+        piv.add(mesh);
+        return piv;
+      }
+      const leftArm = makeLimb(0.12, 0.48, 0.12, coatMat, -0.22);
+      leftArm.position.set(-0.26, 1.26, 0);
+      const rightArm = makeLimb(0.12, 0.48, 0.12, coatMat, -0.22);
+      rightArm.position.set(0.26, 1.26, 0);
+      g.add(leftArm, rightArm);
+
+      const leftLeg = makeLimb(0.14, 0.66, 0.16, pantsMat, -0.33);
+      leftLeg.position.set(-0.1, 0.72, 0);
+      const lBoot = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.12, 0.22), bootMat);
+      lBoot.position.set(0, -0.64, 0.03);
+      leftLeg.add(lBoot);
+
+      const rightLeg = makeLimb(0.14, 0.66, 0.16, pantsMat, -0.33);
+      rightLeg.position.set(0.1, 0.72, 0);
+      const rBoot = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.12, 0.22), bootMat);
+      rBoot.position.set(0, -0.64, 0.03);
+      rightLeg.add(rBoot);
+
+      g.add(leftLeg, rightLeg);
+      return { mesh: g, leftArm, rightArm, leftLeg, rightLeg };
+    }
+
+    function addRoadSignPost(x, z, rotY, tex, w = 1.1, h = 0.55, signY = 2.7) {
+      const pole = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 3.1, 0.12),
+        new THREE.MeshLambertMaterial({ color: 0x2b241e })
+      );
+      pole.position.set(x, 1.55, z);
+      scene.add(pole);
+
+      const board = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, 0.06),
+        new THREE.MeshBasicMaterial({ map: tex })
+      );
+      board.position.set(x, signY, z);
+      board.rotation.y = rotY;
+      scene.add(board);
+    }
+
+    function buildCity() {
+      skyDomeMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(240, 24, 14),
+        new THREE.MeshBasicMaterial({ map: Textures.skyDusk, side: THREE.BackSide, fog: false })
+      );
+      scene.add(skyDomeMesh);
+
+      ambientLightObj = new THREE.AmbientLight(0xd9b896, 0.65);
+      scene.add(ambientLightObj);
+      sunLightObj = new THREE.DirectionalLight(0xffcf96, 0.9);
+      sunLightObj.position.set(80, 140, 60);
+      scene.add(sunLightObj);
+
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(360, 360),
+        new THREE.MeshLambertMaterial({ map: Textures.asphalt })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      scene.add(ground);
+
+      // Sloped 3D Fortress Hill Viaduct on 43rd St (x in [-56, -12], z = -70)
+      const rampLen = HILL_X1 - HILL_X0;
+      const rampRise = rampLen * HILL_SLOPE;
+      const rampHyp = Math.hypot(rampLen, rampRise);
+      const rampAngle = Math.atan2(rampRise, rampLen);
+      const rampDeck = new THREE.Mesh(
+        new THREE.BoxGeometry(rampHyp, 0.4, 14.0),
+        new THREE.MeshLambertMaterial({ map: Textures.asphalt })
+      );
+      rampDeck.position.set((HILL_X0 + HILL_X1) * 0.5, rampRise * 0.5 - 0.18, -70);
+      rampDeck.rotation.z = rampAngle;
+      scene.add(rampDeck);
+
+      [-62.75, -77.25].forEach(cz => {
+        const curbStrip = new THREE.Mesh(
+          new THREE.BoxGeometry(rampHyp, 0.56, 0.5),
+          new THREE.MeshLambertMaterial({ map: Textures.hazard })
+        );
+        curbStrip.position.set((HILL_X0 + HILL_X1) * 0.5, rampRise * 0.5 - 0.1, cz);
+        curbStrip.rotation.z = rampAngle;
+        scene.add(curbStrip);
+      });
+
+      const crestDeck = new THREE.Mesh(
+        new THREE.BoxGeometry(10, rampRise + 0.04, 14.0),
+        new THREE.MeshLambertMaterial({ map: Textures.mossStone })
+      );
+      crestDeck.position.set(HILL_X1 + 5, (rampRise + 0.04) * 0.5, -70);
+      scene.add(crestDeck);
+
+      const yellowMat = new THREE.MeshBasicMaterial({ color: 0xeab308 });
+      const whiteMat = new THREE.MeshBasicMaterial({ color: 0xd6d3d1 });
+      const redCurbMat = new THREE.MeshBasicMaterial({ color: 0xb91c1c });
+
+      const roadCoords = [-140, -70, 0, 70, 140];
+      roadCoords.forEach(rc => {
+        const nsLine = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 300), yellowMat);
+        nsLine.rotation.x = -Math.PI / 2;
+        nsLine.position.set(rc, 0.015, 0);
+        scene.add(nsLine);
+
+        const ewLine = new THREE.Mesh(new THREE.PlaneGeometry(300, 0.24), yellowMat);
+        ewLine.rotation.x = -Math.PI / 2;
+        ewLine.position.set(0, 0.015, rc);
+        scene.add(ewLine);
+      });
+
+      [-70, 0, 70].forEach(ix => {
+        [-70, 0, 70].forEach(iz => {
+          for (let s = -6; s <= 6; s += 2) {
+            const cwN = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 2.6), whiteMat);
+            cwN.rotation.x = -Math.PI / 2;
+            cwN.position.set(ix + s, 0.018, iz - 9.2);
+            scene.add(cwN);
+
+            const cwS = cwN.clone();
+            cwS.position.set(ix + s, 0.018, iz + 9.2);
+            scene.add(cwS);
+          }
+        });
+      });
+
+      const blockIntervals = [[-132, -78], [-62, -8], [8, 62], [78, 132]];
+      const swMat = new THREE.MeshLambertMaterial({ map: Textures.sidewalk });
+      const bldMats = [
+        new THREE.MeshLambertMaterial({ map: Textures.brownstone }),
+        new THREE.MeshLambertMaterial({ map: Textures.mossStone }),
+        new THREE.MeshLambertMaterial({ map: Textures.rustIron })
+      ];
+
+      blockIntervals.forEach(([x0, x1], bx) => {
+        blockIntervals.forEach(([z0, z1], bz) => {
+          const w = x1 - x0;
+          const d = z1 - z0;
+          const cx = (x0 + x1) * 0.5;
+          const cz = (z0 + z1) * 0.5;
+
+          const sw = new THREE.Mesh(new THREE.BoxGeometry(w, 0.16, d), swMat);
+          sw.position.set(cx, 0.08, cz);
+          scene.add(sw);
+          sidewalkRects.push({ x0, x1, z0, z1 });
+
+          if (bx === 1 && bz === 2) {
+            const grass = new THREE.Mesh(
+              new THREE.BoxGeometry(w - 6, 0.06, d - 6),
+              new THREE.MeshLambertMaterial({ color: 0x2f4524 })
+            );
+            grass.position.set(cx, 0.18, cz);
+            scene.add(grass);
+          } else {
+            const bw = w - 10;
+            const bd = d - 10;
+            const bh = 14 + ((bx * 7 + bz * 11) % 18);
+            const mat = bldMats[(bx + bz) % bldMats.length];
+            const bld = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat);
+            bld.position.set(cx, 0.16 + bh * 0.5, cz);
+            scene.add(bld);
+            addStaticBox(cx, cz, bw, bd, 0);
+
+            if (bx === 1 && bz === 1) {
+              const spire = new THREE.Mesh(
+                new THREE.BoxGeometry(10, 22, 10),
+                new THREE.MeshLambertMaterial({ map: Textures.mossStone })
+              );
+              spire.position.set(cx, 0.16 + bh + 11, cz);
+              scene.add(spire);
+            }
+          }
+        });
+      });
+
+      const redZone = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 0.45), redCurbMat);
+      redZone.rotation.x = -Math.PI / 2;
+      redZone.position.set(31.4, 0.02, 77.7);
+      scene.add(redZone);
+
+      const hydrant = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.22, 0.72, 8),
+        new THREE.MeshLambertMaterial({ color: 0xdc2626 })
+      );
+      hydrant.position.set(31.4, 0.52, 78.6);
+      scene.add(hydrant);
+      addRoadSignPost(34.2, 78.8, Math.PI, Textures.signNoPark, 0.72, 0.9, 2.3);
+
+      const blade5th = makeStreetBladeTex('5TH AVE');
+      const blade4th = makeStreetBladeTex('4TH AVE');
+      const blade6th = makeStreetBladeTex('6TH AVE');
+      const blade44th = makeStreetBladeTex('44TH ST');
+      const blade45th = makeStreetBladeTex('45TH ST');
+      const blade43rd = makeStreetBladeTex('43RD ST');
+
+      addRoadSignPost(8.6, -8.6, 0, blade5th, 1.3, 0.34, 3.1);
+      addRoadSignPost(8.6, -8.6, Math.PI / 2, blade44th, 1.3, 0.34, 2.75);
+      addRoadSignPost(-61.4, -8.6, 0, blade4th, 1.3, 0.34, 3.1);
+      addRoadSignPost(-61.4, -14.0, 0, Textures.signOneWay, 1.15, 0.38, 2.3);
+      addRoadSignPost(78.6, -8.6, 0, blade6th, 1.3, 0.34, 3.1);
+      addRoadSignPost(8.6, 61.4, Math.PI / 2, blade45th, 1.3, 0.34, 3.1);
+      addRoadSignPost(-61.4, -61.4, Math.PI / 2, blade43rd, 1.3, 0.34, 3.1);
+      addRoadSignPost(-57.5, -62.2, Math.PI / 2, Textures.signHill, 0.85, 0.85, 2.4);
+      addRoadSignPost(8.6, 8.6, 0, Textures.signStop, 0.78, 0.78, 2.3);
+      addRoadSignPost(-61.4, 61.4, 0, Textures.signStop, 0.78, 0.78, 2.3);
+
+      const lampPostMat = new THREE.MeshLambertMaterial({ color: 0x241d17 });
+      const lanternMat = new THREE.MeshBasicMaterial({ color: 0xffb347 });
+      const poolMat = new THREE.MeshBasicMaterial({
+        color: 0xff9d3b, transparent: true, opacity: 0.12,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      [-70, 0, 70].forEach(ax => {
+        [-105, -35, 35, 105].forEach(az => {
+          const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 5.4, 0.22), lampPostMat);
+          post.position.set(ax + 8.6, 2.7, az);
+          scene.add(post);
+
+          const lantern = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.32, 0.55), lanternMat);
+          lantern.position.set(ax + 7.6, 5.3, az);
+          scene.add(lantern);
+
+          const pool = new THREE.Mesh(new THREE.CircleGeometry(6.5, 16), poolMat);
+          pool.rotation.x = -Math.PI / 2;
+          pool.position.set(ax + 5.5, 0.022, az);
+          scene.add(pool);
+          streetLampLights.push(pool);
+        });
+      });
+
+      const archStoneMat = new THREE.MeshLambertMaterial({ map: Textures.mossStone });
+      const portalGlowMat = new THREE.MeshBasicMaterial({
+        color: 0xd97706, transparent: true, opacity: 0.32, side: THREE.DoubleSide
+      });
+      [[0, -140, 0], [0, 140, 0], [-140, 0, Math.PI / 2], [140, 0, Math.PI / 2]].forEach(([px, pz, rot]) => {
+        const arch = new THREE.Group();
+        arch.position.set(px, 0, pz);
+        arch.rotation.y = rot;
+        const lCol = new THREE.Mesh(new THREE.BoxGeometry(1.4, 7.5, 1.4), archStoneMat);
+        lCol.position.set(-7.5, 3.75, 0);
+        const rCol = lCol.clone();
+        rCol.position.x = 7.5;
+        const lintel = new THREE.Mesh(new THREE.BoxGeometry(16.8, 1.5, 1.6), archStoneMat);
+        lintel.position.set(0, 7.8, 0);
+        const shimmer = new THREE.Mesh(new THREE.PlaneGeometry(13.6, 6.8), portalGlowMat);
+        shimmer.position.set(0, 3.6, 0);
+        arch.add(lCol, rCol, lintel, shimmer);
+        scene.add(arch);
+      });
+
+      const poleMat = new THREE.MeshLambertMaterial({ color: 0x26201b });
+      [-70, 0, 70].forEach((ix, xi) => {
+        [-70, 0, 70].forEach((iz, zi) => {
+          const id = `TL_${xi}_${zi}`;
+          const pole = new THREE.Mesh(new THREE.BoxGeometry(0.28, 5.2, 0.28), poleMat);
+          pole.position.set(ix + 8.4, 2.6, iz + 8.4);
+          scene.add(pole);
+
+          const nsLamp = new THREE.Mesh(
+            new THREE.BoxGeometry(0.55, 0.9, 0.55),
+            new THREE.MeshBasicMaterial({ color: 0x22c55e })
+          );
+          nsLamp.position.set(ix + 8.4, 4.8, iz + 8.4);
+          scene.add(nsLamp);
+
+          trafficLights.push({
+            id, x: ix, z: iz, offset: (xi + zi) * 7,
+            nsLamp, nsState: 'GREEN', ewState: 'RED'
+          });
+        });
+      });
+
+      const aiSpecs = [
+        { x: -3.4, z: -95, heading: Math.PI / 2, axis: 'z', col: 0x3b4a36, type: 'sedan' },
+        { x: 3.4, z: 85, heading: -Math.PI / 2, axis: 'z', col: 0x5c3824, type: 'compact' },
+        { x: -73.4, z: 60, heading: -Math.PI / 2, axis: 'z', col: 0x2f3b47, type: 'apc' },
+        { x: 73.4, z: -85, heading: -Math.PI / 2, axis: 'z', col: 0x6b3a26, type: 'sedan' },
+        { x: 66.6, z: 45, heading: Math.PI / 2, axis: 'z', col: 0x3b352e, type: 'truck' },
+        { x: -85, z: 3.4, heading: 0, axis: 'x', col: 0x4a3228, type: 'sedan' },
+        { x: 95, z: -3.4, heading: Math.PI, axis: 'x', col: 0x2f3b47, type: 'compact' },
+        { x: -45, z: 73.4, heading: 0, axis: 'x', col: 0x3b4a36, type: 'sedan' },
+        { x: 55, z: -73.4, heading: Math.PI, axis: 'x', col: 0x5c3824, type: 'apc' }
+      ];
+      aiSpecs.forEach(sp => {
+        const vm = createVehicleMesh(sp.col, false, sp.type);
+        vm.group.position.set(sp.x, 0, sp.z);
+        vm.group.rotation.y = -sp.heading;
+        scene.add(vm.group);
+        aiCars.push({
+          x: sp.x, z: sp.z, heading: sp.heading, axis: sp.axis,
+          speed: 7.5, mesh: vm.group, spec: vm.spec
+        });
+      });
+
+      const pedLocations = [
+        [-9.5, -40, 1, 'walk'], [-9.5, 25, -1, 'walk'], [9.5, -52, 1, 'walk'], [9.5, 38, -1, 'walk'],
+        [-79.5, -20, 1, 'walk'], [-60.5, 18, -1, 'walk'], [60.5, -35, 1, 'walk'], [79.5, 22, -1, 'walk'],
+        [-9.2, -9.2, 1, 'cross5th'], [9.2, 9.2, -1, 'cross5th'],
+        [60.8, -9.2, 1, 'cross6th'], [79.2, 9.2, -1, 'cross6th']
+      ];
+      const coats = [0x6e3523, 0x2f4858, 0x4b5335, 0x6b4c35];
+      const pants = [0x1f242b, 0x2c221c, 0x333b42];
+      const hairs = [0x1c140e, 0x5c3822, 0x8a6d4b];
+      pedLocations.forEach(([px, pz, dir, mode], idx) => {
+        const ped = createPedestrianMesh(
+          coats[idx % coats.length],
+          pants[idx % pants.length],
+          hairs[idx % hairs.length]
+        );
+        ped.mesh.position.set(px, 0.16, pz);
+        scene.add(ped.mesh);
+        peds.push({
+          x: px, z: pz, dir, mode, phase: idx * 1.1, inStreet: false,
+          mesh: ped.mesh,
+          leftArm: ped.leftArm, rightArm: ped.rightArm,
+          leftLeg: ped.leftLeg, rightLeg: ped.rightLeg
+        });
+      });
+    }
+
+    function buildBayVisuals() {
+      bayGroup = new THREE.Group();
+      bayMat = new THREE.MeshBasicMaterial({ color: 0xff9d3b });
+      const frame = new THREE.Group();
+      frame.name = 'bayFrame';
+      bayGroup.add(frame);
+      scene.add(bayGroup);
+    }
+
+    function updateBayVisuals(bay) {
+      if (!bayGroup) return;
+      const gInfo = getGroundInfoAt(bay.x, bay.z);
+      bayGroup.position.set(bay.x, gInfo.y + 0.03, bay.z);
+      bayGroup.rotation.set(0, -bay.heading, Math.atan(gInfo.slopeX));
+      const frame = bayGroup.getObjectByName('bayFrame');
+      while (frame.children.length > 0) frame.remove(frame.children[0]);
+
+      const halfL = bay.len * 0.5;
+      const halfW = bay.wid * 0.5;
+      const barLong = new THREE.BoxGeometry(bay.len, 0.04, 0.14);
+      const barShort = new THREE.BoxGeometry(0.14, 0.04, bay.wid);
+      const postGeo = new THREE.BoxGeometry(0.16, 0.55, 0.16);
+
+      [-halfW, halfW].forEach(z => {
+        const b = new THREE.Mesh(barLong, bayMat);
+        b.position.z = z;
+        frame.add(b);
+      });
+      [-halfL, halfL].forEach(x => {
+        const b = new THREE.Mesh(barShort, bayMat);
+        b.position.x = x;
+        frame.add(b);
+      });
+      [
+        [-halfL, -halfW], [halfL, -halfW], [-halfL, halfW], [halfL, halfW]
+      ].forEach(([px, pz]) => {
+        const p = new THREE.Mesh(postGeo, bayMat);
+        p.position.set(px, 0.27, pz);
+        frame.add(p);
+      });
+    }
+
+    /* =========================================================================
+       5. LEVEL MANAGEMENT, 4-WHEEL PHYSICS, TURN SIGNALS, REPLAY & SCORING
+       ========================================================================= */
+    function loadLevel(idx) {
+      State.lvlIdx = idx;
+      State.completed = false;
+      State.routeIdx = 0;
+      State.startTime = performance.now();
+      State.elapsed = 0;
+      State.faceState = 'ok';
+      State.hurtTimer = 0;
+      State.lastRedId = '';
+      State.redCooldown = 0;
+      State.pedCooldown = 0;
+      State.replayFrames = [];
+      State.replayTimer = 0;
+
+      const lvl = LEVELS[idx];
+      Car.x = lvl.start.x;
+      Car.z = lvl.start.z;
+      Car.y = getGroundInfoAt(Car.x, Car.z).y;
+      Car.heading = lvl.start.heading;
+      Car.speed = 0;
+      Car.steer = 0;
+      Car.gear = 'D';
+      Car.signal = 0;
+      Car.signaledProperly = false;
+      Car.bumps = 0;
+      Car.violations = 0;
+      Car.curbMounts = 0;
+      Car.pedWarnings = 0;
+      Car.onCurb = false;
+      Car.curbPitch = 0;
+      Car.curbRoll = 0;
+      Car.gradeDeg = 0;
+      State.dipFactor = 0;
+
+      State.activeBay = lvl.isRoute
+        ? { ...lvl.stops[0] }
+        : { ...lvl.bay, curbSide: lvl.curbSide, isHill: !!lvl.isHill, label: lvl.name };
+
+      if (levelPropGroup) scene.remove(levelPropGroup);
+      levelPropGroup = new THREE.Group();
+      scene.add(levelPropGroup);
+
+      staticColliders.length = 0;
+      const blockIntervals = [[-132, -78], [-62, -8], [8, 62], [78, 132]];
+      blockIntervals.forEach(([x0, x1], bx) => {
+        blockIntervals.forEach(([z0, z1], bz) => {
+          if (!(bx === 1 && bz === 2)) {
+            addStaticBox((x0 + x1) * 0.5, (z0 + z1) * 0.5, (x1 - x0) - 10, (z1 - z0) - 10, 0);
+          }
+        });
+      });
+
+      lvl.parked.forEach(pc => {
+        const arch = pc.type || 'sedan';
+        const m = createVehicleMesh(pc.col, false, arch);
+        const gInfo = getGroundInfoAt(pc.x, pc.z);
+        m.group.position.set(pc.x, gInfo.y, pc.z);
+        m.group.rotation.set(0, -pc.heading, Math.atan(gInfo.slopeX));
+        levelPropGroup.add(m.group);
+        addStaticBox(pc.x, pc.z, m.spec.len, m.spec.wid, pc.heading);
+      });
+
+      updateBayVisuals(State.activeBay);
+      updateSignalUI();
+      updateGearUI();
+      document.getElementById('complete-modal').classList.remove('open');
+      document.getElementById('coach-title').textContent = lvl.isRoute ? State.activeBay.label : lvl.name;
+
+      document.querySelectorAll('[data-lvl]').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.lvl) === idx);
+      });
+    }
+
+    function selectLevel(idx) { SoundFX.resume(); loadLevel(idx); }
+    function resetLevel() { loadLevel(State.lvlIdx); }
+    function nextLevel() { loadLevel((State.lvlIdx + 1) % LEVELS.length); }
+
+    function setCameraMode(mode) {
+      State.camMode = mode;
+      document.querySelectorAll('[data-cam]').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.cam) === mode);
+      });
+      document.getElementById('btn-north').style.display = mode === 2 ? 'inline-block' : 'none';
+      if (cockpitGroup) cockpitGroup.visible = mode === 0;
+      updateMirrorStripVisibility();
+    }
+
+    function toggleNorthUp() {
+      State.northUp = !State.northUp;
+      document.getElementById('btn-north').textContent = State.northUp ? 'N-UP' : 'CAR-UP';
+    }
+
+    function cycleMirrorMode() {
+      const modes = ['AUTO', 'ON', 'OFF'];
+      State.mirrorMode = modes[(modes.indexOf(State.mirrorMode) + 1) % modes.length];
+      document.getElementById('btn-mirrors').textContent = `MIRRORS: ${State.mirrorMode}`;
+      updateMirrorStripVisibility();
+    }
+
+    function adjustMirrorTilt(delta) {
+      State.manualMirrorTilt = Math.max(-0.26, Math.min(0.26, State.manualMirrorTilt + delta));
+      const deg = Math.round(THREE.MathUtils.radToDeg(State.manualMirrorTilt));
+      showAlert(`MIRROR TILT: ${deg >= 0 ? '+' : ''}${deg}°`);
+    }
+
+    function toggleNightMode() {
+      State.nightMode = !State.nightMode;
+      const btn = document.getElementById('btn-night');
+      btn.textContent = State.nightMode ? 'ATMOS: NIGHT (N)' : 'ATMOS: DUSK (N)';
+      btn.classList.toggle('active', State.nightMode);
+      if (skyDomeMesh) {
+        skyDomeMesh.material.map = State.nightMode ? Textures.skyNight : Textures.skyDusk;
+        skyDomeMesh.material.needsUpdate = true;
+      }
+      scene.fog.color.setHex(State.nightMode ? 0x0b0910 : 0x26180f);
+      scene.fog.density = State.nightMode ? 0.0056 : 0.0042;
+      if (ambientLightObj) ambientLightObj.intensity = State.nightMode ? 0.34 : 0.65;
+      if (sunLightObj) sunLightObj.intensity = State.nightMode ? 0.25 : 0.9;
+      if (headlightBeams) headlightBeams.visible = State.nightMode;
+      streetLampLights.forEach(p => { p.material.opacity = State.nightMode ? 0.28 : 0.12; });
+    }
+
+    function toggleTouchDeck() {
+      const deck = document.getElementById('touch-deck');
+      const open = deck.classList.toggle('open');
+      document.getElementById('btn-pedals').classList.toggle('active', open);
+    }
+
+    function toggleSignal(dir) {
+      SoundFX.resume();
+      Car.signal = Car.signal === dir ? 0 : dir;
+      State.signalBlinkTimer = 0;
+      State.signalBlinkOn = Car.signal !== 0;
+      if (Car.signal !== 0) SoundFX.signalTick(true);
+      updateSignalUI();
+    }
+
+    function updateSignalUI() {
+      const lEl = document.getElementById('sig-l');
+      const rEl = document.getElementById('sig-r');
+      const lLit = Car.signal === -1 && State.signalBlinkOn;
+      const rLit = Car.signal === 1 && State.signalBlinkOn;
+      if (lEl) lEl.classList.toggle('lit', lLit);
+      if (rEl) rEl.classList.toggle('lit', rLit);
+      if (playerCar) {
+        playerCar.leftSigMat.color.setHex(lLit ? 0xfbbf24 : 0x452708);
+        playerCar.rightSigMat.color.setHex(rLit ? 0xfbbf24 : 0x452708);
+      }
+    }
+
+    function isVirtualMirrorStripActive() {
+      if (State.mirrorMode === 'ON') return true;
+      if (State.mirrorMode === 'OFF') return false;
+      return State.camMode !== 0;
+    }
+
+    function updateMirrorStripVisibility() {
+      const strip = document.getElementById('virtual-mirror-strip');
+      strip.style.display = isVirtualMirrorStripActive() ? 'flex' : 'none';
+      layoutHudOverlays();
+    }
+
+    function toggleCoach() {
+      State.coachOn = !State.coachOn;
+      document.getElementById('coach-panel').style.display = State.coachOn ? 'block' : 'none';
+      document.getElementById('btn-coach').classList.toggle('active', State.coachOn);
+    }
+
+    function toggleSound() {
+      SoundFX.enabled = !SoundFX.enabled;
+      const btn = document.getElementById('btn-sound');
+      btn.textContent = SoundFX.enabled ? 'SFX (V)' : 'MUTED (V)';
+      btn.classList.toggle('active', SoundFX.enabled);
+      if (!SoundFX.enabled && SoundFX.engineGain && SoundFX.ctx) {
+        SoundFX.engineGain.gain.setTargetAtTime(0.0001, SoundFX.ctx.currentTime, 0.05);
+      } else {
+        SoundFX.resume();
+      }
+    }
+
+    function showAlert(msg) {
+      const el = document.getElementById('alert-banner');
+      el.textContent = msg;
+      el.style.display = 'block';
+      State.alertTimer = 2.6;
+    }
+
+    function updateGearUI() {
+      ['P', 'R', 'N', 'D'].forEach(g => {
+        const el = document.getElementById(`gp-${g}`);
+        if (el) el.className = 'gear-pill' + (Car.gear === g ? ` active-${g.toLowerCase()}` : '');
+      });
+    }
+
+    function shiftGear(targetGear) {
+      if (State.completed) return;
+      if (targetGear === 'P') {
+        engagePark();
+        return;
+      }
+      Car.gear = targetGear;
+      updateGearUI();
+      SoundFX.parkClick();
+    }
+
+    function getBayMetricsFor(bay) {
+      const dx = Car.x - bay.x;
+      const dz = Car.z - bay.z;
+      const cosH = Math.cos(bay.heading);
+      const sinH = Math.sin(bay.heading);
+
+      const along = dx * cosH + dz * sinH;
+      const lat = -dx * sinH + dz * cosH;
+
+      let diff = Car.heading - bay.heading;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      const absDiff = Math.abs(diff);
+      const angErrRad = Math.min(absDiff, Math.abs(Math.PI - absDiff));
+      const angErrDeg = THREE.MathUtils.radToDeg(angErrRad);
+
+      // Curb-side wheel outer edge vs granite curb face
+      const sideSign = bay.curbSide || 1;
+      const curbEdgeOffset = sideSign * (bay.wid * 0.5);
+      const carCurbEdge = lat + sideSign * (Car.wid * 0.5 + Math.sin(angErrRad) * (Car.len * 0.35));
+      const rawCurbGapM = sideSign * (curbEdgeOffset - carCurbEdge);
+      const curbIn = Math.max(0, rawCurbGapM * 39.3701);
+
+      const inside =
+        Math.abs(along) <= (bay.len - Car.len) * 0.55 + 0.55 &&
+        Math.abs(lat) <= 0.72 &&
+        angErrDeg <= 10.5 &&
+        !Car.onCurb;
+
+      const posScore = Math.max(0, 1 - Math.abs(along) / 2.2) * 35;
+      const latScore = Math.max(0, 1 - Math.abs(lat) / 1.1) * 35;
+      const angScore = Math.max(0, 1 - angErrDeg / 25) * 30;
+      const alignPct = Math.round(Math.min(100, posScore + latScore + angScore));
+
+      // On Fortress Hill (rising Eastward), wheels should be turned away from right curb (steer < -6 deg)
+      const wheelCurbedOk = !bay.isHill || THREE.MathUtils.radToDeg(Car.steer) <= -6;
+
+      return { along, lat, curbIn, angErrDeg, inside, alignPct, wheelCurbedOk };
+    }
+
+    function computeBayMetrics() {
+      return getBayMetricsFor(State.activeBay);
+    }
+
+    function computeScoreBreakdown(m) {
+      const sigBonus = Car.signaledProperly ? 50 : 0;
+      const nearBay = Math.abs(m.along) < 4.5 && Math.abs(m.lat) < 1.8;
+      const curbPen = nearBay ? Math.round(Math.abs(m.curbIn - 9.0) * 8) : 0;
+      const angPen = nearBay ? Math.round(m.angErrDeg * 18) : 0;
+      const faultCount = Car.bumps + Car.violations + Car.pedWarnings;
+      const colPen = faultCount * 120 + Car.curbMounts * 40;
+      const timePen = Math.max(0, Math.round((State.elapsed - 18) * 3));
+      const total = Math.max(0, Math.min(1000, 1000 + sigBonus - curbPen - angPen - colPen - timePen));
+      return { sigBonus, curbPen, angPen, colPen, timePen, faultCount, total };
+    }
+
+    function checkStaticCollision(nx, nz, nHeading) {
+      const cos = Math.cos(nHeading), sin = Math.sin(nHeading);
+      const corners = [
+        [Car.len * 0.5, Car.wid * 0.5],
+        [Car.len * 0.5, -Car.wid * 0.5],
+        [-Car.len * 0.5, Car.wid * 0.5],
+        [-Car.len * 0.5, -Car.wid * 0.5]
+      ];
+      for (const box of staticColliders) {
+        const bCos = Math.cos(-box.heading), bSin = Math.sin(-box.heading);
+        for (const [lx, lz] of corners) {
+          const wx = nx + lx * cos - lz * sin;
+          const wz = nz + lx * sin + lz * cos;
+          const dx = wx - box.x;
+          const dz = wz - box.z;
+          const rx = dx * bCos - dz * bSin;
+          const rz = dx * bSin + dz * bCos;
+          if (Math.abs(rx) < box.halfL && Math.abs(rz) < box.halfW) {
+            return true;
+          }
+        }
+      }
+      for (const ai of aiCars) {
+        const dx = nx - ai.x;
+        const dz = nz - ai.z;
+        if (Math.hypot(dx, dz) < 3.4) return true;
+      }
+      return false;
+    }
+
+    function updateCarPhysics(dt) {
+      if (State.completed) {
+        SoundFX.updateEngine(0);
+        return;
+      }
+
+      State.elapsed = (performance.now() - State.startTime) * 0.001;
+      if (State.hurtTimer > 0) State.hurtTimer -= dt;
+      if (State.redCooldown > 0) State.redCooldown -= dt;
+      if (State.pedCooldown > 0) State.pedCooldown -= dt;
+      if (State.alertTimer > 0) {
+        State.alertTimer -= dt;
+        if (State.alertTimer <= 0) document.getElementById('alert-banner').style.display = 'none';
+      }
+
+      // Turn signal relay blink timer
+      if (Car.signal !== 0) {
+        State.signalBlinkTimer += dt;
+        if (State.signalBlinkTimer >= 0.42) {
+          State.signalBlinkTimer = 0;
+          State.signalBlinkOn = !State.signalBlinkOn;
+          SoundFX.signalTick(State.signalBlinkOn);
+          updateSignalUI();
+        }
+        const distToBay = Math.hypot(Car.x - State.activeBay.x, Car.z - State.activeBay.z);
+        if (distToBay < 24 && Car.signal === (State.activeBay.curbSide || 1)) {
+          Car.signaledProperly = true;
+        }
+      }
+
+      const gp = pollGamepad();
+      const gas = !!(Keys['KeyW'] || Keys['ArrowUp'] || TouchKeys['ArrowUp'] || (gp && gp.gasVal > 0.15));
+      const rev = !!(Keys['KeyS'] || Keys['ArrowDown'] || TouchKeys['ArrowDown'] || (gp && gp.revVal > 0.15));
+      const left = !!(Keys['KeyA'] || Keys['ArrowLeft'] || TouchKeys['ArrowLeft']);
+      const right = !!(Keys['KeyD'] || Keys['ArrowRight'] || TouchKeys['ArrowRight']);
+      const brake = !!Keys['Space'];
+
+      // Blind-spot glance (Q / E)
+      // Steering input with progressive self-centering (supports Touch Wheel, Gamepad & Keys)
+      const steerRate = 2.15;
+      if (touchWheelActive) {
+        const targetSteer = touchWheelAngle * Car.maxSteer;
+        Car.steer += (targetSteer - Car.steer) * Math.min(1, dt * 14);
+      } else if (gp && Math.abs(gp.steerAxis) > 0.01) {
+        const targetSteer = gp.steerAxis * Car.maxSteer;
+        Car.steer += (targetSteer - Car.steer) * Math.min(1, dt * 10);
+      } else if (left && !right) {
+        Car.steer = Math.max(-Car.maxSteer, Car.steer - steerRate * dt);
+      } else if (right && !left) {
+        Car.steer = Math.min(Car.maxSteer, Car.steer + steerRate * dt);
+      } else {
+        const returnRate = 2.6 * (0.35 + Math.min(1, Math.abs(Car.speed) / 4));
+        if (Math.abs(Car.steer) < returnRate * dt) Car.steer = 0;
+        else Car.steer -= Math.sign(Car.steer) * returnRate * dt;
+      }
+
+      const centerGround = getGroundInfoAt(Car.x, Car.z);
+      const slopeAlong = centerGround.slopeX * Math.cos(Car.heading);
+      Car.gradeDeg = THREE.MathUtils.radToDeg(Math.atan(slopeAlong));
+
+      // Automatically shift out of Park when pressing Drive (W/Up) or Reverse (S/Down)
+      if (Car.gear === 'P' && !brake && !State.completed) {
+        if (gas) {
+          Car.gear = 'D';
+          SoundFX.parkClick();
+        } else if (rev) {
+          Car.gear = 'R';
+          SoundFX.parkClick();
+        }
+      }
+
+      if (brake || Car.gear === 'P') {
+        Car.speed *= Math.exp(-11 * dt);
+        if (Math.abs(Car.speed) < 0.08) Car.speed = 0;
+      } else {
+        // Hill gravity pull when off the brake in D, N, or R
+        const gravityPull = -9.81 * Math.sin(Math.atan(slopeAlong)) * 0.65;
+        Car.speed += gravityPull * dt;
+
+        if (gas && !rev) {
+          if (Car.speed < -0.35) {
+            Car.speed += 18 * dt;
+          } else {
+            Car.gear = 'D';
+            Car.speed = Math.min(14.5, Car.speed + 9.2 * dt);
+          }
+        } else if (rev && !gas) {
+          if (Car.speed > 0.35) {
+            Car.speed -= 18 * dt;
+          } else {
+            Car.gear = 'R';
+            Car.speed = Math.max(-6.2, Car.speed - 6.8 * dt);
+          }
+        } else {
+          Car.speed *= Math.exp(-2.8 * dt);
+          if (Math.abs(Car.speed) < 0.04 && Math.abs(slopeAlong) < 0.01) Car.speed = 0;
+        }
+      }
+
+      updateGearUI();
+      SoundFX.updateEngine(Math.abs(Car.speed));
+
+      // Rear-Axle Kinematic Bicycle Steering Geometry
+      const ds = Car.speed * dt;
+      const dH = (ds / Car.wheelbase) * Math.tan(Car.steer);
+      const nextH = Car.heading + dH;
+      const nx = Car.x + Math.cos(nextH) * ds;
+      const nz = Car.z + Math.sin(nextH) * ds;
+
+      if (Math.abs(nx) < 146 && Math.abs(nz) < 146 && !checkStaticCollision(nx, nz, nextH)) {
+        Car.x = nx;
+        Car.z = nz;
+        Car.heading = nextH;
+      } else {
+        if (Math.abs(Car.speed) > 0.6 && State.hurtTimer <= 0) {
+          Car.bumps += 1;
+          State.hurtTimer = 0.85;
+          SoundFX.bump();
+          showAlert('BUMPER CONTACT! (-120 PTS)');
+        }
+        Car.speed = -Car.speed * 0.25;
+      }
+
+      // 4-Wheel Individual Curb & Suspension Physics
+      const fx = Math.cos(Car.heading), fz = Math.sin(Car.heading);
+      const rx = -fz, rz = fx;
+      const axX = 1.31, axZ = 0.92;
+      const gFL = getGroundInfoAt(Car.x + fx * axX - rx * axZ, Car.z + fz * axX - rz * axZ);
+      const gFR = getGroundInfoAt(Car.x + fx * axX + rx * axZ, Car.z + fz * axX + rz * axZ);
+      const gRL = getGroundInfoAt(Car.x - fx * axX - rx * axZ, Car.z - fz * axX - rz * axZ);
+      const gRR = getGroundInfoAt(Car.x - fx * axX + rx * axZ, Car.z - fz * axX + rz * axZ);
+
+      const targetY = (gFL.y + gFR.y + gRL.y + gRR.y) * 0.25;
+      Car.y += (targetY - Car.y) * Math.min(1, dt * 18);
+
+      const leftAvg = (gFL.y + gRL.y) * 0.5;
+      const rightAvg = (gFR.y + gRR.y) * 0.5;
+      const frontAvg = (gFL.y + gFR.y) * 0.5;
+      const rearAvg = (gRL.y + gRR.y) * 0.5;
+
+      const targetRoll = Math.atan2(leftAvg - rightAvg, Car.wid);
+      const targetPitch = Math.atan2(frontAvg - rearAvg, Car.wheelbase);
+      Car.curbRoll += (targetRoll - Car.curbRoll) * Math.min(1, dt * 15);
+      Car.curbPitch += (targetPitch - Car.curbPitch) * Math.min(1, dt * 15);
+
+      const anyWheelOnCurb = gFL.isCurb || gFR.isCurb || gRL.isCurb || gRR.isCurb;
+      if (anyWheelOnCurb && !Car.onCurb) {
+        Car.curbMounts += 1;
+        SoundFX.curb();
+        showAlert('TIRE MOUNTED CURB! (-40 PTS)');
+      }
+      Car.onCurb = anyWheelOnCurb;
+
+      // Red-light intersection check
+      if (State.redCooldown <= 0 && Math.abs(Car.speed) > 1.8) {
+        for (const tl of trafficLights) {
+          const dx = Car.x - tl.x;
+          const dz = Car.z - tl.z;
+          if (Math.abs(dx) < 6.5 && Math.abs(dz) < 6.5) {
+            const movingNS = Math.abs(Math.sin(Car.heading)) > 0.7;
+            const redViolated = (movingNS && tl.nsState === 'RED') || (!movingNS && tl.ewState === 'RED');
+            if (redViolated && State.lastRedId !== tl.id) {
+              State.lastRedId = tl.id;
+              State.redCooldown = 4.0;
+              Car.violations += 1;
+              State.hurtTimer = 0.8;
+              SoundFX.bump();
+              showAlert('RED LIGHT VIOLATION! (-120 PTS)');
+            }
+          }
+        }
+      }
+
+      // Update 3D player car transform, brake lights, steering wheel & tires
+      if (playerCar) {
+        playerCar.group.position.set(Car.x, Car.y, Car.z);
+        playerCar.group.rotation.set(Car.curbRoll, -Car.heading, Car.curbPitch);
+        playerCar.tailMat.color.setHex(brake || rev ? 0xff3b3b : 0x8f1818);
+        Car.wheelRot += (Car.speed * dt) / 0.34;
+        playerCar.wheels.forEach(w => {
+          w.mesh.rotation.z = -Car.wheelRot;
+          if (w.front) w.pivot.rotation.y = -Car.steer;
+        });
+      }
+      if (steeringWheelMesh) {
+        steeringWheelMesh.rotation.x = Car.steer * 2.4;
+      }
+
+      // Record telemetry frame for Post-Park Top-Down Replay Scrubber
+      State.replayTimer += dt;
+      if (State.replayTimer >= 0.12 && (Math.abs(Car.speed) > 0.05 || State.replayFrames.length === 0)) {
+        State.replayTimer = 0;
+        State.replayFrames.push({
+          t: State.elapsed,
+          x: Car.x,
+          z: Car.z,
+          heading: Car.heading,
+          steer: Car.steer,
+          gear: Car.gear
+        });
+        if (State.replayFrames.length > 240) State.replayFrames.shift();
+      }
+    }
+
+    function updateTrafficAndPeds(dt) {
+      State.cycleTime += dt;
+
+      // Synchronized 4-Way Traffic Light Phases
+      for (const tl of trafficLights) {
+        const phase = (State.cycleTime + tl.offset) % 27;
+        if (phase < 11) {
+          tl.nsState = 'GREEN';
+          tl.ewState = 'RED';
+          tl.nsLamp.material.color.setHex(0x22c55e);
+        } else if (phase < 13.5) {
+          tl.nsState = 'YELLOW';
+          tl.ewState = 'RED';
+          tl.nsLamp.material.color.setHex(0xfacc15);
+        } else if (phase < 24.5) {
+          tl.nsState = 'RED';
+          tl.ewState = 'GREEN';
+          tl.nsLamp.material.color.setHex(0xef4444);
+        } else {
+          tl.nsState = 'RED';
+          tl.ewState = 'YELLOW';
+          tl.nsLamp.material.color.setHex(0xef4444);
+        }
+      }
+
+      // Moving AI City Traffic (Yields for Red Lights, Player Car & Turn Signals)
+      for (const ai of aiCars) {
+        const fx = Math.cos(ai.heading);
+        const fz = Math.sin(ai.heading);
+        let shouldStop = false;
+
+        // Yield to player ahead or signaling/reversing nearby
+        const toPlayerX = Car.x - ai.x;
+        const toPlayerZ = Car.z - ai.z;
+        const distP = Math.hypot(toPlayerX, toPlayerZ);
+        const forwardDot = toPlayerX * fx + toPlayerZ * fz;
+        const lateralDist = Math.abs(-toPlayerX * fz + toPlayerZ * fx);
+        if (distP < 16 && forwardDot > 2.0 && (lateralDist < 3.2 || Car.gear === 'R' || Car.signal !== 0)) {
+          shouldStop = true;
+        }
+
+        // Obey red lights before entering intersections
+        for (const tl of trafficLights) {
+          const dIx = tl.x - ai.x;
+          const dIz = tl.z - ai.z;
+          const ahead = dIx * fx + dIz * fz;
+          const lat = Math.abs(-dIx * fz + dIz * fx);
+          if (lat < 5.5 && ahead > 9.5 && ahead < 16.5) {
+            const redForAI = ai.axis === 'z' ? tl.nsState === 'RED' : tl.ewState === 'RED';
+            if (redForAI) shouldStop = true;
+          }
+        }
+
+        const targetSpd = shouldStop ? 0 : 7.5;
+        ai.speed += (targetSpd - ai.speed) * Math.min(1, dt * 6);
+        ai.x += fx * ai.speed * dt;
+        ai.z += fz * ai.speed * dt;
+
+        if (ai.x > 145) ai.x = -145;
+        else if (ai.x < -145) ai.x = 145;
+        if (ai.z > 145) ai.z = -145;
+        else if (ai.z < -145) ai.z = 145;
+
+        ai.mesh.position.set(ai.x, 0, ai.z);
+      }
+
+      // Articulated Walking Sidewalk + Crosswalk-Crossing Pedestrians
+      const tl5th = trafficLights.find(t => t.x === 0 && t.z === 0);
+      const tl6th = trafficLights.find(t => t.x === 70 && t.z === 0);
+
+      for (const p of peds) {
+        let walkSpeed = 1.25;
+        if (p.mode === 'cross5th' || p.mode === 'cross6th') {
+          const tl = p.mode === 'cross5th' ? tl5th : tl6th;
+          const walkSignalActive = tl && tl.ewState === 'GREEN';
+          const cx = p.mode === 'cross5th' ? 0 : 70;
+          const onSidewalk = Math.abs(p.x - cx) >= 8.2;
+
+          if (onSidewalk && !walkSignalActive) {
+            walkSpeed = 0;
+            p.inStreet = false;
+          } else {
+            p.x += p.dir * walkSpeed * dt;
+            p.inStreet = Math.abs(p.x - cx) < 7.8;
+            if (p.x > cx + 9.2) { p.x = cx + 9.2; p.dir = -1; }
+            if (p.x < cx - 9.2) { p.x = cx - 9.2; p.dir = 1; }
+          }
+          p.mesh.rotation.y = p.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+
+          // Crosswalk Yield Enforcement
+          if (p.inStreet && State.pedCooldown <= 0 && Math.abs(Car.speed) > 0.8) {
+            if (Math.hypot(Car.x - p.x, Car.z - p.z) < 3.8) {
+              State.pedCooldown = 3.5;
+              Car.pedWarnings += 1;
+              State.hurtTimer = 0.8;
+              SoundFX.bump();
+              showAlert('YIELD TO CROSSWALK PEDESTRIAN! (-120 PTS)');
+            }
+          }
+        } else {
+          p.z += p.dir * walkSpeed * dt;
+          if (p.z > 56) p.dir = -1;
+          if (p.z < -56) p.dir = 1;
+          p.mesh.rotation.y = p.dir > 0 ? 0 : Math.PI;
+        }
+
+        const groundY = getGroundInfoAt(p.x, p.z).y;
+        p.mesh.position.set(p.x, groundY, p.z);
+
+        if (walkSpeed > 0) {
+          p.phase += dt * 6.5;
+          const swing = Math.sin(p.phase) * 0.52;
+          p.leftLeg.rotation.x = swing;
+          p.rightLeg.rotation.x = -swing;
+          p.leftArm.rotation.x = -swing * 0.75;
+          p.rightArm.rotation.x = swing * 0.75;
+        } else {
+          p.leftLeg.rotation.x = 0;
+          p.rightLeg.rotation.x = 0;
+          p.leftArm.rotation.x = 0;
+          p.rightArm.rotation.x = 0;
+        }
+      }
+    }
+
+    function engagePark() {
+      if (State.completed) return;
+      if (Car.gear === 'P') {
+        Car.gear = 'N';
+        updateGearUI();
+        SoundFX.parkClick();
+        showAlert('PARK RELEASED — SHIFTED TO NEUTRAL (PRESS W/S TO DRIVE)');
+        return;
+      }
+      Car.speed = 0;
+      Car.gear = 'P';
+      updateGearUI();
+      SoundFX.parkClick();
+
+      const m = computeBayMetrics();
+      if (m.inside) {
+        if (State.activeBay.isHill && !m.wheelCurbedOk) {
+          showAlert('HILL PARK: TURN WHEELS LEFT AWAY FROM CURB (HOLD A) BEFORE PARK!');
+          return;
+        }
+
+        const lvl = LEVELS[State.lvlIdx];
+        if (lvl.isRoute && State.routeIdx < lvl.stops.length - 1) {
+          State.routeIdx += 1;
+          State.activeBay = { ...lvl.stops[State.routeIdx] };
+          Car.signaledProperly = false;
+          updateBayVisuals(State.activeBay);
+          document.getElementById('coach-title').textContent = State.activeBay.label;
+          SoundFX.chime();
+          showAlert(`DELIVERY STOP ${State.routeIdx}/3 COMPLETE! PROCEED TO NEXT STOP`);
+          return;
+        }
+
+        State.completed = true;
+        State.faceState = 'win';
+        SoundFX.chime();
+
+        const sb = computeScoreBreakdown(m);
+        document.getElementById('modal-sub').textContent = `${State.activeBay.label || lvl.name} — CERTIFIED`;
+        document.getElementById('res-sig-bonus').textContent = sb.sigBonus > 0 ? `+${sb.sigBonus} pts` : '+0 pts (No Signal)';
+        document.getElementById('res-curb').textContent = `${m.curbIn.toFixed(1)} in`;
+        document.getElementById('res-curb-pen').textContent = `-${sb.curbPen} pts`;
+        document.getElementById('res-angle').textContent = `${m.angErrDeg.toFixed(1)}°`;
+        document.getElementById('res-ang-pen').textContent = `-${sb.angPen} pts`;
+        document.getElementById('res-pen').textContent = `${sb.faultCount} faults / ${Car.curbMounts} curbs`;
+        document.getElementById('res-col-pen').textContent = `-${sb.colPen} pts`;
+        document.getElementById('res-time').textContent = `${State.elapsed.toFixed(1)} s`;
+        document.getElementById('res-time-pen').textContent = `-${sb.timePen} pts`;
+        document.getElementById('res-score').textContent = `${sb.total} / 1000`;
+
+        // Initialize interactive top-down replay scrubber
+        const scrubber = document.getElementById('replay-scrubber');
+        scrubber.max = Math.max(0, State.replayFrames.length - 1);
+        scrubber.value = 0;
+        State.replayCursor = 0;
+        State.replayPlaying = true;
+        document.getElementById('btn-replay-play').textContent = 'PAUSE';
+        renderReplayFrame(0);
+
+        document.getElementById('complete-modal').classList.add('open');
+      } else {
+        showAlert(`PARK ENGAGED (${m.alignPct}% ALIGNED) — PRESS W/S OR P TO DRIVE`);
+      }
+    }
+
+    /* =========================================================================
+       6. POST-PARK TOP-DOWN REPLAY SCRUBBER
+       ========================================================================= */
+    function renderReplayFrame(idx) {
+      const rc = document.getElementById('replay-canvas');
+      if (!rc) return;
+      const g = rc.getContext('2d');
+      const w = rc.width, h = rc.height;
+      g.fillStyle = '#181310';
+      g.fillRect(0, 0, w, h);
+
+      const bay = State.activeBay;
+      const scale = 12;
+      const cosB = Math.cos(bay.heading), sinB = Math.sin(bay.heading);
+      const toScreen = (wx, wz) => {
+        const dx = wx - bay.x, dz = wz - bay.z;
+        const along = dx * cosB + dz * sinB;
+        const lat = -dx * sinB + dz * cosB;
+        return [w * 0.5 + along * scale, h * 0.52 + lat * scale];
+      };
+
+      // Draw curb line & bay box
+      const sideSign = bay.curbSide || 1;
+      const curbY = h * 0.52 + sideSign * (bay.wid * 0.5 + 0.25) * scale;
+      g.fillStyle = '#4a4238';
+      if (sideSign > 0) g.fillRect(0, curbY, w, h - curbY);
+      else g.fillRect(0, 0, w, curbY);
+
+      g.strokeStyle = '#34d399';
+      g.lineWidth = 2;
+      g.strokeRect(
+        w * 0.5 - (bay.len * 0.5) * scale,
+        h * 0.52 - (bay.wid * 0.5) * scale,
+        bay.len * scale,
+        bay.wid * scale
+      );
+
+      const frames = State.replayFrames;
+      if (!frames || frames.length === 0) return;
+
+      // Draw maneuver breadcrumb trail + Turn-In / Pivot markers
+      g.strokeStyle = '#ff9d3b';
+      g.lineWidth = 1.5;
+      g.beginPath();
+      let turnInPt = null;
+      let maxAngPt = null;
+      let maxAngVal = 0;
+
+      frames.forEach((f, i) => {
+        const [sx, sy] = toScreen(f.x, f.z);
+        if (i === 0) g.moveTo(sx, sy);
+        else g.lineTo(sx, sy);
+
+        let diff = f.heading - bay.heading;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        const deg = THREE.MathUtils.radToDeg(Math.abs(diff));
+        if (!turnInPt && f.gear === 'R' && Math.abs(f.steer) > 0.25) turnInPt = [sx, sy];
+        if (deg > maxAngVal) { maxAngVal = deg; maxAngPt = [sx, sy]; }
+      });
+      g.stroke();
+
+      g.font = 'bold 9px Courier New';
+      if (turnInPt) {
+        g.fillStyle = '#38bdf8';
+        g.fillRect(turnInPt[0] - 3, turnInPt[1] - 3, 6, 6);
+        g.fillText('TURN-IN', turnInPt[0] - 18, turnInPt[1] - 6);
+      }
+      if (maxAngPt && maxAngVal > 15) {
+        g.fillStyle = '#fbbf24';
+        g.fillRect(maxAngPt[0] - 3, maxAngPt[1] - 3, 6, 6);
+        g.fillText(`${Math.round(maxAngVal)}° PIVOT`, maxAngPt[0] - 20, maxAngPt[1] - 6);
+      }
+
+      // Draw car rectangle at current scrub index
+      const cur = frames[Math.min(frames.length - 1, Math.max(0, idx))];
+      const [cx, cy] = toScreen(cur.x, cur.z);
+      let relAng = cur.heading - bay.heading;
+      g.save();
+      g.translate(cx, cy);
+      g.rotate(relAng);
+      g.fillStyle = '#9a5429';
+      g.strokeStyle = '#fef3c7';
+      g.lineWidth = 1.5;
+      g.fillRect(-Car.len * 0.5 * scale, -Car.wid * 0.5 * scale, Car.len * scale, Car.wid * scale);
+      g.strokeRect(-Car.len * 0.5 * scale, -Car.wid * 0.5 * scale, Car.len * scale, Car.wid * scale);
+      g.restore();
+
+      const lbl = document.getElementById('replay-time-lbl');
+      if (lbl) lbl.textContent = `${cur.t.toFixed(1)}s`;
+    }
+
+    function scrubReplay(val) {
+      State.replayPlaying = false;
+      document.getElementById('btn-replay-play').textContent = 'PLAY';
+      State.replayCursor = Number(val);
+      renderReplayFrame(State.replayCursor);
+    }
+
+    function toggleReplayPlay() {
+      State.replayPlaying = !State.replayPlaying;
+      document.getElementById('btn-replay-play').textContent = State.replayPlaying ? 'PAUSE' : 'PLAY';
+    }
+
+    /* =========================================================================
+       7. 5-STEP COACH, LIVE SCORE TELEMETRY & HUD UPDATES
+       ========================================================================= */
+    function updateCoachAndHUD() {
+      const lvl = LEVELS[State.lvlIdx];
+
+      // Open City Roam auto-locks onto the nearest open street curb bay
+      if (lvl.isRoam) {
+        let best = OPEN_BAYS[0];
+        let bestD = Infinity;
+        for (const b of OPEN_BAYS) {
+          const d = Math.hypot(Car.x - b.x, Car.z - b.z);
+          if (d < bestD) { bestD = d; best = b; }
+        }
+        if (best.id !== State.activeBay.id) {
+          State.activeBay = { ...best };
+          Car.signaledProperly = false;
+          updateBayVisuals(State.activeBay);
+          document.getElementById('coach-title').textContent = best.label;
+        }
+      }
+
+      const m = computeBayMetrics();
+      const sb = computeScoreBreakdown(m);
+
+      // Dynamic bay perimeter color
+      if (bayMat) {
+        if (m.inside) bayMat.color.setHex(0x10b981);
+        else if (m.alignPct >= 55) bayMat.color.setHex(0x38bdf8);
+        else bayMat.color.setHex(0xff9d3b);
+      }
+
+      const banner = document.getElementById('bay-status-banner');
+      if (m.inside) {
+        banner.textContent = State.activeBay.isHill && !m.wheelCurbedOk
+          ? 'BAY: TURN WHEELS LEFT (A) THEN PARK!'
+          : 'BAY: ALIGNED — PRESS [P] TO PARK!';
+        banner.className = 'q-panel st-green';
+      } else if (m.alignPct >= 55) {
+        banner.textContent = `BAY: ${m.alignPct}% IN POSITION`;
+        banner.className = 'q-panel st-cyan';
+      } else {
+        banner.textContent = 'BAY: APPROACHING';
+        banner.className = 'q-panel st-amber';
+      }
+
+      // 5-Step Parallel Parking Coach Logic
+      const sideWord = (State.activeBay.curbSide || 1) === -1 ? 'LEFT' : 'RIGHT';
+      const sigKey = (State.activeBay.curbSide || 1) === -1 ? 'Z' : 'X';
+      let stepNum = 1;
+      let stepMsg = `1. Signal ${sideWord.toLowerCase()} (${sigKey}) and pull forward parallel alongside the front car (~3 ft gap).`;
+
+      if (m.inside) {
+        stepNum = 5;
+        stepMsg = State.activeBay.isHill
+          ? '5. Aligned on 8% grade! Turn front wheels LEFT (A) away from curb, then press P!'
+          : '5. Perfectly aligned inside the curb bay! Press P (or click PARK) to complete.';
+      } else if (m.along < 1.2 && Math.abs(m.lat) < 1.4 && m.angErrDeg > 10) {
+        stepNum = 4;
+        stepMsg = `4. Front bumper clear! Counter-steer ${sideWord === 'RIGHT' ? 'LEFT (A)' : 'RIGHT (D)'} to straighten parallel.`;
+      } else if (m.along >= -0.5 && m.along <= 2.4 && Math.abs(m.lat) >= 1.1 && m.angErrDeg >= 26) {
+        stepNum = 3;
+        stepMsg = '3. ~45° entry angle reached! Straighten wheel and back straight until nose clears front car.';
+      } else if (m.along > 1.2 && m.along < 5.8 && Math.abs(m.lat) >= 1.4) {
+        stepNum = 2;
+        stepMsg = `2. Rear bumpers aligned! Shift to Reverse (S) and turn wheel full ${sideWord} (${sideWord === 'RIGHT' ? 'D' : 'A'}).`;
+      }
+
+      document.getElementById('coach-step-badge').textContent = `STEP ${stepNum}/5`;
+      document.getElementById('coach-step-text').textContent = stepMsg;
+      document.getElementById('m-curb').textContent = `${m.curbIn.toFixed(1)} in`;
+      document.getElementById('m-angle').textContent = `${m.angErrDeg.toFixed(1)}°`;
+      document.getElementById('m-grade').textContent = `${Car.gradeDeg.toFixed(1)}°`;
+      document.getElementById('m-bumps').textContent = `${sb.faultCount}`;
+
+      const scoreColor = sb.total >= 800 ? '#34d399' : (sb.total >= 550 ? '#fbbf24' : '#f87171');
+      const coachScoreEl = document.getElementById('coach-score');
+      coachScoreEl.textContent = `${sb.total} / 1000`;
+      coachScoreEl.style.color = scoreColor;
+
+      // Bottom Classic Quake Status Bar Readouts
+      const mph = Math.round(Math.abs(Car.speed) * 2.237);
+      const steerDeg = Math.round(THREE.MathUtils.radToDeg(Car.steer));
+      document.getElementById('hud-mph').textContent = `${mph}`;
+      document.getElementById('hud-deg').textContent = `${steerDeg}°`;
+
+      const hudScoreEl = document.getElementById('hud-score');
+      hudScoreEl.textContent = `${sb.total}`;
+      hudScoreEl.className = 'digital-num ' + (sb.total >= 800 ? 'good' : (sb.total >= 550 ? 'warn' : 'bad'));
+
+      const alignEl = document.getElementById('hud-align');
+      alignEl.textContent = `${m.alignPct}%`;
+      alignEl.className = 'digital-num ' + (m.inside ? 'good' : (m.alignPct >= 55 ? 'warn' : ''));
+
+      const curbEl = document.getElementById('hud-curb');
+      curbEl.textContent = m.curbIn < 99 ? `${m.curbIn.toFixed(0)}"` : '--';
+      curbEl.className = 'digital-num ' + (m.curbIn >= 4 && m.curbIn <= 14 ? 'good' : '');
+
+      State.faceState = State.hurtTimer > 0 ? 'hurt' : (State.completed || m.inside ? 'win' : 'ok');
+    }
+
+    /* =========================================================================
+       8. 3D CAMERA RIG & MULTI-PASS OPTICAL MIRROR RENDERING
+       ========================================================================= */
+    function updateCamerasAndMirrors(dt) {
+      const fx = Math.cos(Car.heading);
+      const fz = Math.sin(Car.heading);
+      const rx = -fz;
+      const rz = fx;
+
+      // Reverse curb-dip tilt on curb-side mirror + manual [ / ] tilt adjustment
+      const targetDip = Car.gear === 'R' ? 1 : 0;
+      State.dipFactor += (targetDip - State.dipFactor) * Math.min(1, dt * 7);
+      const curbSide = State.activeBay.curbSide || 1;
+      const leftDip = curbSide === -1 ? State.dipFactor : State.dipFactor * 0.25;
+      const rightDip = curbSide === 1 ? State.dipFactor : State.dipFactor * 0.25;
+
+      document.getElementById('dip-left').classList.toggle('on', Car.gear === 'R' && curbSide === -1);
+      document.getElementById('dip-right').classList.toggle('on', Car.gear === 'R' && curbSide === 1);
+
+      if (leftPhysicalMirror) leftPhysicalMirror.rotation.z = leftDip * 0.14 - State.manualMirrorTilt;
+      if (rightPhysicalMirror) rightPhysicalMirror.rotation.z = rightDip * 0.14 - State.manualMirrorTilt;
+
+      // 1) Center Interior Rear-View Mirror Optical Camera
+      rearMirrorCam.position.set(Car.x - fx * 1.05, Car.y + 1.28, Car.z - fz * 1.05);
+      rearMirrorCam.lookAt(
+        Car.x - fx * 22,
+        Car.y + 1.12 + State.manualMirrorTilt * 6,
+        Car.z - fz * 22
+      );
+
+      // 2) Left Exterior Side-View Mirror Camera (Tucked inward to frame rear fender!)
+      leftMirrorCam.position.set(
+        Car.x + fx * 0.45 - rx * 1.03,
+        Car.y + 1.06,
+        Car.z + fz * 0.45 - rz * 1.03
+      );
+      leftMirrorCam.lookAt(
+        Car.x - fx * 14 - rx * 1.35,
+        Car.y + 0.88 - leftDip * 0.85 + State.manualMirrorTilt * 4.5,
+        Car.z - fz * 14 - rz * 1.35
+      );
+
+      // 3) Right Exterior Side-View Mirror Camera (Tucked inward to frame rear fender!)
+      rightMirrorCam.position.set(
+        Car.x + fx * 0.45 + rx * 1.03,
+        Car.y + 1.06,
+        Car.z + fz * 0.45 + rz * 1.03
+      );
+      rightMirrorCam.lookAt(
+        Car.x - fx * 14 + rx * 1.35,
+        Car.y + 0.88 - rightDip * 0.85 + State.manualMirrorTilt * 4.5,
+        Car.z - fz * 14 + rz * 1.35
+      );
+
+      // Main Player Camera (0: 1st-Person Cockpit, 1: 3rd-Person Chase, 2: Top-Down)
+      if (State.camMode === 0) {
+        const eyeX = Car.x + fx * 0.12 - rx * 0.34;
+        const eyeZ = Car.z + fz * 0.12 - rz * 0.34;
+        mainCam.position.set(eyeX, Car.y + 1.24, eyeZ);
+        const lookAng = Car.heading + State.glance;
+        mainCam.up.set(0, 1, 0);
+        mainCam.lookAt(
+          eyeX + Math.cos(lookAng) * 16,
+          Car.y + 1.06 + Math.sin(Car.curbPitch) * 8,
+          eyeZ + Math.sin(lookAng) * 16
+        );
+      } else if (State.camMode === 1) {
+        const dist = Car.gear === 'R' ? 7.6 : 6.4;
+        const desired = new THREE.Vector3(
+          Car.x - fx * dist,
+          Car.y + 2.85,
+          Car.z - fz * dist
+        );
+        mainCam.position.lerp(desired, Math.min(1, dt * 8));
+        mainCam.up.set(0, 1, 0);
+        mainCam.lookAt(Car.x + fx * 3.5, Car.y + 0.9, Car.z + fz * 3.5);
+      } else {
+        mainCam.position.set(Car.x, Car.y + 26, Car.z + 0.01);
+        if (State.northUp) {
+          mainCam.up.set(0, 0, -1);
+        } else {
+          mainCam.up.set(fx, 0, fz);
+        }
+        mainCam.lookAt(Car.x, Car.y, Car.z);
+      }
+    }
+
+    function renderAllViews() {
+      const stripActive = isVirtualMirrorStripActive();
+      const renderCockpitMirrors = State.camMode === 0;
+
+      if (renderCockpitMirrors || stripActive) {
+        if (cockpitGroup) cockpitGroup.visible = false;
+        if (trajectoryGroup) trajectoryGroup.visible = false;
+
+        renderer.setRenderTarget(rearRT);
+        renderer.clear();
+        renderer.render(scene, rearMirrorCam);
+
+        renderer.setRenderTarget(leftRT);
+        renderer.clear();
+        renderer.render(scene, leftMirrorCam);
+
+        renderer.setRenderTarget(rightRT);
+        renderer.clear();
+        renderer.render(scene, rightMirrorCam);
+
+        renderer.setRenderTarget(null);
+        if (cockpitGroup) cockpitGroup.visible = State.camMode === 0;
+        if (trajectoryGroup) trajectoryGroup.visible = Car.gear === 'R' && !State.completed;
+      }
+
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      renderer.setScissorTest(false);
+      renderer.setViewport(0, 0, w, h);
+      renderer.clear();
+      renderer.render(scene, mainCam);
+
+      if (stripActive) {
+        renderer.setScissorTest(true);
+        const blitSlot = (elId, rt) => {
+          const el = document.getElementById(elId);
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height <= 0) return;
+          const vx = Math.round(rect.left);
+          const vy = Math.round(h - rect.bottom);
+          const vw = Math.round(rect.width);
+          const vh = Math.round(rect.height);
+          renderer.setViewport(vx, vy, vw, vh);
+          renderer.setScissor(vx, vy, vw, vh);
+          blitQuad.material.map = rt.texture;
+          renderer.render(blitScene, blitCam);
+        };
+        blitSlot('vm-left', leftRT);
+        blitSlot('vm-rear', rearRT);
+        blitSlot('vm-right', rightRT);
+        renderer.setScissorTest(false);
+      }
+    }
+
+    /* =========================================================================
+       9. PIXEL-ART RANGER PORTRAIT & CITY GPS MINI-MAP
+       ========================================================================= */
+    const rangerCanvas = document.getElementById('ranger-canvas');
+    const rangerCtx = rangerCanvas.getContext('2d');
+    function drawRangerPortrait() {
+      const g = rangerCtx;
+      g.fillStyle = '#1d140e';
+      g.fillRect(0, 0, 32, 32);
+
+      g.fillStyle = '#5c4028';
+      g.fillRect(6, 4, 20, 22);
+      g.fillStyle = '#7c5838';
+      g.fillRect(8, 5, 16, 4);
+
+      g.fillStyle = '#1c1917';
+      g.fillRect(8, 10, 16, 7);
+      g.fillStyle = State.faceState === 'hurt' ? '#dc2626' : (State.faceState === 'win' ? '#10b981' : '#d97706');
+      g.fillRect(9, 11, 14, 5);
+
+      const eyeShift = Car.steer < -0.15 ? -2 : (Car.steer > 0.15 ? 2 : 0);
+      g.fillStyle = '#fef08a';
+      g.fillRect(11 + eyeShift, 12, 3, 2);
+      g.fillRect(18 + eyeShift, 12, 3, 2);
+
+      g.fillStyle = '#c89268';
+      g.fillRect(9, 17, 14, 9);
+      g.fillStyle = '#5c3822';
+      g.fillRect(10, 21, 12, 5);
+
+      g.fillStyle = '#1f1610';
+      if (State.faceState === 'win') {
+        g.fillStyle = '#fef3c7';
+        g.fillRect(12, 22, 8, 2);
+      } else if (State.faceState === 'hurt') {
+        g.fillStyle = '#ef4444';
+        g.fillRect(13, 21, 6, 4);
+      } else {
+        g.fillRect(12, 23, 8, 1);
+      }
+    }
+
+    const gpsCanvas = document.getElementById('gps-canvas');
+    const gpsCtx = gpsCanvas.getContext('2d');
+    function drawGpsMinimap() {
+      const g = gpsCtx;
+      const w = gpsCanvas.width, h = gpsCanvas.height;
+      const mapScale = w / 300;
+      const toGps = (wx, wz) => [w * 0.5 + wx * mapScale, h * 0.5 + wz * mapScale];
+
+      g.fillStyle = '#1a1410';
+      g.fillRect(0, 0, w, h);
+
+      // Roads
+      g.strokeStyle = '#3d352e';
+      g.lineWidth = Math.max(4, 14 * mapScale);
+      [-140, -70, 0, 70, 140].forEach(rc => {
+        const [gx, gy] = toGps(rc, rc);
+        g.beginPath(); g.moveTo(gx, 0); g.lineTo(gx, h); g.stroke();
+        g.beginPath(); g.moveTo(0, gy); g.lineTo(w, gy); g.stroke();
+      });
+
+      // 43rd St Fortress Hill highlight
+      const [hx0, hy] = toGps(HILL_X0, -70);
+      const [hx1] = toGps(HILL_X1, -70);
+      g.strokeStyle = '#d97706';
+      g.lineWidth = 3;
+      g.beginPath(); g.moveTo(hx0, hy); g.lineTo(hx1, hy); g.stroke();
+
+      // Traffic light dots
+      for (const tl of trafficLights) {
+        const [tx, ty] = toGps(tl.x, tl.z);
+        g.fillStyle = tl.nsState === 'GREEN' ? '#22c55e' : '#ef4444';
+        g.fillRect(tx - 2, ty - 2, 4, 4);
+      }
+
+      // Open bays
+      g.fillStyle = '#92400e';
+      for (const b of OPEN_BAYS) {
+        const [bx, by] = toGps(b.x, b.z);
+        g.fillRect(bx - 2, by - 2, 4, 4);
+      }
+
+      // Active target bay
+      const [ax, ay] = toGps(State.activeBay.x, State.activeBay.z);
+      g.fillStyle = '#34d399';
+      g.fillRect(ax - 3.5, ay - 3.5, 7, 7);
+
+      // AI cars
+      g.fillStyle = '#9ca3af';
+      for (const ai of aiCars) {
+        const [ix, iy] = toGps(ai.x, ai.z);
+        g.fillRect(ix - 1.5, iy - 1.5, 3, 3);
+      }
+
+      // Player triangle
+      const [px, py] = toGps(Car.x, Car.z);
+      g.save();
+      g.translate(px, py);
+      g.rotate(Car.heading);
+      g.fillStyle = '#ff9d3b';
+      g.beginPath();
+      g.moveTo(5, 0);
+      g.lineTo(-4, -3.5);
+      g.lineTo(-4, 3.5);
+      g.closePath();
+      g.fill();
+      g.restore();
+
+      // Update current street label
+      let streetName = 'MIDTOWN DISTRICT';
+      if (Math.abs(Car.x) < 10) streetName = '5TH AVE BOULEVARD';
+      else if (Math.abs(Car.x + 70) < 10) streetName = '4TH AVE (1-WAY)';
+      else if (Math.abs(Car.x - 70) < 10) streetName = '6TH AVE PLAZA';
+      else if (Math.abs(Car.z) < 10) streetName = '44TH STREET';
+      else if (Math.abs(Car.z - 70) < 10) streetName = '45TH STREET';
+      else if (Math.abs(Car.z + 70) < 10) streetName = '43RD ST (FORTRESS HILL)';
+      else if (Math.abs(Car.x) > 130 || Math.abs(Car.z) > 130) streetName = 'SLIPGATE RING ROAD';
+      document.getElementById('gps-label').textContent = streetName;
+    }
+
+    /* =========================================================================
+       10. MAIN ANIMATION LOOP & BOOTSTRAP
+       ========================================================================= */
+    let lastTime = performance.now();
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.05, (now - lastTime) * 0.001);
+      lastTime = now;
+
+      updateCarPhysics(dt);
+      updateTrafficAndPeds(dt);
+      updateTrajectoryGuides();
+      updateCockpitCluster();
+      updateCoachAndHUD();
+      updateCamerasAndMirrors(dt);
+      renderAllViews();
+
+      drawRangerPortrait();
+      drawGpsMinimap();
+
+      // Advance replay animation if modal is open and playing
+      if (State.completed && State.replayPlaying && State.replayFrames.length > 1) {
+        State.replayCursor += dt * 10;
+        if (State.replayCursor >= State.replayFrames.length) State.replayCursor = 0;
+        const idx = Math.floor(State.replayCursor);
+        const scrubber = document.getElementById('replay-scrubber');
+        if (scrubber) scrubber.value = idx;
+        renderReplayFrame(idx);
+      }
+    }
+
+    function init() {
+      initTextures();
+      initTouchPads();
+      buildCity();
+      buildPlayerCar();
+      buildTrajectoryGuides();
+      buildBayVisuals();
+      loadLevel(0);
+      setCameraMode(0);
+      // Automatically enable Touch Pedals & Rotary Wheel on touch/mobile viewports
+      const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.innerWidth <= 820;
+      if (isTouchDevice) {
+        toggleTouchDeck();
+      }
+      layoutHudOverlays();
+      requestAnimationFrame(animate);
+    }
+
+    init();
+  </script>
+</body>
+</html>
