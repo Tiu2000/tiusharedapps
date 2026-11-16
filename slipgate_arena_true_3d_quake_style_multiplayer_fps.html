@@ -383,18 +383,20 @@
   <!-- ===================================================================== -->
   <!-- SCOREBOARD MODAL (TAB OR SCORES BUTTON)                               -->
   <!-- ===================================================================== -->
-  <div id="scoreboardModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 pointer-events-none">
-    <div class="w-full max-w-2xl rounded-2xl bg-zinc-950/95 border-2 border-amber-500/70 shadow-2xl overflow-hidden">
+  <div id="scoreboardModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 pointer-events-auto cursor-pointer">
+    <div id="scoreboardCard" class="w-full max-w-2xl rounded-2xl bg-zinc-950/95 border-2 border-amber-500/70 shadow-2xl overflow-hidden cursor-default">
       <div class="hazard-bar h-2 w-full"></div>
-      <div class="p-5">
-        <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-3">
+      <div class="p-4 sm:p-5">
+        <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-3 gap-2">
           <div>
-            <h2 class="text-xl font-extrabold tracking-wider text-amber-400 uppercase">ARENA STANDINGS</h2>
-            <p id="scoreboardSubtitle" class="text-xs font-mono-tech text-zinc-400">FIRST TO 15 FRAGS WINS</p>
+            <h2 class="text-lg sm:text-xl font-extrabold tracking-wider text-amber-400 uppercase">ARENA STANDINGS</h2>
+            <p id="scoreboardSubtitle" class="text-[11px] sm:text-xs font-mono-tech text-zinc-400">FIRST TO 15 FRAGS WINS</p>
           </div>
-          <span class="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-700 text-xs font-mono-tech text-zinc-300">TAB / SCORES</span>
+          <button id="closeScoreboardBtn" type="button" class="btn-arena px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-mono-tech text-xs font-extrabold tracking-wider uppercase shadow">
+            ✕ CLOSE
+          </button>
         </div>
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto max-h-[55vh] overflow-y-auto">
           <table class="w-full text-left font-mono-tech text-xs sm:text-sm">
             <thead>
               <tr class="text-zinc-400 border-b border-zinc-800">
@@ -408,6 +410,9 @@
             </thead>
             <tbody id="scoreboardBody" class="divide-y divide-zinc-800/70"></tbody>
           </table>
+        </div>
+        <div class="mt-3 pt-2 border-t border-zinc-800/80 text-center text-[11px] font-mono-tech text-zinc-400">
+          Tap <span class="text-amber-300 font-bold">CLOSE</span> or anywhere outside to return to combat
         </div>
       </div>
     </div>
@@ -3700,6 +3705,10 @@
     function togglePauseModal() {
       state.paused = !state.paused;
       const modal = document.getElementById("pauseModal");
+      const sbModal = document.getElementById("scoreboardModal");
+      if (sbModal && !sbModal.classList.contains("hidden")) {
+        sbModal.classList.add("hidden");
+      }
       updateTouchControlsVisibility();
       if (state.paused) {
         exitPointerLockSafe();
@@ -4018,6 +4027,16 @@
           sb.classList.remove("hidden");
         } else {
           sb.classList.add("hidden");
+        }
+      });
+
+      const closeScoreboardModal = () => {
+        document.getElementById("scoreboardModal").classList.add("hidden");
+      };
+      document.getElementById("closeScoreboardBtn").addEventListener("click", closeScoreboardModal);
+      document.getElementById("scoreboardModal").addEventListener("click", (e) => {
+        if (e.target.id === "scoreboardModal") {
+          closeScoreboardModal();
         }
       });
 
