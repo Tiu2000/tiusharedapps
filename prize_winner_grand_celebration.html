@@ -1,0 +1,2219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Prize Winner Grand Celebration</title>
+
+  <!-- Tailwind CSS for responsive layout & utility styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Fredoka (joyful theatrical display) & Outfit (crisp modern UI) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ==========================================================================
+       DESIGN TOKENS & VISUAL THEMES
+       ========================================================================== */
+    :root {
+      --bg-deep: #070b1e;
+      --bg-mid: #131c46;
+      --bg-glow: rgba(255, 200, 45, 0.25);
+      --accent-primary: #ffd700;
+      --accent-secondary: #ff9e00;
+      --accent-tertiary: #fff3b0;
+      --ray-color: rgba(255, 215, 0, 0.11);
+      --spotlight-color: rgba(255, 236, 153, 0.16);
+      --name-gradient: linear-gradient(180deg, #ffffff 0%, #fff2a6 42%, #ffbe0b 100%);
+      --name-stroke: #3b1d00;
+      --name-glow: rgba(255, 196, 0, 0.75);
+      --badge-bg: linear-gradient(135deg, rgba(255, 215, 0, 0.24), rgba(255, 140, 0, 0.28));
+      --badge-border: rgba(255, 223, 100, 0.65);
+      --badge-text: #fff7d6;
+      --card-bg: rgba(15, 23, 56, 0.84);
+      --card-border: rgba(255, 215, 0, 0.25);
+    }
+
+    /* Theme 2: Rainbow Party Pop */
+    [data-theme="rainbow"] {
+      --bg-deep: #17082e;
+      --bg-mid: #2f125c;
+      --bg-glow: rgba(255, 77, 166, 0.28);
+      --accent-primary: #ff4da6;
+      --accent-secondary: #00e5ff;
+      --accent-tertiary: #ffe600;
+      --ray-color: rgba(255, 110, 199, 0.13);
+      --spotlight-color: rgba(0, 229, 255, 0.16);
+      --name-gradient: linear-gradient(180deg, #ffffff 0%, #ffe97d 45%, #ff6ec7 100%);
+      --name-stroke: #2a0845;
+      --name-glow: rgba(255, 77, 166, 0.8);
+      --badge-bg: linear-gradient(135deg, rgba(255, 77, 166, 0.32), rgba(0, 229, 255, 0.28));
+      --badge-border: rgba(255, 230, 0, 0.7);
+      --badge-text: #ffffff;
+      --card-bg: rgba(31, 13, 64, 0.86);
+      --card-border: rgba(255, 110, 199, 0.32);
+    }
+
+    /* Theme 3: Neon Superstar */
+    [data-theme="neon"] {
+      --bg-deep: #040612;
+      --bg-mid: #0e1033;
+      --bg-glow: rgba(0, 245, 212, 0.24);
+      --accent-primary: #00f5d4;
+      --accent-secondary: #ff2a85;
+      --accent-tertiary: #fee440;
+      --ray-color: rgba(0, 245, 212, 0.11);
+      --spotlight-color: rgba(255, 42, 133, 0.16);
+      --name-gradient: linear-gradient(180deg, #ffffff 0%, #9bf6ff 45%, #00f5d4 100%);
+      --name-stroke: #070b24;
+      --name-glow: rgba(0, 245, 212, 0.85);
+      --badge-bg: linear-gradient(135deg, rgba(255, 42, 133, 0.32), rgba(0, 245, 212, 0.25));
+      --badge-border: rgba(0, 245, 212, 0.7);
+      --badge-text: #e0fbfc;
+      --card-bg: rgba(11, 15, 41, 0.88);
+      --card-border: rgba(0, 245, 212, 0.3);
+    }
+
+    /* ==========================================================================
+       BASE & SAFE-AREA VIEWPORT ENGINEERING
+       ========================================================================== */
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    input {
+      user-select: text;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 50% 35%, var(--bg-mid) 0%, var(--bg-deep) 78%);
+      color: #ffffff;
+      overflow-x: hidden;
+    }
+
+    /* Pseudo-fullscreen fallback when native Fullscreen API is blocked in iFrames */
+    body.pseudo-fullscreen {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 9999 !important;
+    }
+
+    .font-display {
+      font-family: 'Fredoka', 'Outfit', sans-serif;
+    }
+
+    /* Safe Area Padding Utilities */
+    .safe-area-container {
+      padding-top: max(1rem, env(safe-area-inset-top));
+      padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+      padding-left: max(1rem, env(safe-area-inset-left));
+      padding-right: max(1rem, env(safe-area-inset-right));
+    }
+
+    .stage-safe-hud {
+      bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    /* ==========================================================================
+       THEATRICAL STAGE LIGHTING, SUNBURST & SPOTLIGHTS
+       ========================================================================== */
+    .stage-backdrop {
+      background:
+        radial-gradient(circle at 50% 42%, var(--bg-glow) 0%, transparent 58%),
+        radial-gradient(circle at 50% 35%, var(--bg-mid) 0%, var(--bg-deep) 82%);
+      transition: background 0.6s ease;
+    }
+
+    /* Rotating Sunburst Beams */
+    .sunburst-rays {
+      position: absolute;
+      top: 44%;
+      left: 50%;
+      width: 240vmax;
+      height: 240vmax;
+      transform: translate(-50%, -50%);
+      background: repeating-conic-gradient(
+        from 0deg,
+        var(--ray-color) 0deg 10deg,
+        transparent 10deg 20deg
+      );
+      animation: spinSunburst 42s linear infinite;
+      pointer-events: none;
+      mask-image: radial-gradient(circle, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 45%, transparent 72%);
+      -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 45%, transparent 72%);
+    }
+
+    @keyframes spinSunburst {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to   { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    /* Sweeping Stage Spotlights */
+    .spotlight {
+      position: absolute;
+      bottom: -15%;
+      width: 48vmax;
+      height: 145vmax;
+      background: linear-gradient(
+        to top,
+        var(--spotlight-color) 0%,
+        rgba(255, 255, 255, 0.04) 55%,
+        transparent 100%
+      );
+      clip-path: polygon(44% 100%, 56% 100%, 100% 0%, 0% 0%);
+      transform-origin: 50% 100%;
+      pointer-events: none;
+      filter: blur(6px);
+    }
+
+    .spotlight-left {
+      left: 8%;
+      animation: sweepLeft 7.5s ease-in-out infinite alternate;
+    }
+
+    .spotlight-right {
+      right: 8%;
+      animation: sweepRight 8.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes sweepLeft {
+      0%   { transform: rotate(-28deg); }
+      100% { transform: rotate(22deg); }
+    }
+
+    @keyframes sweepRight {
+      0%   { transform: rotate(28deg); }
+      100% { transform: rotate(-22deg); }
+    }
+
+    /* Intense Drumroll Spotlight Sweep */
+    .drumroll-active .spotlight-left {
+      animation: drumSweepLeft 0.9s ease-in-out infinite alternate;
+    }
+    .drumroll-active .spotlight-right {
+      animation: drumSweepRight 0.9s ease-in-out infinite alternate;
+    }
+
+    @keyframes drumSweepLeft {
+      0%   { transform: rotate(-35deg); }
+      100% { transform: rotate(18deg); }
+    }
+    @keyframes drumSweepRight {
+      0%   { transform: rotate(35deg); }
+      100% { transform: rotate(-18deg); }
+    }
+
+    /* ==========================================================================
+       CENTERPIECE HERO TYPOGRAPHY & TROPHY ANIMATIONS
+       ========================================================================== */
+    .winner-name-hero {
+      font-family: 'Fredoka', 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: clamp(2.85rem, 11.5vw, 8.75rem);
+      line-height: 1.03;
+      letter-spacing: 0.01em;
+      background: var(--name-gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      -webkit-text-stroke: clamp(1.5px, 0.25vw, 3.5px) var(--name-stroke);
+      filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.55))
+              drop-shadow(0 0 28px var(--name-glow));
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      max-width: 94vw;
+      padding: 0.05em 0.15em;
+    }
+
+    .winner-entrance {
+      animation: heroPopIn 0.85s cubic-bezier(0.22, 1.35, 0.36, 1) forwards;
+    }
+
+    @keyframes heroPopIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.28) translateY(35px) rotate(-3deg);
+      }
+      55% {
+        opacity: 1;
+        transform: scale(1.09) translateY(-8px) rotate(1.5deg);
+      }
+      78% {
+        transform: scale(0.97) translateY(3px) rotate(-0.5deg);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0) rotate(0deg);
+      }
+    }
+
+    .trophy-float {
+      animation:
+        trophyEntrance 0.75s cubic-bezier(0.2, 1.4, 0.35, 1) forwards,
+        trophyHover 3.4s ease-in-out 0.75s infinite alternate;
+      filter: drop-shadow(0 12px 26px rgba(255, 196, 0, 0.55));
+    }
+
+    @keyframes trophyEntrance {
+      0%   { opacity: 0; transform: scale(0.2) translateY(40px); }
+      65%  { opacity: 1; transform: scale(1.12) translateY(-10px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    @keyframes trophyHover {
+      0%   { transform: translateY(0px) rotate(-2deg) scale(1); }
+      100% { transform: translateY(-10px) rotate(2deg) scale(1.04); }
+    }
+
+    .badge-entrance {
+      animation: badgeSlideUp 0.7s cubic-bezier(0.22, 1.25, 0.36, 1) 0.22s both;
+    }
+
+    @keyframes badgeSlideUp {
+      0%   { opacity: 0; transform: translateY(24px) scale(0.85); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Drumroll Pulse Text */
+    .drumroll-text-pulse {
+      animation: drumTextPulse 0.42s ease-in-out infinite alternate;
+    }
+
+    @keyframes drumTextPulse {
+      0%   { transform: scale(0.96); opacity: 0.85; }
+      100% { transform: scale(1.05); opacity: 1; }
+    }
+
+    /* Shake animation for empty name validation */
+    .shake-input {
+      animation: inputShake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    }
+
+    @keyframes inputShake {
+      10%, 90% { transform: translateX(-3px); }
+      20%, 80% { transform: translateX(5px); }
+      30%, 50%, 70% { transform: translateX(-7px); }
+      40%, 60% { transform: translateX(7px); }
+    }
+
+    /* ==========================================================================
+       LANDSCAPE MOBILE COMPACT ADAPTATIONS (e.g., 844x390)
+       ========================================================================== */
+    @media (max-height: 520px) {
+      .trophy-svg-wrap {
+        width: 62px !important;
+        height: 62px !important;
+        margin-bottom: 0.15rem !important;
+      }
+      .winner-name-hero {
+        font-size: clamp(2.15rem, 11vh, 4.4rem) !important;
+        line-height: 1.0 !important;
+      }
+      .celebration-badge {
+        padding: 0.35rem 1rem !important;
+        font-size: 0.85rem !important;
+        margin-top: 0.35rem !important;
+      }
+      .stage-center-stack {
+        padding-bottom: 3.75rem !important;
+      }
+      .tap-hint-text {
+        display: none !important;
+      }
+    }
+
+    /* Touch target minimum guarantee */
+    .touch-btn {
+      min-width: 44px;
+      min-height: 44px;
+    }
+
+    /* Custom subtle scrollbar for setup panel */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.04);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 999px;
+    }
+  </style>
+</head>
+
+<body class="stage-backdrop min-h-screen antialiased selection:bg-amber-400 selection:text-slate-950" data-theme="gold">
+
+  <!-- ========================================================================
+       VIEW 1: SETUP & CONTROL SCREEN
+       ======================================================================== -->
+  <main id="setupView" class="safe-area-container relative z-20 min-h-screen w-full flex flex-col items-center justify-start md:justify-center overflow-y-auto">
+    <div class="w-full max-w-2xl rounded-3xl border backdrop-blur-xl shadow-2xl p-5 sm:p-7 md:p-8 my-auto transition-all duration-300"
+         style="background: var(--card-bg); border-color: var(--card-border); box-shadow: 0 24px 60px rgba(0,0,0,0.6);">
+
+      <!-- Header -->
+      <header class="flex items-center justify-between gap-3 mb-6">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-300 via-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0">
+            <svg class="w-7 h-7 text-slate-950" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="font-display text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white leading-tight">
+              Prize Winner Celebration
+            </h1>
+            <p class="text-xs sm:text-sm text-slate-300">
+              Make a theatrical big deal out of every winner!
+            </p>
+          </div>
+        </div>
+
+        <!-- Mute & Fullscreen Quick Utilities on Setup -->
+        <div class="flex items-center gap-2 shrink-0">
+          <button type="button" id="setupMuteBtn"
+                  class="touch-btn rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 border border-white/15 flex items-center justify-center text-white transition"
+                  title="Toggle Sound" aria-label="Toggle Sound">
+            <span id="setupMuteIcon" class="text-lg">🔊</span>
+          </button>
+          <button type="button" id="setupFullscreenBtn"
+                  class="touch-btn rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 border border-white/15 flex items-center justify-center text-white transition"
+                  title="Toggle Fullscreen" aria-label="Toggle Fullscreen">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Inline Toast / Status Feedback (Zero alert() usage) -->
+      <div id="statusBanner" class="hidden mb-4 px-4 py-2.5 rounded-2xl bg-amber-400/20 border border-amber-300/50 text-amber-100 text-sm font-semibold flex items-center justify-between gap-2">
+        <span id="statusBannerText">Enter a kid's name to start the celebration!</span>
+      </div>
+
+      <!-- STEP 1: Winner Name Input -->
+      <section class="mb-5">
+        <label for="winnerNameInput" class="block text-xs font-bold uppercase tracking-wider text-amber-300 mb-2">
+          1. Winner's Name
+        </label>
+        <div class="relative flex items-center">
+          <input
+            type="text"
+            id="winnerNameInput"
+            maxlength="32"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Type kid's name (e.g., Maya, Leo)..."
+            class="w-full h-14 sm:h-16 pl-4 pr-12 rounded-2xl bg-slate-950/75 border-2 border-white/20 focus:border-amber-400 focus:outline-none text-white placeholder-slate-400 font-display text-xl sm:text-2xl font-bold tracking-wide transition shadow-inner"
+          />
+          <button
+            type="button"
+            id="clearNameBtn"
+            aria-label="Clear Name"
+            title="Clear Name"
+            class="hidden touch-btn absolute right-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition"
+          >
+            ✕
+          </button>
+        </div>
+      </section>
+
+      <!-- Saved Kids Roster / Quick-Pick Chips -->
+      <section class="mb-6 bg-slate-950/45 rounded-2xl p-3.5 sm:p-4 border border-white/10">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+            <span>⭐ Quick-Pick Kids Roster</span>
+            <span id="rosterCountBadge" class="px-2 py-0.5 rounded-full bg-white/10 text-[11px] text-slate-300">0 saved</span>
+          </span>
+          <button
+            type="button"
+            id="addRosterBtn"
+            class="min-h-[36px] px-3 py-1.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 active:scale-95 border border-amber-300/40 text-amber-200 text-xs font-bold transition flex items-center gap-1"
+          >
+            <span>+ Save Current Name to Roster</span>
+          </button>
+        </div>
+
+        <div id="rosterChipsContainer" class="flex flex-wrap gap-2">
+          <!-- Populated dynamically via JS from localStorage -->
+        </div>
+        <p id="rosterEmptyHint" class="text-xs text-slate-400 mt-1">
+          Tip: Save kids' names here so you can tap any name to launch their celebration in one click!
+        </p>
+      </section>
+
+      <!-- STEP 2: Achievement / Prize Subtitle -->
+      <section class="mb-6">
+        <label for="subtitleInput" class="block text-xs font-bold uppercase tracking-wider text-amber-300 mb-2">
+          2. Achievement / Prize Banner
+        </label>
+        <input
+          type="text"
+          id="subtitleInput"
+          maxlength="54"
+          value="FIRST EVER PRIZE WINNER!"
+          placeholder="FIRST EVER PRIZE WINNER!"
+          class="w-full h-12 px-4 rounded-2xl bg-slate-950/75 border border-white/20 focus:border-amber-400 focus:outline-none text-white placeholder-slate-400 text-sm sm:text-base font-bold tracking-wide transition mb-2.5"
+        />
+        <!-- Quick Subtitle Presets -->
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" class="subtitle-preset-btn min-h-[36px] px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-xs font-semibold text-slate-200 border border-white/10 transition" data-preset="FIRST EVER PRIZE WINNER!">
+            🏆 First Ever Prize Winner!
+          </button>
+          <button type="button" class="subtitle-preset-btn min-h-[36px] px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-xs font-semibold text-slate-200 border border-white/10 transition" data-preset="GRAND CHAMPION!">
+            👑 Grand Champion!
+          </button>
+          <button type="button" class="subtitle-preset-btn min-h-[36px] px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-xs font-semibold text-slate-200 border border-white/10 transition" data-preset="SUPERSTAR GOAL ACHIEVED!">
+            🌟 Superstar Goal Achieved!
+          </button>
+          <button type="button" class="subtitle-preset-btn min-h-[36px] px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-xs font-semibold text-slate-200 border border-white/10 transition" data-preset="TOP PRIZE BOX WINNER!">
+            🎁 Top Prize Box Winner!
+          </button>
+        </div>
+      </section>
+
+      <!-- STEP 3: Victory Music Style & Visual Theme -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-7">
+        <!-- Victory Music Style Selector -->
+        <section>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-300">
+              3. Victory Music
+            </span>
+            <button type="button" id="previewMusicBtn"
+                    class="min-h-[32px] px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 text-[11px] font-bold text-amber-200 border border-white/15 transition">
+              ▶ Test Music
+            </button>
+          </div>
+          <div class="space-y-2" id="musicSelectorGroup">
+            <button type="button" data-music="brass"
+                    class="music-option touch-btn w-full px-3.5 py-2.5 rounded-2xl border-2 border-amber-400 bg-amber-400/20 text-left flex items-center justify-between transition active:scale-[0.99]">
+              <div>
+                <div class="text-sm font-bold text-white">🎺 Royal Brass Fanfare</div>
+                <div class="text-[11px] text-slate-300">Triumphant horns, timpani &amp; soaring melody</div>
+              </div>
+              <span class="music-check text-amber-300 font-bold text-base">✓</span>
+            </button>
+
+            <button type="button" data-music="arcade"
+                    class="music-option touch-btn w-full px-3.5 py-2.5 rounded-2xl border-2 border-white/15 bg-slate-950/50 hover:bg-white/10 text-left flex items-center justify-between transition active:scale-[0.99]">
+              <div>
+                <div class="text-sm font-bold text-white">🕹️ Arcade Super Champion</div>
+                <div class="text-[11px] text-slate-300">Upbeat retro synth lead &amp; power-up arpeggios</div>
+              </div>
+              <span class="music-check hidden text-amber-300 font-bold text-base">✓</span>
+            </button>
+
+            <button type="button" data-music="stadium"
+                    class="music-option touch-btn w-full px-3.5 py-2.5 rounded-2xl border-2 border-white/15 bg-slate-950/50 hover:bg-white/10 text-left flex items-center justify-between transition active:scale-[0.99]">
+              <div>
+                <div class="text-sm font-bold text-white">🏟️ Stadium Arena Anthem</div>
+                <div class="text-[11px] text-slate-300">Grand organ chords &amp; championship stomp</div>
+              </div>
+              <span class="music-check hidden text-amber-300 font-bold text-base">✓</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Visual Theme Selector -->
+        <section>
+          <span class="block text-xs font-bold uppercase tracking-wider text-amber-300 mb-2">
+            4. Stage Theme
+          </span>
+          <div class="space-y-2" id="themeSelectorGroup">
+            <button type="button" data-theme-choice="gold"
+                    class="theme-option touch-btn w-full px-3.5 py-2.5 rounded-2xl border-2 border-amber-400 bg-amber-400/20 text-left flex items-center justify-between transition active:scale-[0.99]">
+              <div class="flex items-center gap-2.5">
+                <span class="w-6 h-6 rounded-full bg-gradient-to-br from-amber-300 to-indigo-950 border border-amber-200 shrink-0"></span>
+                <div>
+                  <div class="text-sm font-bold text-white">Golden Trophy Gala</div>
+                  <div class="text-[11px] text-slate-300">Royal midnight &amp; gleaming gold</div>
+                </div>
+              </div>
+              <span class="theme-check text-amber-300 font-bold text-base">✓</span>
+            </button>
+
+            <button type="button" data-theme-choice="rainbow"
+                    class="theme-option touch-btn w-full px-3.5 py-2.5 rounded-2xl border-2 border-white/15 bg-slate-950/50 hover:bg-white/10 text-left flex items-center justify-between transition active:scale-[0.99]">
+              <div class="flex items-center gap-2.5">
+                <span class="w-6 h-6 rounded-full bg-gradient-to-br from-pink-500 via-yellow-300 to-cyan-400 border border-white/60 shrink-0"></span>
+                <div>
+                  <div class="text-sm font-bold text-white">Rainbow Party Pop</div>
+                  <div class="text-[11px] text-slate-300">Vibrant festival confetti colors</div>
+                </div>
+              </div>
+              <span class="theme-check hidden text-amber-300 font-bold text-base">✓</span>
+            </button>
+
+            <button type="button" data-theme-choice="neon"
+                    class="theme-option touch-btn w-full px-3.5 py-2.5 rounded-2xl border-2 border-white/15 bg-slate-950/50 hover:bg-white/10 text-left flex items-center justify-between transition active:scale-[0.99]">
+              <div class="flex items-center gap-2.5">
+                <span class="w-6 h-6 rounded-full bg-gradient-to-br from-teal-300 via-fuchsia-500 to-slate-950 border border-teal-200 shrink-0"></span>
+                <div>
+                  <div class="text-sm font-bold text-white">Neon Superstar</div>
+                  <div class="text-[11px] text-slate-300">Electric cyan, magenta &amp; gold</div>
+                </div>
+              </div>
+              <span class="theme-check hidden text-amber-300 font-bold text-base">✓</span>
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <!-- STEP 5: Dual Theatrical Launch Buttons -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <button
+          type="button"
+          id="drumrollLaunchBtn"
+          class="touch-btn h-16 px-5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 hover:from-amber-300 hover:to-yellow-200 active:scale-[0.98] text-slate-950 font-display text-lg sm:text-xl font-bold shadow-xl shadow-amber-500/30 flex items-center justify-center gap-2.5 transition cursor-pointer"
+        >
+          <span class="text-2xl">🥁</span>
+          <span>Drumroll Reveal!</span>
+        </button>
+
+        <button
+          type="button"
+          id="instantLaunchBtn"
+          class="touch-btn h-16 px-5 rounded-2xl bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-500 hover:from-fuchsia-500 hover:to-orange-400 active:scale-[0.98] text-white font-display text-lg sm:text-xl font-bold shadow-xl shadow-pink-500/30 flex items-center justify-center gap-2.5 transition cursor-pointer"
+        >
+          <span class="text-2xl">🎉</span>
+          <span>Instant Celebration!</span>
+        </button>
+      </section>
+    </div>
+  </main>
+
+  <!-- ========================================================================
+       VIEW 2: GRAND CELEBRATION STAGE (DRUMROLL + WINNER REVEAL)
+       ======================================================================== -->
+  <section id="stageView" class="hidden fixed inset-0 w-full h-full overflow-hidden select-none z-30">
+    <!-- Rotating Sunburst Rays -->
+    <div id="sunburstLayer" class="sunburst-rays"></div>
+
+    <!-- Sweeping Stage Spotlights -->
+    <div class="spotlight spotlight-left"></div>
+    <div class="spotlight spotlight-right"></div>
+
+    <!-- High-DPI HTML5 Canvas for Confetti, Ribbons & Fireworks -->
+    <canvas id="celebrationCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
+
+    <!-- Drumroll Suspense Overlay -->
+    <div id="drumrollOverlay" class="hidden absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55 backdrop-blur-[2px] px-4 text-center pointer-events-none">
+      <div class="text-5xl sm:text-7xl mb-4 animate-bounce">🥁</div>
+      <p class="drumroll-text-pulse font-display text-3xl sm:text-5xl md:text-6xl font-bold tracking-wide text-amber-300 drop-shadow-[0_4px_24px_rgba(255,196,0,0.8)]">
+        AND THE WINNER IS...
+      </p>
+      <!-- Suspense Progress Bar -->
+      <div class="w-64 sm:w-80 h-3 rounded-full bg-white/15 overflow-hidden mt-6 border border-white/20">
+        <div id="drumrollProgressBar" class="h-full w-0 bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 rounded-full"></div>
+      </div>
+    </div>
+
+    <!-- Winner Hero Centerpiece -->
+    <div id="winnerHeroContainer" class="hidden stage-center-stack relative z-20 w-full h-full flex flex-col items-center justify-center px-4 pb-16 text-center pointer-events-none">
+      <!-- Gleaming Animated Trophy & Crown SVG -->
+      <div id="trophyWrapper" class="trophy-svg-wrap trophy-float w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 mb-2 sm:mb-3 flex items-center justify-center">
+        <svg viewBox="0 0 160 160" class="w-full h-full overflow-visible" aria-hidden="true">
+          <defs>
+            <linearGradient id="goldCupGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#FFF7AE" />
+              <stop offset="35%" stop-color="#FFD700" />
+              <stop offset="75%" stop-color="#F59E0B" />
+              <stop offset="100%" stop-color="#B45309" />
+            </linearGradient>
+            <linearGradient id="goldTrimGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#FFFFFF" />
+              <stop offset="50%" stop-color="#FDE047" />
+              <stop offset="100%" stop-color="#D97706" />
+            </linearGradient>
+            <linearGradient id="pedestalGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#1E1B4B" />
+              <stop offset="50%" stop-color="#312E81" />
+              <stop offset="100%" stop-color="#0F172A" />
+            </linearGradient>
+          </defs>
+
+          <!-- Radiant Halo Behind Trophy -->
+          <circle cx="80" cy="70" r="56" fill="rgba(255, 223, 89, 0.18)" />
+
+          <!-- Floating Crown Above Cup -->
+          <g transform="translate(52, 8)">
+            <path d="M4 24 L10 8 L22 18 L28 4 L34 18 L46 8 L52 24 Z" fill="url(#goldTrimGrad)" stroke="#92400E" stroke-width="2" stroke-linejoin="round"/>
+            <rect x="4" y="23" width="48" height="5" rx="2.5" fill="#F59E0B" stroke="#92400E" stroke-width="1.5"/>
+            <circle cx="28" cy="4" r="2.5" fill="#FFFBEB"/>
+            <circle cx="10" cy="8" r="2" fill="#FFFBEB"/>
+            <circle cx="46" cy="8" r="2" fill="#FFFBEB"/>
+          </g>
+
+          <!-- Left & Right Ornate Handles -->
+          <path d="M48 48 C22 48, 22 86, 52 88" fill="none" stroke="url(#goldCupGrad)" stroke-width="8" stroke-linecap="round"/>
+          <path d="M112 48 C138 48, 138 86, 108 88" fill="none" stroke="url(#goldCupGrad)" stroke-width="8" stroke-linecap="round"/>
+
+          <!-- Main Trophy Cup Body -->
+          <path d="M44 40 H116 L108 86 C105 103, 93 112, 80 112 C67 112, 55 103, 52 86 Z"
+                fill="url(#goldCupGrad)" stroke="#92400E" stroke-width="2.5" stroke-linejoin="round"/>
+
+          <!-- Cup Rim Highlight -->
+          <rect x="41" y="36" width="78" height="8" rx="4" fill="url(#goldTrimGrad)" stroke="#92400E" stroke-width="2"/>
+
+          <!-- Center Star Emblem on Cup -->
+          <polygon points="80,54 85,66 98,67 88,75 91,88 80,81 69,88 72,75 62,67 75,66"
+                   fill="#FFFBEB" stroke="#D97706" stroke-width="1.5" stroke-linejoin="round"/>
+
+          <!-- Trophy Stem & Base -->
+          <path d="M72 111 H88 L92 128 H68 Z" fill="url(#goldCupGrad)" stroke="#92400E" stroke-width="2"/>
+          <rect x="54" y="127" width="52" height="8" rx="4" fill="url(#goldTrimGrad)" stroke="#92400E" stroke-width="2"/>
+          <rect x="44" y="135" width="72" height="16" rx="5" fill="url(#pedestalGrad)" stroke="#FBBF24" stroke-width="2"/>
+          <rect x="56" y="139" width="48" height="8" rx="2" fill="url(#goldTrimGrad)"/>
+
+          <!-- Sparkle Stars -->
+          <path d="M24 32 L26 38 L32 40 L26 42 L24 48 L22 42 L16 40 L22 38 Z" fill="#FFFBEB"/>
+          <path d="M136 28 L138 33 L143 35 L138 37 L136 42 L134 37 L129 35 L134 33 Z" fill="#FFFBEB"/>
+        </svg>
+      </div>
+
+      <!-- Massive Winner's Name -->
+      <h2 id="heroWinnerName" class="winner-name-hero winner-entrance">
+        CHAMPION
+      </h2>
+
+      <!-- Custom Achievement / Prize Subtitle Badge -->
+      <div id="heroSubtitleBadge"
+           class="celebration-badge badge-entrance mt-3 sm:mt-4 px-5 sm:px-8 py-2.5 sm:py-3 rounded-full border-2 shadow-2xl backdrop-blur-md"
+           style="background: var(--badge-bg); border-color: var(--badge-border); color: var(--badge-text);">
+        <span id="heroSubtitleText" class="font-display text-base sm:text-xl md:text-2xl font-bold tracking-wider uppercase drop-shadow">
+          FIRST EVER PRIZE WINNER!
+        </span>
+      </div>
+
+      <!-- Subtle Interactive Prompt (hidden when HUD is hidden) -->
+      <p id="stageTapHint" class="tap-hint-text mt-4 text-xs sm:text-sm font-medium text-white/65 tracking-wide">
+        Tap anywhere or press Spacebar for extra fireworks!
+      </p>
+    </div>
+
+    <!-- ======================================================================
+         SLEEK FLOATING CONTROL PILL & HIDE-HUD TOGGLE
+         ====================================================================== -->
+    <div id="hudWrapper" class="stage-safe-hud fixed left-1/2 -translate-x-1/2 z-40 flex items-center justify-center px-3 w-full max-w-max">
+      <!-- Expanded Control Pill -->
+      <div id="controlPill"
+           class="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-full bg-slate-950/80 hover:bg-slate-950/90 backdrop-blur-xl border border-white/20 shadow-[0_12px_40px_rgba(0,0,0,0.65)] transition-all">
+
+        <!-- Replay Fanfare -->
+        <button type="button" id="replayFanfareBtn"
+                class="touch-btn px-3.5 sm:px-4 py-2 rounded-full bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-md transition cursor-pointer"
+                title="Replay Victory Fanfare">
+          <span>🎺</span>
+          <span>Replay Fanfare</span>
+        </button>
+
+        <!-- Extra Fireworks Burst -->
+        <button type="button" id="fireworksBtn"
+                class="touch-btn px-3.5 sm:px-4 py-2 rounded-full bg-pink-500/90 hover:bg-pink-500 active:scale-95 text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-md transition cursor-pointer"
+                title="Launch Fireworks">
+          <span>🎆</span>
+          <span>Fireworks!</span>
+        </button>
+
+        <!-- Quick-Switch Winner Drawer Trigger -->
+        <button type="button" id="quickSwitchDrawerBtn"
+                class="touch-btn px-3 sm:px-3.5 py-2 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 border border-white/15 transition cursor-pointer"
+                title="Quick-Switch Kid">
+          <span>⭐</span>
+          <span class="hidden sm:inline">Kids</span>
+        </button>
+
+        <!-- Mute / Unmute -->
+        <button type="button" id="stageMuteBtn"
+                class="touch-btn rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center justify-center border border-white/15 transition cursor-pointer"
+                title="Mute / Unmute" aria-label="Mute or Unmute">
+          <span id="stageMuteIcon" class="text-base">🔊</span>
+        </button>
+
+        <!-- Fullscreen Toggle -->
+        <button type="button" id="stageFullscreenBtn"
+                class="touch-btn rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center justify-center border border-white/15 transition cursor-pointer"
+                title="Toggle Fullscreen" aria-label="Toggle Fullscreen">
+          <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/>
+          </svg>
+        </button>
+
+        <!-- Setup / Back to Controls -->
+        <button type="button" id="backToSetupBtn"
+                class="touch-btn px-3 sm:px-3.5 py-2 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-slate-200 font-semibold text-xs sm:text-sm flex items-center gap-1.5 border border-white/15 transition cursor-pointer"
+                title="Setup / Next Winner">
+          <span>⚙️</span>
+          <span class="hidden md:inline">Setup</span>
+        </button>
+
+        <!-- Hide HUD Eye Button (for clean TV Casting / Recording) -->
+        <button type="button" id="hideHudBtn"
+                class="touch-btn rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-slate-200 flex items-center justify-center border border-white/15 transition cursor-pointer"
+                title="Hide Controls for TV Casting" aria-label="Hide Controls">
+          <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Minimal Corner Button to Restore HUD when Hidden -->
+    <button type="button" id="showHudBtn"
+            class="hidden fixed bottom-4 right-4 z-40 touch-btn rounded-full bg-black/35 hover:bg-black/70 text-white/60 hover:text-white backdrop-blur-md border border-white/15 flex items-center justify-center transition cursor-pointer"
+            style="bottom: max(1rem, env(safe-area-inset-bottom)); right: max(1rem, env(safe-area-inset-right));"
+            title="Show Controls" aria-label="Show Controls">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M3 3l18 18"/>
+      </svg>
+    </button>
+
+    <!-- ======================================================================
+         QUICK-SWITCH ROSTER DRAWER (SLIDE-OVER ON STAGE)
+         ====================================================================== -->
+    <div id="quickSwitchDrawer" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div class="w-full max-w-md rounded-3xl bg-slate-900/95 border border-white/20 p-5 shadow-2xl">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-display text-lg font-bold text-white flex items-center gap-2">
+            <span>⭐ Quick-Switch Winner</span>
+          </h3>
+          <button type="button" id="closeDrawerBtn" class="touch-btn rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">
+            ✕
+          </button>
+        </div>
+        <p class="text-xs text-slate-300 mb-3">
+          Tap any saved kid below to trigger their celebration immediately:
+        </p>
+        <div id="drawerRosterList" class="flex flex-wrap gap-2 max-h-52 overflow-y-auto mb-4">
+          <!-- Populated dynamically -->
+        </div>
+        <div class="flex gap-2">
+          <button type="button" id="drawerDrumrollToggle"
+                  class="touch-btn flex-1 py-2.5 px-3 rounded-xl bg-amber-400/20 border border-amber-300/40 text-amber-200 text-xs font-bold">
+            Mode: 🥁 Drumroll First
+          </button>
+          <button type="button" id="drawerGoSetupBtn"
+                  class="touch-btn py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold">
+            Full Setup
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       APPLICATION JAVASCRIPT: AUDIO ENGINE, CANVAS PARTICLES & STATE CONTROLLER
+       ======================================================================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      /* ======================================================================
+         1. WEB AUDIO API PROCEDURAL VICTORY MUSIC & SFX ENGINE
+         ====================================================================== */
+      class VictorySoundEngine {
+        constructor() {
+          this.ctx = null;
+          this.masterGain = null;
+          this.compressor = null;
+          this.isMuted = false;
+          this.activeNodes = [];
+          this.activeTimers = [];
+        }
+
+        /**
+         * Safely initializes and unlocks the AudioContext on first user gesture
+         * (essential for iOS Safari, Android Chrome, and desktop autoplay rules).
+         */
+        unlock() {
+          try {
+            if (!this.ctx) {
+              const AudioCtx = window.AudioContext || window.webkitAudioContext;
+              if (!AudioCtx) return false;
+              this.ctx = new AudioCtx();
+
+              this.compressor = this.ctx.createDynamicsCompressor();
+              this.compressor.threshold.setValueAtTime(-14, this.ctx.currentTime);
+              this.compressor.knee.setValueAtTime(18, this.ctx.currentTime);
+              this.compressor.ratio.setValueAtTime(6, this.ctx.currentTime);
+              this.compressor.attack.setValueAtTime(0.005, this.ctx.currentTime);
+              this.compressor.release.setValueAtTime(0.2, this.ctx.currentTime);
+
+              this.masterGain = this.ctx.createGain();
+              this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.78, this.ctx.currentTime);
+
+              this.compressor.connect(this.masterGain);
+              this.masterGain.connect(this.ctx.destination);
+            }
+
+            if (this.ctx.state === 'suspended') {
+              this.ctx.resume();
+            }
+
+            // Play a 1-sample silent buffer to guarantee iOS hardware unlock
+            const buffer = this.ctx.createBuffer(1, 1, 22050);
+            const src = this.ctx.createBufferSource();
+            src.buffer = buffer;
+            src.connect(this.ctx.destination);
+            src.start(0);
+            return true;
+          } catch (err) {
+            console.warn('Web Audio unlock warning:', err);
+            return false;
+          }
+        }
+
+        setMuted(muted) {
+          this.isMuted = Boolean(muted);
+          if (this.masterGain && this.ctx) {
+            this.masterGain.gain.setTargetAtTime(this.isMuted ? 0 : 0.78, this.ctx.currentTime, 0.02);
+          }
+        }
+
+        stopAll() {
+          this.activeTimers.forEach((id) => clearTimeout(id));
+          this.activeTimers = [];
+
+          const now = this.ctx ? this.ctx.currentTime : 0;
+          this.activeNodes.forEach((node) => {
+            try {
+              if (node.stop) node.stop(now + 0.02);
+              if (node.disconnect) node.disconnect();
+            } catch (_) {
+              // Ignore already stopped oscillators
+            }
+          });
+          this.activeNodes = [];
+        }
+
+        trackNode(node) {
+          this.activeNodes.push(node);
+          return node;
+        }
+
+        /**
+         * Helper: Create filtered white noise buffer for snare drum & cymbals
+         */
+        createNoiseBuffer(duration = 1.0) {
+          const sampleRate = this.ctx.sampleRate;
+          const length = Math.floor(sampleRate * duration);
+          const buffer = this.ctx.createBuffer(1, length, sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < length; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          return buffer;
+        }
+
+        /**
+         * Synthesizes a single snare hit at exact AudioContext time
+         */
+        playSnareHit(time, volume = 0.25, duration = 0.14) {
+          if (!this.ctx) return;
+
+          // Snare wire noise
+          const noise = this.trackNode(this.ctx.createBufferSource());
+          noise.buffer = this.createNoiseBuffer(duration);
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(1850, time);
+          filter.Q.setValueAtTime(0.9, time);
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(volume, time);
+          gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.compressor);
+          noise.start(time);
+          noise.stop(time + duration);
+
+          // Snare shell body tone
+          const osc = this.trackNode(this.ctx.createOscillator());
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(195, time);
+          osc.frequency.exponentialRampToValueAtTime(95, time + 0.08);
+
+          const bodyGain = this.ctx.createGain();
+          bodyGain.gain.setValueAtTime(volume * 0.75, time);
+          bodyGain.gain.exponentialRampToValueAtTime(0.001, time + 0.09);
+
+          osc.connect(bodyGain);
+          bodyGain.connect(this.compressor);
+          osc.start(time);
+          osc.stop(time + 0.09);
+        }
+
+        /**
+         * Synthesizes a shimmering crash cymbal
+         */
+        playCymbalCrash(time, volume = 0.34, duration = 1.45) {
+          if (!this.ctx) return;
+          const noise = this.trackNode(this.ctx.createBufferSource());
+          noise.buffer = this.createNoiseBuffer(duration);
+
+          const hp = this.ctx.createBiquadFilter();
+          hp.type = 'highpass';
+          hp.frequency.setValueAtTime(4800, time);
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.001, time);
+          gain.gain.linearRampToValueAtTime(volume, time + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+          noise.connect(hp);
+          hp.connect(gain);
+          gain.connect(this.compressor);
+          noise.start(time);
+          noise.stop(time + duration);
+        }
+
+        /**
+         * Synthesizes a deep timpani / kick boom
+         */
+        playTimpani(time, freq = 98, volume = 0.45, duration = 0.55) {
+          if (!this.ctx) return;
+          const osc = this.trackNode(this.ctx.createOscillator());
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq * 1.45, time);
+          osc.frequency.exponentialRampToValueAtTime(freq * 0.65, time + duration);
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.001, time);
+          gain.gain.linearRampToValueAtTime(volume, time + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+          osc.connect(gain);
+          gain.connect(this.compressor);
+          osc.start(time);
+          osc.stop(time + duration);
+        }
+
+        /**
+         * Plays a 3.2-second suspenseful accelerating snare drumroll + rising sweep
+         */
+        playDrumroll(durationSec = 3.2) {
+          this.unlock();
+          this.stopAll();
+          if (!this.ctx) return;
+
+          const start = this.ctx.currentTime + 0.03;
+
+          // Accelerating snare hits from ~11 hits/sec up to ~32 hits/sec
+          let t = 0;
+          let step = 0.088;
+          while (t < durationSec - 0.08) {
+            const progress = t / durationSec;
+            const vol = 0.08 + progress * 0.28;
+            this.playSnareHit(start + t, vol, 0.11);
+            t += step;
+            step = Math.max(0.031, step * 0.968);
+          }
+
+          // Low timpani rumble underneath
+          for (let i = 0; i < 8; i++) {
+            const hitTime = start + i * (durationSec / 8);
+            this.playTimpani(hitTime, 75 + i * 4, 0.16 + i * 0.03, 0.45);
+          }
+
+          // Rising theatrical tension tone
+          const riser = this.trackNode(this.ctx.createOscillator());
+          riser.type = 'sawtooth';
+          riser.frequency.setValueAtTime(130.81, start); // C3
+          riser.frequency.exponentialRampToValueAtTime(523.25, start + durationSec); // C5
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(320, start);
+          filter.frequency.exponentialRampToValueAtTime(2400, start + durationSec);
+
+          const riserGain = this.ctx.createGain();
+          riserGain.gain.setValueAtTime(0.001, start);
+          riserGain.gain.linearRampToValueAtTime(0.16, start + durationSec - 0.05);
+          riserGain.gain.exponentialRampToValueAtTime(0.001, start + durationSec + 0.05);
+
+          riser.connect(filter);
+          filter.connect(riserGain);
+          riserGain.connect(this.compressor);
+          riser.start(start);
+          riser.stop(start + durationSec + 0.06);
+        }
+
+        /**
+         * Warm rich brass ensemble note (dual detuned sawtooth + brass filter envelope)
+         */
+        playBrassNote(freq, startTime, duration, volume = 0.18) {
+          if (!this.ctx) return;
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(420, startTime);
+          filter.frequency.linearRampToValueAtTime(2900, startTime + Math.min(0.09, duration * 0.35));
+          filter.frequency.setTargetAtTime(1850, startTime + 0.12, 0.15);
+
+          const env = this.ctx.createGain();
+          env.gain.setValueAtTime(0.001, startTime);
+          env.gain.linearRampToValueAtTime(volume, startTime + 0.035);
+          env.gain.setValueAtTime(volume * 0.88, startTime + Math.max(0.04, duration - 0.07));
+          env.gain.exponentialRampToValueAtTime(0.001, startTime + duration + 0.05);
+
+          filter.connect(env);
+          env.connect(this.compressor);
+
+          [-6, 6].forEach((detuneCents) => {
+            const osc = this.trackNode(this.ctx.createOscillator());
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(freq, startTime);
+            osc.detune.setValueAtTime(detuneCents, startTime);
+            osc.connect(filter);
+            osc.start(startTime);
+            osc.stop(startTime + duration + 0.06);
+          });
+        }
+
+        /**
+         * Bright arcade square/triangle note
+         */
+        playArcadeNote(freq, startTime, duration, volume = 0.16, wave = 'square') {
+          if (!this.ctx) return;
+          const osc = this.trackNode(this.ctx.createOscillator());
+          osc.type = wave;
+          osc.frequency.setValueAtTime(freq, startTime);
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(3600, startTime);
+
+          const env = this.ctx.createGain();
+          env.gain.setValueAtTime(0.001, startTime);
+          env.gain.linearRampToValueAtTime(volume, startTime + 0.012);
+          env.gain.exponentialRampToValueAtTime(0.001, startTime + duration + 0.03);
+
+          osc.connect(filter);
+          filter.connect(env);
+          env.connect(this.compressor);
+          osc.start(startTime);
+          osc.stop(startTime + duration + 0.04);
+        }
+
+        /**
+         * Grand stadium organ chord voice
+         */
+        playOrganNote(freq, startTime, duration, volume = 0.13) {
+          if (!this.ctx) return;
+          const env = this.ctx.createGain();
+          env.gain.setValueAtTime(0.001, startTime);
+          env.gain.linearRampToValueAtTime(volume, startTime + 0.04);
+          env.gain.setValueAtTime(volume * 0.9, startTime + Math.max(0.05, duration - 0.08));
+          env.gain.exponentialRampToValueAtTime(0.001, startTime + duration + 0.08);
+          env.connect(this.compressor);
+
+          // Fundamental + octave + fifth harmonic drawbars
+          [
+            { mult: 1, gain: 0.65, type: 'triangle' },
+            { mult: 2, gain: 0.45, type: 'sine' },
+            { mult: 3, gain: 0.2, type: 'sine' }
+          ].forEach((harmonic) => {
+            const osc = this.trackNode(this.ctx.createOscillator());
+            const g = this.ctx.createGain();
+            osc.type = harmonic.type;
+            osc.frequency.setValueAtTime(freq * harmonic.mult, startTime);
+            g.gain.setValueAtTime(harmonic.gain, startTime);
+            osc.connect(g);
+            g.connect(env);
+            osc.start(startTime);
+            osc.stop(startTime + duration + 0.09);
+          });
+        }
+
+        /**
+         * Plays one of the 3 full victory songs!
+         */
+        playVictorySong(style = 'brass') {
+          this.unlock();
+          this.stopAll();
+          if (!this.ctx) return;
+
+          const t0 = this.ctx.currentTime + 0.04;
+
+          // Note frequency dictionary (Hz)
+          const N = {
+            C3: 130.81, F3: 174.61, G3: 196.00, A3: 220.00, Bb3: 233.08,
+            C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
+            C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00, C6: 1046.50
+          };
+
+          if (style === 'brass') {
+            // 1) ROYAL BRASS FANFARE (Triumphant C-Major Royal Olympic-style Fanfare)
+            this.playCymbalCrash(t0, 0.36, 1.6);
+            this.playTimpani(t0, 98, 0.52, 0.7);
+
+            const melody = [
+              // Triplet pickup into soaring brass fanfare
+              { f: N.G4, s: 0.00, d: 0.14 },
+              { f: N.G4, s: 0.15, d: 0.14 },
+              { f: N.G4, s: 0.30, d: 0.14 },
+              { f: N.C5, s: 0.46, d: 0.58 },
+              { f: N.G4, s: 1.08, d: 0.26 },
+              { f: N.E5, s: 1.38, d: 0.62 },
+              // Second ascending heroic phrase
+              { f: N.C5, s: 2.06, d: 0.16 },
+              { f: N.D5, s: 2.24, d: 0.16 },
+              { f: N.E5, s: 2.42, d: 0.24 },
+              { f: N.F5, s: 2.68, d: 0.24 },
+              { f: N.G5, s: 2.94, d: 0.72 },
+              // Grand finale cadence
+              { f: N.E5, s: 3.72, d: 0.22 },
+              { f: N.G5, s: 3.96, d: 0.22 },
+              { f: N.A5, s: 4.20, d: 0.32 },
+              { f: N.G5, s: 4.55, d: 0.32 },
+              { f: N.C6, s: 4.92, d: 1.35 }
+            ];
+
+            melody.forEach((note) => {
+              this.playBrassNote(note.f, t0 + note.s, note.d, 0.21);
+            });
+
+            // Warm supporting brass harmony chords
+            const chords = [
+              { freqs: [N.C4, N.E4, N.G4], s: 0.46, d: 1.5 },
+              { freqs: [N.F4, N.A4, N.C5], s: 2.06, d: 0.85 },
+              { freqs: [N.G4, N.B4, N.D5], s: 2.94, d: 0.75 },
+              { freqs: [N.F4, N.A4, N.C5], s: 4.20, d: 0.68 },
+              { freqs: [N.E4, N.G4, N.C5], s: 4.92, d: 1.4 }
+            ];
+            chords.forEach((ch) => {
+              ch.freqs.forEach((f) => this.playBrassNote(f, t0 + ch.s, ch.d, 0.10));
+            });
+
+            // Percussion accents
+            [0.46, 1.38, 2.94, 4.20, 4.92].forEach((beat) => {
+              this.playTimpani(t0 + beat, 98, 0.42, 0.55);
+              this.playSnareHit(t0 + beat, 0.22, 0.16);
+            });
+            this.playCymbalCrash(t0 + 4.92, 0.38, 1.8);
+
+          } else if (style === 'arcade') {
+            // 2) ARCADE SUPER CHAMPION (Upbeat Power-Up Chiptune & Synth Lead)
+            this.playCymbalCrash(t0, 0.28, 1.1);
+
+            const lead = [
+              { f: N.C5, s: 0.00, d: 0.11 },
+              { f: N.E5, s: 0.12, d: 0.11 },
+              { f: N.G5, s: 0.24, d: 0.11 },
+              { f: N.C6, s: 0.36, d: 0.34 },
+              { f: N.A5, s: 0.74, d: 0.16 },
+              { f: N.G5, s: 0.92, d: 0.28 },
+              { f: N.E5, s: 1.24, d: 0.14 },
+              { f: N.F5, s: 1.40, d: 0.14 },
+              { f: N.G5, s: 1.56, d: 0.14 },
+              { f: N.A5, s: 1.72, d: 0.32 },
+              { f: N.B4, s: 2.08, d: 0.14 },
+              { f: N.D5, s: 2.24, d: 0.14 },
+              { f: N.G5, s: 2.40, d: 0.34 },
+              // Fast celebratory victory arpeggio finale
+              { f: N.C5, s: 2.82, d: 0.09 },
+              { f: N.E5, s: 2.92, d: 0.09 },
+              { f: N.G5, s: 3.02, d: 0.09 },
+              { f: N.C6, s: 3.12, d: 0.09 },
+              { f: N.G5, s: 3.22, d: 0.09 },
+              { f: N.E5, s: 3.32, d: 0.09 },
+              { f: N.C6, s: 3.44, d: 0.95 }
+            ];
+
+            lead.forEach((n) => {
+              this.playArcadeNote(n.f, t0 + n.s, n.d, 0.17, 'square');
+              this.playArcadeNote(n.f * 0.5, t0 + n.s, n.d, 0.11, 'triangle');
+            });
+
+            // Bouncy arcade bassline
+            const bass = [
+              { f: N.C3, s: 0.00, d: 0.22 },
+              { f: N.G3, s: 0.36, d: 0.22 },
+              { f: N.C3, s: 0.72, d: 0.22 },
+              { f: N.F3, s: 1.24, d: 0.22 },
+              { f: N.A3, s: 1.72, d: 0.22 },
+              { f: N.G3, s: 2.08, d: 0.22 },
+              { f: N.G3, s: 2.40, d: 0.22 },
+              { f: N.C3, s: 2.82, d: 0.25 },
+              { f: N.C3, s: 3.44, d: 0.90 }
+            ];
+            bass.forEach((b) => this.playArcadeNote(b.f, t0 + b.s, b.d, 0.22, 'triangle'));
+
+            // Snappy electronic snare/hi-hat groove
+            [0.36, 0.92, 1.56, 2.24, 2.82, 3.44].forEach((beat) => {
+              this.playSnareHit(t0 + beat, 0.18, 0.10);
+            });
+            this.playCymbalCrash(t0 + 3.44, 0.32, 1.3);
+
+          } else {
+            // 3) STADIUM ARENA ANTHEM (Grand Organ + Championship Stomp-Clap)
+            this.playCymbalCrash(t0, 0.34, 1.5);
+
+            // Classic stadium stomp-stomp-clap rhythm
+            const stomps = [0.0, 0.28, 0.92, 1.20, 1.84, 2.12, 2.76, 3.04];
+            const claps  = [0.56, 1.48, 2.40, 3.32];
+            stomps.forEach((s) => this.playTimpani(t0 + s, 82, 0.48, 0.35));
+            claps.forEach((c) => {
+              this.playSnareHit(t0 + c, 0.32, 0.16);
+              this.playTimpani(t0 + c, 120, 0.25, 0.22);
+            });
+
+            // Grand arena organ progression ("Charge!" + Victory Chords)
+            const organRiff = [
+              { f: N.G4, s: 0.00, d: 0.16 },
+              { f: N.C5, s: 0.18, d: 0.16 },
+              { f: N.E5, s: 0.36, d: 0.16 },
+              { f: N.G5, s: 0.54, d: 0.34 },
+              { f: N.E5, s: 0.92, d: 0.16 },
+              { f: N.G5, s: 1.12, d: 0.72 },
+              // Big stadium victory chords
+              { f: N.A5, s: 1.92, d: 0.42 },
+              { f: N.G5, s: 2.38, d: 0.42 },
+              { f: N.E5, s: 2.84, d: 0.42 },
+              { f: N.C6, s: 3.32, d: 1.45 }
+            ];
+            organRiff.forEach((n) => this.playOrganNote(n.f, t0 + n.s, n.d, 0.18));
+
+            const organChords = [
+              { freqs: [N.C4, N.E4, N.G4], s: 0.54, d: 1.25 },
+              { freqs: [N.F4, N.A4, N.C5], s: 1.92, d: 0.85 },
+              { freqs: [N.G4, N.B4, N.D5], s: 2.84, d: 0.45 },
+              { freqs: [N.C4, N.E4, N.G4, N.C5], s: 3.32, d: 1.45 }
+            ];
+            organChords.forEach((ch) => {
+              ch.freqs.forEach((f) => this.playOrganNote(f, t0 + ch.s, ch.d, 0.11));
+            });
+
+            this.playCymbalCrash(t0 + 3.32, 0.4, 1.7);
+          }
+        }
+
+        /**
+         * Celebratory sparkle/pop SFX when tapping the stage for extra fireworks!
+         */
+        playTapBurstSFX() {
+          this.unlock();
+          if (!this.ctx || this.isMuted) return;
+
+          const now = this.ctx.currentTime + 0.01;
+          const sparkleNotes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+          // Play a quick 3-note ascending twinkle + firework pop
+          const startIdx = Math.floor(Math.random() * 2);
+          for (let i = 0; i < 3; i++) {
+            const freq = sparkleNotes[startIdx + i];
+            const osc = this.trackNode(this.ctx.createOscillator());
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + i * 0.045);
+
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.001, now + i * 0.045);
+            gain.gain.linearRampToValueAtTime(0.14, now + i * 0.045 + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.045 + 0.25);
+
+            osc.connect(gain);
+            gain.connect(this.compressor);
+            osc.start(now + i * 0.045);
+            osc.stop(now + i * 0.045 + 0.26);
+          }
+
+          // Soft firework pop
+          this.playTimpani(now, 145 + Math.random() * 50, 0.22, 0.22);
+        }
+      }
+
+      /* ======================================================================
+         2. HIGH-DPI HTML5 CANVAS CONFETTI & FIREWORKS PARTICLE ENGINE
+         ====================================================================== */
+      class CelebrationCanvasEngine {
+        constructor(canvas) {
+          this.canvas = canvas;
+          this.ctx = canvas.getContext('2d');
+          this.width = 0;
+          this.height = 0;
+          this.dpr = 1;
+          this.particles = [];
+          this.fireworks = [];
+          this.running = false;
+          this.rafId = null;
+          this.ambientInterval = null;
+          this.theme = 'gold';
+
+          this.palettes = {
+            gold: ['#FFD700', '#FFC300', '#FFF3B0', '#FF9E00', '#FFFFFF', '#FDE047'],
+            rainbow: ['#FF4DA6', '#00E5FF', '#FFE600', '#70E000', '#FF6D00', '#B5179E', '#FFFFFF'],
+            neon: ['#00F5D4', '#FF2A85', '#FEE440', '#9B5DE5', '#00BBF9', '#FFFFFF']
+          };
+
+          this.resize = this.resize.bind(this);
+          this.loop = this.loop.bind(this);
+          window.addEventListener('resize', this.resize);
+          this.resize();
+        }
+
+        setTheme(theme) {
+          if (this.palettes[theme]) {
+            this.theme = theme;
+          }
+        }
+
+        resize() {
+          this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+          this.width = window.innerWidth;
+          this.height = window.innerHeight;
+          this.canvas.width = Math.floor(this.width * this.dpr);
+          this.canvas.height = Math.floor(this.height * this.dpr);
+          this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+        }
+
+        pickColor() {
+          const pal = this.palettes[this.theme] || this.palettes.gold;
+          return pal[Math.floor(Math.random() * pal.length)];
+        }
+
+        start() {
+          if (this.running) return;
+          this.running = true;
+          this.loop();
+
+          // Continuous celebratory rain + periodic fireworks
+          this.ambientInterval = setInterval(() => {
+            if (!this.running) return;
+            this.spawnTopConfetti(10);
+            if (Math.random() < 0.65) {
+              const rx = this.width * (0.15 + Math.random() * 0.7);
+              const ry = this.height * (0.14 + Math.random() * 0.36);
+              this.explodeFirework(rx, ry, 42);
+            }
+          }, 950);
+        }
+
+        stop() {
+          this.running = false;
+          if (this.rafId) {
+            cancelAnimationFrame(this.rafId);
+            this.rafId = null;
+          }
+          if (this.ambientInterval) {
+            clearInterval(this.ambientInterval);
+            this.ambientInterval = null;
+          }
+          this.particles = [];
+          this.fireworks = [];
+          this.ctx.clearRect(0, 0, this.width, this.height);
+        }
+
+        /**
+         * Mega opening salvo: side confetti cannons + top shower + triple fireworks!
+         */
+        triggerMegaCelebration() {
+          this.resize();
+          // Left & right stage cannon blasts
+          this.fireConfettiCannon(0, this.height * 0.85, -0.95, 75);
+          this.fireConfettiCannon(this.width, this.height * 0.85, -2.18, 75);
+          this.spawnTopConfetti(55);
+
+          // Staggered sky fireworks
+          setTimeout(() => this.explodeFirework(this.width * 0.25, this.height * 0.26, 65), 80);
+          setTimeout(() => this.explodeFirework(this.width * 0.75, this.height * 0.24, 65), 240);
+          setTimeout(() => this.explodeFirework(this.width * 0.50, this.height * 0.18, 80), 420);
+        }
+
+        /**
+         * Interactive tap burst at user's exact pointer coordinates
+         */
+        triggerInteractiveBurst(x, y) {
+          this.explodeFirework(x, y, 52);
+          // Also burst local confetti around tap point
+          for (let i = 0; i < 28; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2.5 + Math.random() * 7.5;
+            this.particles.push(this.createConfettiPiece(
+              x,
+              y,
+              Math.cos(angle) * speed,
+              Math.sin(angle) * speed - 2.5
+            ));
+          }
+        }
+
+        fireConfettiCannon(originX, originY, baseAngle, count = 60) {
+          for (let i = 0; i < count; i++) {
+            const spread = (Math.random() - 0.5) * 0.78;
+            const angle = baseAngle + spread;
+            const speed = 8 + Math.random() * 13;
+            this.particles.push(this.createConfettiPiece(
+              originX,
+              originY,
+              Math.cos(angle) * speed,
+              Math.sin(angle) * speed
+            ));
+          }
+        }
+
+        spawnTopConfetti(count = 20) {
+          for (let i = 0; i < count; i++) {
+            this.particles.push(this.createConfettiPiece(
+              Math.random() * this.width,
+              -15 - Math.random() * 40,
+              (Math.random() - 0.5) * 2.4,
+              1.6 + Math.random() * 2.8
+            ));
+          }
+        }
+
+        createConfettiPiece(x, y, vx, vy) {
+          const shapes = ['rect', 'ribbon', 'star', 'circle'];
+          return {
+            x,
+            y,
+            vx,
+            vy,
+            size: 6 + Math.random() * 7,
+            color: this.pickColor(),
+            shape: shapes[Math.floor(Math.random() * shapes.length)],
+            rotation: Math.random() * Math.PI * 2,
+            rotSpeed: (Math.random() - 0.5) * 0.18,
+            wobblePhase: Math.random() * Math.PI * 2,
+            wobbleSpeed: 0.05 + Math.random() * 0.07,
+            alpha: 1,
+            life: 0,
+            maxLife: 240 + Math.random() * 140
+          };
+        }
+
+        explodeFirework(x, y, sparkCount = 55) {
+          const primaryColor = this.pickColor();
+          const secondaryColor = this.pickColor();
+          for (let i = 0; i < sparkCount; i++) {
+            const angle = (Math.PI * 2 * i) / sparkCount + (Math.random() - 0.5) * 0.12;
+            const speed = (i % 2 === 0 ? 1 : 0.62) * (3.2 + Math.random() * 5.8);
+            this.fireworks.push({
+              x,
+              y,
+              prevX: x,
+              prevY: y,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              color: i % 3 === 0 ? secondaryColor : primaryColor,
+              size: 2.2 + Math.random() * 2.2,
+              alpha: 1,
+              decay: 0.014 + Math.random() * 0.012
+            });
+          }
+        }
+
+        drawStar(ctx, r) {
+          ctx.beginPath();
+          for (let i = 0; i < 5; i++) {
+            const outerAngle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+            const innerAngle = outerAngle + Math.PI / 5;
+            if (i === 0) ctx.moveTo(Math.cos(outerAngle) * r, Math.sin(outerAngle) * r);
+            else ctx.lineTo(Math.cos(outerAngle) * r, Math.sin(outerAngle) * r);
+            ctx.lineTo(Math.cos(innerAngle) * (r * 0.45), Math.sin(innerAngle) * (r * 0.45));
+          }
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        loop() {
+          if (!this.running) return;
+          const ctx = this.ctx;
+          ctx.clearRect(0, 0, this.width, this.height);
+
+          // Cap particle count for guaranteed 60fps on mobile devices
+          if (this.particles.length > 360) {
+            this.particles.splice(0, this.particles.length - 360);
+          }
+
+          // Update & Render Confetti
+          for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.life++;
+            p.wobblePhase += p.wobbleSpeed;
+            p.rotation += p.rotSpeed;
+
+            // Air resistance + gentle gravity
+            p.vx *= 0.985;
+            p.vy = p.vy * 0.985 + 0.085;
+            p.x += p.vx + Math.sin(p.wobblePhase) * 0.85;
+            p.y += p.vy;
+
+            if (p.life > p.maxLife * 0.75) {
+              p.alpha = Math.max(0, 1 - (p.life - p.maxLife * 0.75) / (p.maxLife * 0.25));
+            }
+
+            if (p.y > this.height + 30 || p.alpha <= 0.01) {
+              this.particles.splice(i, 1);
+              continue;
+            }
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rotation);
+            // 3D paper flutter scaling
+            const flipScale = Math.cos(p.wobblePhase * 1.4);
+            ctx.scale(1, Math.abs(flipScale) < 0.15 ? 0.15 : flipScale);
+            ctx.globalAlpha = p.alpha;
+            ctx.fillStyle = p.color;
+
+            if (p.shape === 'rect') {
+              ctx.fillRect(-p.size * 0.6, -p.size * 0.35, p.size * 1.2, p.size * 0.7);
+            } else if (p.shape === 'ribbon') {
+              ctx.fillRect(-p.size * 0.9, -p.size * 0.22, p.size * 1.8, p.size * 0.44);
+            } else if (p.shape === 'star') {
+              this.drawStar(ctx, p.size * 0.65);
+            } else {
+              ctx.beginPath();
+              ctx.arc(0, 0, p.size * 0.42, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.restore();
+          }
+
+          // Update & Render Fireworks Sparks
+          for (let i = this.fireworks.length - 1; i >= 0; i--) {
+            const f = this.fireworks[i];
+            f.prevX = f.x;
+            f.prevY = f.y;
+            f.vx *= 0.955;
+            f.vy = f.vy * 0.955 + 0.075;
+            f.x += f.vx;
+            f.y += f.vy;
+            f.alpha -= f.decay;
+
+            if (f.alpha <= 0.02) {
+              this.fireworks.splice(i, 1);
+              continue;
+            }
+
+            ctx.save();
+            ctx.globalAlpha = f.alpha;
+            ctx.strokeStyle = f.color;
+            ctx.lineWidth = f.size;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(f.prevX, f.prevY);
+            ctx.lineTo(f.x, f.y);
+            ctx.stroke();
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.arc(f.x, f.y, f.size * 0.55, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+
+          this.rafId = requestAnimationFrame(this.loop);
+        }
+      }
+
+      /* ======================================================================
+         3. APPLICATION STATE & UI CONTROLLER
+         ====================================================================== */
+      const STORAGE_KEYS = {
+        ROSTER: 'pwgc_kids_roster_v1',
+        MUSIC: 'pwgc_music_style_v1',
+        THEME: 'pwgc_visual_theme_v1',
+        SUBTITLE: 'pwgc_last_subtitle_v1'
+      };
+
+      const sound = new VictorySoundEngine();
+      const canvasEngine = new CelebrationCanvasEngine(document.getElementById('celebrationCanvas'));
+
+      const state = {
+        winnerName: '',
+        subtitle: localStorage.getItem(STORAGE_KEYS.SUBTITLE) || 'FIRST EVER PRIZE WINNER!',
+        musicStyle: localStorage.getItem(STORAGE_KEYS.MUSIC) || 'brass',
+        theme: localStorage.getItem(STORAGE_KEYS.THEME) || 'gold',
+        roster: [],
+        isCelebrating: false,
+        isDrumrolling: false,
+        hudHidden: false,
+        drawerUseDrumroll: true,
+        drumrollTimeout: null
+      };
+
+      // Load saved kids roster from localStorage safely
+      try {
+        const savedRoster = JSON.parse(localStorage.getItem(STORAGE_KEYS.ROSTER) || '[]');
+        if (Array.isArray(savedRoster)) {
+          state.roster = savedRoster.filter((n) => typeof n === 'string' && n.trim().length > 0);
+        }
+      } catch (_) {
+        state.roster = [];
+      }
+
+      // DOM Element References
+      const els = {
+        body: document.body,
+        setupView: document.getElementById('setupView'),
+        stageView: document.getElementById('stageView'),
+        statusBanner: document.getElementById('statusBanner'),
+        statusBannerText: document.getElementById('statusBannerText'),
+        winnerNameInput: document.getElementById('winnerNameInput'),
+        clearNameBtn: document.getElementById('clearNameBtn'),
+        addRosterBtn: document.getElementById('addRosterBtn'),
+        rosterChipsContainer: document.getElementById('rosterChipsContainer'),
+        rosterCountBadge: document.getElementById('rosterCountBadge'),
+        rosterEmptyHint: document.getElementById('rosterEmptyHint'),
+        subtitleInput: document.getElementById('subtitleInput'),
+        previewMusicBtn: document.getElementById('previewMusicBtn'),
+        drumrollLaunchBtn: document.getElementById('drumrollLaunchBtn'),
+        instantLaunchBtn: document.getElementById('instantLaunchBtn'),
+        setupMuteBtn: document.getElementById('setupMuteBtn'),
+        setupMuteIcon: document.getElementById('setupMuteIcon'),
+        setupFullscreenBtn: document.getElementById('setupFullscreenBtn'),
+
+        // Stage Elements
+        drumrollOverlay: document.getElementById('drumrollOverlay'),
+        drumrollProgressBar: document.getElementById('drumrollProgressBar'),
+        winnerHeroContainer: document.getElementById('winnerHeroContainer'),
+        trophyWrapper: document.getElementById('trophyWrapper'),
+        heroWinnerName: document.getElementById('heroWinnerName'),
+        heroSubtitleBadge: document.getElementById('heroSubtitleBadge'),
+        heroSubtitleText: document.getElementById('heroSubtitleText'),
+        stageTapHint: document.getElementById('stageTapHint'),
+        hudWrapper: document.getElementById('hudWrapper'),
+        replayFanfareBtn: document.getElementById('replayFanfareBtn'),
+        fireworksBtn: document.getElementById('fireworksBtn'),
+        quickSwitchDrawerBtn: document.getElementById('quickSwitchDrawerBtn'),
+        stageMuteBtn: document.getElementById('stageMuteBtn'),
+        stageMuteIcon: document.getElementById('stageMuteIcon'),
+        stageFullscreenBtn: document.getElementById('stageFullscreenBtn'),
+        backToSetupBtn: document.getElementById('backToSetupBtn'),
+        hideHudBtn: document.getElementById('hideHudBtn'),
+        showHudBtn: document.getElementById('showHudBtn'),
+
+        // Quick-Switch Drawer
+        quickSwitchDrawer: document.getElementById('quickSwitchDrawer'),
+        closeDrawerBtn: document.getElementById('closeDrawerBtn'),
+        drawerRosterList: document.getElementById('drawerRosterList'),
+        drawerDrumrollToggle: document.getElementById('drawerDrumrollToggle'),
+        drawerGoSetupBtn: document.getElementById('drawerGoSetupBtn')
+      };
+
+      /* ======================================================================
+         4. HELPER & UI SYNC FUNCTIONS
+         ====================================================================== */
+      let bannerTimer = null;
+      function showStatusMessage(msg) {
+        els.statusBannerText.textContent = msg;
+        els.statusBanner.classList.remove('hidden');
+        clearTimeout(bannerTimer);
+        bannerTimer = setTimeout(() => {
+          els.statusBanner.classList.add('hidden');
+        }, 3200);
+      }
+
+      function applyTheme(themeKey) {
+        state.theme = themeKey;
+        localStorage.setItem(STORAGE_KEYS.THEME, themeKey);
+        els.body.setAttribute('data-theme', themeKey);
+        canvasEngine.setTheme(themeKey);
+
+        document.querySelectorAll('.theme-option').forEach((btn) => {
+          const isSelected = btn.getAttribute('data-theme-choice') === themeKey;
+          const check = btn.querySelector('.theme-check');
+          if (isSelected) {
+            btn.classList.add('border-amber-400', 'bg-amber-400/20');
+            btn.classList.remove('border-white/15', 'bg-slate-950/50');
+            check.classList.remove('hidden');
+          } else {
+            btn.classList.remove('border-amber-400', 'bg-amber-400/20');
+            btn.classList.add('border-white/15', 'bg-slate-950/50');
+            check.classList.add('hidden');
+          }
+        });
+      }
+
+      function applyMusicStyle(musicKey) {
+        state.musicStyle = musicKey;
+        localStorage.setItem(STORAGE_KEYS.MUSIC, musicKey);
+
+        document.querySelectorAll('.music-option').forEach((btn) => {
+          const isSelected = btn.getAttribute('data-music') === musicKey;
+          const check = btn.querySelector('.music-check');
+          if (isSelected) {
+            btn.classList.add('border-amber-400', 'bg-amber-400/20');
+            btn.classList.remove('border-white/15', 'bg-slate-950/50');
+            check.classList.remove('hidden');
+          } else {
+            btn.classList.remove('border-amber-400', 'bg-amber-400/20');
+            btn.classList.add('border-white/15', 'bg-slate-950/50');
+            check.classList.add('hidden');
+          }
+        });
+      }
+
+      function syncMuteIcons() {
+        const icon = sound.isMuted ? '🔇' : '🔊';
+        els.setupMuteIcon.textContent = icon;
+        els.stageMuteIcon.textContent = icon;
+      }
+
+      function toggleMute() {
+        sound.unlock();
+        sound.setMuted(!sound.isMuted);
+        syncMuteIcons();
+      }
+
+      /**
+       * Cross-browser Fullscreen toggle with graceful CSS pseudo-fullscreen fallback
+       */
+      function toggleFullscreen() {
+        const docEl = document.documentElement;
+        const isNativeFs = Boolean(
+          document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          document.msFullscreenElement
+        );
+
+        if (isNativeFs) {
+          if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+          else if (document.msExitFullscreen) document.msExitFullscreen();
+          els.body.classList.remove('pseudo-fullscreen');
+          return;
+        }
+
+        if (els.body.classList.contains('pseudo-fullscreen')) {
+          els.body.classList.remove('pseudo-fullscreen');
+          canvasEngine.resize();
+          return;
+        }
+
+        const reqFs = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.msRequestFullscreen;
+        if (reqFs) {
+          try {
+            const promise = reqFs.call(docEl);
+            if (promise && typeof promise.catch === 'function') {
+              promise.catch(() => {
+                els.body.classList.add('pseudo-fullscreen');
+                canvasEngine.resize();
+              });
+            }
+          } catch (_) {
+            els.body.classList.add('pseudo-fullscreen');
+            canvasEngine.resize();
+          }
+        } else {
+          els.body.classList.add('pseudo-fullscreen');
+          canvasEngine.resize();
+        }
+      }
+
+      /* ======================================================================
+         5. SAVED ROSTER MANAGEMENT (localStorage)
+         ====================================================================== */
+      function saveRosterToStorage() {
+        localStorage.setItem(STORAGE_KEYS.ROSTER, JSON.stringify(state.roster));
+      }
+
+      function addKidToRoster(rawName) {
+        const clean = rawName.trim();
+        if (!clean) {
+          showStatusMessage('Type a name first before saving to the roster!');
+          els.winnerNameInput.focus();
+          return;
+        }
+        const exists = state.roster.some((n) => n.toLowerCase() === clean.toLowerCase());
+        if (!exists) {
+          state.roster.push(clean);
+          saveRosterToStorage();
+          renderRoster();
+          showStatusMessage(`Saved "${clean}" to your quick-pick roster!`);
+        } else {
+          showStatusMessage(`"${clean}" is already in your roster!`);
+        }
+      }
+
+      function removeKidFromRoster(nameToRemove) {
+        state.roster = state.roster.filter((n) => n !== nameToRemove);
+        saveRosterToStorage();
+        renderRoster();
+      }
+
+      function renderRoster() {
+        els.rosterChipsContainer.innerHTML = '';
+        els.drawerRosterList.innerHTML = '';
+        els.rosterCountBadge.textContent = `${state.roster.length} saved`;
+
+        if (state.roster.length === 0) {
+          els.rosterEmptyHint.classList.remove('hidden');
+        } else {
+          els.rosterEmptyHint.classList.add('hidden');
+        }
+
+        state.roster.forEach((kidName) => {
+          // 1) Setup Screen Chip: Tap name to select & launch immediately, or × to delete
+          const chip = document.createElement('div');
+          chip.className = 'inline-flex items-center rounded-2xl bg-white/10 border border-white/20 overflow-hidden shadow-sm';
+
+          const launchPart = document.createElement('button');
+          launchPart.type = 'button';
+          launchPart.className = 'min-h-[44px] pl-3.5 pr-2.5 py-1.5 text-sm font-bold text-white hover:bg-amber-400/25 active:bg-amber-400/40 flex items-center gap-1.5 transition cursor-pointer';
+          launchPart.innerHTML = `<span>🎉</span><span>${escapeHtml(kidName)}</span>`;
+          launchPart.title = `Celebrate ${kidName}!`;
+          launchPart.addEventListener('click', () => {
+            els.winnerNameInput.value = kidName;
+            syncClearButton();
+            launchCelebration({ useDrumroll: true });
+          });
+
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.className = 'min-h-[44px] min-w-[36px] px-2 text-slate-400 hover:text-rose-300 hover:bg-rose-500/20 text-xs font-bold flex items-center justify-center transition cursor-pointer';
+          removeBtn.textContent = '✕';
+          removeBtn.title = `Remove ${kidName}`;
+          removeBtn.setAttribute('aria-label', `Remove ${kidName}`);
+          removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeKidFromRoster(kidName);
+          });
+
+          chip.appendChild(launchPart);
+          chip.appendChild(removeBtn);
+          els.rosterChipsContainer.appendChild(chip);
+
+          // 2) Stage Quick-Switch Drawer Button
+          const drawerBtn = document.createElement('button');
+          drawerBtn.type = 'button';
+          drawerBtn.className = 'touch-btn px-4 py-2 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-slate-950 active:scale-95 border border-white/20 text-sm font-bold text-white transition flex items-center gap-1.5 cursor-pointer';
+          drawerBtn.innerHTML = `<span>🏆</span><span>${escapeHtml(kidName)}</span>`;
+          drawerBtn.addEventListener('click', () => {
+            els.winnerNameInput.value = kidName;
+            syncClearButton();
+            closeQuickSwitchDrawer();
+            launchCelebration({ useDrumroll: state.drawerUseDrumroll });
+          });
+          els.drawerRosterList.appendChild(drawerBtn);
+        });
+
+        if (state.roster.length === 0) {
+          els.drawerRosterList.innerHTML = '<p class="text-xs text-slate-400">No saved kids yet. Tap "Full Setup" to type any name or save kids to your roster!</p>';
+        }
+      }
+
+      function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      function syncClearButton() {
+        if (els.winnerNameInput.value.trim().length > 0) {
+          els.clearNameBtn.classList.remove('hidden');
+        } else {
+          els.clearNameBtn.classList.add('hidden');
+        }
+      }
+
+      /* ======================================================================
+         6. CELEBRATION LAUNCH & STAGE FLOW
+         ====================================================================== */
+      function retriggerEntranceAnimations() {
+        // Restart CSS keyframe animations cleanly on replay or new winner
+        els.heroWinnerName.classList.remove('winner-entrance');
+        els.trophyWrapper.classList.remove('trophy-float');
+        els.heroSubtitleBadge.classList.remove('badge-entrance');
+
+        void els.heroWinnerName.offsetWidth; // Force reflow
+
+        els.heroWinnerName.classList.add('winner-entrance');
+        els.trophyWrapper.classList.add('trophy-float');
+        els.heroSubtitleBadge.classList.add('badge-entrance');
+      }
+
+      function revealWinnerNow(winnerName, subtitle) {
+        state.isDrumrolling = false;
+        state.isCelebrating = true;
+
+        els.stageView.classList.remove('drumroll-active');
+        els.drumrollOverlay.classList.add('hidden');
+        els.winnerHeroContainer.classList.remove('hidden');
+
+        els.heroWinnerName.textContent = winnerName;
+        els.heroSubtitleText.textContent = subtitle;
+
+        retriggerEntranceAnimations();
+        sound.playVictorySong(state.musicStyle);
+        canvasEngine.start();
+        canvasEngine.triggerMegaCelebration();
+      }
+
+      function launchCelebration({ useDrumroll = true } = {}) {
+        sound.unlock();
+
+        const rawName = els.winnerNameInput.value.trim();
+        if (!rawName) {
+          showStatusMessage('Please type a winner\'s name first!');
+          els.winnerNameInput.classList.remove('shake-input');
+          void els.winnerNameInput.offsetWidth;
+          els.winnerNameInput.classList.add('shake-input');
+          els.winnerNameInput.focus();
+          return;
+        }
+
+        const rawSubtitle = els.subtitleInput.value.trim() || 'FIRST EVER PRIZE WINNER!';
+        state.winnerName = rawName;
+        state.subtitle = rawSubtitle;
+        localStorage.setItem(STORAGE_KEYS.SUBTITLE, rawSubtitle);
+
+        // Clear any pending drumroll timer
+        if (state.drumrollTimeout) {
+          clearTimeout(state.drumrollTimeout);
+          state.drumrollTimeout = null;
+        }
+
+        // Switch views
+        els.setupView.classList.add('hidden');
+        els.stageView.classList.remove('hidden');
+        canvasEngine.resize();
+
+        if (useDrumroll) {
+          state.isDrumrolling = true;
+          state.isCelebrating = false;
+          canvasEngine.stop();
+
+          els.winnerHeroContainer.classList.add('hidden');
+          els.drumrollOverlay.classList.remove('hidden');
+          els.stageView.classList.add('drumroll-active');
+
+          // Animate progress bar smoothly across 3.2 seconds
+          els.drumrollProgressBar.style.transition = 'none';
+          els.drumrollProgressBar.style.width = '0%';
+          void els.drumrollProgressBar.offsetWidth;
+          els.drumrollProgressBar.style.transition = 'width 3.2s cubic-bezier(0.25, 0.85, 0.45, 1)';
+          els.drumrollProgressBar.style.width = '100%';
+
+          sound.playDrumroll(3.2);
+
+          state.drumrollTimeout = setTimeout(() => {
+            revealWinnerNow(rawName, rawSubtitle);
+          }, 3200);
+        } else {
+          revealWinnerNow(rawName, rawSubtitle);
+        }
+      }
+
+      function returnToSetup() {
+        if (state.drumrollTimeout) {
+          clearTimeout(state.drumrollTimeout);
+          state.drumrollTimeout = null;
+        }
+        state.isDrumrolling = false;
+        state.isCelebrating = false;
+
+        sound.stopAll();
+        canvasEngine.stop();
+        setHudVisibility(true);
+
+        els.stageView.classList.add('hidden');
+        els.stageView.classList.remove('drumroll-active');
+        els.drumrollOverlay.classList.add('hidden');
+        els.setupView.classList.remove('hidden');
+      }
+
+      function setHudVisibility(visible) {
+        state.hudHidden = !visible;
+        if (visible) {
+          els.hudWrapper.classList.remove('hidden');
+          els.showHudBtn.classList.add('hidden');
+          els.stageTapHint.classList.remove('opacity-0');
+        } else {
+          els.hudWrapper.classList.add('hidden');
+          els.showHudBtn.classList.remove('hidden');
+          els.stageTapHint.classList.add('opacity-0');
+        }
+      }
+
+      function openQuickSwitchDrawer() {
+        renderRoster();
+        els.quickSwitchDrawer.classList.remove('hidden');
+      }
+
+      function closeQuickSwitchDrawer() {
+        els.quickSwitchDrawer.classList.add('hidden');
+      }
+
+      /* ======================================================================
+         7. EVENT LISTENERS (POINTER, TOUCH, KEYBOARD & GLOBAL AUDIO UNLOCK)
+         ====================================================================== */
+      // Unlock Web Audio on the very first user interaction anywhere
+      const globalUnlock = () => {
+        sound.unlock();
+      };
+      window.addEventListener('pointerdown', globalUnlock, { once: true });
+      window.addEventListener('keydown', globalUnlock, { once: true });
+
+      // Initialize UI from persisted state
+      els.subtitleInput.value = state.subtitle;
+      applyTheme(state.theme);
+      applyMusicStyle(state.musicStyle);
+      renderRoster();
+
+      // Winner Name Input & Clear Button
+      els.winnerNameInput.addEventListener('input', syncClearButton);
+      els.winnerNameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          launchCelebration({ useDrumroll: true });
+        }
+      });
+
+      els.clearNameBtn.addEventListener('click', () => {
+        els.winnerNameInput.value = '';
+        syncClearButton();
+        els.winnerNameInput.focus();
+      });
+
+      // Save to Roster Button
+      els.addRosterBtn.addEventListener('click', () => {
+        addKidToRoster(els.winnerNameInput.value);
+      });
+
+      // Subtitle Quick Preset Pills
+      document.querySelectorAll('.subtitle-preset-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const preset = btn.getAttribute('data-preset');
+          els.subtitleInput.value = preset;
+          localStorage.setItem(STORAGE_KEYS.SUBTITLE, preset);
+        });
+      });
+
+      // Music Style Selection & Preview
+      document.querySelectorAll('.music-option').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const style = btn.getAttribute('data-music');
+          applyMusicStyle(style);
+        });
+      });
+
+      els.previewMusicBtn.addEventListener('click', () => {
+        sound.playVictorySong(state.musicStyle);
+      });
+
+      // Visual Theme Selection
+      document.querySelectorAll('.theme-option').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const chosen = btn.getAttribute('data-theme-choice');
+          applyTheme(chosen);
+        });
+      });
+
+      // Launch Buttons
+      els.drumrollLaunchBtn.addEventListener('click', () => {
+        launchCelebration({ useDrumroll: true });
+      });
+
+      els.instantLaunchBtn.addEventListener('click', () => {
+        launchCelebration({ useDrumroll: false });
+      });
+
+      // Mute & Fullscreen Buttons (Setup + Stage)
+      els.setupMuteBtn.addEventListener('click', toggleMute);
+      els.stageMuteBtn.addEventListener('click', toggleMute);
+      els.setupFullscreenBtn.addEventListener('click', toggleFullscreen);
+      els.stageFullscreenBtn.addEventListener('click', toggleFullscreen);
+
+      // Stage Floating Control Pill Actions
+      els.replayFanfareBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        retriggerEntranceAnimations();
+        sound.playVictorySong(state.musicStyle);
+        canvasEngine.triggerMegaCelebration();
+      });
+
+      els.fireworksBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sound.playTapBurstSFX();
+        canvasEngine.triggerMegaCelebration();
+      });
+
+      els.backToSetupBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        returnToSetup();
+      });
+
+      els.hideHudBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setHudVisibility(false);
+      });
+
+      els.showHudBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setHudVisibility(true);
+      });
+
+      // Quick-Switch Drawer Controls
+      els.quickSwitchDrawerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openQuickSwitchDrawer();
+      });
+
+      els.closeDrawerBtn.addEventListener('click', closeQuickSwitchDrawer);
+      els.quickSwitchDrawer.addEventListener('click', (e) => {
+        if (e.target === els.quickSwitchDrawer) closeQuickSwitchDrawer();
+      });
+
+      els.drawerDrumrollToggle.addEventListener('click', () => {
+        state.drawerUseDrumroll = !state.drawerUseDrumroll;
+        els.drawerDrumrollToggle.textContent = state.drawerUseDrumroll
+          ? 'Mode: 🥁 Drumroll First'
+          : 'Mode: 🎉 Instant Reveal';
+      });
+
+      els.drawerGoSetupBtn.addEventListener('click', () => {
+        closeQuickSwitchDrawer();
+        returnToSetup();
+      });
+
+      // Interactive Tap/Click Anywhere on Stage for Extra Fireworks & Confetti!
+      els.stageView.addEventListener('pointerdown', (e) => {
+        // Ignore clicks on buttons, HUD, or Quick-Switch Drawer
+        if (
+          e.target.closest('button') ||
+          e.target.closest('#hudWrapper') ||
+          e.target.closest('#quickSwitchDrawer')
+        ) {
+          return;
+        }
+        if (!state.isCelebrating) return;
+
+        sound.playTapBurstSFX();
+        canvasEngine.triggerInteractiveBurst(e.clientX, e.clientY);
+      });
+
+      // Spacebar Shortcut on Stage for Extra Fireworks & Confetti
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && state.isCelebrating && els.quickSwitchDrawer.classList.contains('hidden')) {
+          e.preventDefault();
+          sound.playTapBurstSFX();
+          const rx = window.innerWidth * (0.2 + Math.random() * 0.6);
+          const ry = window.innerHeight * (0.18 + Math.random() * 0.42);
+          canvasEngine.triggerInteractiveBurst(rx, ry);
+        } else if (e.key === 'Escape' && !els.quickSwitchDrawer.classList.contains('hidden')) {
+          closeQuickSwitchDrawer();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
